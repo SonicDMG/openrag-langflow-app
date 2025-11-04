@@ -8,7 +8,10 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.live import Live
 from rich.panel import Panel
-from utils import make_links_clickable
+from utils import (
+    make_links_clickable,
+    highlight_search_fields
+)
 
 load_dotenv()
 
@@ -70,7 +73,8 @@ def process_question(client, model_id, user_input, console, previous_response_id
             if text:
                 accumulated += text
                 # Convert markdown links to clickable Rich links, then render markdown
-                clickable_markdown = make_links_clickable(accumulated)
+                styled_text = highlight_search_fields(accumulated)
+                clickable_markdown = make_links_clickable(styled_text)
                 live.update(Markdown(clickable_markdown))
 
             if getattr(chunk, "status", None) == "completed":
@@ -116,7 +120,8 @@ def main():
     while True:
         try:
             # Get user input
-            user_input = input("You: ").strip()
+            user_input = console.input("[bold cyan]You:[/bold cyan] ").strip()
+            console.print()
 
             # Check for exit commands
             if user_input.lower() in ['exit', 'quit', 'q']:
