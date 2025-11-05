@@ -13,3 +13,7 @@ dependencies = [
     "python-dotenv>=1.2.0",
     "rich>=14.0.0",
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+only-include = ["main.py", "utils.py", "README.md"]
