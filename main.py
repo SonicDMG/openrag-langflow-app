@@ -8,6 +8,7 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.live import Live
 from rich.panel import Panel
+from rich.spinner import Spinner
 from utils import (
     make_links_clickable,
     highlight_search_fields
@@ -46,12 +47,15 @@ def process_question(client, model_id, user_input, console, previous_response_id
 
     # Send request and iterate the streaming response
     stream = client.responses.create(**request_params)
+    spinner = Spinner("dots", text="[dim]RAGging...[/dim]")
 
     accumulated = ""
     response_id = None
 
     # Use Live to render markdown as it streams
     with Live(Markdown(""), console=console, refresh_per_second=10) as live:
+        live.update(spinner)
+
         for chunk in stream:
             # Extract response ID from chunk (top-level id field)
             if response_id is None:
@@ -102,7 +106,7 @@ def main():
         api_key="dummy-api-key" # Required by OpenAI SDK but not used by Langflow
     )
 
-    model_id = "b513f6bb-7c10-485e-8edf-ed0fe373a632"
+    model_id = "e9b4fdd2-a719-46d1-ad55-5e8f38a224a3"
 
     # Track the previous response ID to maintain conversation continuity
     previous_response_id = None
