@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "openrag-langflow-app"
 version = "0.1.0"
@@ -5,5 +9,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "rich>=13.0.0",
+    "openai>=2.7.0",
+    "python-dotenv>=1.2.0",
+    "rich>=14.0.0",
 ]

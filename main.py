@@ -1,160 +1,117 @@
 """
-This script is used to test the Langflow API.
+OpenRAG Langflow App - OpenAI Responses API Integration
+
+This module demonstrates the core usage of the OpenAI Responses API to connect
+to Langflow and stream responses. The Responses API is the primary mechanism
+for communicating with Langflow flows.
 """
 import os
 from openai import OpenAI
 from dotenv import load_dotenv
-from rich.console import Console
-from rich.markdown import Markdown
-from rich.live import Live
-from rich.panel import Panel
-from rich.spinner import Spinner
 from utils import (
-    make_links_clickable,
-    highlight_search_fields
+    render_streaming_response,
+    run_chat_session
 )
 
+# Load environment variables for Langflow configuration
 load_dotenv()
 
+# Langflow configuration - part of the OpenAI Responses API setup
 LANGFLOW_SERVER_URL = os.getenv("LANGFLOW_SERVER_URL")
 LANGFLOW_API_KEY = os.getenv("LANGFLOW_API_KEY")
+MODEL_ID = "e9b4fdd2-a719-46d1-ad55-5e8f38a224a3"
 
 
-def process_question(client, model_id, user_input, console, previous_response_id=None):
+def stream_response(client: OpenAI, model_id: str, user_input: str,
+                   previous_response_id: str | None = None, on_chunk=None):
     """
-    Process a single question and stream the response.
+    Stream a response from Langflow using the OpenAI Responses API.
+    
+    This is the core Responses API usage:
+    - client.responses.create() with streaming enabled
+    - Iterating through response chunks
+    - Extracting response IDs for conversation continuity
     
     Args:
         client: OpenAI client configured for Langflow
         model_id: The Langflow model/flow ID
         user_input: The user's question
-        console: Rich console for output
         previous_response_id: Optional response ID from previous message to continue conversation
+        on_chunk: Optional callback function(text) called for each chunk of text
         
     Returns:
-        str: The response ID from this request, or None if not available
+        tuple: (response_id, accumulated_text)
     """
-    # Build request parameters
+    # Build request parameters for the Responses API
     request_params = {
         "model": model_id,
         "input": user_input,
         "stream": True,
     }
 
-    # Add previous_response_id if provided
+    # Add previous_response_id if provided (for conversation continuity)
     if previous_response_id:
         request_params["extra_body"] = {"previous_response_id": previous_response_id}
 
-    # Send request and iterate the streaming response
+    # Use the OpenAI Responses API to stream the response
     stream = client.responses.create(**request_params)
-    spinner = Spinner("dots", text="[dim]RAGging...[/dim]")
 
     accumulated = ""
     response_id = None
 
-    # Use Live to render markdown as it streams
-    with Live(Markdown(""), console=console, refresh_per_second=10) as live:
-        live.update(spinner)
+    # Process the streaming response chunks
+    for chunk in stream:
+        # Extract response ID from chunk (for conversation continuity)
+        if response_id is None:
+            response_id = getattr(chunk, "id", None)
 
-        for chunk in stream:
-            # Extract response ID from chunk (top-level id field)
+        # Extract content delta from chunk
+        delta = getattr(chunk, "delta", None)
+        if delta is None:
+            continue
+
+        # Handle both dict and string formats
+        if isinstance(delta, dict):
+            text = delta.get("content", "")
+        elif isinstance(delta, str):
+            text = delta
+        else:
+            text = ""
+
+        if text:
+            accumulated += text
+            # Call the callback if provided (for real-time rendering)
+            if on_chunk:
+                on_chunk(accumulated)
+
+        # Check for completion status
+        if getattr(chunk, "status", None) == "completed":
             if response_id is None:
                 response_id = getattr(chunk, "id", None)
+            break
 
-            # chunk is something like { "delta": { "content": "..." }, ... }
-            delta = getattr(chunk, "delta", None)
-            if delta is None:
-                continue
-
-            # Handle both dict and string formats
-            if isinstance(delta, dict):
-                text = delta.get("content", "")
-            elif isinstance(delta, str):
-                text = delta
-            else:
-                text = ""
-
-            if text:
-                accumulated += text
-                # Convert markdown links to clickable Rich links, then render markdown
-                styled_text = highlight_search_fields(accumulated)
-                clickable_markdown = make_links_clickable(styled_text)
-                live.update(Markdown(clickable_markdown))
-
-            if getattr(chunk, "status", None) == "completed":
-                # Ensure we have the response ID from completed chunk
-                if response_id is None:
-                    response_id = getattr(chunk, "id", None)
-                break
-
-    # Print a blank line after response for readability
-    console.print()
-
-    return response_id
+    return response_id, accumulated
 
 
 def main():
-    """ 
-    Run a chat session that allows multiple questions in a single session.
     """
-    console = Console()
-
-    # Initialize the OpenAI client
+    Main entry point demonstrating the OpenAI Responses API integration with Langflow.
+    
+    This showcases the core connection pattern:
+    1. Configure Langflow server URL, API key, and model ID
+    2. Initialize OpenAI client configured for Langflow
+    3. Use client.responses.create() to stream responses
+    4. Handle conversation continuity via response IDs
+    """
+    # Initialize the OpenAI client for Langflow
     client = OpenAI(
         base_url=f"{LANGFLOW_SERVER_URL}/api/v1/",
         default_headers={"x-api-key": LANGFLOW_API_KEY},
-        api_key="dummy-api-key" # Required by OpenAI SDK but not used by Langflow
+        api_key="dummy-api-key"  # Required by OpenAI SDK but not used by Langflow
     )
 
-    model_id = "e9b4fdd2-a719-46d1-ad55-5e8f38a224a3"
-
-    # Track the previous response ID to maintain conversation continuity
-    previous_response_id = None
-
-    # Display welcome message
-    console.print(Panel.fit(
-        "[bold green]Chat Session Started[/bold green]\n\n"
-        "[dim]Type 'exit', 'quit', or 'q' to end the session[/dim]",
-        title="OpenRAG Langflow Chat",
-        border_style="green"
-    ))
-    console.print()
-
-    # Main chat loop
-    while True:
-        try:
-            # Get user input
-            user_input = console.input("[bold cyan]You:[/bold cyan] ").strip()
-            console.print()
-
-            # Check for exit commands
-            if user_input.lower() in ['exit', 'quit', 'q']:
-                console.print("\n[dim]Ending chat session. Goodbye![/dim]")
-                break
-
-            # Skip empty inputs
-            if not user_input:
-                continue
-
-            # Process the question and get the response ID for the next request
-            response_id = process_question(
-                client, model_id, user_input, console, previous_response_id
-            )
-
-            # Update previous_response_id for the next message
-            if response_id:
-                previous_response_id = response_id
-
-        except KeyboardInterrupt:
-            console.print("\n\n[dim]Session interrupted. Goodbye![/dim]")
-            break
-        except (ConnectionError, TimeoutError) as e:
-            console.print(f"\n[bold red]Connection Error:[/bold red] {str(e)}\n")
-            console.print("[dim]Please check your connection and try again.[/dim]\n")
-        except Exception as e:  # noqa: BLE001
-            # Catch-all for unexpected errors to keep the chat session alive
-            console.print(f"\n[bold red]Error:[/bold red] {str(e)}\n")
-            console.print("[dim]Please try again or type 'exit' to quit.[/dim]\n")
+    # Run the interactive chat session
+    run_chat_session(client, MODEL_ID, stream_response, render_streaming_response)
 
 
 if __name__ == "__main__":
