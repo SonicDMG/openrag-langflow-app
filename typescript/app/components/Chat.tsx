@@ -200,12 +200,27 @@ function getMarkdownComponents() {
   } as Parameters<typeof ReactMarkdown>[0]['components'];
 }
 
+/**
+ * Rotating dots loading animation (like Python's Rich Spinner)
+ */
+function DotsAnimation() {
+  return (
+    <div className="flex items-center gap-1">
+      <span className="dot-animation dot-1"></span>
+      <span className="dot-animation dot-2"></span>
+      <span className="dot-animation dot-3"></span>
+    </div>
+  );
+}
+
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [currentResponse, setCurrentResponse] = useState('');
   const [currentResponseId, setCurrentResponseId] = useState<string | null>(null);
+  const [lastDataTime, setLastDataTime] = useState<number | null>(null);
+  const [isWaitingForData, setIsWaitingForData] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Store previous response ID in a ref to maintain conversation continuity
@@ -219,6 +234,22 @@ export default function Chat() {
     scrollToBottom();
   }, [messages, currentResponse]);
 
+  // Track if we're waiting for data (no data received for 30+ seconds)
+  useEffect(() => {
+    if (!isLoading || !lastDataTime) {
+      setIsWaitingForData(false);
+      return;
+    }
+
+    const checkInterval = setInterval(() => {
+      const timeSinceLastData = Date.now() - lastDataTime;
+      // Show "still processing" if no data for 30 seconds
+      setIsWaitingForData(timeSinceLastData > 30 * 1000);
+    }, 1000);
+
+    return () => clearInterval(checkInterval);
+  }, [isLoading, lastDataTime]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -229,6 +260,7 @@ export default function Chat() {
     setIsLoading(true);
     setCurrentResponse('');
     setCurrentResponseId(null);
+    setLastDataTime(Date.now());
 
     // Add user message to chat
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
@@ -236,17 +268,33 @@ export default function Chat() {
     // Get the previous response ID from the ref (maintains conversation continuity)
     const previousResponseId = previousResponseIdRef.current;
 
+    // Timeout configuration: 10 minutes for long-running RAG operations
+    const REQUEST_TIMEOUT = 10 * 60 * 1000; // 10 minutes
+    const STREAM_TIMEOUT = 60 * 1000; // 1 minute without data = timeout
+
+    // Create AbortController for request timeout
+    const abortController = new AbortController();
+    let requestTimeoutId: NodeJS.Timeout | null = setTimeout(() => {
+      abortController.abort();
+    }, REQUEST_TIMEOUT);
+
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        signal: abortController.signal,
         body: JSON.stringify({
           message: userMessage,
           previousResponseId,
         }),
       });
+
+      if (requestTimeoutId) {
+        clearTimeout(requestTimeoutId);
+        requestTimeoutId = null;
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -262,34 +310,65 @@ export default function Chat() {
       let buffer = '';
       let accumulatedResponse = '';
       let finalResponseId: string | null = null;
+      let streamTimeoutId: NodeJS.Timeout | null = null;
+      let streamTimeoutError: Error | null = null;
 
-      while (true) {
-        const { done, value } = await reader.read();
+      // Function to reset stream timeout
+      const resetStreamTimeout = () => {
+        if (streamTimeoutId) {
+          clearTimeout(streamTimeoutId);
+        }
+        streamTimeoutId = setTimeout(() => {
+          reader.cancel();
+          streamTimeoutError = new Error('Stream timeout: No data received for 60 seconds. The request may still be processing on the server.');
+        }, STREAM_TIMEOUT);
+      };
 
-        if (done) break;
+      // Start the stream timeout
+      resetStreamTimeout();
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n\n');
-        buffer = lines.pop() || '';
+      try {
+        while (true) {
+          // Check for stream timeout error
+          if (streamTimeoutError) {
+            throw streamTimeoutError;
+          }
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
+          const { done, value } = await reader.read();
 
-              if (data.type === 'chunk') {
-                accumulatedResponse += data.content;
-                setCurrentResponse(accumulatedResponse);
-              } else if (data.type === 'done') {
-                finalResponseId = data.responseId || null;
-                setCurrentResponseId(finalResponseId);
-              } else if (data.type === 'error') {
-                throw new Error(data.error);
+          if (done) break;
+
+          // Reset timeout on receiving data
+          resetStreamTimeout();
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+
+                if (data.type === 'chunk') {
+                  accumulatedResponse += data.content;
+                  setCurrentResponse(accumulatedResponse);
+                  setLastDataTime(Date.now());
+                } else if (data.type === 'done') {
+                  finalResponseId = data.responseId || null;
+                  setCurrentResponseId(finalResponseId);
+                } else if (data.type === 'error') {
+                  throw new Error(data.error);
+                }
+              } catch (parseError) {
+                console.error('Error parsing SSE data:', parseError);
               }
-            } catch (parseError) {
-              console.error('Error parsing SSE data:', parseError);
             }
           }
+        }
+      } finally {
+        if (streamTimeoutId) {
+          clearTimeout(streamTimeoutId);
         }
       }
 
@@ -310,17 +389,35 @@ export default function Chat() {
 
       setCurrentResponse('');
       setCurrentResponseId(null);
+      setLastDataTime(null);
     } catch (error) {
       console.error('Chat error:', error);
+      
+      // Handle different error types
+      let errorMessage = 'Failed to get response';
+      if (error instanceof Error) {
+        if (error.name === 'AbortError' || error.message.includes('aborted')) {
+          errorMessage = 'Request timeout: The request took longer than 10 minutes. This may be a long-running operation - please try again or check the server.';
+        } else if (error.message.includes('Stream timeout')) {
+          errorMessage = error.message;
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: `Error: ${error instanceof Error ? error.message : 'Failed to get response'}`,
+          content: `Error: ${errorMessage}`,
         },
       ]);
     } finally {
+      if (requestTimeoutId) {
+        clearTimeout(requestTimeoutId);
+      }
       setIsLoading(false);
+      setLastDataTime(null);
     }
   };
 
@@ -406,6 +503,11 @@ export default function Chat() {
                   </ReactMarkdown>
                 </div>
                 <span className="animate-pulse inline-block ml-1">▊</span>
+                {isWaitingForData && (
+                  <div className="mt-2 text-xs text-zinc-500 dark:text-zinc-400 italic">
+                    Still processing... (no new data for 30+ seconds)
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -414,9 +516,14 @@ export default function Chat() {
             <div className="flex justify-start">
               <div className="max-w-[85%] sm:max-w-[75%] rounded-xl px-4 py-3 bg-zinc-100 dark:bg-zinc-900 text-black dark:text-zinc-50">
                 <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
-                  <span className="animate-spin">⏳</span>
+                  <DotsAnimation />
                   <span>RAGging...</span>
                 </div>
+                {isWaitingForData && (
+                  <div className="mt-2 text-xs text-zinc-500 dark:text-zinc-400 italic">
+                    Still processing... (no new data for 30+ seconds)
+                  </div>
+                )}
               </div>
             </div>
           )}
