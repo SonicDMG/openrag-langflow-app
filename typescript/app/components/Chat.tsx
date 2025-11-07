@@ -10,6 +10,40 @@ interface Message {
   responseId?: string;
 }
 
+/**
+ * Format search query JSON objects to make them stand out.
+ * Similar to the Python highlight_search_fields function.
+ * Finds JSON objects with fields like query, search_query, search_mode, etc.
+ * and wraps them in markdown code blocks.
+ */
+function formatSearchQueryJson(text: string): string {
+  // Pattern to match JSON objects containing search-related fields
+  // Matches: {"query": "...", "search_mode": "..."} or similar patterns
+  const fieldPattern = /(?:,\s*)?\{[^}]*"(?:input_value|search_query|search_mode|search_[^"]+|query)"[^}]*\}/g;
+
+  return text.replace(fieldPattern, (match) => {
+    // Remove leading comma and whitespace if present
+    const jsonObj = match.replace(/^,\s*/, '');
+    // Wrap in markdown code block with json language tag
+    return `\n\`\`\`json\n${jsonObj}\n\`\`\`\n\n`;
+  });
+}
+
+/**
+ * Highlight JSON keys in search query blocks by wrapping them in styled spans.
+ * Keys like "query", "search_query", "search_mode" will be colored.
+ */
+function highlightJsonKeys(jsonString: string): string {
+  // Pattern to match JSON keys (quoted strings followed by colon)
+  // Matches: "key": or "key":
+  const keyPattern = /"((?:input_value|search_query|search_mode|search_[^"]+|query))":/g;
+  
+  return jsonString.replace(keyPattern, (match, key) => {
+    // Wrap the key in a span with styling
+    return `"<span class="text-blue-600 dark:text-blue-400 font-semibold">${key}</span>":`;
+  });
+}
+
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -151,10 +185,10 @@ export default function Chat() {
       <div className="border-b border-zinc-200 dark:border-zinc-800 px-4 sm:px-6 py-4 shrink-0">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">
-            OpenRAG Langflow Chat
+            OpenRAG Next.js Chat
           </h1>
           <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-            Streaming chat interface powered by Langflow
+            Streaming chat interface powered by OpenRAG
           </p>
         </div>
       </div>
@@ -201,6 +235,27 @@ export default function Chat() {
                               </code>
                             );
                           }
+                          
+                          // Check if this is a JSON block with search query fields
+                          const content = String(children);
+                          const isSearchQueryJson = 
+                            className?.includes('language-json') && 
+                            /"(?:input_value|search_query|search_mode|search_[^"]+|query)"/.test(content);
+                          
+                          if (isSearchQueryJson) {
+                            // Parse and highlight JSON keys
+                            const jsonString = String(children).trim();
+                            const highlightedJson = highlightJsonKeys(jsonString);
+                            
+                            return (
+                              <code 
+                                className="block bg-blue-50 dark:bg-blue-950/30 border-2 border-blue-400 dark:border-blue-500 p-3 rounded-lg text-sm font-mono overflow-x-auto mb-3 last:mb-0 shadow-sm" 
+                                {...props}
+                                dangerouslySetInnerHTML={{ __html: highlightedJson }}
+                              />
+                            );
+                          }
+                          
                           return (
                             <code className="block bg-zinc-200 dark:bg-zinc-800 p-3 rounded-lg text-sm font-mono overflow-x-auto mb-3 last:mb-0" {...props}>
                               {children}
@@ -245,7 +300,7 @@ export default function Chat() {
                         ),
                       }}
                     >
-                      {message.content}
+                      {formatSearchQueryJson(message.content)}
                     </ReactMarkdown>
                   </div>
                 ) : (
@@ -276,6 +331,27 @@ export default function Chat() {
                             </code>
                           );
                         }
+                        
+                        // Check if this is a JSON block with search query fields
+                        const content = String(children);
+                        const isSearchQueryJson = 
+                          className?.includes('language-json') && 
+                          /"(?:input_value|search_query|search_mode|search_[^"]+|query)"/.test(content);
+                        
+                        if (isSearchQueryJson) {
+                          // Parse and highlight JSON keys
+                          const jsonString = String(children).trim();
+                          const highlightedJson = highlightJsonKeys(jsonString);
+                          
+                          return (
+                            <code 
+                              className="block bg-blue-50 dark:bg-blue-950/30 border-2 border-blue-400 dark:border-blue-500 p-3 rounded-lg text-sm font-mono overflow-x-auto mb-3 last:mb-0 shadow-sm" 
+                              {...props}
+                              dangerouslySetInnerHTML={{ __html: highlightedJson }}
+                            />
+                          );
+                        }
+                        
                         return (
                           <code className="block bg-zinc-200 dark:bg-zinc-800 p-3 rounded-lg text-sm font-mono overflow-x-auto mb-3 last:mb-0" {...props}>
                             {children}
@@ -303,7 +379,7 @@ export default function Chat() {
                       ),
                     }}
                   >
-                    {currentResponse}
+                    {formatSearchQueryJson(currentResponse)}
                   </ReactMarkdown>
                 </div>
                 <span className="animate-pulse inline-block ml-1">▊</span>

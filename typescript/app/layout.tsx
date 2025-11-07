@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OpenRAG Langflow Chat",
-  description: "Streaming chat interface powered by Langflow",
+  title: "OpenRAG Next.js Chat",
+  description: "Streaming chat interface powered by OpenRAG",
 };
 
 export default function RootLayout({
