@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -42,6 +44,17 @@ function highlightJsonKeys(jsonString: string): string {
     // Wrap the key in a span with styling
     return `"<span class="text-blue-600 dark:text-blue-400 font-semibold">${key}</span>":`;
   });
+}
+
+/**
+ * Copy code to clipboard
+ */
+async function copyToClipboard(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (err) {
+    console.error('Failed to copy:', err);
+  }
 }
 
 export default function Chat() {
@@ -230,8 +243,14 @@ export default function Chat() {
                         ul: ({ children }) => <ul className="mb-3 last:mb-0 ml-4 list-disc">{children}</ul>,
                         ol: ({ children }) => <ol className="mb-3 last:mb-0 ml-4 list-decimal">{children}</ol>,
                         li: ({ children }) => <li className="mb-1">{children}</li>,
-                        code: ({ children, className, ...props }: any) => {
-                          const isInline = !className?.includes('language-');
+                        code: ({ node, inline, className, children, ...props }: any) => {
+                          // Inline code detection:
+                          // 1. If inline prop is explicitly true, it's inline
+                          // 2. If there's a language- class, it's definitely a code block
+                          // 3. If inline is undefined/null and no language class, assume inline (single backticks)
+                          const hasLanguageClass = className?.includes('language-');
+                          const isInline = inline === true || (inline !== false && !hasLanguageClass);
+                          
                           if (isInline) {
                             return (
                               <code className="bg-zinc-200 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
@@ -240,33 +259,91 @@ export default function Chat() {
                             );
                           }
                           
+                          // Code block - extract language and content
+                          // Handle both language-xxx class and plain code blocks (no language)
+                          const match = /language-(\w+)/.exec(className || '');
+                          const language = match ? match[1] : 'text';
+                          const codeString = String(children).replace(/\n$/, '');
+                          
                           // Check if this is a JSON block with search query fields
-                          const content = String(children);
                           const isSearchQueryJson = 
-                            className?.includes('language-json') && 
-                            /"(?:input_value|search_query|search_mode|search_[^"]+|query)"/.test(content);
+                            language === 'json' && 
+                            /"(?:input_value|search_query|search_mode|search_[^"]+|query)"/.test(codeString);
                           
                           if (isSearchQueryJson) {
                             // Parse and highlight JSON keys
-                            const jsonString = String(children).trim();
-                            const highlightedJson = highlightJsonKeys(jsonString);
+                            const highlightedJson = highlightJsonKeys(codeString);
                             
                             return (
-                              <code 
-                                className="block bg-blue-50 dark:bg-blue-950/30 border-2 border-blue-400 dark:border-blue-500 p-3 rounded-lg text-sm font-mono overflow-x-auto mb-3 last:mb-0 shadow-sm" 
-                                {...props}
-                                dangerouslySetInnerHTML={{ __html: highlightedJson }}
-                              />
+                              <div className="relative mb-3 last:mb-0 group">
+                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                  <button
+                                    onClick={() => copyToClipboard(codeString)}
+                                    className="bg-zinc-700 hover:bg-zinc-600 text-white text-xs px-2 py-1 rounded flex items-center gap-1"
+                                    title="Copy code"
+                                  >
+                                    <span>Copy</span>
+                                  </button>
+                                </div>
+                                <code 
+                                  className="block bg-blue-50 dark:bg-blue-950/30 border-2 border-blue-400 dark:border-blue-500 p-3 rounded-lg text-sm font-mono overflow-x-auto shadow-sm" 
+                                  dangerouslySetInnerHTML={{ __html: highlightedJson }}
+                                />
+                              </div>
                             );
                           }
                           
+                          // Regular code block with syntax highlighting
                           return (
-                            <code className="block bg-zinc-200 dark:bg-zinc-800 p-3 rounded-lg text-sm font-mono overflow-x-auto mb-3 last:mb-0" {...props}>
-                              {children}
-                            </code>
+                            <div className="relative mb-3 last:mb-0 group">
+                              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                <button
+                                  onClick={() => copyToClipboard(codeString)}
+                                  className="bg-zinc-700 hover:bg-zinc-600 text-white text-xs px-2 py-1 rounded flex items-center gap-1"
+                                  title="Copy code"
+                                >
+                                  <span>Copy</span>
+                                </button>
+                              </div>
+                              <SyntaxHighlighter
+                                language={language || 'text'}
+                                style={vscDarkPlus}
+                                customStyle={{
+                                  margin: 0,
+                                  borderRadius: '0.5rem',
+                                  fontSize: '0.875rem',
+                                  padding: '1rem',
+                                }}
+                                PreTag="div"
+                                {...props}
+                              >
+                                {codeString}
+                              </SyntaxHighlighter>
+                            </div>
                           );
                         },
-                        pre: ({ children }) => <pre className="mb-3 last:mb-0">{children}</pre>,
+                        pre: ({ children }: any) => {
+                          // react-markdown wraps code blocks in <pre><code>
+                          // Our code component returns a div wrapper, so if children is already a div, just render it
+                          if (children && typeof children === 'object') {
+                            // Check if it's already our div wrapper (from code component)
+                            if (children.type === 'div') {
+                              return <>{children}</>;
+                            }
+                            // Check if it's an array with a div as first element
+                            if (Array.isArray(children) && children.length > 0 && children[0]?.type === 'div') {
+                              return <>{children}</>;
+                            }
+                            // Check if it's a code element that we need to process
+                            // This shouldn't happen since code component handles it, but just in case
+                            if (children.type === 'code' || (Array.isArray(children) && children.find((c: any) => c?.type === 'code'))) {
+                              // Let it render normally - code component should have handled it
+                              return <pre className="mb-3 last:mb-0">{children}</pre>;
+                            }
+                          }
+                          // Regular pre element (fallback)
+                          return <pre className="mb-3 last:mb-0">{children}</pre>;
+                        },
                         a: ({ href, children }) => (
                           <a
                             href={href}
@@ -326,8 +403,14 @@ export default function Chat() {
                       ul: ({ children }) => <ul className="mb-3 last:mb-0 ml-4 list-disc">{children}</ul>,
                       ol: ({ children }) => <ol className="mb-3 last:mb-0 ml-4 list-decimal">{children}</ol>,
                       li: ({ children }) => <li className="mb-1">{children}</li>,
-                      code: ({ children, className, ...props }: any) => {
-                        const isInline = !className?.includes('language-');
+                      code: ({ node, inline, className, children, ...props }: any) => {
+                        // Inline code detection:
+                        // 1. If inline prop is explicitly true, it's inline
+                        // 2. If there's a language- class, it's definitely a code block
+                        // 3. If inline is undefined/null and no language class, assume inline (single backticks)
+                        const hasLanguageClass = className?.includes('language-');
+                        const isInline = inline === true || (inline !== false && !hasLanguageClass);
+                        
                         if (isInline) {
                           return (
                             <code className="bg-zinc-200 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
@@ -336,33 +419,91 @@ export default function Chat() {
                           );
                         }
                         
+                        // Code block - extract language and content
+                        // Handle both language-xxx class and plain code blocks (no language)
+                        const match = /language-(\w+)/.exec(className || '');
+                        const language = match ? match[1] : 'text';
+                        const codeString = String(children).replace(/\n$/, '');
+                        
                         // Check if this is a JSON block with search query fields
-                        const content = String(children);
                         const isSearchQueryJson = 
-                          className?.includes('language-json') && 
-                          /"(?:input_value|search_query|search_mode|search_[^"]+|query)"/.test(content);
+                          language === 'json' && 
+                          /"(?:input_value|search_query|search_mode|search_[^"]+|query)"/.test(codeString);
                         
                         if (isSearchQueryJson) {
                           // Parse and highlight JSON keys
-                          const jsonString = String(children).trim();
-                          const highlightedJson = highlightJsonKeys(jsonString);
+                          const highlightedJson = highlightJsonKeys(codeString);
                           
                           return (
-                            <code 
-                              className="block bg-blue-50 dark:bg-blue-950/30 border-2 border-blue-400 dark:border-blue-500 p-3 rounded-lg text-sm font-mono overflow-x-auto mb-3 last:mb-0 shadow-sm" 
-                              {...props}
-                              dangerouslySetInnerHTML={{ __html: highlightedJson }}
-                            />
+                            <div className="relative mb-3 last:mb-0 group">
+                              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                <button
+                                  onClick={() => copyToClipboard(codeString)}
+                                  className="bg-zinc-700 hover:bg-zinc-600 text-white text-xs px-2 py-1 rounded flex items-center gap-1"
+                                  title="Copy code"
+                                >
+                                  <span>Copy</span>
+                                </button>
+                              </div>
+                              <code 
+                                className="block bg-blue-50 dark:bg-blue-950/30 border-2 border-blue-400 dark:border-blue-500 p-3 rounded-lg text-sm font-mono overflow-x-auto shadow-sm" 
+                                dangerouslySetInnerHTML={{ __html: highlightedJson }}
+                              />
+                            </div>
                           );
                         }
                         
+                        // Regular code block with syntax highlighting
                         return (
-                          <code className="block bg-zinc-200 dark:bg-zinc-800 p-3 rounded-lg text-sm font-mono overflow-x-auto mb-3 last:mb-0" {...props}>
-                            {children}
-                          </code>
+                          <div className="relative mb-3 last:mb-0 group">
+                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                              <button
+                                onClick={() => copyToClipboard(codeString)}
+                                className="bg-zinc-700 hover:bg-zinc-600 text-white text-xs px-2 py-1 rounded flex items-center gap-1"
+                                title="Copy code"
+                              >
+                                <span>Copy</span>
+                              </button>
+                            </div>
+                            <SyntaxHighlighter
+                              language={language || 'text'}
+                              style={vscDarkPlus}
+                              customStyle={{
+                                margin: 0,
+                                borderRadius: '0.5rem',
+                                fontSize: '0.875rem',
+                                padding: '1rem',
+                              }}
+                              PreTag="div"
+                              {...props}
+                            >
+                              {codeString}
+                            </SyntaxHighlighter>
+                          </div>
                         );
                       },
-                      pre: ({ children }) => <pre className="mb-3 last:mb-0">{children}</pre>,
+                      pre: ({ children }: any) => {
+                        // react-markdown wraps code blocks in <pre><code>
+                        // Our code component returns a div wrapper, so if children is already a div, just render it
+                        if (children && typeof children === 'object') {
+                          // Check if it's already our div wrapper (from code component)
+                          if (children.type === 'div') {
+                            return <>{children}</>;
+                          }
+                          // Check if it's an array with a div as first element
+                          if (Array.isArray(children) && children.length > 0 && children[0]?.type === 'div') {
+                            return <>{children}</>;
+                          }
+                          // Check if it's a code element that we need to process
+                          // This shouldn't happen since code component handles it, but just in case
+                          if (children.type === 'code' || (Array.isArray(children) && children.find((c: any) => c?.type === 'code'))) {
+                            // Let it render normally - code component should have handled it
+                            return <pre className="mb-3 last:mb-0">{children}</pre>;
+                          }
+                        }
+                        // Regular pre element (fallback)
+                        return <pre className="mb-3 last:mb-0">{children}</pre>;
+                      },
                       a: ({ href, children }) => (
                         <a
                           href={href}
