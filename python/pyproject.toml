@@ -5,8 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "openrag-langflow-app"
 version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
+description = "Python CLI chat interface for interacting with Langflow flows"
 requires-python = ">=3.13"
 dependencies = [
     "openai>=2.7.0",
@@ -16,4 +15,4 @@ dependencies = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["."]
-only-include = ["main.py", "utils.py", "README.md"]
+only-include = ["main.py", "utils.py"]

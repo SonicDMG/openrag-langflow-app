@@ -127,7 +127,7 @@ def highlight_search_fields(text: str) -> str:
     Find JSON fields like search_query, search_mode, etc. and wrap their values 
     in Rich markup to make them stand out.
     """
-    field_pattern = r'(?:,\s*)?\{[^}]*"(search_query|search_mode|search_[^"]+|query)"[^}]*\}'
+    field_pattern = r'(?:,\s*)?\{[^}]*"(input_value|search_query|search_mode|search_[^"]+|query)"[^}]*\}'
 
     def replace_field(match):
         full_match = match.group(0)

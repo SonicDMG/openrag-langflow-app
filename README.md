@@ -1,31 +1,55 @@
-# OpenRAG Langflow Chat Application
+# OpenRAG Langflow Application
+
+A monorepo containing both a Python CLI chat interface and a Next.js TypeScript web application for interacting with Langflow flows using the OpenAI Responses API.
+
+## Project Structure
+
+This is a monorepo with two main components:
+
+```
+openrag-langflow-app/
+├── python/              # Python CLI chat application
+│   ├── main.py          # CLI entrypoint for the chat app
+│   ├── utils.py         # Helpers for streaming, formatting, and conversation tracking
+│   ├── pyproject.toml   # Python project metadata and dependencies
+│   └── uv.lock          # uv's lockfile
+├── typescript/          # Next.js TypeScript web application
+│   ├── app/             # Next.js app directory
+│   ├── package.json     # Node.js dependencies
+│   └── ...              # Next.js configuration files
+└── README.md            # This file
+```
+
+## Python CLI Application
 
 A lightweight terminal chat interface for interacting with Langflow flows using the OpenAI Python SDK as the client transport. It supports live streaming of model output, rich Markdown rendering (including clickable links) via the Rich library, and maintains conversation continuity across turns.
 
-## Overview
-
-This app connects to a running Langflow server and forwards your prompts to a configured flow. Responses are streamed back token-by-token and rendered in the terminal with Markdown styling. The app tracks conversation state so you can continue a dialogue over multiple turns without losing context.
-
-## Key Features
+### Features
 
 - **Streaming responses**: see tokens as they arrive for a responsive chat experience
 - **Rich Markdown output**: headings, code blocks, and clickable links via the Rich library (on supported terminals)
 - **Conversation continuity**: preserves conversation context across turns
 - **Simple setup**: point the app at your Langflow server and provide an API key
 
-## Prerequisites
+### Prerequisites
 
 - Python 3.13 or newer
 - A running Langflow server you can reach from this machine
 - A Langflow API key with access to your flow(s)
 
-## Installation
+### Installation
+
+Navigate to the `python/` directory:
+
+```bash
+cd python
+```
 
 You can use uv (recommended) or pip.
 
-### Using uv
+#### Using uv
 
-Ensure uv is installed (see https://docs.astral.sh/uv/). From the project root:
+Ensure uv is installed (see https://docs.astral.sh/uv/). From the `python/` directory:
 
 ```bash
 uv sync
@@ -33,7 +57,7 @@ uv sync
 
 This will create a virtual environment and install dependencies from `pyproject.toml` (and `uv.lock` if present).
 
-### Using pip
+#### Using pip
 
 Create and activate a virtual environment:
 
@@ -48,9 +72,9 @@ Install dependencies:
 pip install -e .
 ```
 
-## Configuration
+### Configuration
 
-Set the following environment variables. You can place them in a `.env` file in the project root (note: `.env` is git-ignored):
+Set the following environment variables. You can place them in a `.env` file in the `python/` directory (note: `.env` is git-ignored):
 
 ```
 LANGFLOW_SERVER_URL=http://localhost:7860
@@ -60,40 +84,52 @@ LANGFLOW_API_KEY=your_langflow_api_key
 - `LANGFLOW_SERVER_URL`: Base URL of your Langflow server
 - `LANGFLOW_API_KEY`: Your Langflow API token
 
-## Usage
+### Usage
 
-Activate your environment (if not already active), ensure variables are set or `.env` exists.
+From the `python/` directory:
 
 Using uv:
-
 ```bash
 uv run python main.py
 ```
 
 Using Python directly:
-
 ```bash
 python main.py
 ```
 
 Type your prompt and press Enter. Type `exit`, `quit`, or `q` to end the session, or use Ctrl+C to exit.
 
-## Project Structure
+## TypeScript Web Application
 
+A Next.js TypeScript web application for interacting with Langflow flows. (Documentation to be added as the application is developed.)
+
+### Installation
+
+Navigate to the `typescript/` directory:
+
+```bash
+cd typescript
 ```
-openrag-langflow-app/
-├─ main.py             # CLI entrypoint for the chat app
-├─ utils.py            # Helpers for streaming, formatting, and conversation tracking
-├─ pyproject.toml      # Project metadata and dependencies
-├─ uv.lock             # uv's lockfile (if present)
-├─ .python-version     # Pinned Python version (if present)
-├─ .gitignore          # Ensures .env and other files are not committed
-├─ README.md           # This documentation
-└─ .env                # Environment variables (not committed)
+
+Install dependencies:
+
+```bash
+npm install
 ```
+
+### Development
+
+Run the development server:
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
 
 ## Notes
 
 - Clickable links in the terminal depend on terminal support (iTerm2, Windows Terminal, etc.)
 - An OpenAI API key is not required unless your Langflow flow itself calls OpenAI models
-- Keep your `.env` file private and never commit it
+- Keep your `.env` files private and never commit them

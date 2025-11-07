@@ -19,7 +19,7 @@ load_dotenv()
 # Langflow configuration - part of the OpenAI Responses API setup
 LANGFLOW_SERVER_URL = os.getenv("LANGFLOW_SERVER_URL")
 LANGFLOW_API_KEY = os.getenv("LANGFLOW_API_KEY")
-MODEL_ID = "e9b4fdd2-a719-46d1-ad55-5e8f38a224a3"
+MODEL_ID = "1098eea1-6649-4e1d-aed1-b77249fb8dd0"
 
 
 def stream_response(client: OpenAI, model_id: str, user_input: str,
