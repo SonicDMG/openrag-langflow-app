@@ -52,6 +52,8 @@ export default function Chat() {
   const [currentResponseId, setCurrentResponseId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Store previous response ID in a ref to maintain conversation continuity
+  const previousResponseIdRef = useRef<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -75,11 +77,8 @@ export default function Chat() {
     // Add user message to chat
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
 
-    // Get the previous response ID from the last assistant message
-    const lastAssistantMessage = [...messages]
-      .reverse()
-      .find((msg) => msg.role === 'assistant');
-    const previousResponseId = lastAssistantMessage?.responseId || null;
+    // Get the previous response ID from the ref (maintains conversation continuity)
+    const previousResponseId = previousResponseIdRef.current;
 
     try {
       const response = await fetch('/api/chat', {
@@ -147,6 +146,11 @@ export default function Chat() {
           responseId: finalResponseId || undefined,
         },
       ]);
+
+      // Update the previous response ID ref for conversation continuity
+      if (finalResponseId) {
+        previousResponseIdRef.current = finalResponseId;
+      }
 
       setCurrentResponse('');
       setCurrentResponseId(null);

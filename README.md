@@ -128,6 +128,28 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
 
+### Building for Production
+
+Build the application for production:
+
+```bash
+npm run build
+```
+
+This creates an optimized production build in the `.next` directory.
+
+### Running Production Build
+
+Start the production server:
+
+```bash
+npm start
+```
+
+This starts the Next.js production server. Note: You must run `npm run build` first before starting the production server.
+
+The start script will automatically detect if port 3000 is already in use and will use the next available port (3001, 3002, etc.) instead. The script will display which port it's using when it starts.
+
 ## Notes
 
 - Clickable links in the terminal depend on terminal support (iTerm2, Windows Terminal, etc.)

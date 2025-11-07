@@ -40,20 +40,20 @@ export async function POST(request: NextRequest) {
     const client = getLangflowClient();
 
     // Build request parameters for the Responses API
-    const requestParams: {
-      model: string;
-      input: string;
-      stream: boolean;
-      extra_body?: { previous_response_id: string };
-    } = {
+    // According to Langflow docs, previous_response_id should be in the request body
+    // Try both extra_body (OpenAI SDK standard) and direct parameter (some SDKs may need this)
+    const requestParams: any = {
       model: modelId,
       input: message,
       stream: true,
     };
 
     // Add previous_response_id if provided (for conversation continuity)
+    // Use both extra_body (OpenAI SDK standard) and direct parameter to ensure compatibility
     if (previousResponseId) {
       requestParams.extra_body = { previous_response_id: previousResponseId };
+      // Also add as direct parameter (TypeScript SDK may handle extra_body differently)
+      (requestParams as any).previous_response_id = previousResponseId;
     }
 
     // Create a streaming response
@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
     const readable = new ReadableStream({
       async start(controller) {
         let responseId: string | null = null;
+        let completed = false;
 
         try {
           // Check if stream is iterable (it should be when stream: true)
@@ -71,10 +72,19 @@ export async function POST(request: NextRequest) {
             throw new Error('Stream is not iterable');
           }
 
-          for await (const chunk of stream as AsyncIterable<any>) {
+          // According to Langflow docs, each chunk has an 'id' field that is the response identifier
+          // The id field is present in ALL chunks, so we can extract it from the first chunk
+          for await (const chunk of stream as unknown as AsyncIterable<any>) {
             // Extract response ID from chunk (for conversation continuity)
+            // According to Langflow API docs, chunk structure is:
+            // { id: string, object: "response.chunk", created: number, model: string, delta: {...}, status: string | null }
+            // Match Python behavior: check every chunk until we find one with an id
             if (responseId === null) {
-              responseId = (chunk as any).id || null;
+              // Extract ID from chunk (handle both plain objects and class instances)
+              const chunkObj = typeof (chunk as any)?.toJSON === 'function' 
+                ? (chunk as any).toJSON() 
+                : chunk;
+              responseId = (chunkObj as any)?.id || (chunk as any)?.id || null;
             }
 
             // Extract content delta from chunk
@@ -94,19 +104,36 @@ export async function POST(request: NextRequest) {
             }
 
             // Check for completion status
+            // According to Langflow docs, the stream continues until a chunk with "status": "completed"
             if ((chunk as any).status === 'completed') {
+              // Ensure we have the response ID (match Python behavior: try to get from this chunk if still null)
               if (responseId === null) {
-                responseId = (chunk as any).id || null;
+                const chunkObj = typeof (chunk as any)?.toJSON === 'function' 
+                  ? (chunk as any).toJSON() 
+                  : chunk;
+                responseId = (chunkObj as any)?.id || (chunk as any)?.id || null;
               }
 
-              // Send final response ID
+              // Send final response ID to client (match Python: always return response_id even if None)
               const finalData = JSON.stringify({
                 type: 'done',
                 responseId: responseId,
               });
               controller.enqueue(encoder.encode(`data: ${finalData}\n\n`));
+              completed = true;
               break;
             }
+          }
+          
+          // If stream ended without completion status, ensure we send response ID if we have it
+          // This handles edge cases where the stream might end unexpectedly
+          // Match Python behavior: always return response_id (even if None)
+          if (!completed) {
+            const finalData = JSON.stringify({
+              type: 'done',
+              responseId: responseId,
+            });
+            controller.enqueue(encoder.encode(`data: ${finalData}\n\n`));
           }
         } catch (error) {
           const errorData = JSON.stringify({
