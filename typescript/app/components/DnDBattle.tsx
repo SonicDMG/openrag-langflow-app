@@ -38,7 +38,8 @@ interface DnDClass {
   color: string;
 }
 
-const DND_CLASSES: DnDClass[] = [
+// Default fallback classes in case OpenSearch fetch fails
+const FALLBACK_CLASSES: DnDClass[] = [
   {
     name: 'Fighter',
     hitPoints: 30,
@@ -46,7 +47,7 @@ const DND_CLASSES: DnDClass[] = [
     armorClass: 18,
     attackBonus: 5,
     damageDie: 'd10',
-    abilities: [], // Will be populated dynamically from API
+    abilities: [],
     description: 'A master of weapons and armor, the Fighter excels in combat.',
     color: 'bg-red-900',
   },
@@ -57,7 +58,7 @@ const DND_CLASSES: DnDClass[] = [
     armorClass: 12,
     attackBonus: 3,
     damageDie: 'd6',
-    abilities: [], // Will be populated dynamically from API
+    abilities: [],
     description: 'A wielder of arcane magic, the Wizard commands powerful spells.',
     color: 'bg-blue-900',
   },
@@ -68,7 +69,7 @@ const DND_CLASSES: DnDClass[] = [
     armorClass: 15,
     attackBonus: 4,
     damageDie: 'd8',
-    abilities: [], // Will be populated dynamically from API
+    abilities: [],
     description: 'A stealthy combatant who strikes from the shadows.',
     color: 'bg-purple-900',
   },
@@ -79,7 +80,7 @@ const DND_CLASSES: DnDClass[] = [
     armorClass: 16,
     attackBonus: 4,
     damageDie: 'd8',
-    abilities: [], // Will be populated dynamically from API
+    abilities: [],
     description: 'A holy warrior who channels divine power.',
     color: 'bg-yellow-900',
   },
@@ -90,7 +91,7 @@ const DND_CLASSES: DnDClass[] = [
     armorClass: 14,
     attackBonus: 5,
     damageDie: 'd12',
-    abilities: [], // Will be populated dynamically from API
+    abilities: [],
     description: 'A fierce warrior who fights with primal fury.',
     color: 'bg-orange-900',
   },
@@ -101,7 +102,7 @@ const DND_CLASSES: DnDClass[] = [
     armorClass: 15,
     attackBonus: 4,
     damageDie: 'd10',
-    abilities: [], // Will be populated dynamically from API
+    abilities: [],
     description: 'A skilled tracker and archer of the wilderness.',
     color: 'bg-green-900',
   },
@@ -205,6 +206,23 @@ async function parseSSEResponse(
   return { content: accumulatedResponse, responseId };
 }
 
+// Class icon mapping for pixel art style graphics
+const CLASS_ICONS: Record<string, string> = {
+  'Fighter': '⚔️',
+  'Wizard': '🧙',
+  'Rogue': '🗡️',
+  'Cleric': '⛪',
+  'Barbarian': '🪓',
+  'Ranger': '🏹',
+  'Paladin': '🛡️',
+  'Bard': '🎵',
+  'Sorcerer': '🔮',
+  'Warlock': '👁️',
+  'Monk': '🥋',
+  'Druid': '🌿',
+  'Artificer': '⚙️',
+};
+
 // ClassSelection component to eliminate duplicate selection UI
 interface ClassSelectionProps {
   title: string;
@@ -217,21 +235,32 @@ function ClassSelection({ title, availableClasses, selectedClass, onSelect }: Cl
   return (
     <div>
       <h3 className="text-lg font-semibold mb-3 text-amber-200">{title}</h3>
-      <div className="grid grid-cols-2 gap-2">
-        {availableClasses.map((dndClass) => (
-          <button
-            key={dndClass.name}
-            onClick={() => onSelect({ ...dndClass, hitPoints: dndClass.maxHitPoints })}
-            className={`p-3 rounded-lg border-2 transition-all ${
-              selectedClass?.name === dndClass.name
-                ? 'border-amber-400 bg-amber-800 shadow-lg scale-105'
-                : 'border-amber-700 bg-amber-900/50 hover:bg-amber-800 hover:border-amber-600'
-            }`}
-          >
-            <div className="font-bold text-sm text-amber-100">{dndClass.name}</div>
-            <div className="text-xs text-amber-300 mt-1">{dndClass.hitPoints} HP</div>
-          </button>
-        ))}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+        {availableClasses.map((dndClass) => {
+          const icon = CLASS_ICONS[dndClass.name] || '⚔️';
+          return (
+            <button
+              key={dndClass.name}
+              onClick={() => onSelect({ ...dndClass, hitPoints: dndClass.maxHitPoints })}
+              className={`py-2 px-3 rounded-lg border-2 transition-all flex flex-col items-center gap-1 ${
+                selectedClass?.name === dndClass.name
+                  ? 'border-amber-400 bg-amber-800 shadow-lg scale-105'
+                  : 'border-amber-700 bg-amber-900/50 hover:bg-amber-800 hover:border-amber-600'
+              }`}
+            >
+              <span 
+                className="text-2xl leading-none"
+                style={{ 
+                  imageRendering: 'pixelated' as const,
+                  filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.3))'
+                }}
+              >
+                {icon}
+              </span>
+              <div className="font-bold text-xs text-amber-100 text-center">{dndClass.name}</div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -317,14 +346,17 @@ interface PlayerStatsProps {
   onUseAbility: (index: number) => void;
   shouldShake: boolean;
   shouldSparkle: boolean;
+  shouldMiss: boolean;
   shakeTrigger: number;
   sparkleTrigger: number;
+  missTrigger: number;
   isMoveInProgress: boolean;
   isDefeated: boolean;
   isVictor: boolean;
   confettiTrigger: number;
   onShakeComplete: () => void;
   onSparkleComplete: () => void;
+  onMissComplete: () => void;
 }
 
 function PlayerStats({ 
@@ -335,31 +367,34 @@ function PlayerStats({
   onUseAbility,
   shouldShake,
   shouldSparkle,
+  shouldMiss,
   shakeTrigger,
   sparkleTrigger,
+  missTrigger,
   isMoveInProgress,
   isDefeated,
   isVictor,
   confettiTrigger,
   onShakeComplete,
-  onSparkleComplete
+  onSparkleComplete,
+  onMissComplete
 }: PlayerStatsProps) {
   const isActive = currentTurn === playerId && !isDefeated;
   const isDisabled = (isActive && isMoveInProgress) || isDefeated;
-  const shakeRef = useRef<HTMLDivElement>(null);
+  const animationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (shouldShake && shakeTrigger > 0 && shakeRef.current) {
+    if (shouldShake && shakeTrigger > 0 && animationRef.current) {
       // Force reflow to restart animation
-      shakeRef.current.classList.remove('shake');
+      animationRef.current.classList.remove('shake');
       // Use requestAnimationFrame to ensure the class removal is processed
       let timer: NodeJS.Timeout;
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          if (shakeRef.current) {
-            shakeRef.current.classList.add('shake');
+          if (animationRef.current) {
+            animationRef.current.classList.add('shake');
             timer = setTimeout(() => {
-              shakeRef.current?.classList.remove('shake');
+              animationRef.current?.classList.remove('shake');
               onShakeComplete();
             }, 400);
           }
@@ -380,9 +415,32 @@ function PlayerStats({
     }
   }, [shouldSparkle, sparkleTrigger, onSparkleComplete]);
 
+  useEffect(() => {
+    if (shouldMiss && missTrigger > 0 && animationRef.current) {
+      // Force reflow to restart animation
+      animationRef.current.classList.remove('miss');
+      // Use requestAnimationFrame to ensure the class removal is processed
+      let timer: NodeJS.Timeout;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (animationRef.current) {
+            animationRef.current.classList.add('miss');
+            timer = setTimeout(() => {
+              animationRef.current?.classList.remove('miss');
+              onMissComplete();
+            }, 600);
+          }
+        });
+      });
+      return () => {
+        if (timer) clearTimeout(timer);
+      };
+    }
+  }, [shouldMiss, missTrigger, onMissComplete]);
+
   return (
     <div 
-      ref={shakeRef}
+      ref={animationRef}
       className={`bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl sparkle-container relative ${isActive ? 'ring-4 ring-amber-400' : ''} ${isDefeated ? 'opacity-60' : ''}`}
     >
       {isDefeated && (
@@ -462,7 +520,8 @@ export default function DnDBattle() {
   const [battleLog, setBattleLog] = useState<BattleLog[]>([]);
   const [isBattleActive, setIsBattleActive] = useState(false);
   const [currentTurn, setCurrentTurn] = useState<'player1' | 'player2'>('player1');
-  const [availableClasses] = useState<DnDClass[]>(DND_CLASSES);
+  const [availableClasses, setAvailableClasses] = useState<DnDClass[]>(FALLBACK_CLASSES);
+  const [isLoadingClasses, setIsLoadingClasses] = useState(true);
   const [classDetails, setClassDetails] = useState<Record<string, string>>({});
   const [isLoadingClassDetails, setIsLoadingClassDetails] = useState(false);
   const [battleResponseId, setBattleResponseId] = useState<string | null>(null);
@@ -470,6 +529,8 @@ export default function DnDBattle() {
   const [shakeTrigger, setShakeTrigger] = useState({ player1: 0, player2: 0 });
   const [sparklingPlayer, setSparklingPlayer] = useState<'player1' | 'player2' | null>(null);
   const [sparkleTrigger, setSparkleTrigger] = useState({ player1: 0, player2: 0 });
+  const [missingPlayer, setMissingPlayer] = useState<'player1' | 'player2' | null>(null);
+  const [missTrigger, setMissTrigger] = useState({ player1: 0, player2: 0 });
   const [isWaitingForAgent, setIsWaitingForAgent] = useState(false);
   const [isMoveInProgress, setIsMoveInProgress] = useState(false);
   const [defeatedPlayer, setDefeatedPlayer] = useState<'player1' | 'player2' | null>(null);
@@ -568,6 +629,293 @@ export default function DnDBattle() {
     }
     setCurrentTurn(nextPlayer);
   };
+
+  // Fetch all available D&D classes from OpenSearch
+  const fetchAvailableClasses = async (): Promise<string[]> => {
+    try {
+      const query = `List all available D&D 5th edition character classes. Return only a JSON array of class names, like ["Fighter", "Wizard", "Rogue", ...]. Do not include any other text, just the JSON array.`;
+      
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: query,
+          previousResponseId: null,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body');
+      }
+
+      const { content } = await parseSSEResponse(reader);
+      
+      // Try to extract JSON array from response
+      let jsonString = content.trim();
+      // Remove markdown code block markers if present
+      jsonString = jsonString.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+      
+      // Find JSON array in the response
+      const arrayMatch = jsonString.match(/\[[\s\S]*\]/);
+      if (arrayMatch) {
+        const parsed = JSON.parse(arrayMatch[0]);
+        if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+          return parsed;
+        }
+      }
+      
+      // Fallback: try to parse the whole response
+      try {
+        const parsed = JSON.parse(jsonString);
+        if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+          return parsed;
+        }
+      } catch {
+        // If parsing fails, try to extract class names from text
+        const classNames: string[] = [];
+        const commonClasses = ['Fighter', 'Wizard', 'Rogue', 'Cleric', 'Barbarian', 'Ranger', 'Paladin', 'Bard', 'Sorcerer', 'Warlock', 'Monk', 'Druid', 'Artificer'];
+        for (const className of commonClasses) {
+          if (content.toLowerCase().includes(className.toLowerCase())) {
+            classNames.push(className);
+          }
+        }
+        if (classNames.length > 0) {
+          return classNames;
+        }
+      }
+      
+      console.warn('Could not parse class list from response:', content.substring(0, 200));
+      return [];
+    } catch (error) {
+      console.error('Error fetching available classes:', error);
+      return [];
+    }
+  };
+
+  // Fetch class stats from OpenSearch
+  const fetchClassStats = async (className: string): Promise<Partial<DnDClass> | null> => {
+    try {
+      const query = `For the D&D 5th edition ${className} class, provide the following information in JSON format:
+{
+  "hitPoints": number (typical starting HP at level 1-3, around 20-35),
+  "armorClass": number (typical AC, between 12-18),
+  "attackBonus": number (typical attack bonus modifier, between 3-5),
+  "damageDie": string (typical weapon damage die like "d6", "d8", "d10", or "d12"),
+  "description": string (brief 1-2 sentence description of the class)
+}
+
+Return ONLY valid JSON, no other text. Use typical values for a level 1-3 character.`;
+      
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: query,
+          previousResponseId: null,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body');
+      }
+
+      const { content } = await parseSSEResponse(reader);
+      
+      // Try to extract JSON from response
+      // The response may contain search query metadata before the actual JSON
+      let jsonString = content.trim();
+      
+      // Remove markdown code block markers if present
+      jsonString = jsonString.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+      
+      // The response may contain multiple JSON objects (search queries + stats)
+      // We need to find the one that contains stats fields (hitPoints, armorClass, etc.)
+      // Skip JSON objects that only contain "search_query"
+      let statsJsonString: string | null = null;
+      let searchIndex = 0;
+      
+      while (searchIndex < jsonString.length) {
+        // Find the next opening brace
+        const jsonStart = jsonString.indexOf('{', searchIndex);
+        if (jsonStart === -1) break;
+        
+        // Find the matching closing brace by counting braces
+        let braceCount = 0;
+        let jsonEnd = -1;
+        for (let i = jsonStart; i < jsonString.length; i++) {
+          if (jsonString[i] === '{') {
+            braceCount++;
+          } else if (jsonString[i] === '}') {
+            braceCount--;
+            if (braceCount === 0) {
+              jsonEnd = i + 1;
+              break;
+            }
+          }
+        }
+        
+        if (jsonEnd === -1) {
+          // Incomplete JSON, skip to next
+          searchIndex = jsonStart + 1;
+          continue;
+        }
+        
+        // Extract this JSON object
+        const candidateJson = jsonString.substring(jsonStart, jsonEnd);
+        
+        // Skip JSON objects that only contain search_query metadata
+        if (candidateJson.includes('"search_query"') && !candidateJson.includes('"hitPoints"')) {
+          searchIndex = jsonEnd;
+          continue;
+        }
+        
+        // Check if this JSON contains stats fields (hitPoints, armorClass, etc.)
+        if (candidateJson.includes('"hitPoints"') || candidateJson.includes('"armorClass"') || 
+            candidateJson.includes('"attackBonus"') || candidateJson.includes('"damageDie"')) {
+          statsJsonString = candidateJson;
+          break;
+        }
+        
+        // Move search index past this JSON object
+        searchIndex = jsonEnd;
+      }
+      
+      if (statsJsonString) {
+        try {
+          const parsed = JSON.parse(statsJsonString);
+          // Normalize damageDie format (convert "1d6" to "d6" for consistency)
+          let damageDie = parsed.damageDie || 'd8';
+          if (damageDie.match(/^\d+d\d+$/)) {
+            damageDie = 'd' + damageDie.split('d')[1];
+          }
+          
+          return {
+            hitPoints: parsed.hitPoints || 25,
+            maxHitPoints: parsed.hitPoints || 25,
+            armorClass: parsed.armorClass || 14,
+            attackBonus: parsed.attackBonus || 4,
+            damageDie: damageDie,
+            description: parsed.description || `A ${className} character.`,
+          };
+        } catch (parseError) {
+          console.warn(`Error parsing stats JSON for ${className}:`, parseError);
+          // Try to extract partial data even if JSON is incomplete
+          const hitPointsMatch = statsJsonString.match(/"hitPoints"\s*:\s*(\d+)/);
+          const armorClassMatch = statsJsonString.match(/"armorClass"\s*:\s*(\d+)/);
+          const attackBonusMatch = statsJsonString.match(/"attackBonus"\s*:\s*(\d+)/);
+          const damageDieMatch = statsJsonString.match(/"damageDie"\s*:\s*"([^"]+)"/);
+          const descriptionMatch = statsJsonString.match(/"description"\s*:\s*"([^"]*)"/);
+          
+          if (hitPointsMatch || armorClassMatch) {
+            let damageDie = damageDieMatch ? damageDieMatch[1] : 'd8';
+            // Normalize damageDie format
+            if (damageDie.match(/^\d+d\d+$/)) {
+              damageDie = 'd' + damageDie.split('d')[1];
+            }
+            
+            return {
+              hitPoints: hitPointsMatch ? parseInt(hitPointsMatch[1]) : 25,
+              maxHitPoints: hitPointsMatch ? parseInt(hitPointsMatch[1]) : 25,
+              armorClass: armorClassMatch ? parseInt(armorClassMatch[1]) : 14,
+              attackBonus: attackBonusMatch ? parseInt(attackBonusMatch[1]) : 4,
+              damageDie: damageDie,
+              description: descriptionMatch ? descriptionMatch[1] : `A ${className} character.`,
+            };
+          }
+        }
+      }
+      
+      console.warn(`Could not parse stats for ${className}:`, content.substring(0, 200));
+      return null;
+    } catch (error) {
+      console.error(`Error fetching stats for ${className}:`, error);
+      return null;
+    }
+  };
+
+  // Load all classes from OpenSearch on component mount
+  useEffect(() => {
+    const loadClasses = async () => {
+      setIsLoadingClasses(true);
+      try {
+        const classNames = await fetchAvailableClasses();
+        
+        if (classNames.length === 0) {
+          console.warn('No classes found, using fallback classes');
+          setAvailableClasses(FALLBACK_CLASSES);
+          setIsLoadingClasses(false);
+          return;
+        }
+
+        // Fetch stats for each class
+        const classPromises = classNames.map(async (className) => {
+          const stats = await fetchClassStats(className);
+          if (stats) {
+            // Assign a color based on class name (with fallback)
+            const colorMap: Record<string, string> = {
+              'Fighter': 'bg-red-900',
+              'Wizard': 'bg-blue-900',
+              'Rogue': 'bg-purple-900',
+              'Cleric': 'bg-yellow-900',
+              'Barbarian': 'bg-orange-900',
+              'Ranger': 'bg-green-900',
+              'Paladin': 'bg-pink-900',
+              'Bard': 'bg-indigo-900',
+              'Sorcerer': 'bg-cyan-900',
+              'Warlock': 'bg-violet-900',
+              'Monk': 'bg-amber-900',
+              'Druid': 'bg-emerald-900',
+              'Artificer': 'bg-teal-900',
+            };
+            
+            return {
+              name: className,
+              hitPoints: stats.hitPoints || 25,
+              maxHitPoints: stats.maxHitPoints || stats.hitPoints || 25,
+              armorClass: stats.armorClass || 14,
+              attackBonus: stats.attackBonus || 4,
+              damageDie: stats.damageDie || 'd8',
+              abilities: [],
+              description: stats.description || `A ${className} character.`,
+              color: colorMap[className] || 'bg-slate-900',
+            } as DnDClass;
+          }
+          return null;
+        });
+
+        const loadedClasses = (await Promise.all(classPromises)).filter((cls): cls is DnDClass => cls !== null);
+        
+        if (loadedClasses.length > 0) {
+          setAvailableClasses(loadedClasses);
+          console.log(`Loaded ${loadedClasses.length} classes from OpenSearch:`, loadedClasses.map(c => c.name).join(', '));
+        } else {
+          console.warn('No classes could be loaded, using fallback classes');
+          setAvailableClasses(FALLBACK_CLASSES);
+        }
+      } catch (error) {
+        console.error('Error loading classes:', error);
+        setAvailableClasses(FALLBACK_CLASSES);
+      } finally {
+        setIsLoadingClasses(false);
+      }
+    };
+
+    loadClasses();
+  }, []);
 
   // Fetch detailed class information from OpenSearch knowledge base
   const fetchClassDetails = async (className: string): Promise<string> => {
@@ -965,7 +1313,10 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
         );
       }
     } else {
-      // Miss
+      // Miss - trigger miss animation on attacker
+      setMissingPlayer(attacker);
+      setMissTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
+      
       await generateAndLogNarrative(
         `${attackerClass.name} attacks ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack misses! ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
         attackerClass,
@@ -1085,6 +1436,10 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
           );
         }
       } else {
+        // All attacks missed - trigger miss animation on attacker
+        setMissingPlayer(attacker);
+        setMissTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
+        
         await generateAndLogNarrative(
           `${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. All attacks miss. ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
           attackerClass,
@@ -1137,7 +1492,10 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
             );
           }
         } else {
-          // Miss
+          // Miss - trigger miss animation on attacker
+          setMissingPlayer(attacker);
+          setMissTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
+          
           await generateAndLogNarrative(
             `${attackerClass.name} uses ${ability.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack misses! ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
             attackerClass,
@@ -1197,6 +1555,8 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
     setIsMoveInProgress(false);
     setDefeatedPlayer(null);
     setVictorPlayer(null);
+    setMissingPlayer(null);
+    setMissTrigger({ player1: 0, player2: 0 });
   };
 
   return (
@@ -1228,33 +1588,56 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
             <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl">
               <h2 className="text-2xl font-bold mb-4 text-amber-100" style={{ fontFamily: 'serif' }}>
                 Select Combatants
-                {isLoadingClassDetails && (
+                {isLoadingClasses && (
+                  <span className="ml-2 text-sm text-amber-300 italic">
+                    (Loading classes from OpenSearch...)
+                    <span className="waiting-indicator ml-2 inline-block">
+                      <span className="waiting-dot"></span>
+                      <span className="waiting-dot"></span>
+                      <span className="waiting-dot"></span>
+                    </span>
+                  </span>
+                )}
+                {isLoadingClassDetails && !isLoadingClasses && (
                   <span className="ml-2 text-sm text-amber-300 italic">(Loading class information from knowledge base...)</span>
                 )}
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <ClassSelection
-                  title="Combatant 1"
-                  availableClasses={availableClasses}
-                  selectedClass={player1Class}
-                  onSelect={setPlayer1Class}
-                />
-                <ClassSelection
-                  title="Combatant 2"
-                  availableClasses={availableClasses}
-                  selectedClass={player2Class}
-                  onSelect={setPlayer2Class}
-                />
-              </div>
+              {isLoadingClasses ? (
+                <div className="text-center py-8">
+                  <div className="text-amber-200 mb-4">Loading available D&D classes from OpenSearch...</div>
+                  <div className="waiting-indicator">
+                    <span className="waiting-dot"></span>
+                    <span className="waiting-dot"></span>
+                    <span className="waiting-dot"></span>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <ClassSelection
+                      title="Combatant 1"
+                      availableClasses={availableClasses}
+                      selectedClass={player1Class}
+                      onSelect={setPlayer1Class}
+                    />
+                    <ClassSelection
+                      title="Combatant 2"
+                      availableClasses={availableClasses}
+                      selectedClass={player2Class}
+                      onSelect={setPlayer2Class}
+                    />
+                  </div>
 
-              <button
-                onClick={startBattle}
-                disabled={!player1Class || !player2Class}
-                className="mt-6 w-full py-3 px-6 bg-red-900 hover:bg-red-800 text-white font-bold text-lg rounded-lg border-2 border-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
-                style={{ fontFamily: 'serif' }}
-              >
-                Begin Battle! ⚔️
-              </button>
+                  <button
+                    onClick={startBattle}
+                    disabled={!player1Class || !player2Class}
+                    className="mt-6 w-full py-3 px-6 bg-red-900 hover:bg-red-800 text-white font-bold text-lg rounded-lg border-2 border-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+                    style={{ fontFamily: 'serif' }}
+                  >
+                    Begin Battle! ⚔️
+                  </button>
+                </>
+              )}
             </div>
           )}
 
@@ -1269,14 +1652,17 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
                 onUseAbility={(idx) => useAbility('player1', idx)}
                 shouldShake={shakingPlayer === 'player1'}
                 shouldSparkle={sparklingPlayer === 'player1'}
+                shouldMiss={missingPlayer === 'player1'}
                 shakeTrigger={shakeTrigger.player1}
                 sparkleTrigger={sparkleTrigger.player1}
+                missTrigger={missTrigger.player1}
                 isMoveInProgress={isMoveInProgress}
                 isDefeated={defeatedPlayer === 'player1'}
                 isVictor={victorPlayer === 'player1'}
                 confettiTrigger={confettiTrigger}
                 onShakeComplete={() => setShakingPlayer(null)}
                 onSparkleComplete={() => setSparklingPlayer(null)}
+                onMissComplete={() => setMissingPlayer(null)}
               />
               <PlayerStats
                 playerClass={player2Class}
@@ -1286,14 +1672,17 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
                 onUseAbility={(idx) => useAbility('player2', idx)}
                 shouldShake={shakingPlayer === 'player2'}
                 shouldSparkle={sparklingPlayer === 'player2'}
+                shouldMiss={missingPlayer === 'player2'}
                 shakeTrigger={shakeTrigger.player2}
                 sparkleTrigger={sparkleTrigger.player2}
+                missTrigger={missTrigger.player2}
                 isMoveInProgress={isMoveInProgress}
                 isDefeated={defeatedPlayer === 'player2'}
                 isVictor={victorPlayer === 'player2'}
                 confettiTrigger={confettiTrigger}
                 onShakeComplete={() => setShakingPlayer(null)}
                 onSparkleComplete={() => setSparklingPlayer(null)}
+                onMissComplete={() => setMissingPlayer(null)}
               />
             </div>
           )}
