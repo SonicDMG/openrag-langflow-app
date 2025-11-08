@@ -57,3 +57,91 @@ body {
     transform: scale(1);
   }
 }
+
+/* Shake animation for attacks */
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0) translateY(0) rotate(0deg);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-12px) translateY(-4px) rotate(-3deg);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(12px) translateY(4px) rotate(3deg);
+  }
+}
+
+.shake {
+  animation: shake 0.6s ease-in-out !important;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+/* Sparkle animation for healing */
+@keyframes sparkle {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-30px) scale(1.2) rotate(180deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-60px) scale(0.8) rotate(360deg);
+  }
+}
+
+.sparkle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: radial-gradient(circle, #4ade80 0%, #22c55e 50%, #16a34a 100%);
+  border-radius: 50%;
+  box-shadow: 0 0 15px #22c55e, 0 0 25px #22c55e, 0 0 35px #16a34a, 0 0 45px #15803d;
+  animation: sparkle 1.2s ease-out forwards;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.sparkle-container {
+  position: relative;
+  overflow: visible;
+  z-index: 1;
+}
+
+/* Waiting animation for battle log */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.waiting-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #fbbf24;
+  font-style: italic;
+}
+
+.waiting-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #fbbf24;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.waiting-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.waiting-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}

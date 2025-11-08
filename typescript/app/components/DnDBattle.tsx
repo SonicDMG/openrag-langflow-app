@@ -237,6 +237,41 @@ function ClassSelection({ title, availableClasses, selectedClass, onSelect }: Cl
   );
 }
 
+// Sparkle component for healing effects
+function Sparkles({ trigger }: { trigger: number }) {
+  const [sparkles, setSparkles] = useState<Array<{ id: number; x: number; y: number }>>([]);
+
+  useEffect(() => {
+    // Generate random sparkle positions
+    const newSparkles = Array.from({ length: 12 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+    }));
+    setSparkles(newSparkles);
+
+    // Clean up sparkles after animation
+    const timer = setTimeout(() => setSparkles([]), 1000);
+    return () => clearTimeout(timer);
+  }, [trigger]);
+
+  return (
+    <>
+      {sparkles.map((sparkle) => (
+        <div
+          key={sparkle.id}
+          className="sparkle"
+          style={{
+            left: `${sparkle.x}%`,
+            top: `${sparkle.y}%`,
+            animationDelay: `${sparkle.id * 0.05}s`,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
 // PlayerStats component to eliminate duplicate rendering code
 interface PlayerStatsProps {
   playerClass: DnDClass;
@@ -244,13 +279,68 @@ interface PlayerStatsProps {
   currentTurn: 'player1' | 'player2';
   onAttack: () => void;
   onUseAbility: (index: number) => void;
+  shouldShake: boolean;
+  shouldSparkle: boolean;
+  shakeTrigger: number;
+  sparkleTrigger: number;
+  onShakeComplete: () => void;
+  onSparkleComplete: () => void;
 }
 
-function PlayerStats({ playerClass, playerId, currentTurn, onAttack, onUseAbility }: PlayerStatsProps) {
+function PlayerStats({ 
+  playerClass, 
+  playerId, 
+  currentTurn, 
+  onAttack, 
+  onUseAbility,
+  shouldShake,
+  shouldSparkle,
+  shakeTrigger,
+  sparkleTrigger,
+  onShakeComplete,
+  onSparkleComplete
+}: PlayerStatsProps) {
   const isActive = currentTurn === playerId;
+  const shakeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (shouldShake && shakeTrigger > 0 && shakeRef.current) {
+      // Force reflow to restart animation
+      shakeRef.current.classList.remove('shake');
+      // Use requestAnimationFrame to ensure the class removal is processed
+      let timer: NodeJS.Timeout;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (shakeRef.current) {
+            shakeRef.current.classList.add('shake');
+            timer = setTimeout(() => {
+              shakeRef.current?.classList.remove('shake');
+              onShakeComplete();
+            }, 600);
+          }
+        });
+      });
+      return () => {
+        if (timer) clearTimeout(timer);
+      };
+    }
+  }, [shouldShake, shakeTrigger, onShakeComplete]);
+
+  useEffect(() => {
+    if (shouldSparkle && sparkleTrigger > 0) {
+      const timer = setTimeout(() => {
+        onSparkleComplete();
+      }, 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [shouldSparkle, sparkleTrigger, onSparkleComplete]);
 
   return (
-    <div className={`bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl ${isActive ? 'ring-4 ring-amber-400' : ''}`}>
+    <div 
+      ref={shakeRef}
+      className={`bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl sparkle-container ${isActive ? 'ring-4 ring-amber-400' : ''}`}
+    >
+      {shouldSparkle && <Sparkles key={sparkleTrigger} trigger={sparkleTrigger} />}
       <h3 className="text-2xl font-bold mb-3 text-amber-100" style={{ fontFamily: 'serif' }}>
         {playerClass.name}
         {isActive && ' ⚡'}
@@ -320,6 +410,11 @@ export default function DnDBattle() {
   const [classDetails, setClassDetails] = useState<Record<string, string>>({});
   const [isLoadingClassDetails, setIsLoadingClassDetails] = useState(false);
   const [battleResponseId, setBattleResponseId] = useState<string | null>(null);
+  const [shakingPlayer, setShakingPlayer] = useState<'player1' | 'player2' | null>(null);
+  const [shakeTrigger, setShakeTrigger] = useState({ player1: 0, player2: 0 });
+  const [sparklingPlayer, setSparklingPlayer] = useState<'player1' | 'player2' | null>(null);
+  const [sparkleTrigger, setSparkleTrigger] = useState({ player1: 0, player2: 0 });
+  const [isWaitingForAgent, setIsWaitingForAgent] = useState(false);
   const logEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -359,16 +454,21 @@ export default function DnDBattle() {
     attackerDetails: string = '',
     defenderDetails: string = ''
   ): Promise<void> => {
-    const { narrative, responseId } = await getBattleNarrative(
-      eventDescription,
-      attackerClass,
-      defenderClass,
-      attackerDetails,
-      defenderDetails,
-      battleResponseId
-    );
-    setBattleResponseId(responseId);
-    addLog('narrative', narrative);
+    setIsWaitingForAgent(true);
+    try {
+      const { narrative, responseId } = await getBattleNarrative(
+        eventDescription,
+        attackerClass,
+        defenderClass,
+        attackerDetails,
+        defenderDetails,
+        battleResponseId
+      );
+      setBattleResponseId(responseId);
+      addLog('narrative', narrative);
+    } finally {
+      setIsWaitingForAgent(false);
+    }
   };
 
   // Helper function to handle victory condition
@@ -726,16 +826,21 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
     setIsLoadingClassDetails(false);
     
     // Initialize battle conversation with opening narrative
-    const { narrative: openingNarrative, responseId } = await getBattleNarrative(
-      `The battle begins between ${p1.name} and ${p2.name}. Both combatants are at full health and ready to fight.`,
-      p1,
-      p2,
-      '', // Class details no longer needed
-      '', // Class details no longer needed
-      null // Start new conversation
-    );
-    setBattleResponseId(responseId);
-    addLog('narrative', openingNarrative);
+    setIsWaitingForAgent(true);
+    try {
+      const { narrative: openingNarrative, responseId } = await getBattleNarrative(
+        `The battle begins between ${p1.name} and ${p2.name}. Both combatants are at full health and ready to fight.`,
+        p1,
+        p2,
+        '', // Class details no longer needed
+        '', // Class details no longer needed
+        null // Start new conversation
+      );
+      setBattleResponseId(responseId);
+      addLog('narrative', openingNarrative);
+    } finally {
+      setIsWaitingForAgent(false);
+    }
   };
 
   const performAttack = async (attacker: 'player1' | 'player2') => {
@@ -758,6 +863,10 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
       // Update the defender's HP
       const defender = attacker === 'player1' ? 'player2' : 'player1';
       updatePlayerHP(defender, newHP);
+      
+      // Trigger shake animation on defender
+      setShakingPlayer(defender);
+      setShakeTrigger(prev => ({ ...prev, [defender]: prev[defender] + 1 }));
 
       if (newHP <= 0) {
         await handleVictory(
@@ -811,6 +920,10 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
       const newHP = Math.min(attackerClass.maxHitPoints, attackerClass.hitPoints + heal);
       
       updatePlayerHP(attacker, newHP);
+      
+      // Trigger sparkle animation on healer
+      setSparklingPlayer(attacker);
+      setSparkleTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
 
       await generateAndLogNarrative(
         `${attackerClass.name} uses ${ability.name} and heals for ${heal} HP. ${attackerClass.name} is now at ${newHP}/${attackerClass.maxHitPoints} HP.`,
@@ -861,6 +974,9 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
         const newHP = Math.max(0, defenderClass.hitPoints - totalDamage);
         const defender = attacker === 'player1' ? 'player2' : 'player1';
         updatePlayerHP(defender, newHP);
+        
+        // Trigger shake animation on defender
+        setShakingPlayer(defender);
 
         const hitDetails = hits.map((hit, i) => 
           hit ? `Attack ${i + 1} hits for ${damages[i]} damage.` : `Attack ${i + 1} misses.`
@@ -912,6 +1028,9 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
           const newHP = Math.max(0, defenderClass.hitPoints - damage);
           const defender = attacker === 'player1' ? 'player2' : 'player1';
           updatePlayerHP(defender, newHP);
+          
+          // Trigger shake animation on defender
+          setShakingPlayer(defender);
       
           if (newHP <= 0) {
             await handleVictory(
@@ -950,6 +1069,9 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
         const newHP = Math.max(0, defenderClass.hitPoints - damage);
         const defender = attacker === 'player1' ? 'player2' : 'player1';
         updatePlayerHP(defender, newHP);
+        
+        // Trigger shake animation on defender
+        setShakingPlayer(defender);
 
         if (newHP <= 0) {
           await handleVictory(
@@ -1055,6 +1177,12 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
                 currentTurn={currentTurn}
                 onAttack={() => performAttack('player1')}
                 onUseAbility={(idx) => useAbility('player1', idx)}
+                shouldShake={shakingPlayer === 'player1'}
+                shouldSparkle={sparklingPlayer === 'player1'}
+                shakeTrigger={shakeTrigger.player1}
+                sparkleTrigger={sparkleTrigger.player1}
+                onShakeComplete={() => setShakingPlayer(null)}
+                onSparkleComplete={() => setSparklingPlayer(null)}
               />
               <PlayerStats
                 playerClass={player2Class}
@@ -1062,6 +1190,12 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
                 currentTurn={currentTurn}
                 onAttack={() => performAttack('player2')}
                 onUseAbility={(idx) => useAbility('player2', idx)}
+                shouldShake={shakingPlayer === 'player2'}
+                shouldSparkle={sparklingPlayer === 'player2'}
+                shakeTrigger={shakeTrigger.player2}
+                sparkleTrigger={sparkleTrigger.player2}
+                onShakeComplete={() => setShakingPlayer(null)}
+                onSparkleComplete={() => setSparklingPlayer(null)}
               />
             </div>
           )}
@@ -1112,6 +1246,16 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
                   )}
                 </div>
               ))}
+              {isWaitingForAgent && (
+                <div className="p-2 rounded bg-amber-800/50 text-amber-100">
+                  <span className="waiting-indicator">
+                    Waiting for agent response
+                    <span className="waiting-dot"></span>
+                    <span className="waiting-dot"></span>
+                    <span className="waiting-dot"></span>
+                  </span>
+                </div>
+              )}
               <div ref={logEndRef} />
             </div>
           </div>
