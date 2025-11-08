@@ -165,6 +165,150 @@ function rollDiceWithNotation(notation: string): number {
   return rollDice(dice) + modifier;
 }
 
+// Helper function to parse SSE stream responses
+async function parseSSEResponse(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  onChunk?: (content: string) => void,
+  onDone?: (responseId: string | null) => void
+): Promise<{ content: string; responseId: string | null }> {
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let accumulatedResponse = '';
+  let responseId: string | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        try {
+          const data = JSON.parse(line.slice(6));
+          if (data.type === 'chunk') {
+            accumulatedResponse += data.content;
+            onChunk?.(accumulatedResponse);
+          } else if (data.type === 'done' && data.responseId) {
+            responseId = data.responseId;
+            onDone?.(responseId);
+          }
+        } catch (parseError) {
+          console.error('Error parsing SSE data:', parseError);
+        }
+      }
+    }
+  }
+
+  return { content: accumulatedResponse, responseId };
+}
+
+// ClassSelection component to eliminate duplicate selection UI
+interface ClassSelectionProps {
+  title: string;
+  availableClasses: DnDClass[];
+  selectedClass: DnDClass | null;
+  onSelect: (dndClass: DnDClass) => void;
+}
+
+function ClassSelection({ title, availableClasses, selectedClass, onSelect }: ClassSelectionProps) {
+  return (
+    <div>
+      <h3 className="text-lg font-semibold mb-3 text-amber-200">{title}</h3>
+      <div className="grid grid-cols-2 gap-2">
+        {availableClasses.map((dndClass) => (
+          <button
+            key={dndClass.name}
+            onClick={() => onSelect({ ...dndClass, hitPoints: dndClass.maxHitPoints })}
+            className={`p-3 rounded-lg border-2 transition-all ${
+              selectedClass?.name === dndClass.name
+                ? 'border-amber-400 bg-amber-800 shadow-lg scale-105'
+                : 'border-amber-700 bg-amber-900/50 hover:bg-amber-800 hover:border-amber-600'
+            }`}
+          >
+            <div className="font-bold text-sm text-amber-100">{dndClass.name}</div>
+            <div className="text-xs text-amber-300 mt-1">{dndClass.hitPoints} HP</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// PlayerStats component to eliminate duplicate rendering code
+interface PlayerStatsProps {
+  playerClass: DnDClass;
+  playerId: 'player1' | 'player2';
+  currentTurn: 'player1' | 'player2';
+  onAttack: () => void;
+  onUseAbility: (index: number) => void;
+}
+
+function PlayerStats({ playerClass, playerId, currentTurn, onAttack, onUseAbility }: PlayerStatsProps) {
+  const isActive = currentTurn === playerId;
+
+  return (
+    <div className={`bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl ${isActive ? 'ring-4 ring-amber-400' : ''}`}>
+      <h3 className="text-2xl font-bold mb-3 text-amber-100" style={{ fontFamily: 'serif' }}>
+        {playerClass.name}
+        {isActive && ' ⚡'}
+      </h3>
+      <div className="space-y-2 text-sm">
+        <div className="flex justify-between">
+          <span className="text-amber-300">Hit Points:</span>
+          <span className="font-bold text-amber-100">
+            {playerClass.hitPoints} / {playerClass.maxHitPoints}
+          </span>
+        </div>
+        <div className="w-full bg-amber-950 rounded-full h-4 border-2 border-amber-800">
+          <div
+            className="bg-red-600 h-full rounded-full transition-all"
+            style={{ width: `${(playerClass.hitPoints / playerClass.maxHitPoints) * 100}%` }}
+          />
+        </div>
+        <div className="flex justify-between">
+          <span className="text-amber-300">Armor Class:</span>
+          <span className="font-bold text-amber-100">{playerClass.armorClass}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-amber-300">Attack Bonus:</span>
+          <span className="font-bold text-amber-100">+{playerClass.attackBonus}</span>
+        </div>
+        <div className="mt-4">
+          <div className="text-amber-300 mb-2">Abilities: {playerClass.abilities.length > 0 ? `(${playerClass.abilities.length})` : '(none)'}</div>
+          <div className="flex flex-wrap gap-2">
+            {playerClass.abilities.length > 0 ? (
+              playerClass.abilities.map((ability, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => onUseAbility(idx)}
+                  disabled={!isActive}
+                  className="px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  title={ability.description || undefined}
+                >
+                  {ability.name}
+                </button>
+              ))
+            ) : (
+              <span className="text-amber-400 text-xs italic">No abilities loaded</span>
+            )}
+          </div>
+        </div>
+        {isActive && (
+          <button
+            onClick={onAttack}
+            className="mt-4 w-full py-2 px-4 bg-red-900 hover:bg-red-800 text-white font-bold rounded-lg border-2 border-red-700 transition-all"
+          >
+            Attack! ⚔️
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function DnDBattle() {
   const router = useRouter();
   const [player1Class, setPlayer1Class] = useState<DnDClass | null>(null);
@@ -185,6 +329,72 @@ export default function DnDBattle() {
   useEffect(() => {
     scrollToBottom();
   }, [battleLog]);
+
+  // Helper function to update player HP
+  const updatePlayerHP = (player: 'player1' | 'player2', newHP: number) => {
+    if (player === 'player1') {
+      setPlayer1Class((current) => current ? { ...current, hitPoints: newHP } : current);
+    } else {
+      setPlayer2Class((current) => current ? { ...current, hitPoints: newHP } : current);
+    }
+  };
+
+  // Helper function to calculate attack roll
+  const calculateAttackRoll = (attackerClass: DnDClass): { d20Roll: number; attackRoll: number } => {
+    const d20Roll = rollDice('d20');
+    const attackRoll = d20Roll + attackerClass.attackBonus;
+    return { d20Roll, attackRoll };
+  };
+
+  // Helper function to log attack roll
+  const logAttackRoll = (attackerClass: DnDClass, d20Roll: number, attackRoll: number, defenderAC: number) => {
+    addLog('roll', `🎲 ${attackerClass.name} rolls ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''} = ${attackRoll} (needs ${defenderAC})`);
+  };
+
+  // Helper function to generate narrative and update response ID
+  const generateAndLogNarrative = async (
+    eventDescription: string,
+    attackerClass: DnDClass,
+    defenderClass: DnDClass,
+    attackerDetails: string = '',
+    defenderDetails: string = ''
+  ): Promise<void> => {
+    const { narrative, responseId } = await getBattleNarrative(
+      eventDescription,
+      attackerClass,
+      defenderClass,
+      attackerDetails,
+      defenderDetails,
+      battleResponseId
+    );
+    setBattleResponseId(responseId);
+    addLog('narrative', narrative);
+  };
+
+  // Helper function to handle victory condition
+  const handleVictory = async (
+    attackerClass: DnDClass,
+    defenderClass: DnDClass,
+    damage: number,
+    attackerDetails: string = '',
+    defenderDetails: string = '',
+    eventDescription: string
+  ): Promise<void> => {
+    setIsBattleActive(false);
+    await generateAndLogNarrative(
+      eventDescription,
+      attackerClass,
+      { ...defenderClass, hitPoints: 0 },
+      attackerDetails,
+      defenderDetails
+    );
+    addLog('system', `🏆 ${attackerClass.name} wins!`);
+  };
+
+  // Helper function to switch turns
+  const switchTurn = (currentAttacker: 'player1' | 'player2') => {
+    setCurrentTurn(currentAttacker === 'player1' ? 'player2' : 'player1');
+  };
 
   // Fetch detailed class information from OpenSearch knowledge base
   const fetchClassDetails = async (className: string): Promise<string> => {
@@ -207,38 +417,13 @@ export default function DnDBattle() {
       }
 
       const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
 
       if (!reader) {
         throw new Error('No response body');
       }
 
-      let buffer = '';
-      let accumulatedResponse = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (data.type === 'chunk') {
-                accumulatedResponse += data.content;
-              }
-            } catch (parseError) {
-              console.error('Error parsing SSE data:', parseError);
-            }
-          }
-        }
-      }
-
-      return accumulatedResponse;
+      const { content } = await parseSSEResponse(reader);
+      return content;
     } catch (error) {
       console.error(`Error fetching class details for ${className}:`, error);
       return '';
@@ -298,36 +483,12 @@ Important rules:
       }
 
       const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
 
       if (!reader) {
         throw new Error('No response body');
       }
 
-      let buffer = '';
-      let accumulatedResponse = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (data.type === 'chunk') {
-                accumulatedResponse += data.content;
-              }
-            } catch (parseError) {
-              console.error('Error parsing SSE data:', parseError);
-            }
-          }
-        }
-      }
+      const { content: accumulatedResponse } = await parseSSEResponse(reader);
 
       // Try to extract JSON from the response
       // Look for JSON object in the response (may be wrapped in markdown code blocks or plain text)
@@ -497,41 +658,15 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
       }
 
       const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
 
       if (!reader) {
         throw new Error('No response body');
       }
 
-      let buffer = '';
-      let accumulatedResponse = '';
-      let responseId: string | null = previousResponseId;
+      const { content: accumulatedResponse, responseId } = await parseSSEResponse(reader);
+      const finalResponseId = responseId || previousResponseId;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (data.type === 'chunk') {
-                accumulatedResponse += data.content;
-              } else if (data.type === 'done' && data.responseId) {
-                responseId = data.responseId;
-              }
-            } catch (parseError) {
-              console.error('Error parsing SSE data:', parseError);
-            }
-          }
-        }
-      }
-
-      return { narrative: accumulatedResponse || eventDescription, responseId };
+      return { narrative: accumulatedResponse || eventDescription, responseId: finalResponseId };
     } catch (error) {
       console.error('Error getting battle narrative:', error);
       return { narrative: eventDescription, responseId: previousResponseId };
@@ -612,9 +747,8 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
     const defenderDetails = classDetails[defenderClass.name] || '';
 
     // Roll attack
-    const d20Roll = rollDice('d20');
-    const attackRoll = d20Roll + attackerClass.attackBonus;
-    addLog('roll', `🎲 ${attackerClass.name} rolls ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''} = ${attackRoll} (needs ${defenderClass.armorClass})`);
+    const { d20Roll, attackRoll } = calculateAttackRoll(attackerClass);
+    logAttackRoll(attackerClass, d20Roll, attackRoll, defenderClass.armorClass);
 
     if (attackRoll >= defenderClass.armorClass) {
       // Hit!
@@ -622,53 +756,40 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
       const newHP = Math.max(0, defenderClass.hitPoints - damage);
       
       // Update the defender's HP
-      if (attacker === 'player1') {
-        setPlayer2Class((p2) => p2 ? { ...p2, hitPoints: newHP } : p2);
-      } else {
-        setPlayer1Class((p1) => p1 ? { ...p1, hitPoints: newHP } : p1);
-      }
+      const defender = attacker === 'player1' ? 'player2' : 'player1';
+      updatePlayerHP(defender, newHP);
 
       if (newHP <= 0) {
-        setIsBattleActive(false);
-        const { narrative: victoryNarrative, responseId: newResponseId } = await getBattleNarrative(
-          `${attackerClass.name} attacks ${defenderClass.name} and deals ${damage} damage. ${defenderClass.name} is defeated with 0 HP remaining.`,
+        await handleVictory(
           attackerClass,
-          { ...defenderClass, hitPoints: newHP },
+          defenderClass,
+          damage,
           attackerDetails,
           defenderDetails,
-          battleResponseId
+          `${attackerClass.name} attacks ${defenderClass.name} and deals ${damage} damage. ${defenderClass.name} is defeated with 0 HP remaining.`
         );
-        setBattleResponseId(newResponseId);
-        addLog('narrative', victoryNarrative);
-        addLog('system', `🏆 ${attackerClass.name} wins!`);
       } else {
-        const { narrative: hitNarrative, responseId: newResponseId } = await getBattleNarrative(
+        await generateAndLogNarrative(
           `${attackerClass.name} attacks ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack hits! ${defenderClass.name} takes ${damage} damage and is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
           attackerClass,
           { ...defenderClass, hitPoints: newHP },
           attackerDetails,
-          defenderDetails,
-          battleResponseId
+          defenderDetails
         );
-        setBattleResponseId(newResponseId);
-        addLog('narrative', hitNarrative);
       }
     } else {
       // Miss
-      const { narrative: missNarrative, responseId: newResponseId } = await getBattleNarrative(
+      await generateAndLogNarrative(
         `${attackerClass.name} attacks ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack misses! ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
         attackerClass,
         defenderClass,
         attackerDetails,
-        defenderDetails,
-        battleResponseId
+        defenderDetails
       );
-      setBattleResponseId(newResponseId);
-      addLog('narrative', missNarrative);
     }
 
     // Switch turns
-    setCurrentTurn(attacker === 'player1' ? 'player2' : 'player1');
+    switchTurn(attacker);
   };
 
   const useAbility = async (attacker: 'player1' | 'player2', abilityIndex: number) => {
@@ -689,22 +810,15 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
       const heal = rollDiceWithNotation(ability.healingDice);
       const newHP = Math.min(attackerClass.maxHitPoints, attackerClass.hitPoints + heal);
       
-      if (attacker === 'player1') {
-        setPlayer1Class((current) => current ? { ...current, hitPoints: newHP } : current);
-      } else {
-        setPlayer2Class((current) => current ? { ...current, hitPoints: newHP } : current);
-      }
+      updatePlayerHP(attacker, newHP);
 
-      const { narrative: healingNarrative, responseId: newResponseId } = await getBattleNarrative(
+      await generateAndLogNarrative(
         `${attackerClass.name} uses ${ability.name} and heals for ${heal} HP. ${attackerClass.name} is now at ${newHP}/${attackerClass.maxHitPoints} HP.`,
         attackerClass,
         defenderClass,
         attackerDetails,
-        defenderDetails,
-        battleResponseId
+        defenderDetails
       );
-      setBattleResponseId(newResponseId);
-      addLog('narrative', healingNarrative);
     } 
     // Handle attack abilities
     else if (ability.type === 'attack') {
@@ -745,64 +859,47 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
 
       if (totalDamage > 0) {
         const newHP = Math.max(0, defenderClass.hitPoints - totalDamage);
+        const defender = attacker === 'player1' ? 'player2' : 'player1';
+        updatePlayerHP(defender, newHP);
 
-        if (attacker === 'player1') {
-          setPlayer2Class((current) => current ? { ...current, hitPoints: newHP } : current);
-        } else {
-          setPlayer1Class((current) => current ? { ...current, hitPoints: newHP } : current);
-        }
+        const hitDetails = hits.map((hit, i) => 
+          hit ? `Attack ${i + 1} hits for ${damages[i]} damage.` : `Attack ${i + 1} misses.`
+        ).join(' ');
 
         if (newHP <= 0) {
-          setIsBattleActive(false);
-            const hitDetails = hits.map((hit, i) => 
-              hit ? `Attack ${i + 1} hits for ${damages[i]} damage.` : `Attack ${i + 1} misses.`
-            ).join(' ');
-          const { narrative: victoryNarrative, responseId: newResponseId } = await getBattleNarrative(
-              `${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. ${hitDetails} Total damage: ${totalDamage}. ${defenderClass.name} is defeated with 0 HP.`,
+          await handleVictory(
             attackerClass,
-              { ...defenderClass, hitPoints: newHP },
+            defenderClass,
+            totalDamage,
             attackerDetails,
             defenderDetails,
-            battleResponseId
+            `${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. ${hitDetails} Total damage: ${totalDamage}. ${defenderClass.name} is defeated with 0 HP.`
           );
-          setBattleResponseId(newResponseId);
-          addLog('narrative', victoryNarrative);
-          addLog('system', `🏆 ${attackerClass.name} wins!`);
-            setCurrentTurn(attacker === 'player1' ? 'player2' : 'player1');
+          switchTurn(attacker);
           return;
         } else {
-            const hitDetails = hits.map((hit, i) => 
-              hit ? `Attack ${i + 1} hits for ${damages[i]} damage.` : `Attack ${i + 1} misses.`
-            ).join(' ');
-          const { narrative: abilityNarrative, responseId: newResponseId } = await getBattleNarrative(
-              `${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. ${hitDetails} Total damage: ${totalDamage}. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
+          await generateAndLogNarrative(
+            `${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. ${hitDetails} Total damage: ${totalDamage}. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
             attackerClass,
-              { ...defenderClass, hitPoints: newHP },
+            { ...defenderClass, hitPoints: newHP },
             attackerDetails,
-            defenderDetails,
-            battleResponseId
+            defenderDetails
           );
-          setBattleResponseId(newResponseId);
-          addLog('narrative', abilityNarrative);
         }
       } else {
-        const { narrative: missNarrative, responseId: newResponseId } = await getBattleNarrative(
-            `${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. All attacks miss. ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
+        await generateAndLogNarrative(
+          `${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. All attacks miss. ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
           attackerClass,
           defenderClass,
           attackerDetails,
-          defenderDetails,
-          battleResponseId
+          defenderDetails
         );
-        setBattleResponseId(newResponseId);
-        addLog('narrative', missNarrative);
       }
       }
       // Single attack with attack roll
       else if (attackAbility.attackRoll) {
-        const d20Roll = rollDice('d20');
-        const attackRoll = d20Roll + attackerClass.attackBonus;
-        addLog('roll', `🎲 ${attackerClass.name} rolls ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''} = ${attackRoll} (needs ${defenderClass.armorClass})`);
+        const { d20Roll, attackRoll } = calculateAttackRoll(attackerClass);
+        logAttackRoll(attackerClass, d20Roll, attackRoll, defenderClass.armorClass);
 
         if (attackRoll >= defenderClass.armorClass) {
           // Hit
@@ -812,98 +909,73 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
             damage += rollDiceWithNotation(attackAbility.bonusDamageDice);
           }
           
-      const newHP = Math.max(0, defenderClass.hitPoints - damage);
-
-      if (attacker === 'player1') {
-        setPlayer2Class((current) => current ? { ...current, hitPoints: newHP } : current);
-      } else {
-        setPlayer1Class((current) => current ? { ...current, hitPoints: newHP } : current);
-      }
+          const newHP = Math.max(0, defenderClass.hitPoints - damage);
+          const defender = attacker === 'player1' ? 'player2' : 'player1';
+          updatePlayerHP(defender, newHP);
       
-      if (newHP <= 0) {
-        setIsBattleActive(false);
-        const { narrative: victoryNarrative, responseId: newResponseId } = await getBattleNarrative(
-              `${attackerClass.name} uses ${ability.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack hits for ${damage} damage. ${defenderClass.name} is defeated with 0 HP.`,
-          attackerClass,
-              { ...defenderClass, hitPoints: newHP },
-          attackerDetails,
-          defenderDetails,
-          battleResponseId
-        );
-        setBattleResponseId(newResponseId);
-        addLog('narrative', victoryNarrative);
-        addLog('system', `🏆 ${attackerClass.name} wins!`);
-            setCurrentTurn(attacker === 'player1' ? 'player2' : 'player1');
-        return;
-      } else {
-            const { narrative: abilityNarrative, responseId: newResponseId } = await getBattleNarrative(
+          if (newHP <= 0) {
+            await handleVictory(
+              attackerClass,
+              defenderClass,
+              damage,
+              attackerDetails,
+              defenderDetails,
+              `${attackerClass.name} uses ${ability.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack hits for ${damage} damage. ${defenderClass.name} is defeated with 0 HP.`
+            );
+            switchTurn(attacker);
+            return;
+          } else {
+            await generateAndLogNarrative(
               `${attackerClass.name} uses ${ability.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack hits for ${damage} damage. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
               attackerClass,
               { ...defenderClass, hitPoints: newHP },
               attackerDetails,
-              defenderDetails,
-              battleResponseId
+              defenderDetails
             );
-            setBattleResponseId(newResponseId);
-            addLog('narrative', abilityNarrative);
           }
         } else {
           // Miss
-          const { narrative: missNarrative, responseId: newResponseId } = await getBattleNarrative(
+          await generateAndLogNarrative(
             `${attackerClass.name} uses ${ability.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack misses! ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
-          attackerClass,
-          defenderClass,
-          attackerDetails,
-          defenderDetails,
-          battleResponseId
-        );
-      setBattleResponseId(newResponseId);
-          addLog('narrative', missNarrative);
+            attackerClass,
+            defenderClass,
+            attackerDetails,
+            defenderDetails
+          );
         }
       }
       // Automatic damage (no attack roll, like Fireball)
       else {
         const damage = rollDiceWithNotation(attackAbility.damageDice);
         const newHP = Math.max(0, defenderClass.hitPoints - damage);
-
-        if (attacker === 'player1') {
-          setPlayer2Class((current) => current ? { ...current, hitPoints: newHP } : current);
-        } else {
-          setPlayer1Class((current) => current ? { ...current, hitPoints: newHP } : current);
-        }
+        const defender = attacker === 'player1' ? 'player2' : 'player1';
+        updatePlayerHP(defender, newHP);
 
         if (newHP <= 0) {
-          setIsBattleActive(false);
-          const { narrative: victoryNarrative, responseId: newResponseId } = await getBattleNarrative(
-            `${attackerClass.name} uses ${ability.name} and deals ${damage} damage to ${defenderClass.name}. ${defenderClass.name} is defeated with 0 HP.`,
+          await handleVictory(
             attackerClass,
-            { ...defenderClass, hitPoints: newHP },
+            defenderClass,
+            damage,
             attackerDetails,
             defenderDetails,
-            battleResponseId
+            `${attackerClass.name} uses ${ability.name} and deals ${damage} damage to ${defenderClass.name}. ${defenderClass.name} is defeated with 0 HP.`
           );
-          setBattleResponseId(newResponseId);
-          addLog('narrative', victoryNarrative);
-          addLog('system', `🏆 ${attackerClass.name} wins!`);
-          setCurrentTurn(attacker === 'player1' ? 'player2' : 'player1');
+          switchTurn(attacker);
           return;
         } else {
-          const { narrative: spellNarrative, responseId: newResponseId } = await getBattleNarrative(
+          await generateAndLogNarrative(
             `${attackerClass.name} uses ${ability.name} and deals ${damage} damage to ${defenderClass.name}. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
             attackerClass,
             { ...defenderClass, hitPoints: newHP },
             attackerDetails,
-            defenderDetails,
-            battleResponseId
+            defenderDetails
           );
-          setBattleResponseId(newResponseId);
-          addLog('narrative', spellNarrative);
         }
       }
     }
 
     // Switch turns
-    setCurrentTurn(attacker === 'player1' ? 'player2' : 'player1');
+    switchTurn(attacker);
   };
 
   const resetBattle = () => {
@@ -949,47 +1021,18 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
                 )}
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Player 1 Selection */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-3 text-amber-200">Combatant 1</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    {availableClasses.map((dndClass) => (
-                      <button
-                        key={dndClass.name}
-                        onClick={() => setPlayer1Class({ ...dndClass, hitPoints: dndClass.maxHitPoints })}
-                        className={`p-3 rounded-lg border-2 transition-all ${
-                          player1Class?.name === dndClass.name
-                            ? 'border-amber-400 bg-amber-800 shadow-lg scale-105'
-                            : 'border-amber-700 bg-amber-900/50 hover:bg-amber-800 hover:border-amber-600'
-                        }`}
-                      >
-                        <div className="font-bold text-sm text-amber-100">{dndClass.name}</div>
-                        <div className="text-xs text-amber-300 mt-1">{dndClass.hitPoints} HP</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Player 2 Selection */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-3 text-amber-200">Combatant 2</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    {availableClasses.map((dndClass) => (
-                      <button
-                        key={dndClass.name}
-                        onClick={() => setPlayer2Class({ ...dndClass, hitPoints: dndClass.maxHitPoints })}
-                        className={`p-3 rounded-lg border-2 transition-all ${
-                          player2Class?.name === dndClass.name
-                            ? 'border-amber-400 bg-amber-800 shadow-lg scale-105'
-                            : 'border-amber-700 bg-amber-900/50 hover:bg-amber-800 hover:border-amber-600'
-                        }`}
-                      >
-                        <div className="font-bold text-sm text-amber-100">{dndClass.name}</div>
-                        <div className="text-xs text-amber-300 mt-1">{dndClass.hitPoints} HP</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <ClassSelection
+                  title="Combatant 1"
+                  availableClasses={availableClasses}
+                  selectedClass={player1Class}
+                  onSelect={setPlayer1Class}
+                />
+                <ClassSelection
+                  title="Combatant 2"
+                  availableClasses={availableClasses}
+                  selectedClass={player2Class}
+                  onSelect={setPlayer2Class}
+                />
               </div>
 
               <button
@@ -1006,121 +1049,20 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
           {/* Battle Stats */}
           {isBattleActive && player1Class && player2Class && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Player 1 Stats */}
-              <div className={`bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl ${currentTurn === 'player1' ? 'ring-4 ring-amber-400' : ''}`}>
-                <h3 className="text-2xl font-bold mb-3 text-amber-100" style={{ fontFamily: 'serif' }}>
-                  {player1Class.name}
-                  {currentTurn === 'player1' && ' ⚡'}
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-amber-300">Hit Points:</span>
-                    <span className="font-bold text-amber-100">
-                      {player1Class.hitPoints} / {player1Class.maxHitPoints}
-                    </span>
-                  </div>
-                  <div className="w-full bg-amber-950 rounded-full h-4 border-2 border-amber-800">
-                    <div
-                      className="bg-red-600 h-full rounded-full transition-all"
-                      style={{ width: `${(player1Class.hitPoints / player1Class.maxHitPoints) * 100}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-amber-300">Armor Class:</span>
-                    <span className="font-bold text-amber-100">{player1Class.armorClass}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-amber-300">Attack Bonus:</span>
-                    <span className="font-bold text-amber-100">+{player1Class.attackBonus}</span>
-                  </div>
-                  <div className="mt-4">
-                    <div className="text-amber-300 mb-2">Abilities: {player1Class.abilities.length > 0 ? `(${player1Class.abilities.length})` : '(none)'}</div>
-                    <div className="flex flex-wrap gap-2">
-                      {player1Class.abilities.length > 0 ? (
-                        player1Class.abilities.map((ability, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => useAbility('player1', idx)}
-                            disabled={currentTurn !== 'player1'}
-                            className="px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                            title={ability.description || undefined}
-                          >
-                            {ability.name}
-                          </button>
-                        ))
-                      ) : (
-                        <span className="text-amber-400 text-xs italic">No abilities loaded</span>
-                      )}
-                    </div>
-                  </div>
-                  {currentTurn === 'player1' && (
-                    <button
-                      onClick={() => performAttack('player1')}
-                      className="mt-4 w-full py-2 px-4 bg-red-900 hover:bg-red-800 text-white font-bold rounded-lg border-2 border-red-700 transition-all"
-                    >
-                      Attack! ⚔️
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Player 2 Stats */}
-              <div className={`bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl ${currentTurn === 'player2' ? 'ring-4 ring-amber-400' : ''}`}>
-                <h3 className="text-2xl font-bold mb-3 text-amber-100" style={{ fontFamily: 'serif' }}>
-                  {player2Class.name}
-                  {currentTurn === 'player2' && ' ⚡'}
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-amber-300">Hit Points:</span>
-                    <span className="font-bold text-amber-100">
-                      {player2Class.hitPoints} / {player2Class.maxHitPoints}
-                    </span>
-                  </div>
-                  <div className="w-full bg-amber-950 rounded-full h-4 border-2 border-amber-800">
-                    <div
-                      className="bg-red-600 h-full rounded-full transition-all"
-                      style={{ width: `${(player2Class.hitPoints / player2Class.maxHitPoints) * 100}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-amber-300">Armor Class:</span>
-                    <span className="font-bold text-amber-100">{player2Class.armorClass}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-amber-300">Attack Bonus:</span>
-                    <span className="font-bold text-amber-100">+{player2Class.attackBonus}</span>
-                  </div>
-                  <div className="mt-4">
-                    <div className="text-amber-300 mb-2">Abilities: {player2Class.abilities.length > 0 ? `(${player2Class.abilities.length})` : '(none)'}</div>
-                    <div className="flex flex-wrap gap-2">
-                      {player2Class.abilities.length > 0 ? (
-                        player2Class.abilities.map((ability, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => useAbility('player2', idx)}
-                            disabled={currentTurn !== 'player2'}
-                            className="px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                            title={ability.description || undefined}
-                          >
-                            {ability.name}
-                          </button>
-                        ))
-                      ) : (
-                        <span className="text-amber-400 text-xs italic">No abilities loaded</span>
-                      )}
-                    </div>
-                  </div>
-                  {currentTurn === 'player2' && (
-                    <button
-                      onClick={() => performAttack('player2')}
-                      className="mt-4 w-full py-2 px-4 bg-red-900 hover:bg-red-800 text-white font-bold rounded-lg border-2 border-red-700 transition-all"
-                    >
-                      Attack! ⚔️
-                    </button>
-                  )}
-                </div>
-              </div>
+              <PlayerStats
+                playerClass={player1Class}
+                playerId="player1"
+                currentTurn={currentTurn}
+                onAttack={() => performAttack('player1')}
+                onUseAbility={(idx) => useAbility('player1', idx)}
+              />
+              <PlayerStats
+                playerClass={player2Class}
+                playerId="player2"
+                currentTurn={currentTurn}
+                onAttack={() => performAttack('player2')}
+                onUseAbility={(idx) => useAbility('player2', idx)}
+              />
             </div>
           )}
 
