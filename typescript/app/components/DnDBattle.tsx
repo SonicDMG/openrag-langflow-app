@@ -251,7 +251,7 @@ function Sparkles({ trigger }: { trigger: number }) {
     setSparkles(newSparkles);
 
     // Clean up sparkles after animation
-    const timer = setTimeout(() => setSparkles([]), 1000);
+    const timer = setTimeout(() => setSparkles([]), 800);
     return () => clearTimeout(timer);
   }, [trigger]);
 
@@ -272,6 +272,42 @@ function Sparkles({ trigger }: { trigger: number }) {
   );
 }
 
+// Confetti component for victory effects
+function Confetti({ trigger }: { trigger: number }) {
+  const [confetti, setConfetti] = useState<Array<{ id: number; x: number; delay: number; duration: number }>>([]);
+
+  useEffect(() => {
+    // Generate random confetti pieces
+    const newConfetti = Array.from({ length: 50 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      delay: Math.random() * 0.5,
+      duration: 2 + Math.random() * 1, // 2-3 seconds
+    }));
+    setConfetti(newConfetti);
+
+    // Clean up confetti after animation
+    const timer = setTimeout(() => setConfetti([]), 3000);
+    return () => clearTimeout(timer);
+  }, [trigger]);
+
+  return (
+    <div className="confetti">
+      {confetti.map((piece) => (
+        <div
+          key={piece.id}
+          className="confetti-piece"
+          style={{
+            left: `${piece.x}%`,
+            animationDelay: `${piece.delay}s`,
+            animationDuration: `${piece.duration}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 // PlayerStats component to eliminate duplicate rendering code
 interface PlayerStatsProps {
   playerClass: DnDClass;
@@ -283,6 +319,10 @@ interface PlayerStatsProps {
   shouldSparkle: boolean;
   shakeTrigger: number;
   sparkleTrigger: number;
+  isMoveInProgress: boolean;
+  isDefeated: boolean;
+  isVictor: boolean;
+  confettiTrigger: number;
   onShakeComplete: () => void;
   onSparkleComplete: () => void;
 }
@@ -297,10 +337,15 @@ function PlayerStats({
   shouldSparkle,
   shakeTrigger,
   sparkleTrigger,
+  isMoveInProgress,
+  isDefeated,
+  isVictor,
+  confettiTrigger,
   onShakeComplete,
   onSparkleComplete
 }: PlayerStatsProps) {
-  const isActive = currentTurn === playerId;
+  const isActive = currentTurn === playerId && !isDefeated;
+  const isDisabled = (isActive && isMoveInProgress) || isDefeated;
   const shakeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -316,7 +361,7 @@ function PlayerStats({
             timer = setTimeout(() => {
               shakeRef.current?.classList.remove('shake');
               onShakeComplete();
-            }, 600);
+            }, 400);
           }
         });
       });
@@ -330,7 +375,7 @@ function PlayerStats({
     if (shouldSparkle && sparkleTrigger > 0) {
       const timer = setTimeout(() => {
         onSparkleComplete();
-      }, 1200);
+      }, 800);
       return () => clearTimeout(timer);
     }
   }, [shouldSparkle, sparkleTrigger, onSparkleComplete]);
@@ -338,24 +383,34 @@ function PlayerStats({
   return (
     <div 
       ref={shakeRef}
-      className={`bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl sparkle-container ${isActive ? 'ring-4 ring-amber-400' : ''}`}
+      className={`bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl sparkle-container relative ${isActive ? 'ring-4 ring-amber-400' : ''} ${isDefeated ? 'opacity-60' : ''}`}
     >
+      {isDefeated && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+          <div className="text-8xl text-red-900 drop-shadow-2xl" style={{ filter: 'drop-shadow(0 0 10px rgba(0,0,0,0.8))' }}>
+            ☠️
+          </div>
+        </div>
+      )}
+      {isVictor && <Confetti key={confettiTrigger} trigger={confettiTrigger} />}
       {shouldSparkle && <Sparkles key={sparkleTrigger} trigger={sparkleTrigger} />}
       <h3 className="text-2xl font-bold mb-3 text-amber-100" style={{ fontFamily: 'serif' }}>
         {playerClass.name}
         {isActive && ' ⚡'}
+        {isDefeated && ' 💀'}
+        {isVictor && ' 🏆'}
       </h3>
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
           <span className="text-amber-300">Hit Points:</span>
           <span className="font-bold text-amber-100">
-            {playerClass.hitPoints} / {playerClass.maxHitPoints}
+            {isDefeated ? 0 : playerClass.hitPoints} / {playerClass.maxHitPoints}
           </span>
         </div>
         <div className="w-full bg-amber-950 rounded-full h-4 border-2 border-amber-800">
           <div
             className="bg-red-600 h-full rounded-full transition-all"
-            style={{ width: `${(playerClass.hitPoints / playerClass.maxHitPoints) * 100}%` }}
+            style={{ width: `${isDefeated ? 0 : (playerClass.hitPoints / playerClass.maxHitPoints) * 100}%` }}
           />
         </div>
         <div className="flex justify-between">
@@ -374,7 +429,7 @@ function PlayerStats({
                 <button
                   key={idx}
                   onClick={() => onUseAbility(idx)}
-                  disabled={!isActive}
+                  disabled={!isActive || isDisabled}
                   className="px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   title={ability.description || undefined}
                 >
@@ -389,7 +444,8 @@ function PlayerStats({
         {isActive && (
           <button
             onClick={onAttack}
-            className="mt-4 w-full py-2 px-4 bg-red-900 hover:bg-red-800 text-white font-bold rounded-lg border-2 border-red-700 transition-all"
+            disabled={isDisabled}
+            className="mt-4 w-full py-2 px-4 bg-red-900 hover:bg-red-800 text-white font-bold rounded-lg border-2 border-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Attack! ⚔️
           </button>
@@ -415,6 +471,10 @@ export default function DnDBattle() {
   const [sparklingPlayer, setSparklingPlayer] = useState<'player1' | 'player2' | null>(null);
   const [sparkleTrigger, setSparkleTrigger] = useState({ player1: 0, player2: 0 });
   const [isWaitingForAgent, setIsWaitingForAgent] = useState(false);
+  const [isMoveInProgress, setIsMoveInProgress] = useState(false);
+  const [defeatedPlayer, setDefeatedPlayer] = useState<'player1' | 'player2' | null>(null);
+  const [victorPlayer, setVictorPlayer] = useState<'player1' | 'player2' | null>(null);
+  const [confettiTrigger, setConfettiTrigger] = useState(0);
   const logEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -478,9 +538,17 @@ export default function DnDBattle() {
     damage: number,
     attackerDetails: string = '',
     defenderDetails: string = '',
-    eventDescription: string
+    eventDescription: string,
+    defender: 'player1' | 'player2'
   ): Promise<void> => {
-    setIsBattleActive(false);
+    // Set the defender's HP to 0
+    updatePlayerHP(defender, 0);
+    // Mark the defender as defeated
+    setDefeatedPlayer(defender);
+    // Mark the attacker as victor
+    const victor = defender === 'player1' ? 'player2' : 'player1';
+    setVictorPlayer(victor);
+    setConfettiTrigger(prev => prev + 1);
     await generateAndLogNarrative(
       eventDescription,
       attackerClass,
@@ -488,12 +556,17 @@ export default function DnDBattle() {
       attackerDetails,
       defenderDetails
     );
-    addLog('system', `🏆 ${attackerClass.name} wins!`);
+    addLog('system', `🏆 ${attackerClass.name} wins! ${defenderClass.name} has been defeated!`);
   };
 
   // Helper function to switch turns
   const switchTurn = (currentAttacker: 'player1' | 'player2') => {
-    setCurrentTurn(currentAttacker === 'player1' ? 'player2' : 'player1');
+    const nextPlayer = currentAttacker === 'player1' ? 'player2' : 'player1';
+    // Don't switch to a defeated player - battle is over
+    if (defeatedPlayer === nextPlayer) {
+      return;
+    }
+    setCurrentTurn(nextPlayer);
   };
 
   // Fetch detailed class information from OpenSearch knowledge base
@@ -782,70 +855,74 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
     setIsLoadingClassDetails(true);
     addLog('system', 'Loading class abilities from knowledge base...');
 
-    // Extract abilities directly from the knowledge base (with structured JSON)
-    const [p1Abilities, p2Abilities] = await Promise.all([
-      extractAbilities(player1Class.name),
-      extractAbilities(player2Class.name),
-    ]);
-    
-    // Store empty class details (we don't need the full text anymore)
-    setClassDetails({
-      [player1Class.name]: '',
-      [player2Class.name]: '',
-    });
-
-    // Reset classes to fresh instances with updated abilities
-    console.log('Setting abilities:', { 
-      p1Name: player1Class.name, 
-      p1Abilities: p1Abilities.length,
-      p2Name: player2Class.name,
-      p2Abilities: p2Abilities.length 
-    });
-    
-    const p1 = { 
-      ...player1Class, 
-      hitPoints: player1Class.maxHitPoints,
-      abilities: p1Abilities,
-    };
-    const p2 = { 
-      ...player2Class, 
-      hitPoints: player2Class.maxHitPoints,
-      abilities: p2Abilities,
-    };
-    
-    console.log('Updated classes:', { 
-      p1Abilities: p1.abilities.length, 
-      p2Abilities: p2.abilities.length 
-    });
-    
-    setPlayer1Class(p1);
-    setPlayer2Class(p2);
-    setIsBattleActive(true);
-    setBattleLog([]);
-    setCurrentTurn('player1');
-    setIsLoadingClassDetails(false);
-    
-    // Initialize battle conversation with opening narrative
-    setIsWaitingForAgent(true);
     try {
-      const { narrative: openingNarrative, responseId } = await getBattleNarrative(
-        `The battle begins between ${p1.name} and ${p2.name}. Both combatants are at full health and ready to fight.`,
-        p1,
-        p2,
-        '', // Class details no longer needed
-        '', // Class details no longer needed
-        null // Start new conversation
-      );
-      setBattleResponseId(responseId);
-      addLog('narrative', openingNarrative);
+      // Extract abilities directly from the knowledge base (with structured JSON)
+      const [p1Abilities, p2Abilities] = await Promise.all([
+        extractAbilities(player1Class.name),
+        extractAbilities(player2Class.name),
+      ]);
+      
+      // Store empty class details (we don't need the full text anymore)
+      setClassDetails({
+        [player1Class.name]: '',
+        [player2Class.name]: '',
+      });
+
+      // Reset classes to fresh instances with updated abilities
+      console.log('Setting abilities:', { 
+        p1Name: player1Class.name, 
+        p1Abilities: p1Abilities.length,
+        p2Name: player2Class.name,
+        p2Abilities: p2Abilities.length 
+      });
+      
+      const p1 = { 
+        ...player1Class, 
+        hitPoints: player1Class.maxHitPoints,
+        abilities: p1Abilities,
+      };
+      const p2 = { 
+        ...player2Class, 
+        hitPoints: player2Class.maxHitPoints,
+        abilities: p2Abilities,
+      };
+      
+      console.log('Updated classes:', { 
+        p1Abilities: p1.abilities.length, 
+        p2Abilities: p2.abilities.length 
+      });
+      
+      setPlayer1Class(p1);
+      setPlayer2Class(p2);
+      setIsBattleActive(true);
+      setBattleLog([]);
+      setCurrentTurn('player1');
+      
+      // Initialize battle conversation with opening narrative
+      setIsWaitingForAgent(true);
+      try {
+        const { narrative: openingNarrative, responseId } = await getBattleNarrative(
+          `The battle begins between ${p1.name} and ${p2.name}. Both combatants are at full health and ready to fight.`,
+          p1,
+          p2,
+          '', // Class details no longer needed
+          '', // Class details no longer needed
+          null // Start new conversation
+        );
+        setBattleResponseId(responseId);
+        addLog('narrative', openingNarrative);
+      } finally {
+        setIsWaitingForAgent(false);
+      }
     } finally {
-      setIsWaitingForAgent(false);
+      setIsLoadingClassDetails(false);
     }
   };
 
   const performAttack = async (attacker: 'player1' | 'player2') => {
-    if (!isBattleActive || !player1Class || !player2Class) return;
+    if (!isBattleActive || !player1Class || !player2Class || isMoveInProgress) return;
 
+    setIsMoveInProgress(true);
     const attackerClass = attacker === 'player1' ? player1Class : player2Class;
     const defenderClass = attacker === 'player1' ? player2Class : player1Class;
     const attackerDetails = classDetails[attackerClass.name] || '';
@@ -875,7 +952,8 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
           damage,
           attackerDetails,
           defenderDetails,
-          `${attackerClass.name} attacks ${defenderClass.name} and deals ${damage} damage. ${defenderClass.name} is defeated with 0 HP remaining.`
+          `${attackerClass.name} attacks ${defenderClass.name} and deals ${damage} damage. ${defenderClass.name} is defeated with 0 HP remaining.`,
+          defender
         );
       } else {
         await generateAndLogNarrative(
@@ -899,11 +977,13 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
 
     // Switch turns
     switchTurn(attacker);
+    setIsMoveInProgress(false);
   };
 
   const useAbility = async (attacker: 'player1' | 'player2', abilityIndex: number) => {
-    if (!isBattleActive || !player1Class || !player2Class) return;
+    if (!isBattleActive || !player1Class || !player2Class || isMoveInProgress) return;
 
+    setIsMoveInProgress(true);
     const attackerClass = attacker === 'player1' ? player1Class : player2Class;
     const defenderClass = attacker === 'player1' ? player2Class : player1Class;
     const ability = attackerClass.abilities[abilityIndex];
@@ -989,9 +1069,11 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
             totalDamage,
             attackerDetails,
             defenderDetails,
-            `${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. ${hitDetails} Total damage: ${totalDamage}. ${defenderClass.name} is defeated with 0 HP.`
+            `${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. ${hitDetails} Total damage: ${totalDamage}. ${defenderClass.name} is defeated with 0 HP.`,
+            defender
           );
           switchTurn(attacker);
+          setIsMoveInProgress(false);
           return;
         } else {
           await generateAndLogNarrative(
@@ -1039,9 +1121,11 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
               damage,
               attackerDetails,
               defenderDetails,
-              `${attackerClass.name} uses ${ability.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack hits for ${damage} damage. ${defenderClass.name} is defeated with 0 HP.`
+              `${attackerClass.name} uses ${ability.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack hits for ${damage} damage. ${defenderClass.name} is defeated with 0 HP.`,
+              defender
             );
             switchTurn(attacker);
+            setIsMoveInProgress(false);
             return;
           } else {
             await generateAndLogNarrative(
@@ -1080,9 +1164,11 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
             damage,
             attackerDetails,
             defenderDetails,
-            `${attackerClass.name} uses ${ability.name} and deals ${damage} damage to ${defenderClass.name}. ${defenderClass.name} is defeated with 0 HP.`
+            `${attackerClass.name} uses ${ability.name} and deals ${damage} damage to ${defenderClass.name}. ${defenderClass.name} is defeated with 0 HP.`,
+            defender
           );
           switchTurn(attacker);
+          setIsMoveInProgress(false);
           return;
         } else {
           await generateAndLogNarrative(
@@ -1098,6 +1184,7 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
 
     // Switch turns
     switchTurn(attacker);
+    setIsMoveInProgress(false);
   };
 
   const resetBattle = () => {
@@ -1107,6 +1194,9 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
     setPlayer2Class(null);
     setClassDetails({});
     setBattleResponseId(null);
+    setIsMoveInProgress(false);
+    setDefeatedPlayer(null);
+    setVictorPlayer(null);
   };
 
   return (
@@ -1181,6 +1271,10 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
                 shouldSparkle={sparklingPlayer === 'player1'}
                 shakeTrigger={shakeTrigger.player1}
                 sparkleTrigger={sparkleTrigger.player1}
+                isMoveInProgress={isMoveInProgress}
+                isDefeated={defeatedPlayer === 'player1'}
+                isVictor={victorPlayer === 'player1'}
+                confettiTrigger={confettiTrigger}
                 onShakeComplete={() => setShakingPlayer(null)}
                 onSparkleComplete={() => setSparklingPlayer(null)}
               />
@@ -1194,6 +1288,10 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
                 shouldSparkle={sparklingPlayer === 'player2'}
                 shakeTrigger={shakeTrigger.player2}
                 sparkleTrigger={sparkleTrigger.player2}
+                isMoveInProgress={isMoveInProgress}
+                isDefeated={defeatedPlayer === 'player2'}
+                isVictor={victorPlayer === 'player2'}
+                confettiTrigger={confettiTrigger}
                 onShakeComplete={() => setShakingPlayer(null)}
                 onSparkleComplete={() => setSparklingPlayer(null)}
               />
@@ -1242,7 +1340,18 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
                       </ReactMarkdown>
                     </div>
                   ) : (
-                    <span>{log.message}</span>
+                    <span>
+                      {log.message}
+                      {log.type === 'system' && 
+                       log.message === 'Loading class abilities from knowledge base...' && 
+                       isLoadingClassDetails && (
+                        <span className="waiting-indicator ml-2">
+                          <span className="waiting-dot"></span>
+                          <span className="waiting-dot"></span>
+                          <span className="waiting-dot"></span>
+                        </span>
+                      )}
+                    </span>
                   )}
                 </div>
               ))}
