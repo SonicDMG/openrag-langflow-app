@@ -38,7 +38,7 @@ interface DnDClass {
   color: string;
 }
 
-// Default fallback classes in case OpenSearch fetch fails
+// Default fallback classes in case OpenRAG fetch fails
 const FALLBACK_CLASSES: DnDClass[] = [
   {
     name: 'Fighter',
@@ -239,15 +239,15 @@ function ClassSelection({ title, availableClasses, selectedClass, onSelect }: Cl
         {availableClasses.map((dndClass) => {
           const icon = CLASS_ICONS[dndClass.name] || '⚔️';
           return (
-            <button
-              key={dndClass.name}
-              onClick={() => onSelect({ ...dndClass, hitPoints: dndClass.maxHitPoints })}
+          <button
+            key={dndClass.name}
+            onClick={() => onSelect({ ...dndClass, hitPoints: dndClass.maxHitPoints })}
               className={`py-2 px-3 rounded-lg border-2 transition-all flex flex-col items-center gap-1 ${
-                selectedClass?.name === dndClass.name
-                  ? 'border-amber-400 bg-amber-800 shadow-lg scale-105'
-                  : 'border-amber-700 bg-amber-900/50 hover:bg-amber-800 hover:border-amber-600'
-              }`}
-            >
+              selectedClass?.name === dndClass.name
+                ? 'border-amber-400 bg-amber-800 shadow-lg scale-105'
+                : 'border-amber-700 bg-amber-900/50 hover:bg-amber-800 hover:border-amber-600'
+            }`}
+          >
               <span 
                 className="text-2xl leading-none"
                 style={{ 
@@ -258,7 +258,7 @@ function ClassSelection({ title, availableClasses, selectedClass, onSelect }: Cl
                 {icon}
               </span>
               <div className="font-bold text-xs text-amber-100 text-center">{dndClass.name}</div>
-            </button>
+          </button>
           );
         })}
       </div>
@@ -521,7 +521,8 @@ export default function DnDBattle() {
   const [isBattleActive, setIsBattleActive] = useState(false);
   const [currentTurn, setCurrentTurn] = useState<'player1' | 'player2'>('player1');
   const [availableClasses, setAvailableClasses] = useState<DnDClass[]>(FALLBACK_CLASSES);
-  const [isLoadingClasses, setIsLoadingClasses] = useState(true);
+  const [isLoadingClasses, setIsLoadingClasses] = useState(false);
+  const [classesLoaded, setClassesLoaded] = useState(false);
   const [classDetails, setClassDetails] = useState<Record<string, string>>({});
   const [isLoadingClassDetails, setIsLoadingClassDetails] = useState(false);
   const [battleResponseId, setBattleResponseId] = useState<string | null>(null);
@@ -630,10 +631,12 @@ export default function DnDBattle() {
     setCurrentTurn(nextPlayer);
   };
 
-  // Fetch all available D&D classes from OpenSearch
-  const fetchAvailableClasses = async (): Promise<string[]> => {
+  // Fetch all available D&D classes from OpenRAG
+  const fetchAvailableClasses = async (): Promise<{ classNames: string[]; response: string }> => {
     try {
       const query = `List all available D&D 5th edition character classes. Return only a JSON array of class names, like ["Fighter", "Wizard", "Rogue", ...]. Do not include any other text, just the JSON array.`;
+      
+      addLog('system', '🔍 Querying OpenRAG for available D&D classes...');
       
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -657,6 +660,9 @@ export default function DnDBattle() {
 
       const { content } = await parseSSEResponse(reader);
       
+      // Log the agent response
+      addLog('narrative', `**OpenRAG Response (Class List):**\n\n${content}`);
+      
       // Try to extract JSON array from response
       let jsonString = content.trim();
       // Remove markdown code block markers if present
@@ -667,7 +673,7 @@ export default function DnDBattle() {
       if (arrayMatch) {
         const parsed = JSON.parse(arrayMatch[0]);
         if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
-          return parsed;
+          return { classNames: parsed, response: content };
         }
       }
       
@@ -675,7 +681,7 @@ export default function DnDBattle() {
       try {
         const parsed = JSON.parse(jsonString);
         if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
-          return parsed;
+          return { classNames: parsed, response: content };
         }
       } catch {
         // If parsing fails, try to extract class names from text
@@ -687,20 +693,21 @@ export default function DnDBattle() {
           }
         }
         if (classNames.length > 0) {
-          return classNames;
+          return { classNames, response: content };
         }
       }
       
       console.warn('Could not parse class list from response:', content.substring(0, 200));
-      return [];
+      return { classNames: [], response: content };
     } catch (error) {
       console.error('Error fetching available classes:', error);
-      return [];
+      addLog('system', `❌ Error fetching classes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return { classNames: [], response: '' };
     }
   };
 
-  // Fetch class stats from OpenSearch
-  const fetchClassStats = async (className: string): Promise<Partial<DnDClass> | null> => {
+  // Fetch class stats from OpenRAG
+  const fetchClassStats = async (className: string): Promise<{ stats: Partial<DnDClass> | null; response: string }> => {
     try {
       const query = `For the D&D 5th edition ${className} class, provide the following information in JSON format:
 {
@@ -713,6 +720,8 @@ export default function DnDBattle() {
 
 Return ONLY valid JSON, no other text. Use typical values for a level 1-3 character.`;
       
+      addLog('system', `🔍 Querying OpenRAG for ${className} class stats...`);
+      
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -734,6 +743,9 @@ Return ONLY valid JSON, no other text. Use typical values for a level 1-3 charac
       }
 
       const { content } = await parseSSEResponse(reader);
+      
+      // Log the agent response
+      addLog('narrative', `**OpenRAG Response (${className} Stats):**\n\n${content}`);
       
       // Try to extract JSON from response
       // The response may contain search query metadata before the actual JSON
@@ -804,12 +816,15 @@ Return ONLY valid JSON, no other text. Use typical values for a level 1-3 charac
           }
           
           return {
-            hitPoints: parsed.hitPoints || 25,
-            maxHitPoints: parsed.hitPoints || 25,
-            armorClass: parsed.armorClass || 14,
-            attackBonus: parsed.attackBonus || 4,
-            damageDie: damageDie,
-            description: parsed.description || `A ${className} character.`,
+            stats: {
+              hitPoints: parsed.hitPoints || 25,
+              maxHitPoints: parsed.hitPoints || 25,
+              armorClass: parsed.armorClass || 14,
+              attackBonus: parsed.attackBonus || 4,
+              damageDie: damageDie,
+              description: parsed.description || `A ${className} character.`,
+            },
+            response: content,
           };
         } catch (parseError) {
           console.warn(`Error parsing stats JSON for ${className}:`, parseError);
@@ -828,96 +843,107 @@ Return ONLY valid JSON, no other text. Use typical values for a level 1-3 charac
             }
             
             return {
-              hitPoints: hitPointsMatch ? parseInt(hitPointsMatch[1]) : 25,
-              maxHitPoints: hitPointsMatch ? parseInt(hitPointsMatch[1]) : 25,
-              armorClass: armorClassMatch ? parseInt(armorClassMatch[1]) : 14,
-              attackBonus: attackBonusMatch ? parseInt(attackBonusMatch[1]) : 4,
-              damageDie: damageDie,
-              description: descriptionMatch ? descriptionMatch[1] : `A ${className} character.`,
+              stats: {
+                hitPoints: hitPointsMatch ? parseInt(hitPointsMatch[1]) : 25,
+                maxHitPoints: hitPointsMatch ? parseInt(hitPointsMatch[1]) : 25,
+                armorClass: armorClassMatch ? parseInt(armorClassMatch[1]) : 14,
+                attackBonus: attackBonusMatch ? parseInt(attackBonusMatch[1]) : 4,
+                damageDie: damageDie,
+                description: descriptionMatch ? descriptionMatch[1] : `A ${className} character.`,
+              },
+              response: content,
             };
           }
         }
       }
       
       console.warn(`Could not parse stats for ${className}:`, content.substring(0, 200));
-      return null;
+      return { stats: null, response: content };
     } catch (error) {
       console.error(`Error fetching stats for ${className}:`, error);
-      return null;
+      addLog('system', `❌ Error fetching stats for ${className}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return { stats: null, response: '' };
     }
   };
 
-  // Load all classes from OpenSearch on component mount
-  useEffect(() => {
-    const loadClasses = async () => {
-      setIsLoadingClasses(true);
-      try {
-        const classNames = await fetchAvailableClasses();
-        
-        if (classNames.length === 0) {
-          console.warn('No classes found, using fallback classes');
-          setAvailableClasses(FALLBACK_CLASSES);
-          setIsLoadingClasses(false);
-          return;
-        }
-
-        // Fetch stats for each class
-        const classPromises = classNames.map(async (className) => {
-          const stats = await fetchClassStats(className);
-          if (stats) {
-            // Assign a color based on class name (with fallback)
-            const colorMap: Record<string, string> = {
-              'Fighter': 'bg-red-900',
-              'Wizard': 'bg-blue-900',
-              'Rogue': 'bg-purple-900',
-              'Cleric': 'bg-yellow-900',
-              'Barbarian': 'bg-orange-900',
-              'Ranger': 'bg-green-900',
-              'Paladin': 'bg-pink-900',
-              'Bard': 'bg-indigo-900',
-              'Sorcerer': 'bg-cyan-900',
-              'Warlock': 'bg-violet-900',
-              'Monk': 'bg-amber-900',
-              'Druid': 'bg-emerald-900',
-              'Artificer': 'bg-teal-900',
-            };
-            
-            return {
-              name: className,
-              hitPoints: stats.hitPoints || 25,
-              maxHitPoints: stats.maxHitPoints || stats.hitPoints || 25,
-              armorClass: stats.armorClass || 14,
-              attackBonus: stats.attackBonus || 4,
-              damageDie: stats.damageDie || 'd8',
-              abilities: [],
-              description: stats.description || `A ${className} character.`,
-              color: colorMap[className] || 'bg-slate-900',
-            } as DnDClass;
-          }
-          return null;
-        });
-
-        const loadedClasses = (await Promise.all(classPromises)).filter((cls): cls is DnDClass => cls !== null);
-        
-        if (loadedClasses.length > 0) {
-          setAvailableClasses(loadedClasses);
-          console.log(`Loaded ${loadedClasses.length} classes from OpenSearch:`, loadedClasses.map(c => c.name).join(', '));
-        } else {
-          console.warn('No classes could be loaded, using fallback classes');
-          setAvailableClasses(FALLBACK_CLASSES);
-        }
-      } catch (error) {
-        console.error('Error loading classes:', error);
+  // Load all classes from OpenRAG (called manually via button)
+  const loadClassesFromOpenRAG = async () => {
+    setIsLoadingClasses(true);
+    addLog('system', '🚀 Starting to load classes from OpenRAG...');
+    try {
+      const { classNames, response: classListResponse } = await fetchAvailableClasses();
+      
+      if (classNames.length === 0) {
+        console.warn('No classes found, using fallback classes');
+        addLog('system', '⚠️ No classes found in response, using fallback classes');
         setAvailableClasses(FALLBACK_CLASSES);
-      } finally {
+        setClassesLoaded(true);
         setIsLoadingClasses(false);
+        return;
       }
-    };
 
-    loadClasses();
-  }, []);
+      addLog('system', `✅ Found ${classNames.length} classes: ${classNames.join(', ')}`);
+      addLog('system', `📋 Fetching stats for ${classNames.length} classes...`);
 
-  // Fetch detailed class information from OpenSearch knowledge base
+      // Fetch stats for each class
+      const classPromises = classNames.map(async (className) => {
+        const { stats, response: statsResponse } = await fetchClassStats(className);
+        if (stats) {
+          // Assign a color based on class name (with fallback)
+          const colorMap: Record<string, string> = {
+            'Fighter': 'bg-red-900',
+            'Wizard': 'bg-blue-900',
+            'Rogue': 'bg-purple-900',
+            'Cleric': 'bg-yellow-900',
+            'Barbarian': 'bg-orange-900',
+            'Ranger': 'bg-green-900',
+            'Paladin': 'bg-pink-900',
+            'Bard': 'bg-indigo-900',
+            'Sorcerer': 'bg-cyan-900',
+            'Warlock': 'bg-violet-900',
+            'Monk': 'bg-amber-900',
+            'Druid': 'bg-emerald-900',
+            'Artificer': 'bg-teal-900',
+          };
+          
+          return {
+            name: className,
+            hitPoints: stats.hitPoints || 25,
+            maxHitPoints: stats.maxHitPoints || stats.hitPoints || 25,
+            armorClass: stats.armorClass || 14,
+            attackBonus: stats.attackBonus || 4,
+            damageDie: stats.damageDie || 'd8',
+            abilities: [],
+            description: stats.description || `A ${className} character.`,
+            color: colorMap[className] || 'bg-slate-900',
+          } as DnDClass;
+        }
+        return null;
+      });
+
+      const loadedClasses = (await Promise.all(classPromises)).filter((cls): cls is DnDClass => cls !== null);
+      
+      if (loadedClasses.length > 0) {
+        setAvailableClasses(loadedClasses);
+        addLog('system', `✅ Successfully loaded ${loadedClasses.length} classes from OpenRAG: ${loadedClasses.map(c => c.name).join(', ')}`);
+        console.log(`Loaded ${loadedClasses.length} classes from OpenRAG:`, loadedClasses.map(c => c.name).join(', '));
+      } else {
+        console.warn('No classes could be loaded, using fallback classes');
+        addLog('system', '⚠️ No classes could be loaded, using fallback classes');
+        setAvailableClasses(FALLBACK_CLASSES);
+      }
+      setClassesLoaded(true);
+    } catch (error) {
+      console.error('Error loading classes:', error);
+      addLog('system', `❌ Error loading classes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setAvailableClasses(FALLBACK_CLASSES);
+      setClassesLoaded(true);
+    } finally {
+      setIsLoadingClasses(false);
+    }
+  };
+
+  // Fetch detailed class information from OpenRAG knowledge base
   const fetchClassDetails = async (className: string): Promise<string> => {
     try {
       const query = `Show me class abilities for the ${className.toLowerCase()}, focusing specifically on attack abilities (both physical and magical) and healing abilities.`;
@@ -1590,7 +1616,7 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
                 Select Combatants
                 {isLoadingClasses && (
                   <span className="ml-2 text-sm text-amber-300 italic">
-                    (Loading classes from OpenSearch...)
+                    (Loading classes from OpenRAG...)
                     <span className="waiting-indicator ml-2 inline-block">
                       <span className="waiting-dot"></span>
                       <span className="waiting-dot"></span>
@@ -1602,9 +1628,25 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
                   <span className="ml-2 text-sm text-amber-300 italic">(Loading class information from knowledge base...)</span>
                 )}
               </h2>
+              {!classesLoaded && !isLoadingClasses && (
+                <div className="text-center py-8 mb-4">
+                  <div className="text-amber-200 mb-4">
+                    Click the button below to load all available D&D classes from OpenRAG.
+                    <br />
+                    <span className="text-sm text-amber-300">You can also use the fallback classes shown below.</span>
+                  </div>
+                  <button
+                    onClick={loadClassesFromOpenRAG}
+                    disabled={isLoadingClasses}
+                    className="px-6 py-3 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-lg border-2 border-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+                  >
+                    {isLoadingClasses ? 'Loading...' : 'Load Classes from OpenRAG'}
+                  </button>
+                </div>
+              )}
               {isLoadingClasses ? (
                 <div className="text-center py-8">
-                  <div className="text-amber-200 mb-4">Loading available D&D classes from OpenSearch...</div>
+                  <div className="text-amber-200 mb-4">Loading available D&D classes from OpenRAG...</div>
                   <div className="waiting-indicator">
                     <span className="waiting-dot"></span>
                     <span className="waiting-dot"></span>
@@ -1613,29 +1655,41 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <ClassSelection
-                      title="Combatant 1"
-                      availableClasses={availableClasses}
-                      selectedClass={player1Class}
-                      onSelect={setPlayer1Class}
-                    />
-                    <ClassSelection
-                      title="Combatant 2"
-                      availableClasses={availableClasses}
-                      selectedClass={player2Class}
-                      onSelect={setPlayer2Class}
-                    />
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <ClassSelection
+                  title="Combatant 1"
+                  availableClasses={availableClasses}
+                  selectedClass={player1Class}
+                  onSelect={setPlayer1Class}
+                />
+                <ClassSelection
+                  title="Combatant 2"
+                  availableClasses={availableClasses}
+                  selectedClass={player2Class}
+                  onSelect={setPlayer2Class}
+                />
+              </div>
 
-                  <button
-                    onClick={startBattle}
-                    disabled={!player1Class || !player2Class}
-                    className="mt-6 w-full py-3 px-6 bg-red-900 hover:bg-red-800 text-white font-bold text-lg rounded-lg border-2 border-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
-                    style={{ fontFamily: 'serif' }}
-                  >
-                    Begin Battle! ⚔️
-                  </button>
+                  {classesLoaded && (
+                    <div className="mt-4 text-center">
+                      <button
+                        onClick={loadClassesFromOpenRAG}
+                        disabled={isLoadingClasses}
+                        className="px-4 py-2 bg-amber-800 hover:bg-amber-700 text-amber-100 text-sm font-semibold rounded-lg border-2 border-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                      >
+                        {isLoadingClasses ? 'Refreshing...' : '🔄 Refresh Classes from OpenRAG'}
+                      </button>
+                    </div>
+                  )}
+
+              <button
+                onClick={startBattle}
+                disabled={!player1Class || !player2Class}
+                className="mt-6 w-full py-3 px-6 bg-red-900 hover:bg-red-800 text-white font-bold text-lg rounded-lg border-2 border-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+                style={{ fontFamily: 'serif' }}
+              >
+                Begin Battle! ⚔️
+              </button>
                 </>
               )}
             </div>
