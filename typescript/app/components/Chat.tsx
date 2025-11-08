@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -214,6 +215,7 @@ function DotsAnimation() {
 }
 
 export default function Chat() {
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -221,6 +223,7 @@ export default function Chat() {
   const [currentResponseId, setCurrentResponseId] = useState<string | null>(null);
   const [lastDataTime, setLastDataTime] = useState<number | null>(null);
   const [isWaitingForData, setIsWaitingForData] = useState(false);
+  const [easterEggClicks, setEasterEggClicks] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Store previous response ID in a ref to maintain conversation continuity
@@ -439,9 +442,20 @@ export default function Chat() {
   return (
     <div className="flex flex-col h-screen w-full bg-white dark:bg-black">
       {/* Header */}
-      <div className="border-b border-zinc-200 dark:border-zinc-800 px-4 sm:px-6 py-4 shrink-0">
+      <div className="border-b border-zinc-200 dark:border-zinc-800 px-4 sm:px-6 py-4 shrink-0 relative">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">
+          <h1 
+            className="text-2xl font-semibold text-black dark:text-zinc-50 cursor-pointer select-none"
+            onClick={() => {
+              const newCount = easterEggClicks + 1;
+              setEasterEggClicks(newCount);
+              if (newCount >= 5) {
+                router.push('/dnd');
+                setEasterEggClicks(0);
+              }
+            }}
+            title={easterEggClicks > 0 ? `${5 - easterEggClicks} more clicks...` : undefined}
+          >
             OpenRAG Next.js Chat
           </h1>
           <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
