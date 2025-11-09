@@ -226,16 +226,70 @@ export default function Chat() {
   const [easterEggClicks, setEasterEggClicks] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   // Store previous response ID in a ref to maintain conversation continuity
   const previousResponseIdRef = useRef<string | null>(null);
+  const shouldAutoScrollRef = useRef(true);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // Check if user is near the bottom of the chat
+  const isNearBottom = () => {
+    if (!messagesContainerRef.current) return true;
+    const container = messagesContainerRef.current;
+    const threshold = 100; // pixels from bottom
+    return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
   };
 
+  const scrollToBottom = (instant = false) => {
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    
+    // Only scroll if user is near bottom or if it's a new message (not streaming)
+    if (shouldAutoScrollRef.current || !isLoading) {
+      // Use requestAnimationFrame for smoother updates during streaming
+      if (instant) {
+        requestAnimationFrame(() => {
+          messagesEndRef.current?.scrollIntoView({ 
+            behavior: 'auto',
+            block: 'end'
+          });
+        });
+      } else {
+        messagesEndRef.current?.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'end'
+        });
+      }
+    }
+  };
+
+  // Handle scroll events to detect if user manually scrolled up
+  const handleScroll = () => {
+    shouldAutoScrollRef.current = isNearBottom();
+  };
+
+  // Scroll on new messages (smooth) or during streaming (instant for smoothness)
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, currentResponse]);
+    if (isLoading && currentResponse) {
+      // During streaming, use instant scroll for smoother updates
+      scrollToBottom(true);
+    } else {
+      // For new messages, use smooth scroll
+      scrollToBottom(false);
+    }
+  }, [messages, currentResponse, isLoading]);
+
+  // Track scroll position to determine if we should auto-scroll
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+      return () => {
+        container.removeEventListener('scroll', handleScroll);
+      };
+    }
+  }, []);
 
   // Track if we're waiting for data (no data received for 30+ seconds)
   useEffect(() => {
@@ -267,6 +321,8 @@ export default function Chat() {
 
     // Add user message to chat
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
+    // Ensure we auto-scroll when user sends a message
+    shouldAutoScrollRef.current = true;
 
     // Get the previous response ID from the ref (maintains conversation continuity)
     const previousResponseId = previousResponseIdRef.current;
@@ -393,6 +449,8 @@ export default function Chat() {
       setCurrentResponse('');
       setCurrentResponseId(null);
       setLastDataTime(null);
+      // Ensure we auto-scroll when message is complete
+      shouldAutoScrollRef.current = true;
     } catch (error) {
       console.error('Chat error:', error);
       
@@ -465,7 +523,11 @@ export default function Chat() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6">
+      <div 
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto px-4 sm:px-6 py-6"
+        onScroll={handleScroll}
+      >
         <div className="max-w-7xl mx-auto space-y-6">
           {messages.length === 0 && (
             <div className="text-center text-zinc-500 dark:text-zinc-400 mt-12">
