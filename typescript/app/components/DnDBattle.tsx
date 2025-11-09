@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -166,6 +166,79 @@ function rollDiceWithNotation(notation: string): number {
   return rollDice(dice) + modifier;
 }
 
+// Utility function to extract JSON from API responses (handles markdown code blocks and multiple JSON objects)
+function extractJsonFromResponse(
+  content: string,
+  requiredFields?: string[],
+  excludeFields?: string[]
+): string | null {
+  let jsonString = content.trim();
+  
+  // Remove markdown code block markers if present
+  jsonString = jsonString.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+  
+  let searchIndex = 0;
+  
+  while (searchIndex < jsonString.length) {
+    // Find the next opening brace
+    const jsonStart = jsonString.indexOf('{', searchIndex);
+    if (jsonStart === -1) break;
+    
+    // Find the matching closing brace by counting braces
+    let braceCount = 0;
+    let jsonEnd = -1;
+    for (let i = jsonStart; i < jsonString.length; i++) {
+      if (jsonString[i] === '{') {
+        braceCount++;
+      } else if (jsonString[i] === '}') {
+        braceCount--;
+        if (braceCount === 0) {
+          jsonEnd = i + 1;
+          break;
+        }
+      }
+    }
+    
+    if (jsonEnd === -1) {
+      // Incomplete JSON, skip to next
+      searchIndex = jsonStart + 1;
+      continue;
+    }
+    
+    // Extract this JSON object
+    const candidateJson = jsonString.substring(jsonStart, jsonEnd);
+    
+    // Skip JSON objects that contain exclude fields but not required fields
+    if (excludeFields && excludeFields.some(field => candidateJson.includes(`"${field}"`))) {
+      const hasRequired = !requiredFields || requiredFields.some(field => candidateJson.includes(`"${field}"`));
+      if (!hasRequired) {
+        searchIndex = jsonEnd;
+        continue;
+      }
+    }
+    
+    // Check if this JSON contains required fields
+    if (requiredFields && requiredFields.some(field => candidateJson.includes(`"${field}"`))) {
+      return candidateJson;
+    }
+    
+    // If no required fields specified, return first valid JSON
+    if (!requiredFields) {
+      try {
+        JSON.parse(candidateJson);
+        return candidateJson;
+      } catch {
+        // Invalid JSON, continue searching
+      }
+    }
+    
+    // Move search index past this JSON object
+    searchIndex = jsonEnd;
+  }
+  
+  return null;
+}
+
 // Helper function to parse SSE stream responses
 async function parseSSEResponse(
   reader: ReadableStreamDefaultReader<Uint8Array>,
@@ -221,6 +294,23 @@ const CLASS_ICONS: Record<string, string> = {
   'Monk': '🥋',
   'Druid': '🌿',
   'Artificer': '⚙️',
+};
+
+// Class color mapping - consolidated single source of truth
+const CLASS_COLORS: Record<string, string> = {
+  'Fighter': 'bg-red-900',
+  'Wizard': 'bg-blue-900',
+  'Rogue': 'bg-purple-900',
+  'Cleric': 'bg-yellow-900',
+  'Barbarian': 'bg-orange-900',
+  'Ranger': 'bg-green-900',
+  'Paladin': 'bg-pink-900',
+  'Bard': 'bg-indigo-900',
+  'Sorcerer': 'bg-cyan-900',
+  'Warlock': 'bg-violet-900',
+  'Monk': 'bg-amber-900',
+  'Druid': 'bg-emerald-900',
+  'Artificer': 'bg-teal-900',
 };
 
 // ClassSelection component to eliminate duplicate selection UI
@@ -337,6 +427,196 @@ function Confetti({ trigger }: { trigger: number }) {
   );
 }
 
+// Single Dice Component
+interface SingleDiceProps {
+  diceType: string;
+  result: number;
+  startX: number;
+  startY: number;
+  delay: number;
+  showResult: boolean;
+}
+
+function SingleDice({ diceType, result, startX, startY, delay, showResult }: SingleDiceProps) {
+  const sides = parseInt(diceType.replace(/[^\d]/g, '')) || 6;
+  
+  // Determine dice class based on type
+  const getDiceClass = () => {
+    if (sides === 20) return 'dice-d20';
+    if (sides === 12) return 'dice-d12';
+    if (sides === 10) return 'dice-d10';
+    if (sides === 8) return 'dice-d8';
+    if (sides === 6) return 'dice-d6';
+    if (sides === 4) return 'dice-d4';
+    return 'dice-d6'; // Default to d6
+  };
+
+  // Get appropriate number of dots/faces to show while rolling
+  const getRollingFaces = () => {
+    if (sides === 20) return 20;
+    if (sides === 12) return 12;
+    if (sides === 10) return 10;
+    if (sides === 8) return 8;
+    if (sides === 6) return 6;
+    if (sides === 4) return 4;
+    return Math.min(sides, 9);
+  };
+
+  return (
+    <div
+      className={`dice-roll ${getDiceClass()} ${showResult ? 'dice-roll-result' : 'dice-roll-rolling'}`}
+      style={{
+        left: `${startX}%`,
+        top: `${startY}%`,
+        animationDelay: `${delay}s`,
+      } as React.CSSProperties}
+    >
+      <div className="dice-face">
+        {showResult ? (
+          <span className="dice-result">{result}</span>
+        ) : (
+          <div className="dice-rolling-content">
+            {sides === 20 && <span className="dice-label">d20</span>}
+            {sides === 12 && <span className="dice-label">d12</span>}
+            {sides === 10 && <span className="dice-label">d10</span>}
+            {sides === 8 && <span className="dice-label">d8</span>}
+            {sides === 6 && (
+              <div className="dice-dots d6-dots">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <span key={i} className="dice-dot" style={{ animationDelay: `${i * 0.03}s` }} />
+                ))}
+              </div>
+            )}
+            {sides === 4 && <span className="dice-label">d4</span>}
+            {![20, 12, 10, 8, 6, 4].includes(sides) && (
+              <span className="dice-label">d{sides}</span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Dice Roll Animation Component - Now supports multiple dice
+interface DiceRollProps {
+  trigger: number;
+  diceRolls: Array<{ diceType: string; result: number }>; // Array of dice to show
+  onComplete?: () => void;
+}
+
+function DiceRoll({ trigger, diceRolls, onComplete }: DiceRollProps) {
+  const [isVisible, setIsVisible] = useState(false);
+  const [showResult, setShowResult] = useState(false);
+  
+  // Use useMemo to fix positions so they don't change on re-renders
+  const positions = useMemo(() => {
+    if (trigger === 0 || diceRolls.length === 0) return null;
+    
+    // Generate positions for multiple dice, spread them out but keep them on screen
+    const baseY = 35 + Math.random() * 15; // 35-50% from top (more centered)
+    const maxDice = diceRolls.length;
+    const totalWidth = Math.min(maxDice * 12, 60); // Limit total width to 60%
+    const startXBase = (100 - totalWidth) / 2; // Center the dice group
+    
+    return diceRolls.map((_, index) => {
+      const spacing = totalWidth / maxDice; // Even spacing
+      const startX = startXBase + (index * spacing) + Math.random() * 3; // Small random offset
+      return {
+        startX: Math.max(5, Math.min(85, startX)), // Clamp between 5% and 85%
+        startY: Math.max(25, Math.min(65, baseY + (index % 2 === 0 ? 0 : 3))), // Clamp Y position
+        delay: index * 0.08, // Stagger animations slightly
+      };
+    });
+  }, [trigger, diceRolls]);
+
+  useEffect(() => {
+    if (trigger > 0 && positions) {
+      setIsVisible(true);
+      setShowResult(false);
+      
+      // Show result after rolling animation completes (0.8s - faster!)
+      const resultTimer = setTimeout(() => {
+        setShowResult(true);
+      }, 800);
+      
+      // Hide after result has been displayed (2s pause - faster but still readable)
+      // Total: 0.8s roll + 0.3s bounce + 2s display = 3.1s
+      const hideTimer = setTimeout(() => {
+        setIsVisible(false);
+        setShowResult(false);
+        onComplete?.();
+      }, 3100);
+      
+      return () => {
+        clearTimeout(resultTimer);
+        clearTimeout(hideTimer);
+      };
+    }
+  }, [trigger, positions, onComplete]);
+
+  if (!isVisible || !positions) return null;
+
+  return (
+    <div 
+      className="dice-roll-container"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        pointerEvents: 'none',
+        zIndex: 1000,
+      }}
+    >
+      {diceRolls.map((dice, index) => (
+        <SingleDice
+          key={`${dice.diceType}-${index}`}
+          diceType={dice.diceType}
+          result={dice.result}
+          startX={positions[index].startX}
+          startY={positions[index].startY}
+          delay={positions[index].delay}
+          showResult={showResult}
+        />
+      ))}
+    </div>
+  );
+}
+
+// Helper function to apply CSS class animation with restart capability
+function applyAnimationClass(
+  element: HTMLDivElement | null,
+  shouldTrigger: boolean,
+  trigger: number,
+  className: string,
+  duration: number,
+  onComplete: () => void
+): (() => void) | void {
+  if (!shouldTrigger || trigger <= 0 || !element) return;
+  
+  // Force reflow to restart animation
+  element.classList.remove(className);
+  let timer: NodeJS.Timeout;
+  
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (element) {
+        element.classList.add(className);
+        timer = setTimeout(() => {
+          element.classList.remove(className);
+          onComplete();
+        }, duration);
+      }
+    });
+  });
+  
+  return () => {
+    if (timer) clearTimeout(timer);
+  };
+}
+
 // PlayerStats component to eliminate duplicate rendering code
 interface PlayerStatsProps {
   playerClass: DnDClass;
@@ -383,29 +663,20 @@ function PlayerStats({
   const isDisabled = (isActive && isMoveInProgress) || isDefeated;
   const animationRef = useRef<HTMLDivElement>(null);
 
+  // Apply shake animation
   useEffect(() => {
-    if (shouldShake && shakeTrigger > 0 && animationRef.current) {
-      // Force reflow to restart animation
-      animationRef.current.classList.remove('shake');
-      // Use requestAnimationFrame to ensure the class removal is processed
-      let timer: NodeJS.Timeout;
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (animationRef.current) {
-            animationRef.current.classList.add('shake');
-            timer = setTimeout(() => {
-              animationRef.current?.classList.remove('shake');
-              onShakeComplete();
-            }, 400);
-          }
-        });
-      });
-      return () => {
-        if (timer) clearTimeout(timer);
-      };
-    }
+    const cleanup = applyAnimationClass(
+      animationRef.current,
+      shouldShake,
+      shakeTrigger,
+      'shake',
+      400,
+      onShakeComplete
+    );
+    return cleanup;
   }, [shouldShake, shakeTrigger, onShakeComplete]);
 
+  // Apply sparkle animation (timeout-based)
   useEffect(() => {
     if (shouldSparkle && sparkleTrigger > 0) {
       const timer = setTimeout(() => {
@@ -415,27 +686,17 @@ function PlayerStats({
     }
   }, [shouldSparkle, sparkleTrigger, onSparkleComplete]);
 
+  // Apply miss animation
   useEffect(() => {
-    if (shouldMiss && missTrigger > 0 && animationRef.current) {
-      // Force reflow to restart animation
-      animationRef.current.classList.remove('miss');
-      // Use requestAnimationFrame to ensure the class removal is processed
-      let timer: NodeJS.Timeout;
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (animationRef.current) {
-            animationRef.current.classList.add('miss');
-            timer = setTimeout(() => {
-              animationRef.current?.classList.remove('miss');
-              onMissComplete();
-            }, 600);
-          }
-        });
-      });
-      return () => {
-        if (timer) clearTimeout(timer);
-      };
-    }
+    const cleanup = applyAnimationClass(
+      animationRef.current,
+      shouldMiss,
+      missTrigger,
+      'miss',
+      600,
+      onMissComplete
+    );
+    return cleanup;
   }, [shouldMiss, missTrigger, onMissComplete]);
 
   return (
@@ -537,6 +798,10 @@ export default function DnDBattle() {
   const [defeatedPlayer, setDefeatedPlayer] = useState<'player1' | 'player2' | null>(null);
   const [victorPlayer, setVictorPlayer] = useState<'player1' | 'player2' | null>(null);
   const [confettiTrigger, setConfettiTrigger] = useState(0);
+  const [diceRollTrigger, setDiceRollTrigger] = useState(0);
+  const [diceRollData, setDiceRollData] = useState<Array<{ diceType: string; result: number }>>([]);
+  const [isDiceRolling, setIsDiceRolling] = useState(false);
+  const diceQueueRef = useRef<Array<Array<{ diceType: string; result: number }>>>([]);
   const logEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -547,29 +812,86 @@ export default function DnDBattle() {
     scrollToBottom();
   }, [battleLog]);
 
+  // Helper function to add log entries (defined early as it's used by many functions)
+  const addLog = useCallback((type: BattleLog['type'], message: string) => {
+    setBattleLog((prev) => [...prev, { type, message, timestamp: Date.now() }]);
+  }, []);
+
   // Helper function to update player HP
-  const updatePlayerHP = (player: 'player1' | 'player2', newHP: number) => {
+  const updatePlayerHP = useCallback((player: 'player1' | 'player2', newHP: number) => {
     if (player === 'player1') {
       setPlayer1Class((current) => current ? { ...current, hitPoints: newHP } : current);
     } else {
       setPlayer2Class((current) => current ? { ...current, hitPoints: newHP } : current);
     }
-  };
+  }, []);
+
+  // Helper function to trigger dice roll animation (supports multiple dice at once)
+  const triggerDiceRoll = useCallback((diceRolls: Array<{ diceType: string; result: number }>) => {
+    if (isDiceRolling) {
+      // Queue the dice rolls if one is already in progress
+      diceQueueRef.current.push(diceRolls);
+      return;
+    }
+    
+    setIsDiceRolling(true);
+    setDiceRollData(diceRolls);
+    setDiceRollTrigger(prev => prev + 1);
+  }, [isDiceRolling]);
+  
+  // Process next dice in queue when current one completes
+  const handleDiceRollComplete = useCallback(() => {
+    setIsDiceRolling(false);
+    
+    // Process next dice in queue after a short delay
+    if (diceQueueRef.current.length > 0) {
+      setTimeout(() => {
+        const nextDice = diceQueueRef.current.shift();
+        if (nextDice) {
+          setIsDiceRolling(true);
+          setDiceRollData(nextDice);
+          setDiceRollTrigger(prev => prev + 1);
+        }
+      }, 150);
+    }
+  }, []);
 
   // Helper function to calculate attack roll
-  const calculateAttackRoll = (attackerClass: DnDClass): { d20Roll: number; attackRoll: number } => {
+  const calculateAttackRoll = useCallback((attackerClass: DnDClass): { d20Roll: number; attackRoll: number } => {
     const d20Roll = rollDice('d20');
     const attackRoll = d20Roll + attackerClass.attackBonus;
+    // Don't trigger dice roll here - will be triggered with damage dice together
     return { d20Roll, attackRoll };
-  };
+  }, []);
 
   // Helper function to log attack roll
-  const logAttackRoll = (attackerClass: DnDClass, d20Roll: number, attackRoll: number, defenderAC: number) => {
-    addLog('roll', `🎲 ${attackerClass.name} rolls ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''} = ${attackRoll} (needs ${defenderAC})`);
-  };
+  const logAttackRoll = useCallback((attackerClass: DnDClass, d20Roll: number, attackRoll: number, defenderAC: number) => {
+    const bonusText = attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus} (attack bonus)` : '';
+    addLog('roll', `🎲 ${attackerClass.name} rolls ${d20Roll}${bonusText} = ${attackRoll} (needs ${defenderAC})`);
+  }, [addLog]);
+
+  // Helper function to calculate damage from an attack ability
+  const calculateAbilityDamage = useCallback((ability: AttackAbility): number => {
+    let damage = rollDiceWithNotation(ability.damageDice);
+    if (ability.bonusDamageDice) {
+      damage += rollDiceWithNotation(ability.bonusDamageDice);
+    }
+    return damage;
+  }, []);
+
+  // Helper function to apply damage and update HP
+  const applyDamage = useCallback((
+    defender: 'player1' | 'player2',
+    damage: number,
+    defenderClass: DnDClass
+  ): { newHP: number; isDefeated: boolean } => {
+    const newHP = Math.max(0, defenderClass.hitPoints - damage);
+    updatePlayerHP(defender, newHP);
+    return { newHP, isDefeated: newHP <= 0 };
+  }, [updatePlayerHP]);
 
   // Helper function to generate narrative and update response ID
-  const generateAndLogNarrative = async (
+  const generateAndLogNarrative = useCallback(async (
     eventDescription: string,
     attackerClass: DnDClass,
     defenderClass: DnDClass,
@@ -591,10 +913,10 @@ export default function DnDBattle() {
     } finally {
       setIsWaitingForAgent(false);
     }
-  };
+  }, [battleResponseId, addLog]);
 
   // Helper function to handle victory condition
-  const handleVictory = async (
+  const handleVictory = useCallback(async (
     attackerClass: DnDClass,
     defenderClass: DnDClass,
     damage: number,
@@ -619,17 +941,17 @@ export default function DnDBattle() {
       defenderDetails
     );
     addLog('system', `🏆 ${attackerClass.name} wins! ${defenderClass.name} has been defeated!`);
-  };
+  }, [updatePlayerHP, generateAndLogNarrative, addLog]);
 
   // Helper function to switch turns
-  const switchTurn = (currentAttacker: 'player1' | 'player2') => {
+  const switchTurn = useCallback((currentAttacker: 'player1' | 'player2') => {
     const nextPlayer = currentAttacker === 'player1' ? 'player2' : 'player1';
     // Don't switch to a defeated player - battle is over
     if (defeatedPlayer === nextPlayer) {
       return;
     }
     setCurrentTurn(nextPlayer);
-  };
+  }, [defeatedPlayer]);
 
   // Fetch all available D&D classes from OpenRAG
   const fetchAvailableClasses = async (): Promise<{ classNames: string[]; response: string }> => {
@@ -671,9 +993,13 @@ export default function DnDBattle() {
       // Find JSON array in the response
       const arrayMatch = jsonString.match(/\[[\s\S]*\]/);
       if (arrayMatch) {
-        const parsed = JSON.parse(arrayMatch[0]);
-        if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
-          return { classNames: parsed, response: content };
+        try {
+          const parsed = JSON.parse(arrayMatch[0]);
+          if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+            return { classNames: parsed, response: content };
+          }
+        } catch {
+          // Continue to fallback
         }
       }
       
@@ -686,7 +1012,7 @@ export default function DnDBattle() {
       } catch {
         // If parsing fails, try to extract class names from text
         const classNames: string[] = [];
-        const commonClasses = ['Fighter', 'Wizard', 'Rogue', 'Cleric', 'Barbarian', 'Ranger', 'Paladin', 'Bard', 'Sorcerer', 'Warlock', 'Monk', 'Druid', 'Artificer'];
+        const commonClasses = Object.keys(CLASS_ICONS);
         for (const className of commonClasses) {
           if (content.toLowerCase().includes(className.toLowerCase())) {
             classNames.push(className);
@@ -747,64 +1073,12 @@ Return ONLY valid JSON, no other text. Use typical values for a level 1-3 charac
       // Log the agent response
       addLog('narrative', `**OpenRAG Response (${className} Stats):**\n\n${content}`);
       
-      // Try to extract JSON from response
-      // The response may contain search query metadata before the actual JSON
-      let jsonString = content.trim();
-      
-      // Remove markdown code block markers if present
-      jsonString = jsonString.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
-      
-      // The response may contain multiple JSON objects (search queries + stats)
-      // We need to find the one that contains stats fields (hitPoints, armorClass, etc.)
-      // Skip JSON objects that only contain "search_query"
-      let statsJsonString: string | null = null;
-      let searchIndex = 0;
-      
-      while (searchIndex < jsonString.length) {
-        // Find the next opening brace
-        const jsonStart = jsonString.indexOf('{', searchIndex);
-        if (jsonStart === -1) break;
-        
-        // Find the matching closing brace by counting braces
-        let braceCount = 0;
-        let jsonEnd = -1;
-        for (let i = jsonStart; i < jsonString.length; i++) {
-          if (jsonString[i] === '{') {
-            braceCount++;
-          } else if (jsonString[i] === '}') {
-            braceCount--;
-            if (braceCount === 0) {
-              jsonEnd = i + 1;
-              break;
-            }
-          }
-        }
-        
-        if (jsonEnd === -1) {
-          // Incomplete JSON, skip to next
-          searchIndex = jsonStart + 1;
-          continue;
-        }
-        
-        // Extract this JSON object
-        const candidateJson = jsonString.substring(jsonStart, jsonEnd);
-        
-        // Skip JSON objects that only contain search_query metadata
-        if (candidateJson.includes('"search_query"') && !candidateJson.includes('"hitPoints"')) {
-          searchIndex = jsonEnd;
-          continue;
-        }
-        
-        // Check if this JSON contains stats fields (hitPoints, armorClass, etc.)
-        if (candidateJson.includes('"hitPoints"') || candidateJson.includes('"armorClass"') || 
-            candidateJson.includes('"attackBonus"') || candidateJson.includes('"damageDie"')) {
-          statsJsonString = candidateJson;
-          break;
-        }
-        
-        // Move search index past this JSON object
-        searchIndex = jsonEnd;
-      }
+      // Extract JSON from response using utility function
+      const statsJsonString = extractJsonFromResponse(
+        content,
+        ['hitPoints', 'armorClass', 'attackBonus', 'damageDie'], // required fields
+        ['search_query'] // exclude fields (unless they also have required fields)
+      );
       
       if (statsJsonString) {
         try {
@@ -889,23 +1163,6 @@ Return ONLY valid JSON, no other text. Use typical values for a level 1-3 charac
       const classPromises = classNames.map(async (className) => {
         const { stats, response: statsResponse } = await fetchClassStats(className);
         if (stats) {
-          // Assign a color based on class name (with fallback)
-          const colorMap: Record<string, string> = {
-            'Fighter': 'bg-red-900',
-            'Wizard': 'bg-blue-900',
-            'Rogue': 'bg-purple-900',
-            'Cleric': 'bg-yellow-900',
-            'Barbarian': 'bg-orange-900',
-            'Ranger': 'bg-green-900',
-            'Paladin': 'bg-pink-900',
-            'Bard': 'bg-indigo-900',
-            'Sorcerer': 'bg-cyan-900',
-            'Warlock': 'bg-violet-900',
-            'Monk': 'bg-amber-900',
-            'Druid': 'bg-emerald-900',
-            'Artificer': 'bg-teal-900',
-          };
-          
           return {
             name: className,
             hitPoints: stats.hitPoints || 25,
@@ -915,7 +1172,7 @@ Return ONLY valid JSON, no other text. Use typical values for a level 1-3 charac
             damageDie: stats.damageDie || 'd8',
             abilities: [],
             description: stats.description || `A ${className} character.`,
-            color: colorMap[className] || 'bg-slate-900',
+            color: CLASS_COLORS[className] || 'bg-slate-900',
           } as DnDClass;
         }
         return null;
@@ -1037,71 +1294,21 @@ Important rules:
 
       const { content: accumulatedResponse } = await parseSSEResponse(reader);
 
-      // Try to extract JSON from the response
-      // Look for JSON object in the response (may be wrapped in markdown code blocks or plain text)
-      let jsonString = accumulatedResponse.trim();
-      
-      console.log('Raw response received:', jsonString.substring(0, 200) + '...');
-      
-      // Remove markdown code block markers if present
-      jsonString = jsonString.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
-      
-      // The response may contain multiple JSON objects (search queries + abilities)
-      // We need to find the one that contains "abilities" field
-      // Try to find all JSON objects and pick the one with "abilities"
-      let abilitiesJsonString: string | null = null;
-      let searchIndex = 0;
-      
-      while (searchIndex < jsonString.length) {
-        // Find the next opening brace
-        const jsonStart = jsonString.indexOf('{', searchIndex);
-        if (jsonStart === -1) break;
-        
-        // Find the matching closing brace by counting braces
-        let braceCount = 0;
-        let jsonEnd = -1;
-        for (let i = jsonStart; i < jsonString.length; i++) {
-          if (jsonString[i] === '{') {
-            braceCount++;
-          } else if (jsonString[i] === '}') {
-            braceCount--;
-            if (braceCount === 0) {
-              jsonEnd = i + 1;
-              break;
-            }
-          }
-        }
-        
-        if (jsonEnd === -1) {
-          // Incomplete JSON, skip to next
-          searchIndex = jsonStart + 1;
-          continue;
-        }
-        
-        // Extract this JSON object
-        const candidateJson = jsonString.substring(jsonStart, jsonEnd);
-        
-        // Check if this JSON contains "abilities" field
-        if (candidateJson.includes('"abilities"') || candidateJson.includes("'abilities'")) {
-          abilitiesJsonString = candidateJson;
-          console.log('Found abilities JSON object at position', jsonStart, 'length:', candidateJson.length);
-          break;
-        }
-        
-        // Move search index past this JSON object
-        searchIndex = jsonEnd;
-      }
+      // Extract JSON from response using utility function
+      const abilitiesJsonString = extractJsonFromResponse(
+        accumulatedResponse,
+        ['abilities'] // required field
+      );
       
       if (!abilitiesJsonString) {
-        console.error('No JSON object with "abilities" field found. Full response:', accumulatedResponse);
+        console.error('No JSON object with "abilities" field found. Full response:', accumulatedResponse.substring(0, 200) + '...');
         return [];
       }
       
-      jsonString = abilitiesJsonString;
-      console.log('Extracted JSON string with abilities:', jsonString.substring(0, 200) + '...');
+      console.log('Extracted JSON string with abilities:', abilitiesJsonString.substring(0, 200) + '...');
 
       try {
-        const parsed = JSON.parse(jsonString);
+        const parsed = JSON.parse(abilitiesJsonString);
         if (parsed.abilities && Array.isArray(parsed.abilities)) {
           // Validate and normalize abilities
           const validAbilities: Ability[] = [];
@@ -1146,8 +1353,8 @@ Important rules:
         return [];
       } catch (parseError) {
         console.error('Error parsing JSON from AI response:', parseError);
-        console.error('Extracted JSON string was:', jsonString);
-        console.error('Full response was:', accumulatedResponse);
+        console.error('Extracted JSON string was:', abilitiesJsonString);
+        console.error('Full response was:', accumulatedResponse.substring(0, 200) + '...');
         // Fallback: return empty array if parsing fails
         return [];
       }
@@ -1155,10 +1362,6 @@ Important rules:
       console.error('Error extracting abilities:', error);
       return [];
     }
-  };
-
-  const addLog = (type: BattleLog['type'], message: string) => {
-    setBattleLog((prev) => [...prev, { type, message, timestamp: Date.now() }]);
   };
 
   // Get AI-generated battle narrative from Langflow API
@@ -1307,8 +1510,12 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
     logAttackRoll(attackerClass, d20Roll, attackRoll, defenderClass.armorClass);
 
     if (attackRoll >= defenderClass.armorClass) {
-      // Hit!
+      // Hit! Show both attack roll and damage dice
       const damage = rollDice(attackerClass.damageDie);
+      triggerDiceRoll([
+        { diceType: 'd20', result: d20Roll },
+        { diceType: attackerClass.damageDie, result: damage }
+      ]);
       const newHP = Math.max(0, defenderClass.hitPoints - damage);
       
       // Update the defender's HP
@@ -1339,7 +1546,10 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
         );
       }
     } else {
-      // Miss - trigger miss animation on attacker
+      // Miss - show the attack roll dice
+      triggerDiceRoll([{ diceType: 'd20', result: d20Roll }]);
+      
+      // Trigger miss animation on attacker
       setMissingPlayer(attacker);
       setMissTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
       
@@ -1374,6 +1584,8 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
     // Handle healing abilities
     if (ability.type === 'healing') {
       const heal = rollDiceWithNotation(ability.healingDice);
+      const { dice } = parseDiceNotation(ability.healingDice);
+      triggerDiceRoll([{ diceType: dice, result: heal }]);
       const newHP = Math.min(attackerClass.maxHitPoints, attackerClass.hitPoints + heal);
       
       updatePlayerHP(attacker, newHP);
@@ -1403,7 +1615,9 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
         const hits: boolean[] = [];
       let totalDamage = 0;
 
-        // Roll all attacks
+        // Roll all attacks and collect dice for display
+        const diceToShow: Array<{ diceType: string; result: number }> = [];
+        
         for (let i = 0; i < numAttacks; i++) {
           const d20Roll = rollDice('d20');
           d20Rolls.push(d20Roll);
@@ -1413,16 +1627,29 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
           hits.push(hit);
           
           if (hit) {
+            const { dice } = parseDiceNotation(attackAbility.damageDice);
             let damage = rollDiceWithNotation(attackAbility.damageDice);
+            diceToShow.push({ diceType: 'd20', result: d20Roll });
+            diceToShow.push({ diceType: dice, result: damage });
+            
             // Add bonus damage if applicable
             if (attackAbility.bonusDamageDice) {
-              damage += rollDiceWithNotation(attackAbility.bonusDamageDice);
+              const { dice: bonusDice } = parseDiceNotation(attackAbility.bonusDamageDice);
+              const bonusDamage = rollDiceWithNotation(attackAbility.bonusDamageDice);
+              diceToShow.push({ diceType: bonusDice, result: bonusDamage });
+              damage += bonusDamage;
             }
             damages.push(damage);
             totalDamage += damage;
           } else {
+            diceToShow.push({ diceType: 'd20', result: d20Roll });
             damages.push(0);
           }
+        }
+        
+        // Show all dice at once
+        if (diceToShow.length > 0) {
+          triggerDiceRoll(diceToShow);
         }
 
         addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
@@ -1481,12 +1708,23 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
         logAttackRoll(attackerClass, d20Roll, attackRoll, defenderClass.armorClass);
 
         if (attackRoll >= defenderClass.armorClass) {
-          // Hit
+          // Hit - show both attack and damage dice
           let damage = rollDiceWithNotation(attackAbility.damageDice);
+          const { dice } = parseDiceNotation(attackAbility.damageDice);
+          const diceToShow: Array<{ diceType: string; result: number }> = [
+            { diceType: 'd20', result: d20Roll },
+            { diceType: dice, result: damage }
+          ];
+          
           // Add bonus damage if applicable
           if (attackAbility.bonusDamageDice) {
-            damage += rollDiceWithNotation(attackAbility.bonusDamageDice);
+            const bonusDamage = rollDiceWithNotation(attackAbility.bonusDamageDice);
+            const { dice: bonusDice } = parseDiceNotation(attackAbility.bonusDamageDice);
+            diceToShow.push({ diceType: bonusDice, result: bonusDamage });
+            damage += bonusDamage;
           }
+          
+          triggerDiceRoll(diceToShow);
           
           const newHP = Math.max(0, defenderClass.hitPoints - damage);
           const defender = attacker === 'player1' ? 'player2' : 'player1';
@@ -1518,7 +1756,10 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
             );
           }
         } else {
-          // Miss - trigger miss animation on attacker
+          // Miss - show the attack roll dice
+          triggerDiceRoll([{ diceType: 'd20', result: d20Roll }]);
+          
+          // Trigger miss animation on attacker
           setMissingPlayer(attacker);
           setMissTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
           
@@ -1533,7 +1774,9 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
       }
       // Automatic damage (no attack roll, like Fireball)
       else {
+        const { dice } = parseDiceNotation(attackAbility.damageDice);
         const damage = rollDiceWithNotation(attackAbility.damageDice);
+        triggerDiceRoll([{ diceType: dice, result: damage }]);
         const newHP = Math.max(0, defenderClass.hitPoints - damage);
         const defender = attacker === 'player1' ? 'player2' : 'player1';
         updatePlayerHP(defender, newHP);
@@ -1587,6 +1830,16 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-950 via-amber-900 to-amber-950 text-amber-50">
+      {/* Dice Roll Animation */}
+      {diceRollData.length > 0 && (
+        <DiceRoll
+          key={diceRollTrigger}
+          trigger={diceRollTrigger}
+          diceRolls={diceRollData}
+          onComplete={handleDiceRollComplete}
+        />
+      )}
+      
       {/* Header */}
       <div className="border-b-4 border-amber-800 px-4 sm:px-6 py-4 bg-amber-900/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -1682,14 +1935,31 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
                     </div>
                   )}
 
-              <button
-                onClick={startBattle}
-                disabled={!player1Class || !player2Class}
-                className="mt-6 w-full py-3 px-6 bg-red-900 hover:bg-red-800 text-white font-bold text-lg rounded-lg border-2 border-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
-                style={{ fontFamily: 'serif' }}
-              >
-                Begin Battle! ⚔️
-              </button>
+              <div className="mt-6 space-y-3">
+                <button
+                  onClick={startBattle}
+                  disabled={!player1Class || !player2Class}
+                  className="w-full py-3 px-6 bg-red-900 hover:bg-red-800 text-white font-bold text-lg rounded-lg border-2 border-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+                  style={{ fontFamily: 'serif' }}
+                >
+                  Begin Battle! ⚔️
+                </button>
+                <button
+                  onClick={() => {
+                    // Test dice roll with various dice types
+                    const testRolls = [
+                      { diceType: 'd20', result: Math.floor(Math.random() * 20) + 1 },
+                      { diceType: 'd10', result: Math.floor(Math.random() * 10) + 1 },
+                      { diceType: 'd8', result: Math.floor(Math.random() * 8) + 1 },
+                      { diceType: 'd6', result: Math.floor(Math.random() * 6) + 1 },
+                    ];
+                    triggerDiceRoll(testRolls);
+                  }}
+                  className="w-full py-2 px-4 bg-purple-900 hover:bg-purple-800 text-white font-semibold rounded-lg border-2 border-purple-700 transition-all shadow-md"
+                >
+                  🎲 Test Dice Roll
+                </button>
+              </div>
                 </>
               )}
             </div>
