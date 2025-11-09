@@ -33,6 +33,39 @@ export function PixelCharacter({
   shouldSurprise = false
 }: PixelCharacterProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const prevShouldMissRef = useRef(false);
+
+  // Apply face palm animation when shouldMiss becomes true
+  useEffect(() => {
+    // Only trigger animation when shouldMiss changes from false to true
+    if (shouldMiss && !prevShouldMissRef.current) {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        // Force animation restart by removing and re-adding the class
+        canvas.classList.remove('face-palm');
+        let timer: NodeJS.Timeout;
+        
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (canvas) {
+              canvas.classList.add('face-palm');
+              // Remove class after animation completes
+              timer = setTimeout(() => {
+                if (canvas) {
+                  canvas.classList.remove('face-palm');
+                }
+              }, 800); // Match animation duration
+            }
+          });
+        });
+        
+        return () => {
+          if (timer) clearTimeout(timer);
+        };
+      }
+    }
+    prevShouldMissRef.current = shouldMiss;
+  }, [shouldMiss]);
 
   // Determine emotion based on battle state if not explicitly provided
   // Priority order matters - check most specific states first
