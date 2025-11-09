@@ -140,6 +140,34 @@ body {
   will-change: transform, opacity;
 }
 
+/* Hit animation for successful attacks - forward punch/thrust effect */
+@keyframes hit {
+  0% {
+    transform: scale(1) translateX(0) translateY(0);
+  }
+  20% {
+    transform: scale(1.3) translateX(15px) translateY(-8px);
+  }
+  40% {
+    transform: scale(1.2) translateX(10px) translateY(-4px);
+  }
+  60% {
+    transform: scale(1.1) translateX(5px) translateY(-2px);
+  }
+  80% {
+    transform: scale(1.05) translateX(2px) translateY(-1px);
+  }
+  100% {
+    transform: scale(1) translateX(0) translateY(0);
+  }
+}
+
+.hit {
+  animation: hit 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+  transform-origin: center center;
+  will-change: transform;
+}
+
 /* Face palm animation for pixel characters when they miss */
 @keyframes face-palm {
   0% {

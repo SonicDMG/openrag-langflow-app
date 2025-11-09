@@ -10,7 +10,7 @@ import remarkGfm from 'remark-gfm';
 import { DnDClass, BattleLog, AttackAbility, CharacterEmotion, Ability } from '../dnd/types';
 
 // Constants
-import { FALLBACK_CLASSES, CLASS_COLORS, FALLBACK_ABILITIES } from '../dnd/constants';
+import { FALLBACK_CLASSES, CLASS_COLORS, FALLBACK_ABILITIES, CLASS_ICONS } from '../dnd/constants';
 
 // Utilities
 import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../dnd/utils/dice';
@@ -24,6 +24,9 @@ import {
   buildDamageDiceArray,
   type PendingVisualEffect 
 } from '../dnd/utils/battle';
+
+// Hooks
+import { useAIOpponent } from '../dnd/hooks/useAIOpponent';
 
 // Services
 import { fetchAvailableClasses, fetchClassStats, extractAbilities, getBattleNarrative } from '../dnd/services/apiService';
@@ -39,6 +42,7 @@ export default function DnDBattle() {
   const [player2Class, setPlayer2Class] = useState<DnDClass | null>(null);
   const [player1Name, setPlayer1Name] = useState<string>('');
   const [player2Name, setPlayer2Name] = useState<string>('');
+  const [isOpponentAutoPlaying, setIsOpponentAutoPlaying] = useState(false);
   const [battleLog, setBattleLog] = useState<BattleLog[]>([]);
   const [isBattleActive, setIsBattleActive] = useState(false);
   const [currentTurn, setCurrentTurn] = useState<'player1' | 'player2'>('player1');
@@ -465,7 +469,12 @@ export default function DnDBattle() {
 
   const startBattle = async () => {
     if (!player1Class || !player2Class) {
-      addLog('system', 'Please select both combatants!');
+      addLog('system', 'Please select your character!');
+      return;
+    }
+
+    // Prevent multiple clicks
+    if (isLoadingClassDetails || isBattleActive) {
       return;
     }
 
@@ -889,16 +898,42 @@ export default function DnDBattle() {
     }
   };
 
-  // Wrapper functions to generate names when classes are selected
+  // Wrapper function to generate name when player selects their class
+  // Also auto-selects a random opponent
   const handlePlayer1Select = useCallback((dndClass: DnDClass) => {
     setPlayer1Class(dndClass);
     setPlayer1Name(generateCharacterName(dndClass.name));
-  }, []);
+    
+    // Auto-select a random opponent that's different from the player's class
+    const availableOpponents = availableClasses.filter(cls => cls.name !== dndClass.name);
+    if (availableOpponents.length > 0) {
+      const randomOpponent = availableOpponents[Math.floor(Math.random() * availableOpponents.length)];
+      setPlayer2Class(randomOpponent);
+      setPlayer2Name(generateCharacterName(randomOpponent.name));
+    } else {
+      // Fallback: if no other classes available, use a fallback class
+      const fallbackOpponent = availableClasses[0];
+      if (fallbackOpponent) {
+        setPlayer2Class(fallbackOpponent);
+        setPlayer2Name(generateCharacterName(fallbackOpponent.name));
+      }
+    }
+  }, [availableClasses]);
 
-  const handlePlayer2Select = useCallback((dndClass: DnDClass) => {
-    setPlayer2Class(dndClass);
-    setPlayer2Name(generateCharacterName(dndClass.name));
-  }, []);
+  // Use AI opponent hook
+  const aiOpponentCleanup = useAIOpponent({
+    isActive: isBattleActive,
+    currentTurn,
+    isMoveInProgress,
+    defeatedPlayer,
+    opponentClass: player2Class,
+    callbacks: {
+      onAttack: () => performAttack('player2'),
+      onUseAbility: (abilityIndex: number) => useAbility('player2', abilityIndex),
+    },
+    onStateChange: setIsOpponentAutoPlaying,
+    onMoveInProgressChange: setIsMoveInProgress,
+  });
 
   const resetBattle = () => {
     setIsBattleActive(false);
@@ -920,6 +955,8 @@ export default function DnDBattle() {
     setSurpriseTrigger({ player1: 0, player2: 0 });
     setManualEmotion1(null);
     setManualEmotion2(null);
+    setIsOpponentAutoPlaying(false);
+    aiOpponentCleanup.cleanup();
   };
 
   return (
@@ -942,7 +979,7 @@ export default function DnDBattle() {
               ⚔️ D&D Battle Arena ⚔️
             </h1>
             <p className="text-sm text-amber-200 italic">
-              Choose your champions and engage in epic one-on-one combat
+              Choose your character and battle against an AI opponent
             </p>
           </div>
           <button
@@ -960,7 +997,7 @@ export default function DnDBattle() {
           {!isBattleActive && (
             <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl">
               <h2 className="text-2xl font-bold mb-4 text-amber-100" style={{ fontFamily: 'serif' }}>
-                Select Combatants
+                Select Your Character
                 {isLoadingClasses && (
                   <span className="ml-2 text-sm text-amber-300 italic">
                     (Loading classes from OpenRAG...)
@@ -1002,19 +1039,27 @@ export default function DnDBattle() {
                 </div>
               ) : (
                 <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <ClassSelection
-                  title="Combatant 1"
+                  title="Choose Your Character"
                   availableClasses={availableClasses}
                   selectedClass={player1Class}
                   onSelect={handlePlayer1Select}
                 />
-                <ClassSelection
-                  title="Combatant 2"
-                  availableClasses={availableClasses}
-                  selectedClass={player2Class}
-                  onSelect={handlePlayer2Select}
-                />
+                {player2Class && (
+                  <div className="bg-amber-800/50 border-2 border-amber-700 rounded-lg p-4">
+                    <h3 className="text-lg font-semibold mb-2 text-amber-200">Opponent (Auto-Play)</h3>
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl" style={{ imageRendering: 'pixelated' as const }}>
+                        {CLASS_ICONS[player2Class.name] || '⚔️'}
+                      </span>
+                      <div>
+                        <div className="font-bold text-amber-100">{player2Name || player2Class.name}</div>
+                        <div className="text-sm text-amber-300 italic">{player2Class.name}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
                   {classesLoaded && (
@@ -1032,12 +1077,17 @@ export default function DnDBattle() {
               <div className="mt-6 space-y-3">
                 <button
                   onClick={startBattle}
-                  disabled={!player1Class || !player2Class}
+                  disabled={!player1Class || !player2Class || isLoadingClassDetails || isBattleActive}
                   className="w-full py-3 px-6 bg-red-900 hover:bg-red-800 text-white font-bold text-lg rounded-lg border-2 border-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
                   style={{ fontFamily: 'serif' }}
                 >
-                  Begin Battle! ⚔️
+                  {isLoadingClassDetails ? 'Starting Battle...' : 'Begin Battle! ⚔️'}
                 </button>
+                {player1Class && !player2Class && (
+                  <p className="text-sm text-amber-300 text-center italic">
+                    Select your character to automatically assign an opponent
+                  </p>
+                )}
                 <button
                   onClick={() => router.push('/dnd/test')}
                   className="w-full py-2 px-4 bg-purple-900 hover:bg-purple-800 text-white font-semibold rounded-lg border-2 border-purple-700 transition-all shadow-md"
@@ -1088,7 +1138,7 @@ export default function DnDBattle() {
                 playerId="player2"
                 currentTurn={currentTurn}
                 characterName={player2Name || 'Loading...'}
-                onAttack={() => performAttack('player2')}
+                onAttack={undefined}
                 onUseAbility={(idx) => useAbility('player2', idx)}
                 shouldShake={shakingPlayer === 'player2'}
                 shouldSparkle={sparklingPlayer === 'player2'}
@@ -1110,6 +1160,7 @@ export default function DnDBattle() {
                 onMissComplete={handleMissComplete}
                 onHitComplete={handleHitComplete}
                 onSurpriseComplete={handleSurpriseComplete}
+                isOpponent={true}
               />
             </div>
           )}

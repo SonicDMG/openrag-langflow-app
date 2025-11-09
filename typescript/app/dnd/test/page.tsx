@@ -9,6 +9,7 @@ import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../utils/dice
 import { generateCharacterName } from '../utils/names';
 import { DiceRoll } from '../components/DiceRoll';
 import { PlayerStats } from '../components/PlayerStats';
+import { useAIOpponent } from '../hooks/useAIOpponent';
 
 // Mock battle narrative generator (doesn't call agent)
 const mockBattleNarrative = (eventDescription: string): string => {
@@ -95,6 +96,9 @@ export default function DnDTestPage() {
   const [isDiceRolling, setIsDiceRolling] = useState(false);
   const [manualEmotion1, setManualEmotion1] = useState<CharacterEmotion | null>(null);
   const [manualEmotion2, setManualEmotion2] = useState<CharacterEmotion | null>(null);
+  const [isAIModeActive, setIsAIModeActive] = useState(false);
+  const [isOpponentAutoPlaying, setIsOpponentAutoPlaying] = useState(false);
+  const [isMoveInProgress, setIsMoveInProgress] = useState(false);
   const diceQueueRef = useRef<Array<Array<{ diceType: string; result: number }>>>([]);
   
   // Queue for visual effects that should trigger after dice roll completes
@@ -248,18 +252,24 @@ export default function DnDTestPage() {
   };
   
   const testAttackHit = (attacker: 'player1' | 'player2') => {
+    console.log('[TestPage] testAttackHit called for', attacker);
     const attackerClass = attacker === 'player1' ? player1Class : player2Class;
     const defenderClass = attacker === 'player1' ? player2Class : player1Class;
     const defender = attacker === 'player1' ? 'player2' : 'player1';
+    
+    console.log('[TestPage] Attacker:', attackerClass.name, 'Defender:', defenderClass.name);
     
     const d20Roll = rollDice('d20');
     const attackRoll = d20Roll + attackerClass.attackBonus;
     const damage = rollDice(attackerClass.damageDie);
     
+    console.log('[TestPage] Attack roll:', attackRoll, 'Damage:', damage);
+    
     addLog('roll', `🎲 ${attackerClass.name} rolls ${d20Roll} + ${attackerClass.attackBonus} = ${attackRoll} (hits AC ${defenderClass.armorClass})`);
     
     const newHP = Math.max(0, defenderClass.hitPoints - damage);
     
+    console.log('[TestPage] Triggering dice roll for', attacker);
     triggerDiceRoll(
       [
         { diceType: 'd20', result: d20Roll },
@@ -270,8 +280,12 @@ export default function DnDTestPage() {
         { type: 'shake', player: defender, intensity: damage }
       ],
       [
-        () => updatePlayerHP(defender, newHP), // HP update happens after dice roll
         () => {
+          console.log('[TestPage] HP update callback for', defender, 'newHP:', newHP);
+          updatePlayerHP(defender, newHP);
+        },
+        () => {
+          console.log('[TestPage] Attack complete callback for', attacker);
           addLog('attack', `⚔️ ${attackerClass.name} hits for ${damage} damage!`);
           addLog('narrative', mockBattleNarrative(`${attackerClass.name} attacks ${defenderClass.name} and deals ${damage} damage.`));
           
@@ -280,6 +294,19 @@ export default function DnDTestPage() {
             setVictorPlayer(attacker);
             setConfettiTrigger(prev => prev + 1);
             addLog('system', `🏆 ${attackerClass.name} wins!`);
+          } else {
+            // Switch turns after attack completes
+            // Wait for shake animation to complete (400ms) before switching turns
+            // This ensures the visual feedback is visible before the turn changes
+            const nextTurn = attacker === 'player1' ? 'player2' : 'player1';
+            console.log('[TestPage] Switching turn from', attacker, 'to', nextTurn);
+            // Delay turn switch to allow shake animation to complete (400ms) + small buffer
+            // Keep isMoveInProgress true until turn actually switches to prevent AI from triggering again
+            setTimeout(() => {
+              setCurrentTurn(nextTurn);
+              setIsMoveInProgress(false);
+            }, 450);
+            return; // Early return to prevent double execution
           }
         }
       ]
@@ -297,11 +324,22 @@ export default function DnDTestPage() {
     
     triggerDiceRoll(
       [{ diceType: 'd20', result: d20Roll }],
-      [{ type: 'miss', player: attacker }]
+      [{ type: 'miss', player: attacker }],
+      [
+        () => {
+          addLog('attack', `❌ ${attackerClass.name} misses!`);
+          addLog('narrative', mockBattleNarrative(`${attackerClass.name} attacks ${defenderClass.name} but misses.`));
+          // Switch turns after miss
+          // Miss animation is 600ms, so wait a bit longer
+          // Keep isMoveInProgress true until turn actually switches to prevent AI from triggering again
+          const nextTurn = attacker === 'player1' ? 'player2' : 'player1';
+          setTimeout(() => {
+            setCurrentTurn(nextTurn);
+            setIsMoveInProgress(false);
+          }, 650);
+        }
+      ]
     );
-    
-    addLog('attack', `❌ ${attackerClass.name} misses!`);
-    addLog('narrative', mockBattleNarrative(`${attackerClass.name} attacks ${defenderClass.name} but misses.`));
   };
   
   const testHeal = (player: 'player1' | 'player2') => {
@@ -321,6 +359,14 @@ export default function DnDTestPage() {
         () => {
           addLog('ability', `💚 ${playerClass.name} heals for ${heal} HP!`);
           addLog('narrative', mockBattleNarrative(`${playerClass.name} uses Test Heal and recovers ${heal} HP.`));
+          // Switch turns after heal
+          // Sparkle animation is 1500ms, but we can switch sooner since it's just visual
+          // Keep isMoveInProgress true until turn actually switches to prevent AI from triggering again
+          const nextTurn = player === 'player1' ? 'player2' : 'player1';
+          setTimeout(() => {
+            setCurrentTurn(nextTurn);
+            setIsMoveInProgress(false);
+          }, 450);
         }
       ]
     );
@@ -451,6 +497,30 @@ export default function DnDTestPage() {
     );
   };
   
+  // Use AI opponent hook
+  const aiOpponentCleanup = useAIOpponent({
+    isActive: isAIModeActive,
+    currentTurn,
+    isMoveInProgress,
+    defeatedPlayer,
+    opponentClass: player2Class,
+    callbacks: {
+      onAttack: () => testAttackHit('player2'),
+      onUseAbility: (abilityIndex: number) => {
+        const ability = player2Class.abilities[abilityIndex];
+        if (ability?.type === 'healing') {
+          testHeal('player2');
+        } else if (ability?.type === 'attack') {
+          testAttackHit('player2');
+        }
+      },
+      onHeal: () => testHeal('player2'),
+    },
+    onStateChange: setIsOpponentAutoPlaying,
+    onMoveInProgressChange: setIsMoveInProgress,
+    debugLog: (message: string) => console.log(message),
+  });
+
   const resetTest = () => {
     setPlayer1Class(prev => ({ ...prev, hitPoints: prev.maxHitPoints }));
     setPlayer2Class(prev => ({ ...prev, hitPoints: prev.maxHitPoints }));
@@ -471,6 +541,10 @@ export default function DnDTestPage() {
     setSparkleIntensity({ player1: 0, player2: 0 });
     setManualEmotion1(null);
     setManualEmotion2(null);
+    setCurrentTurn('player1');
+    setIsMoveInProgress(false);
+    setIsOpponentAutoPlaying(false);
+    aiOpponentCleanup.cleanup();
     addLog('system', '🔄 Test reset');
   };
 
@@ -559,12 +633,32 @@ export default function DnDTestPage() {
                 🎲 Test Dice Roll
               </button>
               <button
+                onClick={() => {
+                  setIsAIModeActive(!isAIModeActive);
+                  addLog('system', isAIModeActive ? '🤖 AI mode disabled' : '🤖 AI mode enabled - Player 2 will auto-play');
+                }}
+                className={`py-2 px-4 font-semibold rounded-lg border-2 transition-all ${
+                  isAIModeActive
+                    ? 'bg-green-900 hover:bg-green-800 text-white border-green-700'
+                    : 'bg-blue-900 hover:bg-blue-800 text-white border-blue-700'
+                }`}
+              >
+                {isAIModeActive ? '🤖 AI Mode: ON' : '🤖 AI Mode: OFF'}
+              </button>
+              <button
                 onClick={resetTest}
                 className="py-2 px-4 bg-amber-800 hover:bg-amber-700 text-white font-semibold rounded-lg border-2 border-amber-700 transition-all"
               >
                 🔄 Reset Test
               </button>
             </div>
+            {isAIModeActive && (
+              <div className="mt-3 text-center">
+                <p className="text-amber-200 text-sm italic">
+                  🤖 AI Mode Active: Player 2 (opponent) will automatically play when it's their turn
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Player Stats */}
@@ -573,9 +667,10 @@ export default function DnDTestPage() {
               <PlayerStats
                 playerClass={player1Class}
                 playerId="player1"
-                currentTurn="player1"
+                currentTurn={currentTurn}
                 characterName={player1Name || 'Loading...'}
                 onUseAbility={(index) => {
+                  setIsMoveInProgress(true);
                   const ability = player1Class.abilities[index];
                   if (ability?.type === 'healing') {
                     testHeal('player1');
@@ -584,6 +679,11 @@ export default function DnDTestPage() {
                     testAttackHit('player1');
                   }
                 }}
+                onAttack={() => {
+                  setIsMoveInProgress(true);
+                  testAttackHit('player1');
+                }}
+                isMoveInProgress={isMoveInProgress}
                 shouldShake={shakingPlayer === 'player1'}
                 shouldSparkle={sparklingPlayer === 'player1'}
                 shouldMiss={missingPlayer === 'player1'}
@@ -596,7 +696,6 @@ export default function DnDTestPage() {
                 surpriseTrigger={surpriseTrigger.player1}
                 shakeIntensity={shakeIntensity.player1}
                 sparkleIntensity={sparkleIntensity.player1}
-                isMoveInProgress={false}
                 isDefeated={defeatedPlayer === 'player1'}
                 isVictor={victorPlayer === 'player1'}
                 confettiTrigger={confettiTrigger}
@@ -608,6 +707,7 @@ export default function DnDTestPage() {
                 onSurpriseComplete={handlePlayer1SurpriseComplete}
                 showEmotionControls={true}
                 onEmotionChange={setManualEmotion1}
+                allowAllTurns={!isAIModeActive}
                 testButtons={[
                   {
                     label: '💥 High Damage',
@@ -641,9 +741,11 @@ export default function DnDTestPage() {
               <PlayerStats
                 playerClass={player2Class}
                 playerId="player2"
-                currentTurn="player2"
+                currentTurn={currentTurn}
                 characterName={player2Name || 'Loading...'}
                 onUseAbility={(index) => {
+                  if (isAIModeActive) return; // Don't allow manual control in AI mode
+                  setIsMoveInProgress(true);
                   const ability = player2Class.abilities[index];
                   if (ability?.type === 'healing') {
                     testHeal('player2');
@@ -652,6 +754,12 @@ export default function DnDTestPage() {
                     testAttackHit('player2');
                   }
                 }}
+                onAttack={isAIModeActive ? undefined : () => {
+                  setIsMoveInProgress(true);
+                  testAttackHit('player2');
+                }}
+                isOpponent={isAIModeActive}
+                isMoveInProgress={isMoveInProgress}
                 shouldShake={shakingPlayer === 'player2'}
                 shouldSparkle={sparklingPlayer === 'player2'}
                 shouldMiss={missingPlayer === 'player2'}
@@ -662,7 +770,6 @@ export default function DnDTestPage() {
                 missTrigger={missTrigger.player2}
                 hitTrigger={hitTrigger.player2}
                 surpriseTrigger={surpriseTrigger.player2}
-                isMoveInProgress={false}
                 isDefeated={defeatedPlayer === 'player2'}
                 isVictor={victorPlayer === 'player2'}
                 confettiTrigger={confettiTrigger}
@@ -674,6 +781,7 @@ export default function DnDTestPage() {
                 onSurpriseComplete={handlePlayer2SurpriseComplete}
                 showEmotionControls={true}
                 onEmotionChange={setManualEmotion2}
+                allowAllTurns={!isAIModeActive}
                 testButtons={[
                   {
                     label: '💥 High Damage',

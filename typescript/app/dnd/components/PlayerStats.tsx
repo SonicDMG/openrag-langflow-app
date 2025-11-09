@@ -43,6 +43,10 @@ interface PlayerStatsProps {
   onEmotionChange?: (emotion: CharacterEmotion | null) => void;
   // Optional additional test buttons (for test page)
   testButtons?: Array<{ label: string; onClick: () => void; className?: string }>;
+  // If true, this is an opponent (AI-controlled) and buttons should be hidden
+  isOpponent?: boolean;
+  // If true, buttons are enabled regardless of turn (for test mode when AI is off)
+  allowAllTurns?: boolean;
 }
 
 function PlayerStatsComponent({ 
@@ -76,10 +80,14 @@ function PlayerStatsComponent({
   onSurpriseComplete,
   showEmotionControls = false,
   onEmotionChange,
-  testButtons = []
+  testButtons = [],
+  isOpponent = false,
+  allowAllTurns = false // When true, buttons are enabled regardless of turn (for test mode)
 }: PlayerStatsProps) {
   const isActive = currentTurn === playerId && !isDefeated;
-  const isDisabled = (isActive && isMoveInProgress) || isDefeated;
+  // If allowAllTurns is true, treat as always active (unless defeated or move in progress)
+  const effectiveIsActive = allowAllTurns ? !isDefeated : isActive;
+  const isDisabled = (effectiveIsActive && isMoveInProgress) || isDefeated;
   const animationRef = useRef<HTMLDivElement>(null);
 
 
@@ -87,13 +95,15 @@ function PlayerStatsComponent({
   // NOTE: Shake animation should still play even when surprise is active (for visual feedback)
   // The emotion logic will handle showing surprised instead of hurt
   useEffect(() => {
-    if (animationRef.current && shouldShake && shakeIntensity > 0) {
+    if (animationRef.current && shouldShake) {
+      // Always set the intensity - use provided intensity or default to 1 for minimum shake
+      const intensity = shakeIntensity > 0 ? shakeIntensity : 1;
       // Calculate intensity scale using non-linear scaling for better visual differentiation
       // Low damage (1) = subtle shake (whimper) ~0.2-0.3
       // High damage = strong shake (current good shake) ~1.0-2.0
       // Uses square root curve: scale = 0.15 + (intensityPercent^0.5) * 1.85
       const maxHP = playerClass.maxHitPoints;
-      const intensityPercent = Math.min(shakeIntensity / maxHP, 1.0); // Cap at 100%
+      const intensityPercent = Math.min(intensity / maxHP, 1.0); // Cap at 100%
       // Square root curve: makes low damage much smaller, high damage stays strong
       const scale = 0.15 + (Math.sqrt(intensityPercent) * 1.85); // Range: ~0.15 to 2.0
       animationRef.current.style.setProperty('--shake-intensity', scale.toString());
@@ -224,7 +234,10 @@ function PlayerStatsComponent({
           <span className="font-bold text-amber-100">+{playerClass.attackBonus}</span>
         </div>
         <div className="mt-4">
-          <div className="text-amber-300 mb-2">Abilities: {playerClass.abilities.length > 0 ? `(${playerClass.abilities.length})` : '(none)'}</div>
+          <div className="text-amber-300 mb-2">
+            Abilities: {playerClass.abilities.length > 0 ? `(${playerClass.abilities.length})` : '(none)'}
+            {isOpponent && <span className="text-amber-400 text-xs ml-2">(AI-controlled)</span>}
+          </div>
           <div className="flex flex-wrap gap-2">
             {playerClass.abilities.length > 0 ? (
               <>
@@ -233,11 +246,36 @@ function PlayerStatsComponent({
                   const testMissButton = testButtons.find(btn => btn.label.includes('Test Miss'));
                   const isTestHeal = ability.name === 'Test Heal';
                   
+                  if (isOpponent) {
+                    // For opponents, show abilities as read-only badges
+                    return (
+                      <div key={idx} className="contents">
+                        <div
+                          className="px-3 py-1 bg-amber-800/50 text-amber-200 text-xs rounded border border-amber-700/50 cursor-default"
+                          title={ability.description || undefined}
+                        >
+                          {ability.name}
+                        </div>
+                        {/* Insert Test Miss button right after Test Heal */}
+                        {isTestHeal && testMissButton && (
+                          <button
+                            key="test-miss-after-heal"
+                            onClick={testMissButton.onClick}
+                            className={testMissButton.className || "px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all"}
+                          >
+                            {testMissButton.label}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  }
+                  
+                  // For player, show interactive buttons
                   return (
                     <div key={idx} className="contents">
                       <button
                         onClick={() => onUseAbility(idx)}
-                        disabled={!isActive || isDisabled}
+                        disabled={!effectiveIsActive || isDisabled}
                         className="px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         title={ability.description || undefined}
                       >
@@ -257,7 +295,7 @@ function PlayerStatsComponent({
                   );
                 })}
                 {/* Render remaining test buttons (excluding Test Miss since it's already rendered) */}
-                {testButtons.filter(btn => !btn.label.includes('Test Miss')).map((testButton, idx) => (
+                {!isOpponent && testButtons.filter(btn => !btn.label.includes('Test Miss')).map((testButton, idx) => (
                   <button
                     key={`test-${idx}`}
                     onClick={testButton.onClick}
@@ -272,7 +310,7 @@ function PlayerStatsComponent({
             )}
           </div>
         </div>
-        {isActive && onAttack && (
+        {!isOpponent && effectiveIsActive && onAttack && (
           <button
             onClick={onAttack}
             disabled={isDisabled}
@@ -280,6 +318,11 @@ function PlayerStatsComponent({
           >
             Attack! ⚔️
           </button>
+        )}
+        {isOpponent && (
+          <div className="mt-2 text-center">
+            <div className="text-amber-300 text-sm italic">🤖 Auto-playing opponent</div>
+          </div>
         )}
         
         {/* Emotion Test Controls (only shown when enabled) */}
