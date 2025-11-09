@@ -443,7 +443,7 @@ export default function Chat() {
     <div className="flex flex-col h-screen w-full bg-white dark:bg-black">
       {/* Header */}
       <div className="border-b border-zinc-200 dark:border-zinc-800 px-4 sm:px-6 py-4 shrink-0 relative">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <h1 
             className="text-2xl font-semibold text-black dark:text-zinc-50 cursor-pointer select-none"
             onClick={() => {
@@ -466,7 +466,7 @@ export default function Chat() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6">
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto space-y-6">
           {messages.length === 0 && (
             <div className="text-center text-zinc-500 dark:text-zinc-400 mt-12">
               <p className="text-lg font-medium">Start a conversation</p>
@@ -548,7 +548,7 @@ export default function Chat() {
 
       {/* Input */}
       <div className="border-t border-zinc-200 dark:border-zinc-800 px-4 sm:px-6 py-4 shrink-0 bg-white dark:bg-black">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <form onSubmit={handleSubmit} className="flex gap-3 w-full">
             <textarea
               ref={textareaRef}
