@@ -14,16 +14,18 @@ interface PlayerStatsProps {
   playerId: 'player1' | 'player2';
   currentTurn: 'player1' | 'player2';
   characterName: string;
-  onAttack: () => void;
+  onAttack?: () => void; // Optional - if not provided, Attack button won't be shown
   onUseAbility: (index: number) => void;
   shouldShake: boolean;
   shouldSparkle: boolean;
   shouldMiss: boolean;
   shouldHit: boolean;
+  shouldSurprise: boolean;
   shakeTrigger: number;
   sparkleTrigger: number;
   missTrigger: number;
   hitTrigger: number;
+  surpriseTrigger: number;
   isMoveInProgress: boolean;
   isDefeated: boolean;
   isVictor: boolean;
@@ -33,9 +35,12 @@ interface PlayerStatsProps {
   onSparkleComplete: () => void;
   onMissComplete: () => void;
   onHitComplete: () => void;
+  onSurpriseComplete: () => void;
   // Optional emotion test controls (for test page)
   showEmotionControls?: boolean;
   onEmotionChange?: (emotion: CharacterEmotion | null) => void;
+  // Optional additional test buttons (for test page)
+  testButtons?: Array<{ label: string; onClick: () => void; className?: string }>;
 }
 
 function PlayerStatsComponent({ 
@@ -49,10 +54,12 @@ function PlayerStatsComponent({
   shouldSparkle,
   shouldMiss,
   shouldHit,
+  shouldSurprise,
   shakeTrigger,
   sparkleTrigger,
   missTrigger,
   hitTrigger,
+  surpriseTrigger,
   isMoveInProgress,
   isDefeated,
   isVictor,
@@ -62,8 +69,10 @@ function PlayerStatsComponent({
   onSparkleComplete,
   onMissComplete,
   onHitComplete,
+  onSurpriseComplete,
   showEmotionControls = false,
-  onEmotionChange
+  onEmotionChange,
+  testButtons = []
 }: PlayerStatsProps) {
   const isActive = currentTurn === playerId && !isDefeated;
   const isDisabled = (isActive && isMoveInProgress) || isDefeated;
@@ -71,10 +80,12 @@ function PlayerStatsComponent({
 
 
   // Apply shake animation
+  // NOTE: Shake animation should still play even when surprise is active (for visual feedback)
+  // The emotion logic will handle showing surprised instead of hurt
   useEffect(() => {
     const cleanup = applyAnimationClass(
       animationRef.current,
-      shouldShake,
+      shouldShake, // Always apply shake animation when taking damage
       shakeTrigger,
       'shake',
       400,
@@ -116,6 +127,16 @@ function PlayerStatsComponent({
       return () => clearTimeout(timer);
     }
   }, [shouldHit, hitTrigger, onHitComplete]);
+
+  // Apply surprise animation (timeout-based - show surprised expression)
+  useEffect(() => {
+    if (shouldSurprise && surpriseTrigger > 0) {
+      const timer = setTimeout(() => {
+        onSurpriseComplete();
+      }, 1200); // Show surprised expression for 1.2 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [shouldSurprise, surpriseTrigger, onSurpriseComplete]);
 
   return (
     <div 
@@ -198,9 +219,18 @@ function PlayerStatsComponent({
             ) : (
               <span className="text-amber-400 text-xs italic">No abilities loaded</span>
             )}
+            {testButtons.map((testButton, idx) => (
+              <button
+                key={`test-${idx}`}
+                onClick={testButton.onClick}
+                className={testButton.className || "px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all"}
+              >
+                {testButton.label}
+              </button>
+            ))}
           </div>
         </div>
-        {isActive && (
+        {isActive && onAttack && (
           <button
             onClick={onAttack}
             disabled={isDisabled}

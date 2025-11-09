@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { DnDClass, BattleLog, CharacterEmotion } from '../types';
 import { FALLBACK_CLASSES } from '../constants';
@@ -80,6 +81,8 @@ export default function DnDTestPage() {
   const [missTrigger, setMissTrigger] = useState({ player1: 0, player2: 0 });
   const [hittingPlayer, setHittingPlayer] = useState<'player1' | 'player2' | null>(null);
   const [hitTrigger, setHitTrigger] = useState({ player1: 0, player2: 0 });
+  const [surprisedPlayer, setSurprisedPlayer] = useState<'player1' | 'player2' | null>(null);
+  const [surpriseTrigger, setSurpriseTrigger] = useState({ player1: 0, player2: 0 });
   const [defeatedPlayer, setDefeatedPlayer] = useState<'player1' | 'player2' | null>(null);
   const [victorPlayer, setVictorPlayer] = useState<'player1' | 'player2' | null>(null);
   const [confettiTrigger, setConfettiTrigger] = useState(0);
@@ -94,7 +97,7 @@ export default function DnDTestPage() {
   
   // Queue for visual effects that should trigger after dice roll completes
   type PendingVisualEffect = {
-    type: 'shake' | 'sparkle' | 'miss' | 'hit';
+    type: 'shake' | 'sparkle' | 'miss' | 'hit' | 'surprise';
     player: 'player1' | 'player2';
   };
   
@@ -141,6 +144,11 @@ export default function DnDTestPage() {
         setHittingPlayer(effect.player);
         setHitTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
         break;
+      case 'surprise':
+        console.log('[TestPage] Setting surprise effect for', effect.player);
+        setSurprisedPlayer(effect.player);
+        setSurpriseTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
+        break;
     }
   }, []);
   
@@ -173,14 +181,34 @@ export default function DnDTestPage() {
     const pendingCallbacks = currentCallbacksRef.current;
     currentCallbacksRef.current = [];
     
-    // Apply visual effects and HP updates synchronously
-    pendingEffects.forEach(effect => {
-      applyVisualEffect(effect);
+    // Apply visual effects FIRST to ensure surprise state is set before HP update
+    // Process surprise effects first, then other effects
+    const surpriseEffects = pendingEffects.filter(e => e.type === 'surprise');
+    const otherEffects = pendingEffects.filter(e => e.type !== 'surprise');
+    
+    // Apply surprise effects first and force synchronous state update
+    // This ensures the surprise state is set before any HP updates
+    surpriseEffects.forEach(effect => {
+      flushSync(() => {
+        applyVisualEffect(effect);
+      });
     });
     
-    // Execute HP update callbacks at the same time as visual effects
-    pendingCallbacks.forEach(callback => {
-      callback();
+    // Then apply other effects (also flush to ensure state is set)
+    otherEffects.forEach(effect => {
+      flushSync(() => {
+        applyVisualEffect(effect);
+      });
+    });
+    
+    // Use requestAnimationFrame to ensure state has propagated to DOM
+    // Then execute HP updates in the next frame
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        pendingCallbacks.forEach(callback => {
+          callback();
+        });
+      });
     });
     
     // Process next dice in queue
@@ -289,6 +317,81 @@ export default function DnDTestPage() {
     );
   };
   
+  const testHighDamage = (target: 'player1' | 'player2') => {
+    const targetClass = target === 'player1' ? player1Class : player2Class;
+    const attackerName = target === 'player1' ? 'Test Attacker' : 'Test Attacker';
+    
+    // Calculate damage that will ALWAYS trigger surprise
+    // Surprise triggers if: damage >= 30% of max HP OR damage >= 50% of current HP
+    // We ensure it meets at least one condition by using the larger of:
+    // - 40% of max HP (guarantees >= 30% of max)
+    // - 50% of current HP (guarantees >= 50% of current)
+    const damageFromMaxPercent = Math.ceil(targetClass.maxHitPoints * 0.4);
+    const damageFromCurrentPercent = Math.ceil(targetClass.hitPoints * 0.5);
+    const damage = Math.max(damageFromMaxPercent, damageFromCurrentPercent);
+    
+    addLog('roll', `💥 ${attackerName} uses High Damage Test!`);
+    
+    const newHP = Math.max(0, targetClass.hitPoints - damage);
+    
+    // Check if this is a surprising amount of damage (same logic as battle system)
+    const damagePercentOfMax = damage / targetClass.maxHitPoints;
+    const damagePercentOfCurrent = targetClass.hitPoints > 0 ? damage / targetClass.hitPoints : 0;
+    const isSurprising = damagePercentOfMax >= 0.3 || damagePercentOfCurrent >= 0.5;
+    
+    // Log the calculation for debugging
+    addLog('system', `📊 Damage calc: ${damage} HP (${(damagePercentOfMax * 100).toFixed(1)}% of max, ${(damagePercentOfCurrent * 100).toFixed(1)}% of current) - ${isSurprising ? 'SURPRISING!' : 'not surprising'}`);
+    
+    const visualEffects: Array<{ type: 'shake' | 'sparkle' | 'miss' | 'hit' | 'surprise'; player: 'player1' | 'player2' }> = [
+      { type: 'shake', player: target }
+    ];
+    
+    if (isSurprising) {
+      visualEffects.push({ type: 'surprise', player: target });
+    }
+    
+    triggerDiceRoll(
+      [{ diceType: 'd20', result: 20 }, { diceType: 'd12', result: damage }],
+      visualEffects,
+      [
+        () => updatePlayerHP(target, newHP), // HP update happens after dice roll
+        () => {
+          addLog('attack', `💥 ${attackerName} deals ${damage} damage to ${targetClass.name}! ${isSurprising ? '😱 SURPRISING DAMAGE!' : ''}`);
+          addLog('narrative', mockBattleNarrative(`${attackerName} deals massive ${damage} damage to ${targetClass.name}!`));
+          
+          if (newHP <= 0) {
+            setDefeatedPlayer(target);
+            addLog('system', `💀 ${targetClass.name} is defeated!`);
+          }
+        }
+      ]
+    );
+  };
+  
+  const testFullHeal = (player: 'player1' | 'player2') => {
+    const playerClass = player === 'player1' ? player1Class : player2Class;
+    const healAmount = playerClass.maxHitPoints - playerClass.hitPoints;
+    
+    if (healAmount <= 0) {
+      addLog('system', `💚 ${playerClass.name} is already at full health!`);
+      return;
+    }
+    
+    addLog('roll', `✨ ${playerClass.name} uses Full Heal!`);
+    
+    triggerDiceRoll(
+      [{ diceType: 'd20', result: 20 }],
+      [{ type: 'sparkle', player }],
+      [
+        () => updatePlayerHP(player, playerClass.maxHitPoints), // HP update happens after dice roll
+        () => {
+          addLog('ability', `💚 ${playerClass.name} fully heals to ${playerClass.maxHitPoints} HP!`);
+          addLog('narrative', mockBattleNarrative(`${playerClass.name} is fully restored to maximum health!`));
+        }
+      ]
+    );
+  };
+  
   const resetTest = () => {
     setPlayer1Class(prev => ({ ...prev, hitPoints: prev.maxHitPoints }));
     setPlayer2Class(prev => ({ ...prev, hitPoints: prev.maxHitPoints }));
@@ -303,6 +406,8 @@ export default function DnDTestPage() {
     setSparkleTrigger({ player1: 0, player2: 0 });
     setMissTrigger({ player1: 0, player2: 0 });
     setHitTrigger({ player1: 0, player2: 0 });
+    setSurprisedPlayer(null);
+    setSurpriseTrigger({ player1: 0, player2: 0 });
     setManualEmotion1(null);
     setManualEmotion2(null);
     addLog('system', '🔄 Test reset');
@@ -325,6 +430,10 @@ export default function DnDTestPage() {
     setHittingPlayer(null);
   }, []);
 
+  const handlePlayer1SurpriseComplete = useCallback(() => {
+    setSurprisedPlayer(null);
+  }, []);
+
   const handlePlayer2ShakeComplete = useCallback(() => {
     setShakingPlayer(null);
   }, []);
@@ -339,6 +448,10 @@ export default function DnDTestPage() {
 
   const handlePlayer2HitComplete = useCallback(() => {
     setHittingPlayer(null);
+  }, []);
+
+  const handlePlayer2SurpriseComplete = useCallback(() => {
+    setSurprisedPlayer(null);
   }, []);
   
   return (
@@ -395,76 +508,108 @@ export default function DnDTestPage() {
 
           {/* Player Stats */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <PlayerStats
-              playerClass={player1Class}
-              playerId="player1"
-              currentTurn="player1"
-              characterName={player1Name || 'Loading...'}
-              onAttack={() => testAttackHit('player1')}
-              onUseAbility={(index) => {
-                const ability = player1Class.abilities[index];
-                if (ability?.type === 'healing') {
-                  testHeal('player1');
-                } else if (ability?.type === 'attack') {
-                  // For test attack ability, just do a hit
-                  testAttackHit('player1');
-                }
-              }}
-              shouldShake={shakingPlayer === 'player1'}
-              shouldSparkle={sparklingPlayer === 'player1'}
-              shouldMiss={missingPlayer === 'player1'}
-              shouldHit={hittingPlayer === 'player1'}
-              shakeTrigger={shakeTrigger.player1}
-              sparkleTrigger={sparkleTrigger.player1}
-              missTrigger={missTrigger.player1}
-              hitTrigger={hitTrigger.player1}
-              isMoveInProgress={false}
-              isDefeated={defeatedPlayer === 'player1'}
-              isVictor={victorPlayer === 'player1'}
-              confettiTrigger={confettiTrigger}
-              emotion={manualEmotion1 || undefined}
-              onShakeComplete={handlePlayer1ShakeComplete}
-              onSparkleComplete={handlePlayer1SparkleComplete}
-              onMissComplete={handlePlayer1MissComplete}
-              onHitComplete={handlePlayer1HitComplete}
-              showEmotionControls={true}
-              onEmotionChange={setManualEmotion1}
-            />
-            <PlayerStats
-              playerClass={player2Class}
-              playerId="player2"
-              currentTurn="player2"
-              characterName={player2Name || 'Loading...'}
-              onAttack={() => testAttackHit('player2')}
-              onUseAbility={(index) => {
-                const ability = player2Class.abilities[index];
-                if (ability?.type === 'healing') {
-                  testHeal('player2');
-                } else if (ability?.type === 'attack') {
-                  // For test attack ability, just do a hit
-                  testAttackHit('player2');
-                }
-              }}
-              shouldShake={shakingPlayer === 'player2'}
-              shouldSparkle={sparklingPlayer === 'player2'}
-              shouldMiss={missingPlayer === 'player2'}
-              shouldHit={hittingPlayer === 'player2'}
-              shakeTrigger={shakeTrigger.player2}
-              sparkleTrigger={sparkleTrigger.player2}
-              missTrigger={missTrigger.player2}
-              hitTrigger={hitTrigger.player2}
-              isMoveInProgress={false}
-              isDefeated={defeatedPlayer === 'player2'}
-              isVictor={victorPlayer === 'player2'}
-              confettiTrigger={confettiTrigger}
-              emotion={manualEmotion2 || undefined}
-              onShakeComplete={handlePlayer2ShakeComplete}
-              onSparkleComplete={handlePlayer2SparkleComplete}
-              onMissComplete={handlePlayer2MissComplete}
-              onHitComplete={handlePlayer2HitComplete}
-              showEmotionControls={true}
-              onEmotionChange={setManualEmotion2}
-            />
+            <div>
+              <PlayerStats
+                playerClass={player1Class}
+                playerId="player1"
+                currentTurn="player1"
+                characterName={player1Name || 'Loading...'}
+                onUseAbility={(index) => {
+                  const ability = player1Class.abilities[index];
+                  if (ability?.type === 'healing') {
+                    testHeal('player1');
+                  } else if (ability?.type === 'attack') {
+                    // For test attack ability, just do a hit
+                    testAttackHit('player1');
+                  }
+                }}
+                shouldShake={shakingPlayer === 'player1'}
+                shouldSparkle={sparklingPlayer === 'player1'}
+                shouldMiss={missingPlayer === 'player1'}
+                shouldHit={hittingPlayer === 'player1'}
+                shouldSurprise={surprisedPlayer === 'player1'}
+                shakeTrigger={shakeTrigger.player1}
+                sparkleTrigger={sparkleTrigger.player1}
+                missTrigger={missTrigger.player1}
+                hitTrigger={hitTrigger.player1}
+                surpriseTrigger={surpriseTrigger.player1}
+                isMoveInProgress={false}
+                isDefeated={defeatedPlayer === 'player1'}
+                isVictor={victorPlayer === 'player1'}
+                confettiTrigger={confettiTrigger}
+                emotion={manualEmotion1 || undefined}
+                onShakeComplete={handlePlayer1ShakeComplete}
+                onSparkleComplete={handlePlayer1SparkleComplete}
+                onMissComplete={handlePlayer1MissComplete}
+                onHitComplete={handlePlayer1HitComplete}
+                onSurpriseComplete={handlePlayer1SurpriseComplete}
+                showEmotionControls={true}
+                onEmotionChange={setManualEmotion1}
+                testButtons={[
+                  {
+                    label: '💥 High Damage',
+                    onClick: () => testHighDamage('player1'),
+                    className: 'px-3 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'
+                  },
+                  {
+                    label: '💚 Full Heal',
+                    onClick: () => testFullHeal('player1'),
+                    className: 'px-3 py-1 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
+                  }
+                ]}
+              />
+            </div>
+            <div>
+              <PlayerStats
+                playerClass={player2Class}
+                playerId="player2"
+                currentTurn="player2"
+                characterName={player2Name || 'Loading...'}
+                onUseAbility={(index) => {
+                  const ability = player2Class.abilities[index];
+                  if (ability?.type === 'healing') {
+                    testHeal('player2');
+                  } else if (ability?.type === 'attack') {
+                    // For test attack ability, just do a hit
+                    testAttackHit('player2');
+                  }
+                }}
+                shouldShake={shakingPlayer === 'player2'}
+                shouldSparkle={sparklingPlayer === 'player2'}
+                shouldMiss={missingPlayer === 'player2'}
+                shouldHit={hittingPlayer === 'player2'}
+                shouldSurprise={surprisedPlayer === 'player2'}
+                shakeTrigger={shakeTrigger.player2}
+                sparkleTrigger={sparkleTrigger.player2}
+                missTrigger={missTrigger.player2}
+                hitTrigger={hitTrigger.player2}
+                surpriseTrigger={surpriseTrigger.player2}
+                isMoveInProgress={false}
+                isDefeated={defeatedPlayer === 'player2'}
+                isVictor={victorPlayer === 'player2'}
+                confettiTrigger={confettiTrigger}
+                emotion={manualEmotion2 || undefined}
+                onShakeComplete={handlePlayer2ShakeComplete}
+                onSparkleComplete={handlePlayer2SparkleComplete}
+                onMissComplete={handlePlayer2MissComplete}
+                onHitComplete={handlePlayer2HitComplete}
+                onSurpriseComplete={handlePlayer2SurpriseComplete}
+                showEmotionControls={true}
+                onEmotionChange={setManualEmotion2}
+                testButtons={[
+                  {
+                    label: '💥 High Damage',
+                    onClick: () => testHighDamage('player2'),
+                    className: 'px-3 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'
+                  },
+                  {
+                    label: '💚 Full Heal',
+                    onClick: () => testFullHeal('player2'),
+                    className: 'px-3 py-1 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
+                  }
+                ]}
+              />
+            </div>
           </div>
 
           {/* Test Log */}

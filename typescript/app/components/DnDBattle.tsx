@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -46,6 +47,8 @@ export default function DnDBattle() {
   const [missTrigger, setMissTrigger] = useState({ player1: 0, player2: 0 });
   const [hittingPlayer, setHittingPlayer] = useState<'player1' | 'player2' | null>(null);
   const [hitTrigger, setHitTrigger] = useState({ player1: 0, player2: 0 });
+  const [surprisedPlayer, setSurprisedPlayer] = useState<'player1' | 'player2' | null>(null);
+  const [surpriseTrigger, setSurpriseTrigger] = useState({ player1: 0, player2: 0 });
   const [isWaitingForAgent, setIsWaitingForAgent] = useState(false);
   const [isMoveInProgress, setIsMoveInProgress] = useState(false);
   const [defeatedPlayer, setDefeatedPlayer] = useState<'player1' | 'player2' | null>(null);
@@ -60,7 +63,7 @@ export default function DnDBattle() {
   
   // Queue for visual effects that should trigger after dice roll completes
   type PendingVisualEffect = {
-    type: 'shake' | 'sparkle' | 'miss' | 'hit';
+    type: 'shake' | 'sparkle' | 'miss' | 'hit' | 'surprise';
     player: 'player1' | 'player2';
   };
   
@@ -139,6 +142,10 @@ export default function DnDBattle() {
         setHittingPlayer(effect.player);
         setHitTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
         break;
+      case 'surprise':
+        setSurprisedPlayer(effect.player);
+        setSurpriseTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
+        break;
     }
   }, []);
 
@@ -154,14 +161,34 @@ export default function DnDBattle() {
     const pendingCallbacks = currentCallbacksRef.current;
     currentCallbacksRef.current = []; // Clear current callbacks
     
-    // Apply visual effects and HP updates synchronously
-    pendingEffects.forEach(effect => {
-      applyVisualEffect(effect);
+    // Apply visual effects FIRST to ensure surprise state is set before HP update
+    // Process surprise effects first, then other effects
+    const surpriseEffects = pendingEffects.filter(e => e.type === 'surprise');
+    const otherEffects = pendingEffects.filter(e => e.type !== 'surprise');
+    
+    // Apply surprise effects first and force synchronous state update
+    // This ensures the surprise state is set before any HP updates
+    surpriseEffects.forEach(effect => {
+      flushSync(() => {
+        applyVisualEffect(effect);
+      });
     });
     
-    // Execute HP update callbacks at the same time as visual effects
-    pendingCallbacks.forEach(callback => {
-      callback();
+    // Then apply other effects (also flush to ensure state is set)
+    otherEffects.forEach(effect => {
+      flushSync(() => {
+        applyVisualEffect(effect);
+      });
+    });
+    
+    // Use requestAnimationFrame to ensure state has propagated to DOM
+    // Then execute HP updates in the next frame
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        pendingCallbacks.forEach(callback => {
+          callback();
+        });
+      });
     });
     
     // Process next dice in queue after a short delay
@@ -268,12 +295,25 @@ export default function DnDBattle() {
     const newHP = Math.max(0, defenderClass.hitPoints - damage);
     
     if (hit && damage > 0) {
+      // Check if this is a surprising amount of damage
+      // Surprised if: damage >= 30% of max HP OR damage >= 50% of current HP
+      const damagePercentOfMax = damage / defenderClass.maxHitPoints;
+      const damagePercentOfCurrent = defenderClass.hitPoints > 0 ? damage / defenderClass.hitPoints : 0;
+      const isSurprising = damagePercentOfMax >= 0.3 || damagePercentOfCurrent >= 0.5;
+      
+      const visualEffects: PendingVisualEffect[] = [
+        { type: 'hit', player: attacker },
+        { type: 'shake', player: defender }
+      ];
+      
+      // Add surprise effect if damage is significant
+      if (isSurprising) {
+        visualEffects.push({ type: 'surprise', player: defender });
+      }
+      
       triggerDiceRoll(
         diceToShow,
-        [
-          { type: 'hit', player: attacker },
-          { type: 'shake', player: defender }
-        ],
+        visualEffects,
         [() => updatePlayerHP(defender, newHP)]
       );
     } else if (!hit) {
@@ -339,6 +379,10 @@ export default function DnDBattle() {
 
   const handleHitComplete = useCallback(() => {
     setHittingPlayer(null);
+  }, []);
+
+  const handleSurpriseComplete = useCallback(() => {
+    setSurprisedPlayer(null);
   }, []);
 
   // Load all classes from OpenRAG (called manually via button)
@@ -513,15 +557,26 @@ export default function DnDBattle() {
       
       const newHP = Math.max(0, defenderClass.hitPoints - damage);
       
+      // Check if this is a surprising amount of damage
+      const damagePercentOfMax = damage / defenderClass.maxHitPoints;
+      const damagePercentOfCurrent = defenderClass.hitPoints > 0 ? damage / defenderClass.hitPoints : 0;
+      const isSurprising = damagePercentOfMax >= 0.3 || damagePercentOfCurrent >= 0.5;
+      
+      const visualEffects: PendingVisualEffect[] = [
+        { type: 'hit', player: attacker },
+        { type: 'shake', player: defender }
+      ];
+      
+      if (isSurprising) {
+        visualEffects.push({ type: 'surprise', player: defender });
+      }
+      
       triggerDiceRoll(
         [
           { diceType: 'd20', result: d20Roll },
           { diceType: attackerClass.damageDie, result: damage }
         ],
-        [
-          { type: 'hit', player: attacker },
-          { type: 'shake', player: defender }
-        ],
+        visualEffects,
         [
           () => updatePlayerHP(defender, newHP), // HP update happens after dice roll
           async () => {
@@ -678,12 +733,23 @@ export default function DnDBattle() {
           ).join(' ') : '';
 
           if (totalDamage > 0) {
+            // Check if this is a surprising amount of damage
+            const damagePercentOfMax = totalDamage / defenderClass.maxHitPoints;
+            const damagePercentOfCurrent = defenderClass.hitPoints > 0 ? totalDamage / defenderClass.hitPoints : 0;
+            const isSurprising = damagePercentOfMax >= 0.3 || damagePercentOfCurrent >= 0.5;
+            
+            const visualEffects: PendingVisualEffect[] = [
+              { type: 'hit', player: attacker },
+              { type: 'shake', player: defender }
+            ];
+            
+            if (isSurprising) {
+              visualEffects.push({ type: 'surprise', player: defender });
+            }
+            
             triggerDiceRoll(
               diceToShow,
-              [
-                { type: 'hit', player: attacker },
-                { type: 'shake', player: defender }
-              ],
+              visualEffects,
               [
                 () => updatePlayerHP(defender, newHP), // HP update happens after dice roll
                 async () => {
@@ -762,12 +828,23 @@ export default function DnDBattle() {
           const defender = attacker === 'player1' ? 'player2' : 'player1';
           const newHP = Math.max(0, defenderClass.hitPoints - damage);
           
+          // Check if this is a surprising amount of damage
+          const damagePercentOfMax = damage / defenderClass.maxHitPoints;
+          const damagePercentOfCurrent = defenderClass.hitPoints > 0 ? damage / defenderClass.hitPoints : 0;
+          const isSurprising = damagePercentOfMax >= 0.3 || damagePercentOfCurrent >= 0.5;
+          
+          const visualEffects: PendingVisualEffect[] = [
+            { type: 'hit', player: attacker },
+            { type: 'shake', player: defender }
+          ];
+          
+          if (isSurprising) {
+            visualEffects.push({ type: 'surprise', player: defender });
+          }
+          
           triggerDiceRoll(
             diceToShow,
-            [
-              { type: 'hit', player: attacker },
-              { type: 'shake', player: defender }
-            ],
+            visualEffects,
             [
               () => updatePlayerHP(defender, newHP), // HP update happens after dice roll
               async () => {
@@ -826,12 +903,23 @@ export default function DnDBattle() {
         const defender = attacker === 'player1' ? 'player2' : 'player1';
         const newHP = Math.max(0, defenderClass.hitPoints - damage);
         
+        // Check if this is a surprising amount of damage
+        const damagePercentOfMax = damage / defenderClass.maxHitPoints;
+        const damagePercentOfCurrent = defenderClass.hitPoints > 0 ? damage / defenderClass.hitPoints : 0;
+        const isSurprising = damagePercentOfMax >= 0.3 || damagePercentOfCurrent >= 0.5;
+        
+        const visualEffects: PendingVisualEffect[] = [
+          { type: 'hit', player: attacker },
+          { type: 'shake', player: defender }
+        ];
+        
+        if (isSurprising) {
+          visualEffects.push({ type: 'surprise', player: defender });
+        }
+        
         triggerDiceRoll(
           [{ diceType: dice, result: damage }],
-          [
-            { type: 'hit', player: attacker },
-            { type: 'shake', player: defender }
-          ],
+          visualEffects,
           [
             () => updatePlayerHP(defender, newHP), // HP update happens after dice roll
             async () => {
@@ -893,6 +981,8 @@ export default function DnDBattle() {
     setMissTrigger({ player1: 0, player2: 0 });
     setHittingPlayer(null);
     setHitTrigger({ player1: 0, player2: 0 });
+    setSurprisedPlayer(null);
+    setSurpriseTrigger({ player1: 0, player2: 0 });
     setManualEmotion1(null);
     setManualEmotion2(null);
   };
@@ -1039,10 +1129,12 @@ export default function DnDBattle() {
                 shouldSparkle={sparklingPlayer === 'player1'}
                 shouldMiss={missingPlayer === 'player1'}
                 shouldHit={hittingPlayer === 'player1'}
+                shouldSurprise={surprisedPlayer === 'player1'}
                 shakeTrigger={shakeTrigger.player1}
                 sparkleTrigger={sparkleTrigger.player1}
                 missTrigger={missTrigger.player1}
                 hitTrigger={hitTrigger.player1}
+                surpriseTrigger={surpriseTrigger.player1}
                 isMoveInProgress={isMoveInProgress}
                 isDefeated={defeatedPlayer === 'player1'}
                 isVictor={victorPlayer === 'player1'}
@@ -1052,6 +1144,7 @@ export default function DnDBattle() {
                 onSparkleComplete={handleSparkleComplete}
                 onMissComplete={handleMissComplete}
                 onHitComplete={handleHitComplete}
+                onSurpriseComplete={handleSurpriseComplete}
               />
               <PlayerStats
                 playerClass={player2Class}
@@ -1064,10 +1157,12 @@ export default function DnDBattle() {
                 shouldSparkle={sparklingPlayer === 'player2'}
                 shouldMiss={missingPlayer === 'player2'}
                 shouldHit={hittingPlayer === 'player2'}
+                shouldSurprise={surprisedPlayer === 'player2'}
                 shakeTrigger={shakeTrigger.player2}
                 sparkleTrigger={sparkleTrigger.player2}
                 missTrigger={missTrigger.player2}
                 hitTrigger={hitTrigger.player2}
+                surpriseTrigger={surpriseTrigger.player2}
                 isMoveInProgress={isMoveInProgress}
                 isDefeated={defeatedPlayer === 'player2'}
                 isVictor={victorPlayer === 'player2'}
@@ -1077,6 +1172,7 @@ export default function DnDBattle() {
                 onSparkleComplete={handleSparkleComplete}
                 onMissComplete={handleMissComplete}
                 onHitComplete={handleHitComplete}
+                onSurpriseComplete={handleSurpriseComplete}
               />
             </div>
           )}

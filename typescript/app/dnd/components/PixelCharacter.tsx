@@ -16,6 +16,7 @@ interface PixelCharacterProps {
   shouldSparkle?: boolean; // Whether character is being healed
   shouldMiss?: boolean; // Whether character just missed an attack
   shouldHit?: boolean; // Whether character just landed a successful hit
+  shouldSurprise?: boolean; // Whether character is surprised by large damage
 }
 
 export function PixelCharacter({ 
@@ -28,7 +29,8 @@ export function PixelCharacter({
   shouldShake = false,
   shouldSparkle = false,
   shouldMiss = false,
-  shouldHit = false
+  shouldHit = false,
+  shouldSurprise = false
 }: PixelCharacterProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -42,17 +44,28 @@ export function PixelCharacter({
     if (isVictor) return 'victorious';
     
     // Action-based emotions (temporary, high priority)
-    // Priority: Taking damage (hurt) > Being healed (happy) > Landing hit (triumphant) > Missing (frustrated)
-    // This ensures the defender shows hurt when hit, not the attacker's triumphant expression
-    if (shouldShake) return 'hurt'; // Taking damage - show pain (highest priority for negative events)
+    // Priority: Surprised (by large damage) > Taking damage (hurt) > Being healed (happy) > Landing hit (triumphant) > Missing (frustrated)
+    // This ensures the defender shows surprised when taking large damage, then hurt
+    // IMPORTANT: shouldSurprise must be checked BEFORE shouldShake to ensure surprise shows
+    // When surprise is active, it completely overrides hurt even if both are true
+    if (shouldSurprise) {
+      // Debug: log when surprise should be shown
+      console.log('[PixelCharacter] Showing SURPRISED emotion', { shouldSurprise, shouldShake, hpPercent: playerClass.hitPoints / playerClass.maxHitPoints });
+      return 'surprised'; // Taking large damage suddenly - show surprise (highest priority, overrides hurt)
+    }
+    // Only show hurt if surprise is NOT active (surprise takes absolute priority)
+    if (shouldShake && !shouldSurprise) return 'hurt'; // Taking damage - show pain
     if (shouldSparkle) return 'happy'; // Being healed - should be happy!
     if (shouldHit) return 'triumphant'; // Just landed a hit - show excitement! (only for attacker)
     if (shouldMiss) return 'frustrated'; // Missed attack - frustrated
     
     // State-based emotions (based on HP and turn status)
+    // IMPORTANT: Only check these if NO action-based emotions are active
+    // Action-based emotions (shouldSurprise, shouldShake, etc.) take absolute priority
     const hpPercent = playerClass.hitPoints / playerClass.maxHitPoints;
     
     // Check HP thresholds from lowest to highest
+    // Only show these if no action-based emotions are active
     if (hpPercent < 0.2) return 'worried'; // Very low HP - worried
     if (hpPercent < 0.3) return 'sad'; // Low HP - sad
     if (hpPercent < 0.5) return 'worried'; // Medium-low HP - worried
@@ -94,7 +107,7 @@ export function PixelCharacter({
 
     // Draw character based on class
     drawPixelCharacter(ctx, size, playerClass, classColors, hpPercent, isDefeated, currentEmotion);
-  }, [playerClass, size, emotion, isActive, isDefeated, isVictor, shouldShake, shouldSparkle, shouldMiss, shouldHit]);
+  }, [playerClass, size, emotion, isActive, isDefeated, isVictor, shouldShake, shouldSparkle, shouldMiss, shouldHit, shouldSurprise]);
 
   return (
     <canvas
