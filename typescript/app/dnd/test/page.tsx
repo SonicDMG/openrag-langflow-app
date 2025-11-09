@@ -83,6 +83,8 @@ export default function DnDTestPage() {
   const [hitTrigger, setHitTrigger] = useState({ player1: 0, player2: 0 });
   const [surprisedPlayer, setSurprisedPlayer] = useState<'player1' | 'player2' | null>(null);
   const [surpriseTrigger, setSurpriseTrigger] = useState({ player1: 0, player2: 0 });
+  const [shakeIntensity, setShakeIntensity] = useState<{ player1: number; player2: number }>({ player1: 0, player2: 0 });
+  const [sparkleIntensity, setSparkleIntensity] = useState<{ player1: number; player2: number }>({ player1: 0, player2: 0 });
   const [defeatedPlayer, setDefeatedPlayer] = useState<'player1' | 'player2' | null>(null);
   const [victorPlayer, setVictorPlayer] = useState<'player1' | 'player2' | null>(null);
   const [confettiTrigger, setConfettiTrigger] = useState(0);
@@ -99,6 +101,7 @@ export default function DnDTestPage() {
   type PendingVisualEffect = {
     type: 'shake' | 'sparkle' | 'miss' | 'hit' | 'surprise';
     player: 'player1' | 'player2';
+    intensity?: number; // Damage amount for shake, healing amount for sparkle
   };
   
   // Callback to execute after dice roll completes (for HP updates, etc.)
@@ -131,10 +134,16 @@ export default function DnDTestPage() {
       case 'shake':
         setShakingPlayer(effect.player);
         setShakeTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
+        if (effect.intensity !== undefined) {
+          setShakeIntensity(prev => ({ ...prev, [effect.player]: effect.intensity! }));
+        }
         break;
       case 'sparkle':
         setSparklingPlayer(effect.player);
         setSparkleTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
+        if (effect.intensity !== undefined) {
+          setSparkleIntensity(prev => ({ ...prev, [effect.player]: effect.intensity! }));
+        }
         break;
       case 'miss':
         setMissingPlayer(effect.player);
@@ -258,7 +267,7 @@ export default function DnDTestPage() {
       ],
       [
         { type: 'hit', player: attacker },
-        { type: 'shake', player: defender }
+        { type: 'shake', player: defender, intensity: damage }
       ],
       [
         () => updatePlayerHP(defender, newHP), // HP update happens after dice roll
@@ -306,7 +315,7 @@ export default function DnDTestPage() {
     
     triggerDiceRoll(
       [{ diceType: dice, result: heal }],
-      [{ type: 'sparkle', player }],
+      [{ type: 'sparkle', player, intensity: heal }],
       [
         () => updatePlayerHP(player, newHP), // HP update happens after dice roll
         () => {
@@ -317,6 +326,56 @@ export default function DnDTestPage() {
     );
   };
   
+  const testLowDamage = (target: 'player1' | 'player2') => {
+    const targetClass = target === 'player1' ? player1Class : player2Class;
+    const attackerName = target === 'player1' ? 'Test Attacker' : 'Test Attacker';
+    
+    // Deal minimal damage (1-2 HP) to test low intensity shake
+    const damage = Math.floor(Math.random() * 2) + 1; // 1 or 2 damage
+    
+    addLog('roll', `💥 ${attackerName} uses Low Damage Test!`);
+    
+    const newHP = Math.max(0, targetClass.hitPoints - damage);
+    
+    triggerDiceRoll(
+      [{ diceType: 'd4', result: damage }],
+      [{ type: 'shake', player: target, intensity: damage }],
+      [
+        () => updatePlayerHP(target, newHP),
+        () => {
+          addLog('attack', `💥 ${attackerName} deals ${damage} damage to ${targetClass.name}! (Low damage test)`);
+          addLog('narrative', mockBattleNarrative(`${attackerName} deals minimal ${damage} damage to ${targetClass.name}!`));
+          
+          if (newHP <= 0) {
+            setDefeatedPlayer(target);
+            addLog('system', `💀 ${targetClass.name} is defeated!`);
+          }
+        }
+      ]
+    );
+  };
+
+  const testLowHeal = (player: 'player1' | 'player2') => {
+    const playerClass = player === 'player1' ? player1Class : player2Class;
+    const heal = Math.floor(Math.random() * 2) + 1; // 1 or 2 healing
+    
+    addLog('roll', `✨ ${playerClass.name} uses Low Heal!`);
+    
+    const newHP = Math.min(playerClass.maxHitPoints, playerClass.hitPoints + heal);
+    
+    triggerDiceRoll(
+      [{ diceType: 'd4', result: heal }],
+      [{ type: 'sparkle', player, intensity: heal }],
+      [
+        () => updatePlayerHP(player, newHP),
+        () => {
+          addLog('ability', `💚 ${playerClass.name} heals for ${heal} HP! (Low heal test)`);
+          addLog('narrative', mockBattleNarrative(`${playerClass.name} uses Low Heal and recovers ${heal} HP.`));
+        }
+      ]
+    );
+  };
+
   const testHighDamage = (target: 'player1' | 'player2') => {
     const targetClass = target === 'player1' ? player1Class : player2Class;
     const attackerName = target === 'player1' ? 'Test Attacker' : 'Test Attacker';
@@ -342,8 +401,8 @@ export default function DnDTestPage() {
     // Log the calculation for debugging
     addLog('system', `📊 Damage calc: ${damage} HP (${(damagePercentOfMax * 100).toFixed(1)}% of max, ${(damagePercentOfCurrent * 100).toFixed(1)}% of current) - ${isSurprising ? 'SURPRISING!' : 'not surprising'}`);
     
-    const visualEffects: Array<{ type: 'shake' | 'sparkle' | 'miss' | 'hit' | 'surprise'; player: 'player1' | 'player2' }> = [
-      { type: 'shake', player: target }
+    const visualEffects: Array<{ type: 'shake' | 'sparkle' | 'miss' | 'hit' | 'surprise'; player: 'player1' | 'player2'; intensity?: number }> = [
+      { type: 'shake', player: target, intensity: damage }
     ];
     
     if (isSurprising) {
@@ -381,7 +440,7 @@ export default function DnDTestPage() {
     
     triggerDiceRoll(
       [{ diceType: 'd20', result: 20 }],
-      [{ type: 'sparkle', player }],
+      [{ type: 'sparkle', player, intensity: healAmount }],
       [
         () => updatePlayerHP(player, playerClass.maxHitPoints), // HP update happens after dice roll
         () => {
@@ -408,6 +467,8 @@ export default function DnDTestPage() {
     setHitTrigger({ player1: 0, player2: 0 });
     setSurprisedPlayer(null);
     setSurpriseTrigger({ player1: 0, player2: 0 });
+    setShakeIntensity({ player1: 0, player2: 0 });
+    setSparkleIntensity({ player1: 0, player2: 0 });
     setManualEmotion1(null);
     setManualEmotion2(null);
     addLog('system', '🔄 Test reset');
@@ -533,6 +594,8 @@ export default function DnDTestPage() {
                 missTrigger={missTrigger.player1}
                 hitTrigger={hitTrigger.player1}
                 surpriseTrigger={surpriseTrigger.player1}
+                shakeIntensity={shakeIntensity.player1}
+                sparkleIntensity={sparkleIntensity.player1}
                 isMoveInProgress={false}
                 isDefeated={defeatedPlayer === 'player1'}
                 isVictor={victorPlayer === 'player1'}
@@ -552,9 +615,24 @@ export default function DnDTestPage() {
                     className: 'px-3 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'
                   },
                   {
+                    label: '💥 Low Damage',
+                    onClick: () => testLowDamage('player1'),
+                    className: 'px-3 py-1 bg-orange-900 hover:bg-orange-800 text-white text-xs rounded border border-orange-700 transition-all'
+                  },
+                  {
                     label: '💚 Full Heal',
                     onClick: () => testFullHeal('player1'),
                     className: 'px-3 py-1 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
+                  },
+                  {
+                    label: '💚 Low Heal',
+                    onClick: () => testLowHeal('player1'),
+                    className: 'px-3 py-1 bg-emerald-900 hover:bg-emerald-800 text-white text-xs rounded border border-emerald-700 transition-all'
+                  },
+                  {
+                    label: '❌ Test Miss',
+                    onClick: () => testAttackMiss('player1'),
+                    className: 'px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all'
                   }
                 ]}
               />
@@ -603,9 +681,24 @@ export default function DnDTestPage() {
                     className: 'px-3 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'
                   },
                   {
+                    label: '💥 Low Damage',
+                    onClick: () => testLowDamage('player2'),
+                    className: 'px-3 py-1 bg-orange-900 hover:bg-orange-800 text-white text-xs rounded border border-orange-700 transition-all'
+                  },
+                  {
                     label: '💚 Full Heal',
                     onClick: () => testFullHeal('player2'),
                     className: 'px-3 py-1 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
+                  },
+                  {
+                    label: '💚 Low Heal',
+                    onClick: () => testLowHeal('player2'),
+                    className: 'px-3 py-1 bg-emerald-900 hover:bg-emerald-800 text-white text-xs rounded border border-emerald-700 transition-all'
+                  },
+                  {
+                    label: '❌ Test Miss',
+                    onClick: () => testAttackMiss('player2'),
+                    className: 'px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all'
                   }
                 ]}
               />

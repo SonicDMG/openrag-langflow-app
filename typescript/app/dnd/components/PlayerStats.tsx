@@ -26,6 +26,8 @@ interface PlayerStatsProps {
   missTrigger: number;
   hitTrigger: number;
   surpriseTrigger: number;
+  shakeIntensity?: number; // Damage amount for scaling shake animation
+  sparkleIntensity?: number; // Healing amount for scaling sparkle count
   isMoveInProgress: boolean;
   isDefeated: boolean;
   isVictor: boolean;
@@ -60,6 +62,8 @@ function PlayerStatsComponent({
   missTrigger,
   hitTrigger,
   surpriseTrigger,
+  shakeIntensity = 0,
+  sparkleIntensity = 0,
   isMoveInProgress,
   isDefeated,
   isVictor,
@@ -83,6 +87,18 @@ function PlayerStatsComponent({
   // NOTE: Shake animation should still play even when surprise is active (for visual feedback)
   // The emotion logic will handle showing surprised instead of hurt
   useEffect(() => {
+    if (animationRef.current && shouldShake && shakeIntensity > 0) {
+      // Calculate intensity scale using non-linear scaling for better visual differentiation
+      // Low damage (1) = subtle shake (whimper) ~0.2-0.3
+      // High damage = strong shake (current good shake) ~1.0-2.0
+      // Uses square root curve: scale = 0.15 + (intensityPercent^0.5) * 1.85
+      const maxHP = playerClass.maxHitPoints;
+      const intensityPercent = Math.min(shakeIntensity / maxHP, 1.0); // Cap at 100%
+      // Square root curve: makes low damage much smaller, high damage stays strong
+      const scale = 0.15 + (Math.sqrt(intensityPercent) * 1.85); // Range: ~0.15 to 2.0
+      animationRef.current.style.setProperty('--shake-intensity', scale.toString());
+    }
+    
     const cleanup = applyAnimationClass(
       animationRef.current,
       shouldShake, // Always apply shake animation when taking damage
@@ -92,7 +108,7 @@ function PlayerStatsComponent({
       onShakeComplete
     );
     return cleanup;
-  }, [shouldShake, shakeTrigger, onShakeComplete]);
+  }, [shouldShake, shakeTrigger, shakeIntensity, playerClass.maxHitPoints, onShakeComplete]);
 
   // Apply sparkle animation (timeout-based)
   // Keep the sparkle effect active for longer to ensure the happy emotion persists
@@ -151,7 +167,13 @@ function PlayerStatsComponent({
         </div>
       )}
       {isVictor && <Confetti key={confettiTrigger} trigger={confettiTrigger} />}
-      {shouldSparkle && <Sparkles key={sparkleTrigger} trigger={sparkleTrigger} />}
+      {shouldSparkle && (
+        <Sparkles 
+          key={sparkleTrigger} 
+          trigger={sparkleTrigger} 
+          count={sparkleIntensity > 0 ? Math.max(1, Math.ceil(sparkleIntensity * 0.6)) : 12}
+        />
+      )}
       
       {/* Pixel Art Character */}
       <div className="mb-4 flex justify-center">
@@ -205,29 +227,49 @@ function PlayerStatsComponent({
           <div className="text-amber-300 mb-2">Abilities: {playerClass.abilities.length > 0 ? `(${playerClass.abilities.length})` : '(none)'}</div>
           <div className="flex flex-wrap gap-2">
             {playerClass.abilities.length > 0 ? (
-              playerClass.abilities.map((ability, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => onUseAbility(idx)}
-                  disabled={!isActive || isDisabled}
-                  className="px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  title={ability.description || undefined}
-                >
-                  {ability.name}
-                </button>
-              ))
+              <>
+                {playerClass.abilities.map((ability, idx) => {
+                  // Find Test Miss button if it exists
+                  const testMissButton = testButtons.find(btn => btn.label.includes('Test Miss'));
+                  const isTestHeal = ability.name === 'Test Heal';
+                  
+                  return (
+                    <div key={idx} className="contents">
+                      <button
+                        onClick={() => onUseAbility(idx)}
+                        disabled={!isActive || isDisabled}
+                        className="px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        title={ability.description || undefined}
+                      >
+                        {ability.name}
+                      </button>
+                      {/* Insert Test Miss button right after Test Heal */}
+                      {isTestHeal && testMissButton && (
+                        <button
+                          key="test-miss-after-heal"
+                          onClick={testMissButton.onClick}
+                          className={testMissButton.className || "px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all"}
+                        >
+                          {testMissButton.label}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+                {/* Render remaining test buttons (excluding Test Miss since it's already rendered) */}
+                {testButtons.filter(btn => !btn.label.includes('Test Miss')).map((testButton, idx) => (
+                  <button
+                    key={`test-${idx}`}
+                    onClick={testButton.onClick}
+                    className={testButton.className || "px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all"}
+                  >
+                    {testButton.label}
+                  </button>
+                ))}
+              </>
             ) : (
               <span className="text-amber-400 text-xs italic">No abilities loaded</span>
             )}
-            {testButtons.map((testButton, idx) => (
-              <button
-                key={`test-${idx}`}
-                onClick={testButton.onClick}
-                className={testButton.className || "px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all"}
-              >
-                {testButton.label}
-              </button>
-            ))}
           </div>
         </div>
         {isActive && onAttack && (

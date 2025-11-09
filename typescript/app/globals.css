@@ -58,21 +58,54 @@ body {
   }
 }
 
-/* Shake animation for attacks */
+/* Shake animation for attacks - explosive zoom-based shake with intensity scaling */
 @keyframes shake {
   0%, 100% {
-    transform: translateX(0) translateY(0) rotate(0deg);
+    transform: scale(1) translateX(0) translateY(0);
   }
-  10%, 30%, 50%, 70%, 90% {
-    transform: translateX(-18px) translateY(-6px) rotate(-5deg);
+  5% {
+    transform: scale(calc(1 + 0.18 * var(--shake-intensity, 1))) translateX(calc(-8px * var(--shake-intensity, 1))) translateY(calc(-4px * var(--shake-intensity, 1)));
   }
-  20%, 40%, 60%, 80% {
-    transform: translateX(18px) translateY(6px) rotate(5deg);
+  10% {
+    transform: scale(calc(1 + 0.12 * var(--shake-intensity, 1))) translateX(calc(10px * var(--shake-intensity, 1))) translateY(calc(5px * var(--shake-intensity, 1)));
+  }
+  15% {
+    transform: scale(calc(1 + 0.15 * var(--shake-intensity, 1))) translateX(calc(-7px * var(--shake-intensity, 1))) translateY(calc(-3px * var(--shake-intensity, 1)));
+  }
+  20% {
+    transform: scale(calc(1 + 0.10 * var(--shake-intensity, 1))) translateX(calc(8px * var(--shake-intensity, 1))) translateY(calc(4px * var(--shake-intensity, 1)));
+  }
+  25% {
+    transform: scale(calc(1 + 0.12 * var(--shake-intensity, 1))) translateX(calc(-6px * var(--shake-intensity, 1))) translateY(calc(-2px * var(--shake-intensity, 1)));
+  }
+  30% {
+    transform: scale(calc(1 + 0.08 * var(--shake-intensity, 1))) translateX(calc(6px * var(--shake-intensity, 1))) translateY(calc(3px * var(--shake-intensity, 1)));
+  }
+  35% {
+    transform: scale(calc(1 + 0.09 * var(--shake-intensity, 1))) translateX(calc(-4px * var(--shake-intensity, 1))) translateY(calc(-2px * var(--shake-intensity, 1)));
+  }
+  40% {
+    transform: scale(calc(1 + 0.06 * var(--shake-intensity, 1))) translateX(calc(5px * var(--shake-intensity, 1))) translateY(calc(2px * var(--shake-intensity, 1)));
+  }
+  50% {
+    transform: scale(calc(1 + 0.05 * var(--shake-intensity, 1))) translateX(calc(-3px * var(--shake-intensity, 1))) translateY(calc(-1px * var(--shake-intensity, 1)));
+  }
+  60% {
+    transform: scale(calc(1 + 0.03 * var(--shake-intensity, 1))) translateX(calc(3px * var(--shake-intensity, 1))) translateY(calc(1px * var(--shake-intensity, 1)));
+  }
+  70% {
+    transform: scale(calc(1 + 0.02 * var(--shake-intensity, 1))) translateX(calc(-2px * var(--shake-intensity, 1))) translateY(0);
+  }
+  80% {
+    transform: scale(calc(1 + 0.01 * var(--shake-intensity, 1))) translateX(calc(1px * var(--shake-intensity, 1))) translateY(0);
+  }
+  90% {
+    transform: scale(calc(1 + 0.005 * var(--shake-intensity, 1))) translateX(0) translateY(0);
   }
 }
 
 .shake {
-  animation: shake 0.4s ease-in-out !important;
+  animation: shake 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
   transform-origin: center center;
   will-change: transform;
 }
