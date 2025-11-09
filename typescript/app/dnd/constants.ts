@@ -1,0 +1,106 @@
+import { DnDClass } from './types';
+
+// Default fallback classes in case OpenRAG fetch fails
+export const FALLBACK_CLASSES: DnDClass[] = [
+  {
+    name: 'Fighter',
+    hitPoints: 30,
+    maxHitPoints: 30,
+    armorClass: 18,
+    attackBonus: 5,
+    damageDie: 'd10',
+    abilities: [],
+    description: 'A master of weapons and armor, the Fighter excels in combat.',
+    color: 'bg-red-900',
+  },
+  {
+    name: 'Wizard',
+    hitPoints: 20,
+    maxHitPoints: 20,
+    armorClass: 12,
+    attackBonus: 3,
+    damageDie: 'd6',
+    abilities: [],
+    description: 'A wielder of arcane magic, the Wizard commands powerful spells.',
+    color: 'bg-blue-900',
+  },
+  {
+    name: 'Rogue',
+    hitPoints: 24,
+    maxHitPoints: 24,
+    armorClass: 15,
+    attackBonus: 4,
+    damageDie: 'd8',
+    abilities: [],
+    description: 'A stealthy combatant who strikes from the shadows.',
+    color: 'bg-purple-900',
+  },
+  {
+    name: 'Cleric',
+    hitPoints: 26,
+    maxHitPoints: 26,
+    armorClass: 16,
+    attackBonus: 4,
+    damageDie: 'd8',
+    abilities: [],
+    description: 'A holy warrior who channels divine power.',
+    color: 'bg-yellow-900',
+  },
+  {
+    name: 'Barbarian',
+    hitPoints: 35,
+    maxHitPoints: 35,
+    armorClass: 14,
+    attackBonus: 5,
+    damageDie: 'd12',
+    abilities: [],
+    description: 'A fierce warrior who fights with primal fury.',
+    color: 'bg-orange-900',
+  },
+  {
+    name: 'Ranger',
+    hitPoints: 28,
+    maxHitPoints: 28,
+    armorClass: 15,
+    attackBonus: 4,
+    damageDie: 'd10',
+    abilities: [],
+    description: 'A skilled tracker and archer of the wilderness.',
+    color: 'bg-green-900',
+  },
+];
+
+// Class icon mapping for pixel art style graphics
+export const CLASS_ICONS: Record<string, string> = {
+  'Fighter': '⚔️',
+  'Wizard': '🧙',
+  'Rogue': '🗡️',
+  'Cleric': '⛪',
+  'Barbarian': '🪓',
+  'Ranger': '🏹',
+  'Paladin': '🛡️',
+  'Bard': '🎵',
+  'Sorcerer': '🔮',
+  'Warlock': '👁️',
+  'Monk': '🥋',
+  'Druid': '🌿',
+  'Artificer': '⚙️',
+};
+
+// Class color mapping - consolidated single source of truth
+export const CLASS_COLORS: Record<string, string> = {
+  'Fighter': 'bg-red-900',
+  'Wizard': 'bg-blue-900',
+  'Rogue': 'bg-purple-900',
+  'Cleric': 'bg-yellow-900',
+  'Barbarian': 'bg-orange-900',
+  'Ranger': 'bg-green-900',
+  'Paladin': 'bg-pink-900',
+  'Bard': 'bg-indigo-900',
+  'Sorcerer': 'bg-cyan-900',
+  'Warlock': 'bg-violet-900',
+  'Monk': 'bg-amber-900',
+  'Druid': 'bg-emerald-900',
+  'Artificer': 'bg-teal-900',
+};
+
