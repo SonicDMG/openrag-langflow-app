@@ -1,4 +1,230 @@
-import { DnDClass } from './types';
+import { DnDClass, Ability } from './types';
+
+// Default fallback abilities for each class when agent response fails
+export const FALLBACK_ABILITIES: Record<string, Ability[]> = {
+  'Fighter': [
+    {
+      name: 'Action Surge',
+      type: 'attack',
+      damageDice: '2d8',
+      attackRoll: true,
+      attacks: 2,
+      description: 'Take an additional action to make two powerful attacks.',
+    },
+    {
+      name: 'Second Wind',
+      type: 'healing',
+      healingDice: '1d10+3',
+      description: 'Regain hit points through sheer determination.',
+    },
+  ],
+  'Wizard': [
+    {
+      name: 'Magic Missile',
+      type: 'attack',
+      damageDice: '1d4+1',
+      attackRoll: false,
+      attacks: 3,
+      description: 'Three unerring bolts of magical force strike the target.',
+    },
+    {
+      name: 'Fireball',
+      type: 'attack',
+      damageDice: '3d6',
+      attackRoll: false,
+      description: 'A bright streak flashes from your pointing finger and explodes.',
+    },
+  ],
+  'Rogue': [
+    {
+      name: 'Sneak Attack',
+      type: 'attack',
+      damageDice: '1d8',
+      attackRoll: true,
+      bonusDamageDice: '2d6',
+      description: 'Strike with precision when your enemy is distracted.',
+    },
+    {
+      name: 'Cunning Action',
+      type: 'attack',
+      damageDice: '1d6',
+      attackRoll: true,
+      description: 'Use your quick reflexes to strike and reposition.',
+    },
+  ],
+  'Cleric': [
+    {
+      name: 'Guided Strike',
+      type: 'attack',
+      damageDice: '1d8',
+      attackRoll: true,
+      description: 'Channel divine power to guide your weapon to its target.',
+    },
+    {
+      name: 'Cure Wounds',
+      type: 'healing',
+      healingDice: '1d8+3',
+      description: 'A creature you touch regains hit points through divine magic.',
+    },
+    {
+      name: 'Healing Word',
+      type: 'healing',
+      healingDice: '1d4+3',
+      description: 'A creature of your choice regains hit points with a word.',
+    },
+  ],
+  'Barbarian': [
+    {
+      name: 'Reckless Attack',
+      type: 'attack',
+      damageDice: '1d12',
+      attackRoll: true,
+      description: 'Throw caution to the wind and attack with savage fury.',
+    },
+    {
+      name: 'Rage Strike',
+      type: 'attack',
+      damageDice: '2d6',
+      attackRoll: true,
+      description: 'Channel your rage into a devastating blow.',
+    },
+  ],
+  'Ranger': [
+    {
+      name: 'Hunter\'s Mark',
+      type: 'attack',
+      damageDice: '1d8',
+      attackRoll: true,
+      bonusDamageDice: '1d6',
+      description: 'Mark your prey and deal extra damage with your attacks.',
+    },
+    {
+      name: 'Cure Wounds',
+      type: 'healing',
+      healingDice: '1d8+2',
+      description: 'A creature you touch regains hit points through natural magic.',
+    },
+  ],
+  'Paladin': [
+    {
+      name: 'Divine Smite',
+      type: 'attack',
+      damageDice: '1d8',
+      attackRoll: true,
+      bonusDamageDice: '2d8',
+      description: 'Channel divine energy to smite your enemies.',
+    },
+    {
+      name: 'Lay on Hands',
+      type: 'healing',
+      healingDice: '1d10+5',
+      description: 'Touch a creature to restore its hit points through divine power.',
+    },
+  ],
+  'Bard': [
+    {
+      name: 'Vicious Mockery',
+      type: 'attack',
+      damageDice: '1d4',
+      attackRoll: false,
+      description: 'Insult a creature with magical words that deal psychic damage.',
+    },
+    {
+      name: 'Healing Word',
+      type: 'healing',
+      healingDice: '1d4+3',
+      description: 'A creature of your choice regains hit points through your inspiring words.',
+    },
+  ],
+  'Sorcerer': [
+    {
+      name: 'Chaos Bolt',
+      type: 'attack',
+      damageDice: '2d8',
+      attackRoll: false,
+      description: 'Hurl a bolt of chaotic energy at your target.',
+    },
+    {
+      name: 'Fire Bolt',
+      type: 'attack',
+      damageDice: '1d10',
+      attackRoll: true,
+      description: 'Hurl a mote of fire at a creature or object.',
+    },
+  ],
+  'Warlock': [
+    {
+      name: 'Eldritch Blast',
+      type: 'attack',
+      damageDice: '1d10',
+      attackRoll: true,
+      attacks: 2,
+      description: 'A beam of crackling energy streaks toward a creature.',
+    },
+    {
+      name: 'Hex',
+      type: 'attack',
+      damageDice: '1d6',
+      attackRoll: true,
+      bonusDamageDice: '1d6',
+      description: 'Place a curse on a creature that deals extra damage.',
+    },
+  ],
+  'Monk': [
+    {
+      name: 'Flurry of Blows',
+      type: 'attack',
+      damageDice: '1d4',
+      attackRoll: true,
+      attacks: 2,
+      description: 'Make two unarmed strikes in rapid succession.',
+    },
+    {
+      name: 'Stunning Strike',
+      type: 'attack',
+      damageDice: '1d6',
+      attackRoll: true,
+      description: 'Strike with focused ki to stun your opponent.',
+    },
+  ],
+  'Druid': [
+    {
+      name: 'Thorn Whip',
+      type: 'attack',
+      damageDice: '1d6',
+      attackRoll: true,
+      description: 'Create a long, vine-like whip covered in thorns.',
+    },
+    {
+      name: 'Cure Wounds',
+      type: 'healing',
+      healingDice: '1d8+3',
+      description: 'A creature you touch regains hit points through natural magic.',
+    },
+    {
+      name: 'Goodberry',
+      type: 'healing',
+      healingDice: '1d4+1',
+      description: 'Create berries that restore hit points when consumed.',
+    },
+  ],
+  'Artificer': [
+    {
+      name: 'Arcane Weapon',
+      type: 'attack',
+      damageDice: '1d8',
+      attackRoll: true,
+      bonusDamageDice: '1d6',
+      description: 'Infuse a weapon with magical energy to deal extra damage.',
+    },
+    {
+      name: 'Cure Wounds',
+      type: 'healing',
+      healingDice: '1d8+2',
+      description: 'A creature you touch regains hit points through magical tinkering.',
+    },
+  ],
+};
 
 // Default fallback classes in case OpenRAG fetch fails
 export const FALLBACK_CLASSES: DnDClass[] = [

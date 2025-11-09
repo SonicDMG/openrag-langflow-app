@@ -33,6 +33,150 @@ export function getClassColors(className: string): {
   };
 }
 
+// Helper functions for drawing facial features
+type PixelDrawer = (x: number, y: number, color: string) => void;
+
+function drawXEye(pixel: PixelDrawer, eyeX: number, eyeY: number) {
+  // 3x3 X pattern
+  pixel(eyeX, eyeY, '#000000'); // Top-left
+  pixel(eyeX + 2, eyeY, '#000000'); // Top-right
+  pixel(eyeX + 1, eyeY + 1, '#000000'); // Center
+  pixel(eyeX, eyeY + 2, '#000000'); // Bottom-left
+  pixel(eyeX + 2, eyeY + 2, '#000000'); // Bottom-right
+}
+
+function drawSimpleEye(pixel: PixelDrawer, eyeX: number, eyeY: number) {
+  pixel(eyeX, eyeY, '#000000');
+}
+
+function drawSquintedEye(pixel: PixelDrawer, eyeX: number, eyeY: number) {
+  pixel(eyeX, eyeY, '#000000');
+  pixel(eyeX + 1, eyeY, '#000000');
+}
+
+function drawWideEye(pixel: PixelDrawer, eyeX: number, eyeY: number) {
+  pixel(eyeX - 1, eyeY, '#000000');
+  pixel(eyeX, eyeY, '#000000');
+  pixel(eyeX + 1, eyeY, '#000000');
+}
+
+function drawVeryWideEye(pixel: PixelDrawer, eyeX: number, eyeY: number) {
+  pixel(eyeX - 1, eyeY, '#000000');
+  pixel(eyeX, eyeY, '#000000');
+  pixel(eyeX + 1, eyeY, '#000000');
+  pixel(eyeX + 2, eyeY, '#000000');
+  pixel(eyeX - 1, eyeY + 1, '#000000');
+  pixel(eyeX, eyeY + 1, '#000000');
+  pixel(eyeX + 1, eyeY + 1, '#000000');
+  pixel(eyeX + 2, eyeY + 1, '#000000');
+}
+
+function drawSurprisedEye(pixel: PixelDrawer, eyeX: number, eyeY: number) {
+  // Black border with white center
+  pixel(eyeX - 2, eyeY, '#000000'); // Top border
+  pixel(eyeX - 1, eyeY, '#ffffff');
+  pixel(eyeX, eyeY, '#ffffff');
+  pixel(eyeX + 1, eyeY, '#ffffff');
+  pixel(eyeX + 2, eyeY, '#000000');
+  pixel(eyeX - 2, eyeY + 1, '#000000'); // Side border
+  pixel(eyeX - 1, eyeY + 1, '#ffffff');
+  pixel(eyeX, eyeY + 1, '#000000'); // Pupil
+  pixel(eyeX + 1, eyeY + 1, '#ffffff');
+  pixel(eyeX + 2, eyeY + 1, '#000000');
+  pixel(eyeX - 2, eyeY + 2, '#000000'); // Bottom border
+  pixel(eyeX - 1, eyeY + 2, '#ffffff');
+  pixel(eyeX, eyeY + 2, '#ffffff');
+  pixel(eyeX + 1, eyeY + 2, '#ffffff');
+  pixel(eyeX + 2, eyeY + 2, '#000000');
+}
+
+function drawAngryEye(pixel: PixelDrawer, eyeX: number, eyeY: number) {
+  pixel(eyeX, eyeY, '#000000');
+  pixel(eyeX + 1, eyeY + 1, '#000000');
+}
+
+function drawSadEye(pixel: PixelDrawer, eyeX: number, eyeY: number) {
+  pixel(eyeX, eyeY + 1, '#000000');
+}
+
+function drawSmile(pixel: PixelDrawer, mouthX: number, mouthY: number, width: number = 4) {
+  pixel(mouthX, mouthY, '#000000');
+  for (let i = 1; i < width; i++) {
+    pixel(mouthX + i, mouthY + 1, '#000000');
+  }
+  pixel(mouthX + width - 1, mouthY, '#000000');
+}
+
+function drawBigSmile(pixel: PixelDrawer, mouthX: number, mouthY: number, width: number = 6) {
+  pixel(mouthX - 2, mouthY, '#000000');
+  for (let i = -1; i < width - 1; i++) {
+    pixel(mouthX + i, mouthY + 1, '#000000');
+  }
+  pixel(mouthX + width - 1, mouthY, '#000000');
+}
+
+function drawFrown(pixel: PixelDrawer, mouthX: number, mouthY: number) {
+  pixel(mouthX, mouthY, '#000000');
+  pixel(mouthX + 1, mouthY - 1, '#000000');
+  pixel(mouthX + 2, mouthY - 1, '#000000');
+  pixel(mouthX + 3, mouthY, '#000000');
+}
+
+function drawNeutralMouth(pixel: PixelDrawer, mouthX: number, mouthY: number) {
+  pixel(mouthX + 1, mouthY, '#000000');
+  pixel(mouthX + 2, mouthY, '#000000');
+}
+
+function drawOpenMouth(pixel: PixelDrawer, mouthX: number, mouthY: number) {
+  pixel(mouthX + 1, mouthY - 1, '#000000');
+  pixel(mouthX, mouthY, '#000000');
+  pixel(mouthX + 2, mouthY, '#000000');
+  pixel(mouthX + 1, mouthY + 1, '#000000');
+}
+
+function drawLaughMouth(pixel: PixelDrawer, mouthX: number, mouthY: number) {
+  pixel(mouthX - 1, mouthY - 1, '#000000');
+  pixel(mouthX, mouthY - 1, '#ffffff'); // Teeth
+  pixel(mouthX + 1, mouthY - 1, '#ffffff');
+  pixel(mouthX + 2, mouthY - 1, '#ffffff');
+  pixel(mouthX + 3, mouthY - 1, '#000000');
+  pixel(mouthX - 1, mouthY, '#000000');
+  pixel(mouthX, mouthY, '#ffffff');
+  pixel(mouthX + 1, mouthY, '#ffffff');
+  pixel(mouthX + 2, mouthY, '#ffffff');
+  pixel(mouthX + 3, mouthY, '#000000');
+  pixel(mouthX, mouthY + 1, '#000000');
+  pixel(mouthX + 1, mouthY + 1, '#000000');
+  pixel(mouthX + 2, mouthY + 1, '#000000');
+}
+
+function drawAngryMouth(pixel: PixelDrawer, mouthX: number, mouthY: number) {
+  pixel(mouthX, mouthY, '#000000');
+  pixel(mouthX + 1, mouthY, '#ffffff');
+  pixel(mouthX + 2, mouthY, '#ffffff');
+  pixel(mouthX + 3, mouthY, '#000000');
+}
+
+function drawDeadMouth(pixel: PixelDrawer, mouthX: number, mouthY: number) {
+  pixel(mouthX, mouthY, '#000000');
+  pixel(mouthX + 1, mouthY, '#000000');
+  pixel(mouthX + 2, mouthY, '#000000');
+  pixel(mouthX + 3, mouthY, '#000000');
+  pixel(mouthX + 1, mouthY + 1, '#dc2626'); // Red tongue
+  pixel(mouthX + 2, mouthY + 1, '#dc2626');
+  pixel(mouthX + 1, mouthY + 2, '#dc2626'); // Red tongue tip
+}
+
+function drawExcitedMouth(pixel: PixelDrawer, mouthX: number, mouthY: number) {
+  pixel(mouthX, mouthY - 1, '#000000');
+  pixel(mouthX - 1, mouthY, '#000000');
+  pixel(mouthX + 3, mouthY, '#000000');
+  pixel(mouthX, mouthY + 1, '#000000');
+  pixel(mouthX + 1, mouthY + 1, '#000000');
+  pixel(mouthX + 2, mouthY + 1, '#000000');
+  pixel(mouthX + 3, mouthY + 1, '#000000');
+}
+
 // Draw facial expression based on emotion
 export function drawFaceExpression(
   ctx: CanvasRenderingContext2D,
@@ -40,7 +184,7 @@ export function drawFaceExpression(
   emotion: CharacterEmotion,
   isDefeated: boolean
 ) {
-  const pixel = (x: number, y: number, color: string) => {
+  const pixel: PixelDrawer = (x: number, y: number, color: string) => {
     ctx.fillStyle = color;
     ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
   };
@@ -55,116 +199,58 @@ export function drawFaceExpression(
   const mouthY = 11;
 
   if (isDefeated || emotion === 'dead') {
-    // X eyes for dead
-    pixel(leftEyeX, eyeY, '#000000');
-    pixel(leftEyeX + 1, eyeY + 1, '#000000');
-    pixel(rightEyeX, eyeY, '#000000');
-    pixel(rightEyeX - 1, eyeY + 1, '#000000');
-    // Frown
-    pixel(mouthX, mouthY, '#000000');
-    pixel(mouthX + 1, mouthY, '#000000');
-    pixel(mouthX + 2, mouthY, '#000000');
-  } else if (emotion === 'victorious' || emotion === 'laughing') {
-    // Happy eyes (squinted)
-    pixel(leftEyeX, eyeY, '#000000');
-    pixel(leftEyeX + 1, eyeY, '#000000');
-    pixel(rightEyeX - 1, eyeY, '#000000');
-    pixel(rightEyeX, eyeY, '#000000');
-    // Big smile
-    pixel(mouthX - 1, mouthY, '#000000');
-    pixel(mouthX, mouthY - 1, '#000000');
-    pixel(mouthX + 1, mouthY - 1, '#000000');
-    pixel(mouthX + 2, mouthY - 1, '#000000');
-    pixel(mouthX + 3, mouthY, '#000000');
+    drawXEye(pixel, leftEyeX, eyeY);
+    drawXEye(pixel, rightEyeX - 2, eyeY);
+    drawDeadMouth(pixel, mouthX, mouthY);
+  } else if (emotion === 'laughing') {
+    drawSquintedEye(pixel, leftEyeX, eyeY);
+    drawSquintedEye(pixel, rightEyeX - 1, eyeY);
+    drawLaughMouth(pixel, mouthX, mouthY);
+  } else if (emotion === 'victorious') {
+    drawWideEye(pixel, leftEyeX, eyeY);
+    drawWideEye(pixel, rightEyeX - 1, eyeY);
+    drawBigSmile(pixel, mouthX, mouthY, 6);
   } else if (emotion === 'happy') {
-    // Normal happy eyes
-    pixel(leftEyeX, eyeY, '#000000');
-    pixel(rightEyeX, eyeY, '#000000');
-    // Smile
-    pixel(mouthX, mouthY, '#000000');
-    pixel(mouthX + 1, mouthY - 1, '#000000');
-    pixel(mouthX + 2, mouthY - 1, '#000000');
-    pixel(mouthX + 3, mouthY, '#000000');
+    drawSimpleEye(pixel, leftEyeX, eyeY);
+    drawSimpleEye(pixel, rightEyeX, eyeY);
+    drawSmile(pixel, mouthX, mouthY);
   } else if (emotion === 'hurt' || emotion === 'sad') {
-    // Sad eyes (slightly down)
-    pixel(leftEyeX, eyeY + 1, '#000000');
-    pixel(rightEyeX, eyeY + 1, '#000000');
-    // Frown
-    pixel(mouthX, mouthY, '#000000');
-    pixel(mouthX + 1, mouthY + 1, '#000000');
-    pixel(mouthX + 2, mouthY + 1, '#000000');
-    pixel(mouthX + 3, mouthY, '#000000');
+    drawSadEye(pixel, leftEyeX, eyeY);
+    drawSadEye(pixel, rightEyeX, eyeY);
+    drawFrown(pixel, mouthX, mouthY);
   } else if (emotion === 'rage' || emotion === 'frustrated') {
-    // Angry eyes (angled down)
-    pixel(leftEyeX, eyeY, '#000000');
-    pixel(leftEyeX + 1, eyeY + 1, '#000000');
-    pixel(rightEyeX - 1, eyeY + 1, '#000000');
-    pixel(rightEyeX, eyeY, '#000000');
-    // Angry mouth (open/teeth)
-    pixel(mouthX, mouthY, '#000000');
-    pixel(mouthX + 1, mouthY, '#ffffff');
-    pixel(mouthX + 2, mouthY, '#ffffff');
-    pixel(mouthX + 3, mouthY, '#000000');
+    drawAngryEye(pixel, leftEyeX, eyeY);
+    drawAngryEye(pixel, rightEyeX - 1, eyeY);
+    drawAngryMouth(pixel, mouthX, mouthY);
   } else if (emotion === 'worried') {
-    // Worried eyes (wide)
-    pixel(leftEyeX - 1, eyeY, '#000000');
-    pixel(leftEyeX, eyeY, '#000000');
-    pixel(leftEyeX + 1, eyeY, '#000000');
-    pixel(rightEyeX - 1, eyeY, '#000000');
-    pixel(rightEyeX, eyeY, '#000000');
-    pixel(rightEyeX + 1, eyeY, '#000000');
-    // Small worried mouth
-    pixel(mouthX + 1, mouthY, '#000000');
-    pixel(mouthX + 2, mouthY, '#000000');
+    drawWideEye(pixel, leftEyeX, eyeY);
+    drawWideEye(pixel, rightEyeX - 1, eyeY);
+    drawNeutralMouth(pixel, mouthX, mouthY);
   } else if (emotion === 'determined') {
-    // Determined eyes (normal, focused)
-    pixel(leftEyeX, eyeY, '#000000');
-    pixel(rightEyeX, eyeY, '#000000');
-    // Neutral/slightly determined mouth
-    pixel(mouthX + 1, mouthY, '#000000');
-    pixel(mouthX + 2, mouthY, '#000000');
-  } else if (emotion === 'triumphant' || emotion === 'excited') {
-    // Triumphant/excited - big smile, bright eyes
-    pixel(leftEyeX, eyeY, '#000000');
-    pixel(leftEyeX + 1, eyeY, '#000000');
-    pixel(rightEyeX - 1, eyeY, '#000000');
-    pixel(rightEyeX, eyeY, '#000000');
-    // Big triumphant smile
-    pixel(mouthX - 1, mouthY - 1, '#000000');
-    pixel(mouthX, mouthY - 1, '#000000');
-    pixel(mouthX + 1, mouthY - 1, '#000000');
-    pixel(mouthX + 2, mouthY - 1, '#000000');
-    pixel(mouthX + 3, mouthY - 1, '#000000');
-    pixel(mouthX + 4, mouthY, '#000000');
+    drawSimpleEye(pixel, leftEyeX, eyeY);
+    drawSimpleEye(pixel, rightEyeX, eyeY);
+    drawNeutralMouth(pixel, mouthX, mouthY);
+  } else if (emotion === 'excited') {
+    drawVeryWideEye(pixel, leftEyeX, eyeY);
+    drawVeryWideEye(pixel, rightEyeX - 2, eyeY);
+    drawExcitedMouth(pixel, mouthX, mouthY);
+  } else if (emotion === 'triumphant') {
+    drawWideEye(pixel, leftEyeX, eyeY);
+    drawWideEye(pixel, rightEyeX - 2, eyeY);
+    drawBigSmile(pixel, mouthX, mouthY, 7);
   } else if (emotion === 'confident') {
-    // Confident - slight smile, focused eyes
-    pixel(leftEyeX, eyeY, '#000000');
-    pixel(rightEyeX, eyeY, '#000000');
-    // Confident smile
-    pixel(mouthX, mouthY, '#000000');
-    pixel(mouthX + 1, mouthY - 1, '#000000');
-    pixel(mouthX + 2, mouthY - 1, '#000000');
-    pixel(mouthX + 3, mouthY, '#000000');
+    drawSimpleEye(pixel, leftEyeX, eyeY);
+    drawSimpleEye(pixel, rightEyeX, eyeY);
+    drawSmile(pixel, mouthX, mouthY);
   } else if (emotion === 'surprised') {
-    // Surprised - wide eyes, open mouth
-    pixel(leftEyeX - 1, eyeY, '#000000');
-    pixel(leftEyeX, eyeY, '#000000');
-    pixel(leftEyeX + 1, eyeY, '#000000');
-    pixel(rightEyeX - 1, eyeY, '#000000');
-    pixel(rightEyeX, eyeY, '#000000');
-    pixel(rightEyeX + 1, eyeY, '#000000');
-    // Open surprised mouth (O shape)
-    pixel(mouthX + 1, mouthY - 1, '#000000');
-    pixel(mouthX, mouthY, '#000000');
-    pixel(mouthX + 2, mouthY, '#000000');
-    pixel(mouthX + 1, mouthY + 1, '#000000');
+    drawSurprisedEye(pixel, leftEyeX, eyeY);
+    drawSurprisedEye(pixel, rightEyeX - 2, eyeY);
+    drawOpenMouth(pixel, mouthX, mouthY);
   } else {
     // Default: neutral eyes
-    pixel(leftEyeX, eyeY, '#000000');
-    pixel(rightEyeX, eyeY, '#000000');
-    // Neutral mouth
-    pixel(mouthX + 1, mouthY, '#000000');
-    pixel(mouthX + 2, mouthY, '#000000');
+    drawSimpleEye(pixel, leftEyeX, eyeY);
+    drawSimpleEye(pixel, rightEyeX, eyeY);
+    drawNeutralMouth(pixel, mouthX, mouthY);
   }
 }
 
@@ -262,9 +348,91 @@ export function drawPixelCharacter(
     rect(24, 12, 2, 2, colors.accent);
   }
 
-  // HP indicator - red overlay when damaged
+  // Draw damage indicators (bruising/blood) based on HP loss
   if (hpPercent < 1 && !isDefeated) {
-    const damageOverlay = Math.min(0.3, (1 - hpPercent) * 0.5);
+    const damageLevel = 1 - hpPercent; // 0 = full HP, 1 = critical
+    
+    // Draw bruises and cuts on face (only if not wearing helmet)
+    if (playerClass.name !== 'Fighter' && playerClass.name !== 'Paladin') {
+      const faceDamage = Math.min(damageLevel * 1.5, 1); // Face shows damage more prominently
+      
+      if (faceDamage > 0.2) {
+        // Bruise on left cheek
+        pixel(11, 7, `rgba(139, 69, 19, ${Math.min(faceDamage * 0.8, 0.7)})`); // Brown bruise
+        pixel(11, 8, `rgba(139, 69, 19, ${Math.min(faceDamage * 0.6, 0.5)})`);
+      }
+      if (faceDamage > 0.3) {
+        // Bruise on right cheek
+        pixel(20, 7, `rgba(139, 69, 19, ${Math.min(faceDamage * 0.8, 0.7)})`);
+        pixel(20, 8, `rgba(139, 69, 19, ${Math.min(faceDamage * 0.6, 0.5)})`);
+      }
+      if (faceDamage > 0.5) {
+        // Cut on forehead
+        pixel(15, 5, `rgba(139, 0, 0, ${Math.min(faceDamage * 0.9, 0.8)})`); // Dark red cut
+        pixel(16, 5, `rgba(139, 0, 0, ${Math.min(faceDamage * 0.9, 0.8)})`);
+      }
+      if (faceDamage > 0.7) {
+        // More cuts and bruises
+        pixel(12, 6, `rgba(139, 0, 0, ${Math.min(faceDamage * 0.7, 0.6)})`);
+        pixel(19, 6, `rgba(139, 0, 0, ${Math.min(faceDamage * 0.7, 0.6)})`);
+        pixel(14, 9, `rgba(139, 69, 19, ${Math.min(faceDamage * 0.6, 0.5)})`);
+        pixel(17, 9, `rgba(139, 69, 19, ${Math.min(faceDamage * 0.6, 0.5)})`);
+      }
+    }
+    
+    // Draw bruises and cuts on exposed arms
+    if (damageLevel > 0.2) {
+      // Left arm bruises
+      const armDamage = Math.min(damageLevel * 1.2, 1);
+      pixel(8, 16, `rgba(139, 69, 19, ${Math.min(armDamage * 0.7, 0.6)})`);
+      pixel(8, 17, `rgba(139, 69, 19, ${Math.min(armDamage * 0.5, 0.4)})`);
+      if (damageLevel > 0.4) {
+        pixel(9, 18, `rgba(139, 0, 0, ${Math.min(armDamage * 0.8, 0.7)})`); // Cut
+        pixel(9, 19, `rgba(139, 0, 0, ${Math.min(armDamage * 0.6, 0.5)})`);
+      }
+      
+      // Right arm bruises
+      pixel(22, 16, `rgba(139, 69, 19, ${Math.min(armDamage * 0.7, 0.6)})`);
+      pixel(22, 17, `rgba(139, 69, 19, ${Math.min(armDamage * 0.5, 0.4)})`);
+      if (damageLevel > 0.4) {
+        pixel(21, 18, `rgba(139, 0, 0, ${Math.min(armDamage * 0.8, 0.7)})`); // Cut
+        pixel(21, 19, `rgba(139, 0, 0, ${Math.min(armDamage * 0.6, 0.5)})`);
+      }
+    }
+    
+    // Draw blood on torso/body (scales with damage)
+    if (damageLevel > 0.3) {
+      const bodyDamage = Math.min(damageLevel * 1.1, 1);
+      // Blood spots on torso
+      pixel(12, 16, `rgba(139, 0, 0, ${Math.min(bodyDamage * 0.6, 0.5)})`);
+      pixel(19, 16, `rgba(139, 0, 0, ${Math.min(bodyDamage * 0.6, 0.5)})`);
+      if (damageLevel > 0.5) {
+        pixel(13, 17, `rgba(139, 0, 0, ${Math.min(bodyDamage * 0.7, 0.6)})`);
+        pixel(18, 17, `rgba(139, 0, 0, ${Math.min(bodyDamage * 0.7, 0.6)})`);
+        pixel(15, 18, `rgba(139, 0, 0, ${Math.min(bodyDamage * 0.8, 0.7)})`); // Center wound
+      }
+      if (damageLevel > 0.7) {
+        // More severe wounds
+        pixel(14, 19, `rgba(139, 0, 0, ${Math.min(bodyDamage * 0.9, 0.8)})`);
+        pixel(16, 19, `rgba(139, 0, 0, ${Math.min(bodyDamage * 0.9, 0.8)})`);
+        pixel(12, 20, `rgba(139, 0, 0, ${Math.min(bodyDamage * 0.7, 0.6)})`);
+        pixel(19, 20, `rgba(139, 0, 0, ${Math.min(bodyDamage * 0.7, 0.6)})`);
+      }
+    }
+    
+    // Draw blood on legs if very damaged
+    if (damageLevel > 0.6) {
+      const legDamage = Math.min(damageLevel * 1.0, 1);
+      pixel(13, 27, `rgba(139, 0, 0, ${Math.min(legDamage * 0.6, 0.5)})`);
+      pixel(18, 27, `rgba(139, 0, 0, ${Math.min(legDamage * 0.6, 0.5)})`);
+      if (damageLevel > 0.8) {
+        pixel(13, 28, `rgba(139, 0, 0, ${Math.min(legDamage * 0.7, 0.6)})`);
+        pixel(18, 28, `rgba(139, 0, 0, ${Math.min(legDamage * 0.7, 0.6)})`);
+      }
+    }
+    
+    // Subtle red overlay for overall damage (less intense than before, since we have detailed damage)
+    const damageOverlay = Math.min(0.15, (1 - hpPercent) * 0.25);
     ctx.fillStyle = `rgba(220, 38, 38, ${damageOverlay})`;
     ctx.fillRect(0, 0, size, size);
   }

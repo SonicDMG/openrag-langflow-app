@@ -1,10 +1,11 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
-import { DnDClass } from '../types';
+import { useRef, useEffect, memo } from 'react';
+import { DnDClass, CharacterEmotion } from '../types';
 import { PixelCharacter } from './PixelCharacter';
 import { Sparkles } from './Sparkles';
 import { Confetti } from './Confetti';
+import { EmotionTestControls } from './EmotionTestControls';
 import { applyAnimationClass } from '../utils/animations';
 
 // PlayerStats component to eliminate duplicate rendering code
@@ -27,13 +28,17 @@ interface PlayerStatsProps {
   isDefeated: boolean;
   isVictor: boolean;
   confettiTrigger: number;
+  emotion?: CharacterEmotion; // Optional manual emotion override
   onShakeComplete: () => void;
   onSparkleComplete: () => void;
   onMissComplete: () => void;
   onHitComplete: () => void;
+  // Optional emotion test controls (for test page)
+  showEmotionControls?: boolean;
+  onEmotionChange?: (emotion: CharacterEmotion | null) => void;
 }
 
-export function PlayerStats({ 
+function PlayerStatsComponent({ 
   playerClass, 
   playerId, 
   currentTurn, 
@@ -52,14 +57,18 @@ export function PlayerStats({
   isDefeated,
   isVictor,
   confettiTrigger,
+  emotion,
   onShakeComplete,
   onSparkleComplete,
   onMissComplete,
-  onHitComplete
+  onHitComplete,
+  showEmotionControls = false,
+  onEmotionChange
 }: PlayerStatsProps) {
   const isActive = currentTurn === playerId && !isDefeated;
   const isDisabled = (isActive && isMoveInProgress) || isDefeated;
   const animationRef = useRef<HTMLDivElement>(null);
+
 
   // Apply shake animation
   useEffect(() => {
@@ -75,11 +84,12 @@ export function PlayerStats({
   }, [shouldShake, shakeTrigger, onShakeComplete]);
 
   // Apply sparkle animation (timeout-based)
+  // Keep the sparkle effect active for longer to ensure the happy emotion persists
   useEffect(() => {
     if (shouldSparkle && sparkleTrigger > 0) {
       const timer = setTimeout(() => {
         onSparkleComplete();
-      }, 800);
+      }, 1500); // Extended from 800ms to 1500ms to match sparkle animation + emotion display
       return () => clearTimeout(timer);
     }
   }, [shouldSparkle, sparkleTrigger, onSparkleComplete]);
@@ -134,6 +144,7 @@ export function PlayerStats({
           shouldSparkle={shouldSparkle}
           shouldMiss={shouldMiss}
           shouldHit={shouldHit}
+          emotion={emotion}
         />
       </div>
       
@@ -198,8 +209,22 @@ export function PlayerStats({
             Attack! ⚔️
           </button>
         )}
+        
+        {/* Emotion Test Controls (only shown when enabled) */}
+        {showEmotionControls && onEmotionChange && (
+          <div className="mt-4 pt-4 border-t border-amber-800">
+            <EmotionTestControls
+              characterName={characterName}
+              currentEmotion={emotion || null}
+              onEmotionChange={onEmotionChange}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
+// Memoize PlayerStats to prevent unnecessary re-renders when props haven't changed
+export const PlayerStats = memo(PlayerStatsComponent);
 

@@ -42,18 +42,27 @@ export function PixelCharacter({
     if (isVictor) return 'victorious';
     
     // Action-based emotions (temporary, high priority)
-    if (shouldHit) return 'triumphant'; // Just landed a hit - show excitement!
+    // Priority: Taking damage (hurt) > Being healed (happy) > Landing hit (triumphant) > Missing (frustrated)
+    // This ensures the defender shows hurt when hit, not the attacker's triumphant expression
+    if (shouldShake) return 'hurt'; // Taking damage - show pain (highest priority for negative events)
     if (shouldSparkle) return 'happy'; // Being healed - should be happy!
-    if (shouldShake) return 'hurt'; // Taking damage - show pain
+    if (shouldHit) return 'triumphant'; // Just landed a hit - show excitement! (only for attacker)
     if (shouldMiss) return 'frustrated'; // Missed attack - frustrated
     
     // State-based emotions (based on HP and turn status)
     const hpPercent = playerClass.hitPoints / playerClass.maxHitPoints;
+    
+    // Check HP thresholds from lowest to highest
     if (hpPercent < 0.2) return 'worried'; // Very low HP - worried
     if (hpPercent < 0.3) return 'sad'; // Low HP - sad
     if (hpPercent < 0.5) return 'worried'; // Medium-low HP - worried
-    if (isActive && hpPercent > 0.7) return 'confident'; // Active turn with high HP - confident
-    if (isActive) return 'determined'; // Active turn - determined
+    
+    // Turn-based emotions (only if HP is reasonable)
+    if (isActive) {
+      return hpPercent > 0.7 ? 'confident' : 'determined';
+    }
+    
+    // HP-based emotions when not active
     if (hpPercent > 0.8) return 'happy'; // High HP - happy
     if (hpPercent > 0.6) return 'determined'; // Good HP - determined
     

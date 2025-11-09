@@ -6,10 +6,10 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 // Types
-import { DnDClass, BattleLog, AttackAbility } from '../dnd/types';
+import { DnDClass, BattleLog, AttackAbility, CharacterEmotion, Ability } from '../dnd/types';
 
 // Constants
-import { FALLBACK_CLASSES, CLASS_COLORS } from '../dnd/constants';
+import { FALLBACK_CLASSES, CLASS_COLORS, FALLBACK_ABILITIES } from '../dnd/constants';
 
 // Utilities
 import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../dnd/utils/dice';
@@ -54,8 +54,28 @@ export default function DnDBattle() {
   const [diceRollTrigger, setDiceRollTrigger] = useState(0);
   const [diceRollData, setDiceRollData] = useState<Array<{ diceType: string; result: number }>>([]);
   const [isDiceRolling, setIsDiceRolling] = useState(false);
-  const diceQueueRef = useRef<Array<Array<{ diceType: string; result: number }>>>([]);
+  const [manualEmotion1, setManualEmotion1] = useState<CharacterEmotion | null>(null);
+  const [manualEmotion2, setManualEmotion2] = useState<CharacterEmotion | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
+  
+  // Queue for visual effects that should trigger after dice roll completes
+  type PendingVisualEffect = {
+    type: 'shake' | 'sparkle' | 'miss' | 'hit';
+    player: 'player1' | 'player2';
+  };
+  
+  // Callback to execute after dice roll completes (for HP updates, etc.)
+  type PostDiceRollCallback = () => void;
+  
+  // Dice queue now includes associated visual effects and callbacks
+  type QueuedDiceRoll = {
+    diceRolls: Array<{ diceType: string; result: number }>;
+    visualEffects: PendingVisualEffect[];
+    callbacks?: PostDiceRollCallback[];
+  };
+  const diceQueueRef = useRef<QueuedDiceRoll[]>([]);
+  const currentVisualEffectsRef = useRef<PendingVisualEffect[]>([]);
+  const currentCallbacksRef = useRef<PostDiceRollCallback[]>([]);
 
   const scrollToBottom = () => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -80,34 +100,85 @@ export default function DnDBattle() {
   }, []);
 
   // Helper function to trigger dice roll animation (supports multiple dice at once)
-  const triggerDiceRoll = useCallback((diceRolls: Array<{ diceType: string; result: number }>) => {
+  // visualEffects and callbacks are queued to be applied after this dice roll completes
+  const triggerDiceRoll = useCallback((
+    diceRolls: Array<{ diceType: string; result: number }>,
+    visualEffects: PendingVisualEffect[] = [],
+    callbacks: PostDiceRollCallback[] = []
+  ) => {
     if (isDiceRolling) {
-      // Queue the dice rolls if one is already in progress
-      diceQueueRef.current.push(diceRolls);
+      // Queue the dice rolls and their associated visual effects and callbacks if one is already in progress
+      diceQueueRef.current.push({ diceRolls, visualEffects, callbacks });
       return;
     }
     
+    // Store visual effects and callbacks for the current dice roll
+    currentVisualEffectsRef.current = visualEffects;
+    currentCallbacksRef.current = callbacks;
     setIsDiceRolling(true);
     setDiceRollData(diceRolls);
     setDiceRollTrigger(prev => prev + 1);
   }, [isDiceRolling]);
   
+  // Helper function to apply a visual effect
+  const applyVisualEffect = useCallback((effect: PendingVisualEffect) => {
+    switch (effect.type) {
+      case 'shake':
+        setShakingPlayer(effect.player);
+        setShakeTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
+        break;
+      case 'sparkle':
+        setSparklingPlayer(effect.player);
+        setSparkleTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
+        break;
+      case 'miss':
+        setMissingPlayer(effect.player);
+        setMissTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
+        break;
+      case 'hit':
+        setHittingPlayer(effect.player);
+        setHitTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
+        break;
+    }
+  }, []);
+
   // Process next dice in queue when current one completes
   const handleDiceRollComplete = useCallback(() => {
     setIsDiceRolling(false);
     
+    // Apply visual effects associated with the dice roll that just completed
+    const pendingEffects = currentVisualEffectsRef.current;
+    currentVisualEffectsRef.current = []; // Clear current effects
+    
+    // Execute HP updates at the same time as visual effects
+    const pendingCallbacks = currentCallbacksRef.current;
+    currentCallbacksRef.current = []; // Clear current callbacks
+    
+    // Apply visual effects and HP updates synchronously
+    pendingEffects.forEach(effect => {
+      applyVisualEffect(effect);
+    });
+    
+    // Execute HP update callbacks at the same time as visual effects
+    pendingCallbacks.forEach(callback => {
+      callback();
+    });
+    
     // Process next dice in queue after a short delay
     if (diceQueueRef.current.length > 0) {
       setTimeout(() => {
-        const nextDice = diceQueueRef.current.shift();
-        if (nextDice) {
+        const nextItem = diceQueueRef.current.shift();
+        if (nextItem) {
+          // Set up visual effects and callbacks for the next dice roll
+          currentVisualEffectsRef.current = nextItem.visualEffects;
+          currentCallbacksRef.current = nextItem.callbacks || [];
           setIsDiceRolling(true);
-          setDiceRollData(nextDice);
+          setDiceRollData(nextItem.diceRolls);
           setDiceRollTrigger(prev => prev + 1);
         }
       }, 150);
     }
-  }, []);
+  }, [applyVisualEffect]);
 
   // Helper function to calculate attack roll
   const calculateAttackRoll = useCallback((attackerClass: DnDClass): { d20Roll: number; attackRoll: number } => {
@@ -148,7 +219,18 @@ export default function DnDBattle() {
     }
   }, [battleResponseId, addLog]);
 
+  // Helper function to switch turns
+  const switchTurn = useCallback((currentAttacker: 'player1' | 'player2') => {
+    const nextPlayer = currentAttacker === 'player1' ? 'player2' : 'player1';
+    // Don't switch to a defeated player - battle is over
+    if (defeatedPlayer === nextPlayer) {
+      return;
+    }
+    setCurrentTurn(nextPlayer);
+  }, [defeatedPlayer]);
+
   // Helper function to handle victory condition
+  // Note: HP update should happen via callback, not directly here
   const handleVictory = useCallback(async (
     attackerClass: DnDClass,
     defenderClass: DnDClass,
@@ -158,8 +240,6 @@ export default function DnDBattle() {
     eventDescription: string,
     defender: 'player1' | 'player2'
   ): Promise<void> => {
-    // Set the defender's HP to 0
-    updatePlayerHP(defender, 0);
     // Mark the defender as defeated
     setDefeatedPlayer(defender);
     // Mark the attacker as victor
@@ -174,17 +254,92 @@ export default function DnDBattle() {
       defenderDetails
     );
     addLog('system', `🏆 ${attackerClass.name} wins! ${defenderClass.name} has been defeated!`);
-  }, [updatePlayerHP, generateAndLogNarrative, addLog]);
+  }, [generateAndLogNarrative, addLog]);
 
-  // Helper function to switch turns
-  const switchTurn = useCallback((currentAttacker: 'player1' | 'player2') => {
-    const nextPlayer = currentAttacker === 'player1' ? 'player2' : 'player1';
-    // Don't switch to a defeated player - battle is over
-    if (defeatedPlayer === nextPlayer) {
-      return;
+  // Helper function to handle damage application and visual effects
+  const applyDamage = useCallback((
+    damage: number,
+    attacker: 'player1' | 'player2',
+    defender: 'player1' | 'player2',
+    defenderClass: DnDClass,
+    diceToShow: Array<{ diceType: string; result: number }>,
+    hit: boolean
+  ): number => {
+    const newHP = Math.max(0, defenderClass.hitPoints - damage);
+    
+    if (hit && damage > 0) {
+      triggerDiceRoll(
+        diceToShow,
+        [
+          { type: 'hit', player: attacker },
+          { type: 'shake', player: defender }
+        ],
+        [() => updatePlayerHP(defender, newHP)]
+      );
+    } else if (!hit) {
+      triggerDiceRoll(
+        diceToShow,
+        [{ type: 'miss', player: attacker }],
+        []
+      );
     }
-    setCurrentTurn(nextPlayer);
-  }, [defeatedPlayer]);
+    
+    return newHP;
+  }, [triggerDiceRoll, updatePlayerHP]);
+
+  // Helper function to handle post-damage narrative and victory check
+  const handlePostDamage = useCallback(async (
+    attackerClass: DnDClass,
+    defenderClass: DnDClass,
+    newHP: number,
+    damage: number,
+    attackerDetails: string,
+    defenderDetails: string,
+    eventDescription: string,
+    defender: 'player1' | 'player2',
+    attacker: 'player1' | 'player2'
+  ): Promise<boolean> => {
+    if (newHP <= 0) {
+      await handleVictory(
+        attackerClass,
+        defenderClass,
+        damage,
+        attackerDetails,
+        defenderDetails,
+        eventDescription,
+        defender
+      );
+      switchTurn(attacker);
+      setIsMoveInProgress(false);
+      return true; // Battle ended
+    } else {
+      await generateAndLogNarrative(
+        eventDescription,
+        attackerClass,
+        { ...defenderClass, hitPoints: newHP },
+        attackerDetails,
+        defenderDetails
+      );
+      return false; // Battle continues
+    }
+  }, [handleVictory, generateAndLogNarrative, switchTurn]);
+
+  // Memoized callback functions for PlayerStats to prevent unnecessary re-renders
+  const handleShakeComplete = useCallback(() => {
+    setShakingPlayer(null);
+  }, []);
+
+  const handleSparkleComplete = useCallback(() => {
+    setSparklingPlayer(null);
+  }, []);
+
+  const handleMissComplete = useCallback(() => {
+    setMissingPlayer(null);
+  }, []);
+
+  const handleHitComplete = useCallback(() => {
+    setHittingPlayer(null);
+  }, []);
 
   // Load all classes from OpenRAG (called manually via button)
   const loadClassesFromOpenRAG = async () => {
@@ -257,10 +412,29 @@ export default function DnDBattle() {
 
     try {
       // Extract abilities directly from the knowledge base (with structured JSON)
-      const [p1Abilities, p2Abilities] = await Promise.all([
-        extractAbilities(player1Class.name),
-        extractAbilities(player2Class.name),
-      ]);
+      // Wrap in try-catch to ensure errors don't propagate - fallback abilities will be used
+      let p1Abilities: Ability[] = [];
+      let p2Abilities: Ability[] = [];
+      
+      try {
+        [p1Abilities, p2Abilities] = await Promise.all([
+          extractAbilities(player1Class.name),
+          extractAbilities(player2Class.name),
+        ]);
+      } catch (error) {
+        // Silently use fallback abilities if extraction fails
+        // extractAbilities should never throw, but this is a safety net
+        p1Abilities = FALLBACK_ABILITIES[player1Class.name] || [];
+        p2Abilities = FALLBACK_ABILITIES[player2Class.name] || [];
+      }
+      
+      // Ensure we have abilities (fallback will be applied in extractAbilities, but double-check as safety net)
+      if (!p1Abilities || p1Abilities.length === 0) {
+        p1Abilities = FALLBACK_ABILITIES[player1Class.name] || [];
+      }
+      if (!p2Abilities || p2Abilities.length === 0) {
+        p2Abilities = FALLBACK_ABILITIES[player2Class.name] || [];
+      }
       
       // Store empty class details (we don't need the full text anymore)
       setClassDetails({
@@ -269,13 +443,6 @@ export default function DnDBattle() {
       });
 
       // Reset classes to fresh instances with updated abilities
-      console.log('Setting abilities:', { 
-        p1Name: player1Class.name, 
-        p1Abilities: p1Abilities.length,
-        p2Name: player2Class.name,
-        p2Abilities: p2Abilities.length 
-      });
-      
       const p1 = { 
         ...player1Class, 
         hitPoints: player1Class.maxHitPoints,
@@ -286,11 +453,6 @@ export default function DnDBattle() {
         hitPoints: player2Class.maxHitPoints,
         abilities: p2Abilities,
       };
-      
-      console.log('Updated classes:', { 
-        p1Abilities: p1.abilities.length, 
-        p2Abilities: p2.abilities.length 
-      });
       
       setPlayer1Class(p1);
       setPlayer2Class(p2);
@@ -347,63 +509,76 @@ export default function DnDBattle() {
     if (attackRoll >= defenderClass.armorClass) {
       // Hit! Show both attack roll and damage dice
       const damage = rollDice(attackerClass.damageDie);
-      triggerDiceRoll([
-        { diceType: 'd20', result: d20Roll },
-        { diceType: attackerClass.damageDie, result: damage }
-      ]);
+      const defender = attacker === 'player1' ? 'player2' : 'player1';
+      
       const newHP = Math.max(0, defenderClass.hitPoints - damage);
       
-      // Update the defender's HP
-      const defender = attacker === 'player1' ? 'player2' : 'player1';
-      updatePlayerHP(defender, newHP);
-      
-      // Trigger hit animation on attacker (they're happy!)
-      setHittingPlayer(attacker);
-      setHitTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
-      
-      // Trigger shake animation on defender
-      setShakingPlayer(defender);
-      setShakeTrigger(prev => ({ ...prev, [defender]: prev[defender] + 1 }));
+      triggerDiceRoll(
+        [
+          { diceType: 'd20', result: d20Roll },
+          { diceType: attackerClass.damageDie, result: damage }
+        ],
+        [
+          { type: 'hit', player: attacker },
+          { type: 'shake', player: defender }
+        ],
+        [
+          () => updatePlayerHP(defender, newHP), // HP update happens after dice roll
+          async () => {
+            // Handle victory or narrative after HP update
+            if (newHP <= 0) {
+              await handleVictory(
+                attackerClass,
+                defenderClass,
+                damage,
+                attackerDetails,
+                defenderDetails,
+                `${attackerClass.name} attacks ${defenderClass.name} and deals ${damage} damage. ${defenderClass.name} is defeated with 0 HP remaining.`,
+                defender
+              );
+              switchTurn(attacker);
+              setIsMoveInProgress(false);
+            } else {
+              await generateAndLogNarrative(
+                `${attackerClass.name} attacks ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack hits! ${defenderClass.name} takes ${damage} damage and is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
+                attackerClass,
+                { ...defenderClass, hitPoints: newHP },
+                attackerDetails,
+                defenderDetails
+              );
+              switchTurn(attacker);
+              setIsMoveInProgress(false);
+            }
+          }
+        ]
+      );
 
-      if (newHP <= 0) {
-        await handleVictory(
-          attackerClass,
-          defenderClass,
-          damage,
-          attackerDetails,
-          defenderDetails,
-          `${attackerClass.name} attacks ${defenderClass.name} and deals ${damage} damage. ${defenderClass.name} is defeated with 0 HP remaining.`,
-          defender
-        );
-      } else {
-        await generateAndLogNarrative(
-          `${attackerClass.name} attacks ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack hits! ${defenderClass.name} takes ${damage} damage and is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
-          attackerClass,
-          { ...defenderClass, hitPoints: newHP },
-          attackerDetails,
-          defenderDetails
-        );
+      // Don't handle victory/narrative here - it's now in the callback
+      // For normal hits, we still need to switch turns after narrative
+      if (newHP > 0) {
+        // Add callback to switch turns after narrative completes
+        // This will be handled in the callback above
       }
     } else {
       // Miss - show the attack roll dice
-      triggerDiceRoll([{ diceType: 'd20', result: d20Roll }]);
-      
-      // Trigger miss animation on attacker
-      setMissingPlayer(attacker);
-      setMissTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
-      
-      await generateAndLogNarrative(
-        `${attackerClass.name} attacks ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack misses! ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
-        attackerClass,
-        defenderClass,
-        attackerDetails,
-        defenderDetails
+      triggerDiceRoll(
+        [{ diceType: 'd20', result: d20Roll }],
+        [{ type: 'miss', player: attacker }],
+        [
+          async () => {
+            await generateAndLogNarrative(
+              `${attackerClass.name} attacks ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack misses! ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
+              attackerClass,
+              defenderClass,
+              attackerDetails,
+              defenderDetails
+            );
+            switchTurn(attacker);
+            setIsMoveInProgress(false);
+          }
+        ]
       );
     }
-
-    // Switch turns
-    switchTurn(attacker);
-    setIsMoveInProgress(false);
   };
 
   const useAbility = async (attacker: 'player1' | 'player2', abilityIndex: number) => {
@@ -424,22 +599,29 @@ export default function DnDBattle() {
     if (ability.type === 'healing') {
       const heal = rollDiceWithNotation(ability.healingDice);
       const { dice } = parseDiceNotation(ability.healingDice);
-      triggerDiceRoll([{ diceType: dice, result: heal }]);
+      
       const newHP = Math.min(attackerClass.maxHitPoints, attackerClass.hitPoints + heal);
       
-      updatePlayerHP(attacker, newHP);
-      
-      // Trigger sparkle animation on healer
-      setSparklingPlayer(attacker);
-      setSparkleTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
-
-      await generateAndLogNarrative(
-        `${attackerClass.name} uses ${ability.name} and heals for ${heal} HP. ${attackerClass.name} is now at ${newHP}/${attackerClass.maxHitPoints} HP.`,
-        attackerClass,
-        defenderClass,
-        attackerDetails,
-        defenderDetails
+      // Queue HP update and sparkle effect to happen after dice roll completes
+      triggerDiceRoll(
+        [{ diceType: dice, result: heal }],
+        [{ type: 'sparkle', player: attacker }],
+        [
+          () => updatePlayerHP(attacker, newHP), // HP update happens after dice roll
+          async () => {
+            await generateAndLogNarrative(
+              `${attackerClass.name} uses ${ability.name} and heals for ${heal} HP. ${attackerClass.name} is now at ${newHP}/${attackerClass.maxHitPoints} HP.`,
+              attackerClass,
+              defenderClass,
+              attackerDetails,
+              defenderDetails
+            );
+            switchTurn(attacker);
+            setIsMoveInProgress(false);
+          }
+        ]
       );
+      return; // Exit early - turn switching happens in callback
     } 
     // Handle attack abilities
     else if (ability.type === 'attack') {
@@ -487,63 +669,73 @@ export default function DnDBattle() {
         }
         
         // Show all dice at once
+        const defender = attacker === 'player1' ? 'player2' : 'player1';
+        const newHP = totalDamage > 0 ? Math.max(0, defenderClass.hitPoints - totalDamage) : defenderClass.hitPoints;
+        
         if (diceToShow.length > 0) {
-          triggerDiceRoll(diceToShow);
-        }
-
-        addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
-
-        if (totalDamage > 0) {
-          const newHP = Math.max(0, defenderClass.hitPoints - totalDamage);
-          const defender = attacker === 'player1' ? 'player2' : 'player1';
-          updatePlayerHP(defender, newHP);
-          
-          // Trigger hit animation on attacker (they're happy!)
-          setHittingPlayer(attacker);
-          setHitTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
-          
-          // Trigger shake animation on defender
-          setShakingPlayer(defender);
-
-          const hitDetails = hits.map((hit, i) => 
+          const hitDetails = totalDamage > 0 ? hits.map((hit, i) => 
             hit ? `Attack ${i + 1} hits for ${damages[i]} damage.` : `Attack ${i + 1} misses.`
-          ).join(' ');
+          ).join(' ') : '';
 
-          if (newHP <= 0) {
-            await handleVictory(
-              attackerClass,
-              defenderClass,
-              totalDamage,
-              attackerDetails,
-              defenderDetails,
-              `${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. ${hitDetails} Total damage: ${totalDamage}. ${defenderClass.name} is defeated with 0 HP.`,
-              defender
+          if (totalDamage > 0) {
+            triggerDiceRoll(
+              diceToShow,
+              [
+                { type: 'hit', player: attacker },
+                { type: 'shake', player: defender }
+              ],
+              [
+                () => updatePlayerHP(defender, newHP), // HP update happens after dice roll
+                async () => {
+                  addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
+                  if (newHP <= 0) {
+                    await handleVictory(
+                      attackerClass,
+                      defenderClass,
+                      totalDamage,
+                      attackerDetails,
+                      defenderDetails,
+                      `${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. ${hitDetails} Total damage: ${totalDamage}. ${defenderClass.name} is defeated with 0 HP.`,
+                      defender
+                    );
+                    switchTurn(attacker);
+                    setIsMoveInProgress(false);
+                  } else {
+                    await generateAndLogNarrative(
+                      `${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. ${hitDetails} Total damage: ${totalDamage}. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
+                      attackerClass,
+                      { ...defenderClass, hitPoints: newHP },
+                      attackerDetails,
+                      defenderDetails
+                    );
+                    switchTurn(attacker);
+                    setIsMoveInProgress(false);
+                  }
+                }
+              ]
             );
-            switchTurn(attacker);
-            setIsMoveInProgress(false);
-            return;
           } else {
-            await generateAndLogNarrative(
-              `${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. ${hitDetails} Total damage: ${totalDamage}. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
-              attackerClass,
-              { ...defenderClass, hitPoints: newHP },
-              attackerDetails,
-              defenderDetails
+            triggerDiceRoll(
+              diceToShow,
+              [{ type: 'miss', player: attacker }],
+              [
+                async () => {
+                  addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
+                  await generateAndLogNarrative(
+                    `${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. All attacks miss. ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
+                    attackerClass,
+                    defenderClass,
+                    attackerDetails,
+                    defenderDetails
+                  );
+                  switchTurn(attacker);
+                  setIsMoveInProgress(false);
+                }
+              ]
             );
           }
-        } else {
-          // All attacks missed - trigger miss animation on attacker
-          setMissingPlayer(attacker);
-          setMissTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
-          
-          await generateAndLogNarrative(
-            `${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. All attacks miss. ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
-            attackerClass,
-            defenderClass,
-            attackerDetails,
-            defenderDetails
-          );
         }
+        return; // Exit early - everything happens in callbacks
       }
       // Single attack with attack roll
       else if (attackAbility.attackRoll) {
@@ -567,102 +759,111 @@ export default function DnDBattle() {
             damage += bonusDamage;
           }
           
-          triggerDiceRoll(diceToShow);
-          
-          const newHP = Math.max(0, defenderClass.hitPoints - damage);
           const defender = attacker === 'player1' ? 'player2' : 'player1';
-          updatePlayerHP(defender, newHP);
+          const newHP = Math.max(0, defenderClass.hitPoints - damage);
           
-          // Trigger hit animation on attacker (they're happy!)
-          setHittingPlayer(attacker);
-          setHitTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
-          
-          // Trigger shake animation on defender
-          setShakingPlayer(defender);
-      
-          if (newHP <= 0) {
-            await handleVictory(
-              attackerClass,
-              defenderClass,
-              damage,
-              attackerDetails,
-              defenderDetails,
-              `${attackerClass.name} uses ${ability.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack hits for ${damage} damage. ${defenderClass.name} is defeated with 0 HP.`,
-              defender
-            );
-            switchTurn(attacker);
-            setIsMoveInProgress(false);
-            return;
-          } else {
-            await generateAndLogNarrative(
-              `${attackerClass.name} uses ${ability.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack hits for ${damage} damage. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
-              attackerClass,
-              { ...defenderClass, hitPoints: newHP },
-              attackerDetails,
-              defenderDetails
-            );
-          }
+          triggerDiceRoll(
+            diceToShow,
+            [
+              { type: 'hit', player: attacker },
+              { type: 'shake', player: defender }
+            ],
+            [
+              () => updatePlayerHP(defender, newHP), // HP update happens after dice roll
+              async () => {
+                if (newHP <= 0) {
+                  await handleVictory(
+                    attackerClass,
+                    defenderClass,
+                    damage,
+                    attackerDetails,
+                    defenderDetails,
+                    `${attackerClass.name} uses ${ability.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack hits for ${damage} damage. ${defenderClass.name} is defeated with 0 HP.`,
+                    defender
+                  );
+                  switchTurn(attacker);
+                  setIsMoveInProgress(false);
+                } else {
+                  await generateAndLogNarrative(
+                    `${attackerClass.name} uses ${ability.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack hits for ${damage} damage. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
+                    attackerClass,
+                    { ...defenderClass, hitPoints: newHP },
+                    attackerDetails,
+                    defenderDetails
+                  );
+                  switchTurn(attacker);
+                  setIsMoveInProgress(false);
+                }
+              }
+            ]
+          );
         } else {
           // Miss - show the attack roll dice
-          triggerDiceRoll([{ diceType: 'd20', result: d20Roll }]);
-          
-          // Trigger miss animation on attacker
-          setMissingPlayer(attacker);
-          setMissTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
-          
-          await generateAndLogNarrative(
-            `${attackerClass.name} uses ${ability.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack misses! ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
-            attackerClass,
-            defenderClass,
-            attackerDetails,
-            defenderDetails
+          triggerDiceRoll(
+            [{ diceType: 'd20', result: d20Roll }],
+            [{ type: 'miss', player: attacker }],
+            [
+              async () => {
+                await generateAndLogNarrative(
+                  `${attackerClass.name} uses ${ability.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack misses! ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
+                  attackerClass,
+                  defenderClass,
+                  attackerDetails,
+                  defenderDetails
+                );
+                switchTurn(attacker);
+                setIsMoveInProgress(false);
+              }
+            ]
           );
         }
+        return; // Exit early - everything happens in callbacks
       }
       // Automatic damage (no attack roll, like Fireball)
       else {
         const { dice } = parseDiceNotation(attackAbility.damageDice);
         const damage = rollDiceWithNotation(attackAbility.damageDice);
-        triggerDiceRoll([{ diceType: dice, result: damage }]);
-        const newHP = Math.max(0, defenderClass.hitPoints - damage);
         const defender = attacker === 'player1' ? 'player2' : 'player1';
-        updatePlayerHP(defender, newHP);
+        const newHP = Math.max(0, defenderClass.hitPoints - damage);
         
-        // Trigger hit animation on attacker (they're happy!)
-        setHittingPlayer(attacker);
-        setHitTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
-        
-        // Trigger shake animation on defender
-        setShakingPlayer(defender);
-
-        if (newHP <= 0) {
-          await handleVictory(
-            attackerClass,
-            defenderClass,
-            damage,
-            attackerDetails,
-            defenderDetails,
-            `${attackerClass.name} uses ${ability.name} and deals ${damage} damage to ${defenderClass.name}. ${defenderClass.name} is defeated with 0 HP.`,
-            defender
-          );
-          switchTurn(attacker);
-          setIsMoveInProgress(false);
-          return;
-        } else {
-          await generateAndLogNarrative(
-            `${attackerClass.name} uses ${ability.name} and deals ${damage} damage to ${defenderClass.name}. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
-            attackerClass,
-            { ...defenderClass, hitPoints: newHP },
-            attackerDetails,
-            defenderDetails
-          );
-        }
+        triggerDiceRoll(
+          [{ diceType: dice, result: damage }],
+          [
+            { type: 'hit', player: attacker },
+            { type: 'shake', player: defender }
+          ],
+          [
+            () => updatePlayerHP(defender, newHP), // HP update happens after dice roll
+            async () => {
+              if (newHP <= 0) {
+                await handleVictory(
+                  attackerClass,
+                  defenderClass,
+                  damage,
+                  attackerDetails,
+                  defenderDetails,
+                  `${attackerClass.name} uses ${ability.name} and deals ${damage} damage to ${defenderClass.name}. ${defenderClass.name} is defeated with 0 HP.`,
+                  defender
+                );
+                switchTurn(attacker);
+                setIsMoveInProgress(false);
+              } else {
+                await generateAndLogNarrative(
+                  `${attackerClass.name} uses ${ability.name} and deals ${damage} damage to ${defenderClass.name}. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
+                  attackerClass,
+                  { ...defenderClass, hitPoints: newHP },
+                  attackerDetails,
+                  defenderDetails
+                );
+                switchTurn(attacker);
+                setIsMoveInProgress(false);
+              }
+            }
+          ]
+        );
+        return; // Exit early - everything happens in callbacks
       }
     }
-
-    // Switch turns
-    switchTurn(attacker);
-    setIsMoveInProgress(false);
   };
 
   // Wrapper functions to generate names when classes are selected
@@ -692,6 +893,8 @@ export default function DnDBattle() {
     setMissTrigger({ player1: 0, player2: 0 });
     setHittingPlayer(null);
     setHitTrigger({ player1: 0, player2: 0 });
+    setManualEmotion1(null);
+    setManualEmotion2(null);
   };
 
   return (
@@ -811,19 +1014,10 @@ export default function DnDBattle() {
                   Begin Battle! ⚔️
                 </button>
                 <button
-                  onClick={() => {
-                    // Test dice roll with various dice types
-                    const testRolls = [
-                      { diceType: 'd20', result: Math.floor(Math.random() * 20) + 1 },
-                      { diceType: 'd10', result: Math.floor(Math.random() * 10) + 1 },
-                      { diceType: 'd8', result: Math.floor(Math.random() * 8) + 1 },
-                      { diceType: 'd6', result: Math.floor(Math.random() * 6) + 1 },
-                    ];
-                    triggerDiceRoll(testRolls);
-                  }}
+                  onClick={() => router.push('/dnd/test')}
                   className="w-full py-2 px-4 bg-purple-900 hover:bg-purple-800 text-white font-semibold rounded-lg border-2 border-purple-700 transition-all shadow-md"
                 >
-                  🎲 Test Dice Roll
+                  🧪 Test Game
                 </button>
               </div>
                 </>
@@ -838,7 +1032,7 @@ export default function DnDBattle() {
                 playerClass={player1Class}
                 playerId="player1"
                 currentTurn={currentTurn}
-                characterName={player1Name || generateCharacterName(player1Class.name)}
+                characterName={player1Name || 'Loading...'}
                 onAttack={() => performAttack('player1')}
                 onUseAbility={(idx) => useAbility('player1', idx)}
                 shouldShake={shakingPlayer === 'player1'}
@@ -853,16 +1047,17 @@ export default function DnDBattle() {
                 isDefeated={defeatedPlayer === 'player1'}
                 isVictor={victorPlayer === 'player1'}
                 confettiTrigger={confettiTrigger}
-                onShakeComplete={() => setShakingPlayer(null)}
-                onSparkleComplete={() => setSparklingPlayer(null)}
-                onMissComplete={() => setMissingPlayer(null)}
-                onHitComplete={() => setHittingPlayer(null)}
+                emotion={manualEmotion1 || undefined}
+                onShakeComplete={handleShakeComplete}
+                onSparkleComplete={handleSparkleComplete}
+                onMissComplete={handleMissComplete}
+                onHitComplete={handleHitComplete}
               />
               <PlayerStats
                 playerClass={player2Class}
                 playerId="player2"
                 currentTurn={currentTurn}
-                characterName={player2Name || generateCharacterName(player2Class.name)}
+                characterName={player2Name || 'Loading...'}
                 onAttack={() => performAttack('player2')}
                 onUseAbility={(idx) => useAbility('player2', idx)}
                 shouldShake={shakingPlayer === 'player2'}
@@ -877,10 +1072,11 @@ export default function DnDBattle() {
                 isDefeated={defeatedPlayer === 'player2'}
                 isVictor={victorPlayer === 'player2'}
                 confettiTrigger={confettiTrigger}
-                onShakeComplete={() => setShakingPlayer(null)}
-                onSparkleComplete={() => setSparklingPlayer(null)}
-                onMissComplete={() => setMissingPlayer(null)}
-                onHitComplete={() => setHittingPlayer(null)}
+                emotion={manualEmotion2 || undefined}
+                onShakeComplete={handleShakeComplete}
+                onSparkleComplete={handleSparkleComplete}
+                onMissComplete={handleMissComplete}
+                onHitComplete={handleHitComplete}
               />
             </div>
           )}

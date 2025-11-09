@@ -1,5 +1,5 @@
 import { DnDClass, Ability } from '../types';
-import { CLASS_COLORS, CLASS_ICONS } from '../constants';
+import { CLASS_COLORS, CLASS_ICONS, FALLBACK_ABILITIES } from '../constants';
 import { extractJsonFromResponse, parseSSEResponse } from '../utils/api';
 
 // Fetch all available D&D classes from OpenRAG
@@ -262,10 +262,10 @@ Important rules:
     
     if (!abilitiesJsonString) {
       console.error('No JSON object with "abilities" field found. Full response:', accumulatedResponse.substring(0, 200) + '...');
-      return [];
+      console.warn(`Using fallback abilities for ${className}`);
+      return FALLBACK_ABILITIES[className] || [];
     }
     
-    console.log('Extracted JSON string with abilities:', abilitiesJsonString.substring(0, 200) + '...');
 
     try {
       const parsed = JSON.parse(abilitiesJsonString);
@@ -296,31 +296,28 @@ Important rules:
           }
         }
         
-        console.log(`Validated ${validAbilities.length} abilities from ${parsed.abilities.length} total`);
-        
         if (validAbilities.length > 0) {
           // Agent already returns a random selection of 1-3 attacks and 1-3 heals
           // Just return what the agent selected (it's already randomized)
-          console.log(`Received ${validAbilities.length} abilities from agent for ${className}:`, 
-            `${validAbilities.filter(a => a.type === 'attack').length} attacks,`,
-            `${validAbilities.filter(a => a.type === 'healing').length} heals`);
           
           return validAbilities;
         }
       }
-      // If we parsed successfully but got no valid abilities, return empty array
+      // If we parsed successfully but got no valid abilities, use fallback
       console.warn('Parsed JSON but found no valid abilities:', parsed);
-      return [];
+      console.warn(`Using fallback abilities for ${className}`);
+      return FALLBACK_ABILITIES[className] || [];
     } catch (parseError) {
       console.error('Error parsing JSON from AI response:', parseError);
       console.error('Extracted JSON string was:', abilitiesJsonString);
       console.error('Full response was:', accumulatedResponse.substring(0, 200) + '...');
-      // Fallback: return empty array if parsing fails
-      return [];
+      console.warn(`Using fallback abilities for ${className}`);
+      return FALLBACK_ABILITIES[className] || [];
     }
   } catch (error) {
     console.error('Error extracting abilities:', error);
-    return [];
+    console.warn(`Using fallback abilities for ${className}`);
+    return FALLBACK_ABILITIES[className] || [];
   }
 }
 
