@@ -82,8 +82,6 @@ export function PixelCharacter({
     // IMPORTANT: shouldSurprise must be checked BEFORE shouldShake to ensure surprise shows
     // When surprise is active, it completely overrides hurt even if both are true
     if (shouldSurprise) {
-      // Debug: log when surprise should be shown
-      console.log('[PixelCharacter] Showing SURPRISED emotion', { shouldSurprise, shouldShake, hpPercent: playerClass.hitPoints / playerClass.maxHitPoints });
       return 'surprised'; // Taking large damage suddenly - show surprise (highest priority, overrides hurt)
     }
     // Only show hurt if surprise is NOT active (surprise takes absolute priority)

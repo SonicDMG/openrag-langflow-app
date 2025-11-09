@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { flushSync } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
@@ -15,6 +15,15 @@ import { FALLBACK_CLASSES, CLASS_COLORS, FALLBACK_ABILITIES } from '../dnd/const
 // Utilities
 import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../dnd/utils/dice';
 import { generateCharacterName } from '../dnd/utils/names';
+import { 
+  isSurprisingDamage, 
+  createHitVisualEffects, 
+  createMissVisualEffects, 
+  createHealingVisualEffects,
+  getOpponent,
+  buildDamageDiceArray,
+  type PendingVisualEffect 
+} from '../dnd/utils/battle';
 
 // Services
 import { fetchAvailableClasses, fetchClassStats, extractAbilities, getBattleNarrative } from '../dnd/services/apiService';
@@ -62,11 +71,7 @@ export default function DnDBattle() {
   const logEndRef = useRef<HTMLDivElement>(null);
   
   // Queue for visual effects that should trigger after dice roll completes
-  type PendingVisualEffect = {
-    type: 'shake' | 'sparkle' | 'miss' | 'hit' | 'surprise';
-    player: 'player1' | 'player2';
-    intensity?: number; // Damage amount for shake, healing amount for sparkle
-  };
+  // (Type imported from battle utils)
   
   // Callback to execute after dice roll completes (for HP updates, etc.)
   type PostDiceRollCallback = () => void;
@@ -294,86 +299,88 @@ export default function DnDBattle() {
     addLog('system', `🏆 ${attackerClass.name} wins! ${defenderClass.name} has been defeated!`);
   }, [generateAndLogNarrative, addLog]);
 
-  // Helper function to handle damage application and visual effects
-  const applyDamage = useCallback((
-    damage: number,
-    attacker: 'player1' | 'player2',
-    defender: 'player1' | 'player2',
-    defenderClass: DnDClass,
-    diceToShow: Array<{ diceType: string; result: number }>,
-    hit: boolean
-  ): number => {
-    const newHP = Math.max(0, defenderClass.hitPoints - damage);
-    
-    if (hit && damage > 0) {
-      // Check if this is a surprising amount of damage
-      // Surprised if: damage >= 30% of max HP OR damage >= 50% of current HP
-      const damagePercentOfMax = damage / defenderClass.maxHitPoints;
-      const damagePercentOfCurrent = defenderClass.hitPoints > 0 ? damage / defenderClass.hitPoints : 0;
-      const isSurprising = damagePercentOfMax >= 0.3 || damagePercentOfCurrent >= 0.5;
-      
-      const visualEffects: PendingVisualEffect[] = [
-        { type: 'hit', player: attacker },
-        { type: 'shake', player: defender, intensity: damage }
-      ];
-      
-      // Add surprise effect if damage is significant
-      if (isSurprising) {
-        visualEffects.push({ type: 'surprise', player: defender });
-      }
-      
-      triggerDiceRoll(
-        diceToShow,
-        visualEffects,
-        [() => updatePlayerHP(defender, newHP)]
-      );
-    } else if (!hit) {
-      triggerDiceRoll(
-        diceToShow,
-        [{ type: 'miss', player: attacker }],
-        []
-      );
-    }
-    
-    return newHP;
-  }, [triggerDiceRoll, updatePlayerHP]);
+  // Note: applyDamage and handlePostDamage helpers removed - logic now inlined with helper functions
 
-  // Helper function to handle post-damage narrative and victory check
-  const handlePostDamage = useCallback(async (
-    attackerClass: DnDClass,
-    defenderClass: DnDClass,
+  // Factory function to create post-damage callback (handles victory check, narrative, turn switching)
+  const createPostDamageCallback = useCallback((
     newHP: number,
     damage: number,
+    attackerClass: DnDClass,
+    defenderClass: DnDClass,
     attackerDetails: string,
     defenderDetails: string,
     eventDescription: string,
     defender: 'player1' | 'player2',
     attacker: 'player1' | 'player2'
-  ): Promise<boolean> => {
-    if (newHP <= 0) {
-      await handleVictory(
-        attackerClass,
-        defenderClass,
-        damage,
-        attackerDetails,
-        defenderDetails,
-        eventDescription,
-        defender
-      );
+  ) => {
+    return async () => {
+      if (newHP <= 0) {
+        await handleVictory(
+          attackerClass,
+          defenderClass,
+          damage,
+          attackerDetails,
+          defenderDetails,
+          eventDescription,
+          defender
+        );
+      } else {
+        await generateAndLogNarrative(
+          eventDescription,
+          attackerClass,
+          { ...defenderClass, hitPoints: newHP },
+          attackerDetails,
+          defenderDetails
+        );
+      }
       switchTurn(attacker);
       setIsMoveInProgress(false);
-      return true; // Battle ended
-    } else {
+    };
+  }, [handleVictory, generateAndLogNarrative, switchTurn]);
+
+  // Factory function to create post-miss callback (handles narrative, turn switching)
+  const createPostMissCallback = useCallback((
+    attackerClass: DnDClass,
+    defenderClass: DnDClass,
+    attackerDetails: string,
+    defenderDetails: string,
+    eventDescription: string,
+    attacker: 'player1' | 'player2'
+  ) => {
+    return async () => {
       await generateAndLogNarrative(
         eventDescription,
         attackerClass,
-        { ...defenderClass, hitPoints: newHP },
+        defenderClass,
         attackerDetails,
         defenderDetails
       );
-      return false; // Battle continues
-    }
-  }, [handleVictory, generateAndLogNarrative, switchTurn]);
+      switchTurn(attacker);
+      setIsMoveInProgress(false);
+    };
+  }, [generateAndLogNarrative, switchTurn]);
+
+  // Factory function to create post-healing callback (handles narrative, turn switching)
+  const createPostHealingCallback = useCallback((
+    attackerClass: DnDClass,
+    defenderClass: DnDClass,
+    attackerDetails: string,
+    defenderDetails: string,
+    eventDescription: string,
+    attacker: 'player1' | 'player2'
+  ) => {
+    return async () => {
+      await generateAndLogNarrative(
+        eventDescription,
+        attackerClass,
+        defenderClass,
+        attackerDetails,
+        defenderDetails
+      );
+      switchTurn(attacker);
+      setIsMoveInProgress(false);
+    };
+  }, [generateAndLogNarrative, switchTurn]);
 
   // Memoized callback functions for PlayerStats to prevent unnecessary re-renders
   const handleShakeComplete = useCallback(() => {
@@ -564,23 +571,12 @@ export default function DnDBattle() {
     if (attackRoll >= defenderClass.armorClass) {
       // Hit! Show both attack roll and damage dice
       const damage = rollDice(attackerClass.damageDie);
-      const defender = attacker === 'player1' ? 'player2' : 'player1';
+      const defender = getOpponent(attacker);
       
       const newHP = Math.max(0, defenderClass.hitPoints - damage);
       
-      // Check if this is a surprising amount of damage
-      const damagePercentOfMax = damage / defenderClass.maxHitPoints;
-      const damagePercentOfCurrent = defenderClass.hitPoints > 0 ? damage / defenderClass.hitPoints : 0;
-      const isSurprising = damagePercentOfMax >= 0.3 || damagePercentOfCurrent >= 0.5;
-      
-      const visualEffects: PendingVisualEffect[] = [
-        { type: 'hit', player: attacker },
-        { type: 'shake', player: defender }
-      ];
-      
-      if (isSurprising) {
-        visualEffects.push({ type: 'surprise', player: defender });
-      }
+      // Create visual effects using helper function
+      const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass);
       
       triggerDiceRoll(
         [
@@ -590,62 +586,275 @@ export default function DnDBattle() {
         visualEffects,
         [
           () => updatePlayerHP(defender, newHP), // HP update happens after dice roll
-          async () => {
-            // Handle victory or narrative after HP update
-            if (newHP <= 0) {
-              await handleVictory(
-                attackerClass,
-                defenderClass,
-                damage,
-                attackerDetails,
-                defenderDetails,
-                `${attackerClass.name} attacks ${defenderClass.name} and deals ${damage} damage. ${defenderClass.name} is defeated with 0 HP remaining.`,
-                defender
-              );
-              switchTurn(attacker);
-              setIsMoveInProgress(false);
-            } else {
-              await generateAndLogNarrative(
-                `${attackerClass.name} attacks ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack hits! ${defenderClass.name} takes ${damage} damage and is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
-                attackerClass,
-                { ...defenderClass, hitPoints: newHP },
-                attackerDetails,
-                defenderDetails
-              );
-              switchTurn(attacker);
-              setIsMoveInProgress(false);
-            }
-          }
+          createPostDamageCallback(
+            newHP,
+            damage,
+            attackerClass,
+            defenderClass,
+            attackerDetails,
+            defenderDetails,
+            newHP <= 0
+              ? `${attackerClass.name} attacks ${defenderClass.name} and deals ${damage} damage. ${defenderClass.name} is defeated with 0 HP remaining.`
+              : `${attackerClass.name} attacks ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack hits! ${defenderClass.name} takes ${damage} damage and is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
+            defender,
+            attacker
+          )
         ]
       );
-
-      // Don't handle victory/narrative here - it's now in the callback
-      // For normal hits, we still need to switch turns after narrative
-      if (newHP > 0) {
-        // Add callback to switch turns after narrative completes
-        // This will be handled in the callback above
-      }
     } else {
       // Miss - show the attack roll dice
       triggerDiceRoll(
         [{ diceType: 'd20', result: d20Roll }],
-        [{ type: 'miss', player: attacker }],
+        createMissVisualEffects(attacker),
         [
-          async () => {
-            await generateAndLogNarrative(
-              `${attackerClass.name} attacks ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack misses! ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
-              attackerClass,
-              defenderClass,
-              attackerDetails,
-              defenderDetails
-            );
-            switchTurn(attacker);
-            setIsMoveInProgress(false);
-          }
+          createPostMissCallback(
+            attackerClass,
+            defenderClass,
+            attackerDetails,
+            defenderDetails,
+            `${attackerClass.name} attacks ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack misses! ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
+            attacker
+          )
         ]
       );
     }
   };
+
+  // Helper function to handle healing abilities
+  const handleHealingAbility = useCallback(async (
+    attacker: 'player1' | 'player2',
+    attackerClass: DnDClass,
+    defenderClass: DnDClass,
+    ability: Ability,
+    attackerDetails: string,
+    defenderDetails: string
+  ) => {
+    if (ability.type !== 'healing') return;
+    
+    const heal = rollDiceWithNotation(ability.healingDice);
+    const { dice } = parseDiceNotation(ability.healingDice);
+    const newHP = Math.min(attackerClass.maxHitPoints, attackerClass.hitPoints + heal);
+    
+    triggerDiceRoll(
+      [{ diceType: dice, result: heal }],
+      createHealingVisualEffects(attacker, heal),
+      [
+        () => updatePlayerHP(attacker, newHP),
+        createPostHealingCallback(
+          attackerClass,
+          defenderClass,
+          attackerDetails,
+          defenderDetails,
+          `${attackerClass.name} uses ${ability.name} and heals for ${heal} HP. ${attackerClass.name} is now at ${newHP}/${attackerClass.maxHitPoints} HP.`,
+          attacker
+        )
+      ]
+    );
+  }, [updatePlayerHP, createPostHealingCallback, rollDiceWithNotation, parseDiceNotation]);
+
+  // Helper function to handle multi-attack abilities
+  const handleMultiAttackAbility = useCallback(async (
+    attacker: 'player1' | 'player2',
+    attackerClass: DnDClass,
+    defenderClass: DnDClass,
+    attackAbility: AttackAbility,
+    attackerDetails: string,
+    defenderDetails: string
+  ) => {
+    const numAttacks = attackAbility.attacks || 1;
+    const attackRolls: number[] = [];
+    const d20Rolls: number[] = [];
+    const damages: number[] = [];
+    const hits: boolean[] = [];
+    let totalDamage = 0;
+    const diceToShow: Array<{ diceType: string; result: number }> = [];
+    
+    for (let i = 0; i < numAttacks; i++) {
+      const d20Roll = rollDice('d20');
+      d20Rolls.push(d20Roll);
+      const attackRoll = d20Roll + attackerClass.attackBonus;
+      attackRolls.push(attackRoll);
+      const hit = attackRoll >= defenderClass.armorClass;
+      hits.push(hit);
+      
+      if (hit) {
+        diceToShow.push({ diceType: 'd20', result: d20Roll });
+        const { diceArray, totalDamage: damage } = buildDamageDiceArray(
+          attackAbility.damageDice,
+          attackAbility.bonusDamageDice,
+          rollDiceWithNotation,
+          parseDiceNotation
+        );
+        diceToShow.push(...diceArray);
+        damages.push(damage);
+        totalDamage += damage;
+      } else {
+        diceToShow.push({ diceType: 'd20', result: d20Roll });
+        damages.push(0);
+      }
+    }
+    
+    const defender = getOpponent(attacker);
+    const newHP = totalDamage > 0 ? Math.max(0, defenderClass.hitPoints - totalDamage) : defenderClass.hitPoints;
+    
+    if (diceToShow.length === 0) return;
+    
+    const hitDetails = totalDamage > 0 ? hits.map((hit, i) => 
+      hit ? `Attack ${i + 1} hits for ${damages[i]} damage.` : `Attack ${i + 1} misses.`
+    ).join(' ') : '';
+
+    if (totalDamage > 0) {
+      const visualEffects = createHitVisualEffects(attacker, defender, totalDamage, defenderClass);
+      triggerDiceRoll(
+        diceToShow,
+        visualEffects,
+        [
+          () => updatePlayerHP(defender, newHP),
+          async () => {
+            addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
+            await createPostDamageCallback(
+              newHP,
+              totalDamage,
+              attackerClass,
+              defenderClass,
+              attackerDetails,
+              defenderDetails,
+              newHP <= 0
+                ? `${attackerClass.name} uses ${attackAbility.name} and makes ${numAttacks} attacks. ${hitDetails} Total damage: ${totalDamage}. ${defenderClass.name} is defeated with 0 HP.`
+                : `${attackerClass.name} uses ${attackAbility.name} and makes ${numAttacks} attacks. ${hitDetails} Total damage: ${totalDamage}. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
+              defender,
+              attacker
+            )();
+          }
+        ]
+      );
+    } else {
+      triggerDiceRoll(
+        diceToShow,
+        createMissVisualEffects(attacker),
+        [
+          async () => {
+            addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
+            await createPostMissCallback(
+              attackerClass,
+              defenderClass,
+              attackerDetails,
+              defenderDetails,
+              `${attackerClass.name} uses ${attackAbility.name} and makes ${numAttacks} attacks. All attacks miss. ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
+              attacker
+            )();
+          }
+        ]
+      );
+    }
+  }, [updatePlayerHP, createPostDamageCallback, createPostMissCallback, addLog, rollDice, rollDiceWithNotation, parseDiceNotation, buildDamageDiceArray, createHitVisualEffects, createMissVisualEffects, getOpponent]);
+
+  // Helper function to handle single attack with roll
+  const handleSingleAttackAbility = useCallback(async (
+    attacker: 'player1' | 'player2',
+    attackerClass: DnDClass,
+    defenderClass: DnDClass,
+    attackAbility: AttackAbility,
+    attackerDetails: string,
+    defenderDetails: string
+  ) => {
+    const { d20Roll, attackRoll } = calculateAttackRoll(attackerClass);
+    logAttackRoll(attackerClass, d20Roll, attackRoll, defenderClass.armorClass);
+
+    if (attackRoll >= defenderClass.armorClass) {
+      const { diceArray, totalDamage: damage } = buildDamageDiceArray(
+        attackAbility.damageDice,
+        attackAbility.bonusDamageDice,
+        rollDiceWithNotation,
+        parseDiceNotation
+      );
+      const diceToShow: Array<{ diceType: string; result: number }> = [
+        { diceType: 'd20', result: d20Roll },
+        ...diceArray
+      ];
+      
+      const defender = getOpponent(attacker);
+      const newHP = Math.max(0, defenderClass.hitPoints - damage);
+      const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass);
+      
+      triggerDiceRoll(
+        diceToShow,
+        visualEffects,
+        [
+          () => updatePlayerHP(defender, newHP),
+          createPostDamageCallback(
+            newHP,
+            damage,
+            attackerClass,
+            defenderClass,
+            attackerDetails,
+            defenderDetails,
+            newHP <= 0
+              ? `${attackerClass.name} uses ${attackAbility.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack hits for ${damage} damage. ${defenderClass.name} is defeated with 0 HP.`
+              : `${attackerClass.name} uses ${attackAbility.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack hits for ${damage} damage. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
+            defender,
+            attacker
+          )
+        ]
+      );
+    } else {
+      triggerDiceRoll(
+        [{ diceType: 'd20', result: d20Roll }],
+        createMissVisualEffects(attacker),
+        [
+          createPostMissCallback(
+            attackerClass,
+            defenderClass,
+            attackerDetails,
+            defenderDetails,
+            `${attackerClass.name} uses ${attackAbility.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack misses! ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
+            attacker
+          )
+        ]
+      );
+    }
+  }, [calculateAttackRoll, logAttackRoll, updatePlayerHP, createPostDamageCallback, createPostMissCallback, rollDiceWithNotation, parseDiceNotation, buildDamageDiceArray, createHitVisualEffects, createMissVisualEffects, getOpponent, triggerDiceRoll]);
+
+  // Helper function to handle automatic damage abilities
+  const handleAutomaticDamageAbility = useCallback(async (
+    attacker: 'player1' | 'player2',
+    attackerClass: DnDClass,
+    defenderClass: DnDClass,
+    attackAbility: AttackAbility,
+    attackerDetails: string,
+    defenderDetails: string
+  ) => {
+    const { diceArray, totalDamage: damage } = buildDamageDiceArray(
+      attackAbility.damageDice,
+      attackAbility.bonusDamageDice,
+      rollDiceWithNotation,
+      parseDiceNotation
+    );
+    const defender = getOpponent(attacker);
+    const newHP = Math.max(0, defenderClass.hitPoints - damage);
+    const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass);
+    
+    triggerDiceRoll(
+      diceArray,
+      visualEffects,
+      [
+        () => updatePlayerHP(defender, newHP),
+        createPostDamageCallback(
+          newHP,
+          damage,
+          attackerClass,
+          defenderClass,
+          attackerDetails,
+          defenderDetails,
+          newHP <= 0
+            ? `${attackerClass.name} uses ${attackAbility.name} and deals ${damage} damage to ${defenderClass.name}. ${defenderClass.name} is defeated with 0 HP.`
+            : `${attackerClass.name} uses ${attackAbility.name} and deals ${damage} damage to ${defenderClass.name}. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
+          defender,
+          attacker
+        )
+      ]
+    );
+  }, [updatePlayerHP, createPostDamageCallback, rollDiceWithNotation, parseDiceNotation, buildDamageDiceArray, createHitVisualEffects, getOpponent, triggerDiceRoll]);
 
   const useAbility = async (attacker: 'player1' | 'player2', abilityIndex: number) => {
     if (!isBattleActive || !player1Class || !player2Class || isMoveInProgress) return;
@@ -661,307 +870,22 @@ export default function DnDBattle() {
 
     addLog('roll', `✨ ${attackerClass.name} uses ${ability.name}!`);
 
-    // Handle healing abilities
+    // Route to appropriate handler based on ability type
     if (ability.type === 'healing') {
-      const heal = rollDiceWithNotation(ability.healingDice);
-      const { dice } = parseDiceNotation(ability.healingDice);
-      
-      const newHP = Math.min(attackerClass.maxHitPoints, attackerClass.hitPoints + heal);
-      
-      // Queue HP update and sparkle effect to happen after dice roll completes
-      triggerDiceRoll(
-        [{ diceType: dice, result: heal }],
-        [{ type: 'sparkle', player: attacker, intensity: heal }],
-        [
-          () => updatePlayerHP(attacker, newHP), // HP update happens after dice roll
-          async () => {
-            await generateAndLogNarrative(
-              `${attackerClass.name} uses ${ability.name} and heals for ${heal} HP. ${attackerClass.name} is now at ${newHP}/${attackerClass.maxHitPoints} HP.`,
-              attackerClass,
-              defenderClass,
-              attackerDetails,
-              defenderDetails
-            );
-            switchTurn(attacker);
-            setIsMoveInProgress(false);
-          }
-        ]
-      );
-      return; // Exit early - turn switching happens in callback
-    } 
-    // Handle attack abilities
-    else if (ability.type === 'attack') {
+      await handleHealingAbility(attacker, attackerClass, defenderClass, ability, attackerDetails, defenderDetails);
+      return;
+    } else if (ability.type === 'attack') {
       const attackAbility = ability as AttackAbility;
       const numAttacks = attackAbility.attacks || 1;
       
-      // Handle multi-attack abilities
       if (numAttacks > 1) {
-        const attackRolls: number[] = [];
-        const d20Rolls: number[] = [];
-        const damages: number[] = [];
-        const hits: boolean[] = [];
-        let totalDamage = 0;
-
-        // Roll all attacks and collect dice for display
-        const diceToShow: Array<{ diceType: string; result: number }> = [];
-        
-        for (let i = 0; i < numAttacks; i++) {
-          const d20Roll = rollDice('d20');
-          d20Rolls.push(d20Roll);
-          const attackRoll = d20Roll + attackerClass.attackBonus;
-          attackRolls.push(attackRoll);
-          const hit = attackRoll >= defenderClass.armorClass;
-          hits.push(hit);
-          
-          if (hit) {
-            const { dice } = parseDiceNotation(attackAbility.damageDice);
-            let damage = rollDiceWithNotation(attackAbility.damageDice);
-            diceToShow.push({ diceType: 'd20', result: d20Roll });
-            diceToShow.push({ diceType: dice, result: damage });
-            
-            // Add bonus damage if applicable
-            if (attackAbility.bonusDamageDice) {
-              const { dice: bonusDice } = parseDiceNotation(attackAbility.bonusDamageDice);
-              const bonusDamage = rollDiceWithNotation(attackAbility.bonusDamageDice);
-              diceToShow.push({ diceType: bonusDice, result: bonusDamage });
-              damage += bonusDamage;
-            }
-            damages.push(damage);
-            totalDamage += damage;
-          } else {
-            diceToShow.push({ diceType: 'd20', result: d20Roll });
-            damages.push(0);
-          }
-        }
-        
-        // Show all dice at once
-        const defender = attacker === 'player1' ? 'player2' : 'player1';
-        const newHP = totalDamage > 0 ? Math.max(0, defenderClass.hitPoints - totalDamage) : defenderClass.hitPoints;
-        
-        if (diceToShow.length > 0) {
-          const hitDetails = totalDamage > 0 ? hits.map((hit, i) => 
-            hit ? `Attack ${i + 1} hits for ${damages[i]} damage.` : `Attack ${i + 1} misses.`
-          ).join(' ') : '';
-
-          if (totalDamage > 0) {
-            // Check if this is a surprising amount of damage
-            const damagePercentOfMax = totalDamage / defenderClass.maxHitPoints;
-            const damagePercentOfCurrent = defenderClass.hitPoints > 0 ? totalDamage / defenderClass.hitPoints : 0;
-      const isSurprising = damagePercentOfMax >= 0.3 || damagePercentOfCurrent >= 0.5;
-      
-      const visualEffects: PendingVisualEffect[] = [
-        { type: 'hit', player: attacker },
-        { type: 'shake', player: defender, intensity: totalDamage }
-      ];
-      
-      if (isSurprising) {
-        visualEffects.push({ type: 'surprise', player: defender });
+        await handleMultiAttackAbility(attacker, attackerClass, defenderClass, attackAbility, attackerDetails, defenderDetails);
+      } else if (attackAbility.attackRoll) {
+        await handleSingleAttackAbility(attacker, attackerClass, defenderClass, attackAbility, attackerDetails, defenderDetails);
+      } else {
+        await handleAutomaticDamageAbility(attacker, attackerClass, defenderClass, attackAbility, attackerDetails, defenderDetails);
       }
-      
-      triggerDiceRoll(
-        diceToShow,
-        visualEffects,
-        [
-                () => updatePlayerHP(defender, newHP), // HP update happens after dice roll
-                async () => {
-                  addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
-                  if (newHP <= 0) {
-                    await handleVictory(
-                      attackerClass,
-                      defenderClass,
-                      totalDamage,
-                      attackerDetails,
-                      defenderDetails,
-                      `${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. ${hitDetails} Total damage: ${totalDamage}. ${defenderClass.name} is defeated with 0 HP.`,
-                      defender
-                    );
-                    switchTurn(attacker);
-                    setIsMoveInProgress(false);
-                  } else {
-                    await generateAndLogNarrative(
-                      `${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. ${hitDetails} Total damage: ${totalDamage}. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
-                      attackerClass,
-                      { ...defenderClass, hitPoints: newHP },
-                      attackerDetails,
-                      defenderDetails
-                    );
-                    switchTurn(attacker);
-                    setIsMoveInProgress(false);
-                  }
-                }
-              ]
-            );
-          } else {
-            triggerDiceRoll(
-              diceToShow,
-              [{ type: 'miss', player: attacker }],
-              [
-                async () => {
-                  addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
-                  await generateAndLogNarrative(
-                    `${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. All attacks miss. ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
-                    attackerClass,
-                    defenderClass,
-                    attackerDetails,
-                    defenderDetails
-                  );
-                  switchTurn(attacker);
-                  setIsMoveInProgress(false);
-                }
-              ]
-            );
-          }
-        }
-        return; // Exit early - everything happens in callbacks
-      }
-      // Single attack with attack roll
-      else if (attackAbility.attackRoll) {
-        const { d20Roll, attackRoll } = calculateAttackRoll(attackerClass);
-        logAttackRoll(attackerClass, d20Roll, attackRoll, defenderClass.armorClass);
-
-        if (attackRoll >= defenderClass.armorClass) {
-          // Hit - show both attack and damage dice
-          let damage = rollDiceWithNotation(attackAbility.damageDice);
-          const { dice } = parseDiceNotation(attackAbility.damageDice);
-          const diceToShow: Array<{ diceType: string; result: number }> = [
-            { diceType: 'd20', result: d20Roll },
-            { diceType: dice, result: damage }
-          ];
-          
-          // Add bonus damage if applicable
-          if (attackAbility.bonusDamageDice) {
-            const bonusDamage = rollDiceWithNotation(attackAbility.bonusDamageDice);
-            const { dice: bonusDice } = parseDiceNotation(attackAbility.bonusDamageDice);
-            diceToShow.push({ diceType: bonusDice, result: bonusDamage });
-            damage += bonusDamage;
-          }
-          
-          const defender = attacker === 'player1' ? 'player2' : 'player1';
-          const newHP = Math.max(0, defenderClass.hitPoints - damage);
-          
-          // Check if this is a surprising amount of damage
-          const damagePercentOfMax = damage / defenderClass.maxHitPoints;
-          const damagePercentOfCurrent = defenderClass.hitPoints > 0 ? damage / defenderClass.hitPoints : 0;
-      const isSurprising = damagePercentOfMax >= 0.3 || damagePercentOfCurrent >= 0.5;
-      
-      const visualEffects: PendingVisualEffect[] = [
-        { type: 'hit', player: attacker },
-        { type: 'shake', player: defender, intensity: damage }
-      ];
-      
-      if (isSurprising) {
-        visualEffects.push({ type: 'surprise', player: defender });
-      }
-      
-      triggerDiceRoll(
-        diceToShow,
-        visualEffects,
-        [
-              () => updatePlayerHP(defender, newHP), // HP update happens after dice roll
-              async () => {
-                if (newHP <= 0) {
-                  await handleVictory(
-                    attackerClass,
-                    defenderClass,
-                    damage,
-                    attackerDetails,
-                    defenderDetails,
-                    `${attackerClass.name} uses ${ability.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack hits for ${damage} damage. ${defenderClass.name} is defeated with 0 HP.`,
-                    defender
-                  );
-                  switchTurn(attacker);
-                  setIsMoveInProgress(false);
-                } else {
-                  await generateAndLogNarrative(
-                    `${attackerClass.name} uses ${ability.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack hits for ${damage} damage. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
-                    attackerClass,
-                    { ...defenderClass, hitPoints: newHP },
-                    attackerDetails,
-                    defenderDetails
-                  );
-                  switchTurn(attacker);
-                  setIsMoveInProgress(false);
-                }
-              }
-            ]
-          );
-        } else {
-          // Miss - show the attack roll dice
-          triggerDiceRoll(
-            [{ diceType: 'd20', result: d20Roll }],
-            [{ type: 'miss', player: attacker }],
-            [
-              async () => {
-                await generateAndLogNarrative(
-                  `${attackerClass.name} uses ${ability.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack misses! ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
-                  attackerClass,
-                  defenderClass,
-                  attackerDetails,
-                  defenderDetails
-                );
-                switchTurn(attacker);
-                setIsMoveInProgress(false);
-              }
-            ]
-          );
-        }
-        return; // Exit early - everything happens in callbacks
-      }
-      // Automatic damage (no attack roll, like Fireball)
-      else {
-        const { dice } = parseDiceNotation(attackAbility.damageDice);
-        const damage = rollDiceWithNotation(attackAbility.damageDice);
-        const defender = attacker === 'player1' ? 'player2' : 'player1';
-        const newHP = Math.max(0, defenderClass.hitPoints - damage);
-        
-        // Check if this is a surprising amount of damage
-        const damagePercentOfMax = damage / defenderClass.maxHitPoints;
-        const damagePercentOfCurrent = defenderClass.hitPoints > 0 ? damage / defenderClass.hitPoints : 0;
-        const isSurprising = damagePercentOfMax >= 0.3 || damagePercentOfCurrent >= 0.5;
-        
-        const visualEffects: PendingVisualEffect[] = [
-          { type: 'hit', player: attacker },
-          { type: 'shake', player: defender }
-        ];
-        
-        if (isSurprising) {
-          visualEffects.push({ type: 'surprise', player: defender });
-        }
-        
-        triggerDiceRoll(
-          [{ diceType: dice, result: damage }],
-          visualEffects,
-          [
-            () => updatePlayerHP(defender, newHP), // HP update happens after dice roll
-            async () => {
-              if (newHP <= 0) {
-                await handleVictory(
-                  attackerClass,
-                  defenderClass,
-                  damage,
-                  attackerDetails,
-                  defenderDetails,
-                  `${attackerClass.name} uses ${ability.name} and deals ${damage} damage to ${defenderClass.name}. ${defenderClass.name} is defeated with 0 HP.`,
-                  defender
-                );
-                switchTurn(attacker);
-                setIsMoveInProgress(false);
-              } else {
-                await generateAndLogNarrative(
-                  `${attackerClass.name} uses ${ability.name} and deals ${damage} damage to ${defenderClass.name}. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
-                  attackerClass,
-                  { ...defenderClass, hitPoints: newHP },
-                  attackerDetails,
-                  defenderDetails
-                );
-                switchTurn(attacker);
-                setIsMoveInProgress(false);
-              }
-            }
-          ]
-        );
-        return; // Exit early - everything happens in callbacks
-      }
+      return;
     }
   };
 
