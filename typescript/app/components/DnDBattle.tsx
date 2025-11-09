@@ -296,6 +296,28 @@ const CLASS_ICONS: Record<string, string> = {
   'Artificer': '⚙️',
 };
 
+// Generate fun class-appropriate character names
+function generateCharacterName(className: string): string {
+  const nameLists: Record<string, string[]> = {
+    Fighter: ['Thorin Ironfist', 'Gareth the Bold', 'Ragnar Steelheart', 'Sir Aldric', 'Bjorn the Mighty', 'Kaelen Bladeborn', 'Darius Warhammer', 'Conan the Conqueror'],
+    Wizard: ['Merlin Shadowweaver', 'Gandalf the Grey', 'Zephyr Starfire', 'Archmage Elara', 'Thaddeus Spellwright', 'Lyra Moonwhisper', 'Alistair the Wise', 'Morgana Arcane'],
+    Rogue: ['Shadow the Silent', 'Raven Blackdagger', 'Whisper Nightshade', 'Vex the Swift', 'Sly Cooper', 'Nyx Shadowstep', 'Jade the Thief', 'Crimson Blade'],
+    Cleric: ['Brother Marcus', 'Sister Seraphina', 'Father Lightbringer', 'High Priestess Celeste', 'Brother Gabriel', 'Sister Mercy', 'Father Devout', 'Cleric Aria'],
+    Barbarian: ['Grok the Furious', 'Thokk Bloodaxe', 'Berserker Korg', 'Rage the Unstoppable', 'Grimjaw the Wild', 'Thunder Fist', 'Bloodfang', 'Ragnarok'],
+    Ranger: ['Aragorn the Wanderer', 'Legolas Greenleaf', 'Hawkeye the Tracker', 'Sylvan the Hunter', 'Ranger Kael', 'Forest Walker', 'Arrow the Swift', 'Wildheart'],
+    Paladin: ['Sir Galahad', 'Lady Justice', 'Knight Valor', 'Sir Percival', 'Paladin Dawn', 'Holy Champion', 'Sir Lancelot', 'Divine Shield'],
+    Bard: ['Lorelei the Songstress', 'Merry the Minstrel', 'Bardic Thunder', 'Lyric the Storyteller', 'Melody Bright', 'Harmony the Voice', 'Verse the Charmer', 'Rhyme the Witty'],
+    Sorcerer: ['Zara Stormcaller', 'Draco the Wild', 'Nova the Radiant', 'Chaos the Untamed', 'Aurora Spellborn', 'Tempest the Furious', 'Ember the Bright', 'Starfire'],
+    Warlock: ['Malachi Darkpact', 'Lilith the Cursed', 'Necro the Bound', 'Shadow the Summoner', 'Vex the Hexed', 'Raven the Cursed', 'Void the Dark', 'Pactkeeper'],
+    Monk: ['Master Chen', 'Sifu Li', 'Zen the Peaceful', 'Iron Fist', 'Master Po', 'Dragon the Wise', 'Tiger the Fierce', 'Crane the Graceful'],
+    Druid: ['Oakheart the Ancient', 'Luna Moonwhisper', 'Thorn the Wild', 'Nature the Keeper', 'Grove the Guardian', 'Ivy the Green', 'Root the Deep', 'Bloom the Bright'],
+    Artificer: ['Tinker the Inventor', 'Gear the Builder', 'Cog the Mechanic', 'Spark the Creator', 'Forge the Smith', 'Wrench the Fixer', 'Blueprint the Designer', 'Steam the Engineer'],
+  };
+
+  const names = nameLists[className] || ['Adventurer', 'Hero', 'Champion', 'Warrior'];
+  return names[Math.floor(Math.random() * names.length)];
+}
+
 // Class color mapping - consolidated single source of truth
 const CLASS_COLORS: Record<string, string> = {
   'Fighter': 'bg-red-900',
@@ -617,19 +639,406 @@ function applyAnimationClass(
   };
 }
 
+// Emotion types for character expressions
+type CharacterEmotion = 'happy' | 'sad' | 'hurt' | 'laughing' | 'rage' | 'determined' | 'worried' | 'frustrated' | 'dead' | 'victorious' | 'excited' | 'confident' | 'surprised' | 'triumphant';
+
+// Pixel Character Component - Renders retro pixel art based on class and stats
+interface PixelCharacterProps {
+  playerClass: DnDClass;
+  size?: number; // Canvas size in pixels
+  emotion?: CharacterEmotion; // Character's current emotion
+  isActive?: boolean; // Whether it's this character's turn
+  isDefeated?: boolean; // Whether character is defeated
+  isVictor?: boolean; // Whether character is the victor
+  shouldShake?: boolean; // Whether character is taking damage
+  shouldSparkle?: boolean; // Whether character is being healed
+  shouldMiss?: boolean; // Whether character just missed an attack
+  shouldHit?: boolean; // Whether character just landed a successful hit
+}
+
+function PixelCharacter({ 
+  playerClass, 
+  size = 128,
+  emotion,
+  isActive = false,
+  isDefeated = false,
+  isVictor = false,
+  shouldShake = false,
+  shouldSparkle = false,
+  shouldMiss = false,
+  shouldHit = false
+}: PixelCharacterProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Determine emotion based on battle state if not explicitly provided
+  // Priority order matters - check most specific states first
+  const determineEmotion = (): CharacterEmotion => {
+    if (emotion) return emotion;
+    
+    // Most important states first
+    if (isDefeated) return 'dead';
+    if (isVictor) return 'victorious';
+    
+    // Action-based emotions (temporary, high priority)
+    if (shouldHit) return 'triumphant'; // Just landed a hit - show excitement!
+    if (shouldSparkle) return 'happy'; // Being healed - should be happy!
+    if (shouldShake) return 'hurt'; // Taking damage - show pain
+    if (shouldMiss) return 'frustrated'; // Missed attack - frustrated
+    
+    // State-based emotions (based on HP and turn status)
+    const hpPercent = playerClass.hitPoints / playerClass.maxHitPoints;
+    if (hpPercent < 0.2) return 'worried'; // Very low HP - worried
+    if (hpPercent < 0.3) return 'sad'; // Low HP - sad
+    if (hpPercent < 0.5) return 'worried'; // Medium-low HP - worried
+    if (isActive && hpPercent > 0.7) return 'confident'; // Active turn with high HP - confident
+    if (isActive) return 'determined'; // Active turn - determined
+    if (hpPercent > 0.8) return 'happy'; // High HP - happy
+    if (hpPercent > 0.6) return 'determined'; // Good HP - determined
+    
+    return 'determined'; // Default
+  };
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas size
+    canvas.width = size;
+    canvas.height = size;
+
+    // Enable pixelated rendering
+    ctx.imageSmoothingEnabled = false;
+
+    // Clear canvas
+    ctx.fillStyle = 'transparent';
+    ctx.fillRect(0, 0, size, size);
+
+    // Get class-specific colors
+    const classColors = getClassColors(playerClass.name);
+    const hpPercent = playerClass.hitPoints / playerClass.maxHitPoints;
+    const currentEmotion = determineEmotion();
+
+    // Draw character based on class
+    drawPixelCharacter(ctx, size, playerClass, classColors, hpPercent, isDefeated, currentEmotion);
+  }, [playerClass, size, emotion, isActive, isDefeated, isVictor, shouldShake, shouldSparkle, shouldMiss, shouldHit]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="pixel-art"
+      style={{
+        imageRendering: 'pixelated' as const,
+        width: '100%',
+        maxWidth: `${size}px`,
+        height: 'auto',
+        display: 'block',
+        margin: '0 auto',
+      }}
+    />
+  );
+}
+
+// Get class-specific color palette
+function getClassColors(className: string): {
+  primary: string;
+  secondary: string;
+  accent: string;
+  skin: string;
+  hair: string;
+} {
+  const colorMap: Record<string, { primary: string; secondary: string; accent: string; skin: string; hair: string }> = {
+    Fighter: { primary: '#7f1d1d', secondary: '#991b1b', accent: '#dc2626', skin: '#fbbf24', hair: '#1c1917' },
+    Wizard: { primary: '#1e3a8a', secondary: '#1e40af', accent: '#3b82f6', skin: '#fde68a', hair: '#fbbf24' },
+    Rogue: { primary: '#581c87', secondary: '#6b21a8', accent: '#a855f7', skin: '#fbbf24', hair: '#1c1917' },
+    Cleric: { primary: '#78350f', secondary: '#92400e', accent: '#fbbf24', skin: '#fde68a', hair: '#fef3c7' },
+    Barbarian: { primary: '#7c2d12', secondary: '#9a3412', accent: '#ea580c', skin: '#fbbf24', hair: '#dc2626' },
+    Ranger: { primary: '#14532d', secondary: '#166534', accent: '#22c55e', skin: '#fbbf24', hair: '#1c1917' },
+    Paladin: { primary: '#831843', secondary: '#9f1239', accent: '#ec4899', skin: '#fde68a', hair: '#fbbf24' },
+    Bard: { primary: '#312e81', secondary: '#3730a3', accent: '#6366f1', skin: '#fbbf24', hair: '#a855f7' },
+    Sorcerer: { primary: '#164e63', secondary: '#155e75', accent: '#06b6d4', skin: '#fde68a', hair: '#06b6d4' },
+    Warlock: { primary: '#581c87', secondary: '#6b21a8', accent: '#8b5cf6', skin: '#fbbf24', hair: '#1c1917' },
+    Monk: { primary: '#78350f', secondary: '#92400e', accent: '#f59e0b', skin: '#fbbf24', hair: '#1c1917' },
+    Druid: { primary: '#064e3b', secondary: '#065f46', accent: '#10b981', skin: '#fbbf24', hair: '#166534' },
+    Artificer: { primary: '#134e4a', secondary: '#0f766e', accent: '#14b8a6', skin: '#fde68a', hair: '#1c1917' },
+  };
+
+  return colorMap[className] || {
+    primary: '#1c1917',
+    secondary: '#292524',
+    accent: '#78716c',
+    skin: '#fbbf24',
+    hair: '#1c1917',
+  };
+}
+
+// Draw facial expression based on emotion
+function drawFaceExpression(
+  ctx: CanvasRenderingContext2D,
+  pixelSize: number,
+  emotion: CharacterEmotion,
+  isDefeated: boolean
+) {
+  const pixel = (x: number, y: number, color: string) => {
+    ctx.fillStyle = color;
+    ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
+  };
+
+  // Eye positions (base)
+  const leftEyeX = 12;
+  const rightEyeX = 19;
+  const eyeY = 8;
+
+  // Mouth positions
+  const mouthX = 15;
+  const mouthY = 11;
+
+  if (isDefeated || emotion === 'dead') {
+    // X eyes for dead
+    pixel(leftEyeX, eyeY, '#000000');
+    pixel(leftEyeX + 1, eyeY + 1, '#000000');
+    pixel(rightEyeX, eyeY, '#000000');
+    pixel(rightEyeX - 1, eyeY + 1, '#000000');
+    // Frown
+    pixel(mouthX, mouthY, '#000000');
+    pixel(mouthX + 1, mouthY, '#000000');
+    pixel(mouthX + 2, mouthY, '#000000');
+  } else if (emotion === 'victorious' || emotion === 'laughing') {
+    // Happy eyes (squinted)
+    pixel(leftEyeX, eyeY, '#000000');
+    pixel(leftEyeX + 1, eyeY, '#000000');
+    pixel(rightEyeX - 1, eyeY, '#000000');
+    pixel(rightEyeX, eyeY, '#000000');
+    // Big smile
+    pixel(mouthX - 1, mouthY, '#000000');
+    pixel(mouthX, mouthY - 1, '#000000');
+    pixel(mouthX + 1, mouthY - 1, '#000000');
+    pixel(mouthX + 2, mouthY - 1, '#000000');
+    pixel(mouthX + 3, mouthY, '#000000');
+  } else if (emotion === 'happy') {
+    // Normal happy eyes
+    pixel(leftEyeX, eyeY, '#000000');
+    pixel(rightEyeX, eyeY, '#000000');
+    // Smile
+    pixel(mouthX, mouthY, '#000000');
+    pixel(mouthX + 1, mouthY - 1, '#000000');
+    pixel(mouthX + 2, mouthY - 1, '#000000');
+    pixel(mouthX + 3, mouthY, '#000000');
+  } else if (emotion === 'hurt' || emotion === 'sad') {
+    // Sad eyes (slightly down)
+    pixel(leftEyeX, eyeY + 1, '#000000');
+    pixel(rightEyeX, eyeY + 1, '#000000');
+    // Frown
+    pixel(mouthX, mouthY, '#000000');
+    pixel(mouthX + 1, mouthY + 1, '#000000');
+    pixel(mouthX + 2, mouthY + 1, '#000000');
+    pixel(mouthX + 3, mouthY, '#000000');
+  } else if (emotion === 'rage' || emotion === 'frustrated') {
+    // Angry eyes (angled down)
+    pixel(leftEyeX, eyeY, '#000000');
+    pixel(leftEyeX + 1, eyeY + 1, '#000000');
+    pixel(rightEyeX - 1, eyeY + 1, '#000000');
+    pixel(rightEyeX, eyeY, '#000000');
+    // Angry mouth (open/teeth)
+    pixel(mouthX, mouthY, '#000000');
+    pixel(mouthX + 1, mouthY, '#ffffff');
+    pixel(mouthX + 2, mouthY, '#ffffff');
+    pixel(mouthX + 3, mouthY, '#000000');
+  } else if (emotion === 'worried') {
+    // Worried eyes (wide)
+    pixel(leftEyeX - 1, eyeY, '#000000');
+    pixel(leftEyeX, eyeY, '#000000');
+    pixel(leftEyeX + 1, eyeY, '#000000');
+    pixel(rightEyeX - 1, eyeY, '#000000');
+    pixel(rightEyeX, eyeY, '#000000');
+    pixel(rightEyeX + 1, eyeY, '#000000');
+    // Small worried mouth
+    pixel(mouthX + 1, mouthY, '#000000');
+    pixel(mouthX + 2, mouthY, '#000000');
+  } else if (emotion === 'determined') {
+    // Determined eyes (normal, focused)
+    pixel(leftEyeX, eyeY, '#000000');
+    pixel(rightEyeX, eyeY, '#000000');
+    // Neutral/slightly determined mouth
+    pixel(mouthX + 1, mouthY, '#000000');
+    pixel(mouthX + 2, mouthY, '#000000');
+  } else if (emotion === 'triumphant' || emotion === 'excited') {
+    // Triumphant/excited - big smile, bright eyes
+    pixel(leftEyeX, eyeY, '#000000');
+    pixel(leftEyeX + 1, eyeY, '#000000');
+    pixel(rightEyeX - 1, eyeY, '#000000');
+    pixel(rightEyeX, eyeY, '#000000');
+    // Big triumphant smile
+    pixel(mouthX - 1, mouthY - 1, '#000000');
+    pixel(mouthX, mouthY - 1, '#000000');
+    pixel(mouthX + 1, mouthY - 1, '#000000');
+    pixel(mouthX + 2, mouthY - 1, '#000000');
+    pixel(mouthX + 3, mouthY - 1, '#000000');
+    pixel(mouthX + 4, mouthY, '#000000');
+  } else if (emotion === 'confident') {
+    // Confident - slight smile, focused eyes
+    pixel(leftEyeX, eyeY, '#000000');
+    pixel(rightEyeX, eyeY, '#000000');
+    // Confident smile
+    pixel(mouthX, mouthY, '#000000');
+    pixel(mouthX + 1, mouthY - 1, '#000000');
+    pixel(mouthX + 2, mouthY - 1, '#000000');
+    pixel(mouthX + 3, mouthY, '#000000');
+  } else if (emotion === 'surprised') {
+    // Surprised - wide eyes, open mouth
+    pixel(leftEyeX - 1, eyeY, '#000000');
+    pixel(leftEyeX, eyeY, '#000000');
+    pixel(leftEyeX + 1, eyeY, '#000000');
+    pixel(rightEyeX - 1, eyeY, '#000000');
+    pixel(rightEyeX, eyeY, '#000000');
+    pixel(rightEyeX + 1, eyeY, '#000000');
+    // Open surprised mouth (O shape)
+    pixel(mouthX + 1, mouthY - 1, '#000000');
+    pixel(mouthX, mouthY, '#000000');
+    pixel(mouthX + 2, mouthY, '#000000');
+    pixel(mouthX + 1, mouthY + 1, '#000000');
+  } else {
+    // Default: neutral eyes
+    pixel(leftEyeX, eyeY, '#000000');
+    pixel(rightEyeX, eyeY, '#000000');
+    // Neutral mouth
+    pixel(mouthX + 1, mouthY, '#000000');
+    pixel(mouthX + 2, mouthY, '#000000');
+  }
+}
+
+// Draw pixel art character
+function drawPixelCharacter(
+  ctx: CanvasRenderingContext2D,
+  size: number,
+  playerClass: DnDClass,
+  colors: ReturnType<typeof getClassColors>,
+  hpPercent: number,
+  isDefeated: boolean,
+  emotion: CharacterEmotion
+) {
+  const scale = size / 32; // Base sprite is 32x32, scale to desired size
+  const pixelSize = scale;
+
+  // Helper to draw a pixel
+  const pixel = (x: number, y: number, color: string) => {
+    ctx.fillStyle = color;
+    ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
+  };
+
+  // Helper to draw a rectangle of pixels
+  const rect = (x: number, y: number, w: number, h: number, color: string) => {
+    ctx.fillStyle = color;
+    ctx.fillRect(x * pixelSize, y * pixelSize, w * pixelSize, h * pixelSize);
+  };
+
+  // Base character shape (32x32 grid)
+  // Head
+  rect(10, 4, 12, 10, colors.skin);
+  
+  // Hair/Helmet based on class
+  if (playerClass.name === 'Wizard') {
+    // Wizard hat
+    rect(9, 2, 14, 4, colors.primary);
+    rect(8, 1, 16, 2, colors.primary);
+    pixel(7, 0, colors.primary);
+    pixel(24, 0, colors.primary);
+  } else if (playerClass.name === 'Fighter' || playerClass.name === 'Paladin') {
+    // Helmet
+    rect(10, 3, 12, 6, colors.secondary);
+    rect(11, 2, 10, 2, colors.secondary);
+  } else {
+    // Hair
+    rect(9, 3, 14, 5, colors.hair);
+    rect(8, 4, 16, 2, colors.hair);
+  }
+
+  // Draw facial expression based on emotion
+  drawFaceExpression(ctx, pixelSize, emotion, isDefeated);
+
+  // Body/Torso
+  rect(11, 14, 10, 12, colors.primary);
+  
+  // Arms
+  rect(8, 15, 3, 8, colors.skin);
+  rect(21, 15, 3, 8, colors.skin);
+  
+  // Shoulder pads/armor based on AC
+  if (playerClass.armorClass >= 16) {
+    rect(9, 14, 2, 4, colors.secondary);
+    rect(21, 14, 2, 4, colors.secondary);
+  }
+
+  // Legs
+  rect(12, 26, 4, 6, colors.primary);
+  rect(16, 26, 4, 6, colors.primary);
+
+  // Class-specific features
+  if (playerClass.name === 'Wizard') {
+    // Staff
+    rect(22, 10, 1, 18, '#8b5cf6');
+    pixel(22, 9, colors.accent);
+  } else if (playerClass.name === 'Fighter' || playerClass.name === 'Paladin') {
+    // Sword
+    rect(23, 12, 1, 12, '#cbd5e1');
+    rect(24, 12, 2, 2, '#fbbf24');
+  } else if (playerClass.name === 'Rogue') {
+    // Dagger
+    rect(22, 14, 1, 6, '#cbd5e1');
+    pixel(22, 13, '#fbbf24');
+  } else if (playerClass.name === 'Ranger') {
+    // Bow
+    rect(22, 15, 2, 1, '#78350f');
+    rect(24, 14, 1, 3, '#78350f');
+  } else if (playerClass.name === 'Cleric') {
+    // Holy symbol
+    rect(13, 16, 6, 6, colors.accent);
+    pixel(15, 18, '#ffffff');
+    pixel(17, 18, '#ffffff');
+  } else if (playerClass.name === 'Barbarian') {
+    // Axe
+    rect(22, 12, 2, 10, '#1c1917');
+    rect(24, 12, 2, 2, colors.accent);
+  }
+
+  // HP indicator - red overlay when damaged
+  if (hpPercent < 1 && !isDefeated) {
+    const damageOverlay = Math.min(0.3, (1 - hpPercent) * 0.5);
+    ctx.fillStyle = `rgba(220, 38, 38, ${damageOverlay})`;
+    ctx.fillRect(0, 0, size, size);
+  }
+
+  // Stats-based visual indicators
+  // High AC = more armor detail
+  if (playerClass.armorClass >= 17) {
+    rect(11, 18, 10, 2, colors.secondary);
+  }
+
+  // High attack bonus = weapon glow
+  if (playerClass.attackBonus >= 5) {
+    ctx.fillStyle = `rgba(251, 191, 36, 0.3)`;
+    ctx.fillRect(20 * pixelSize, 10 * pixelSize, 6 * pixelSize, 8 * pixelSize);
+  }
+}
+
 // PlayerStats component to eliminate duplicate rendering code
 interface PlayerStatsProps {
   playerClass: DnDClass;
   playerId: 'player1' | 'player2';
   currentTurn: 'player1' | 'player2';
+  characterName: string;
   onAttack: () => void;
   onUseAbility: (index: number) => void;
   shouldShake: boolean;
   shouldSparkle: boolean;
   shouldMiss: boolean;
+  shouldHit: boolean;
   shakeTrigger: number;
   sparkleTrigger: number;
   missTrigger: number;
+  hitTrigger: number;
   isMoveInProgress: boolean;
   isDefeated: boolean;
   isVictor: boolean;
@@ -637,27 +1046,32 @@ interface PlayerStatsProps {
   onShakeComplete: () => void;
   onSparkleComplete: () => void;
   onMissComplete: () => void;
+  onHitComplete: () => void;
 }
 
 function PlayerStats({ 
   playerClass, 
   playerId, 
   currentTurn, 
+  characterName,
   onAttack, 
   onUseAbility,
   shouldShake,
   shouldSparkle,
   shouldMiss,
+  shouldHit,
   shakeTrigger,
   sparkleTrigger,
   missTrigger,
+  hitTrigger,
   isMoveInProgress,
   isDefeated,
   isVictor,
   confettiTrigger,
   onShakeComplete,
   onSparkleComplete,
-  onMissComplete
+  onMissComplete,
+  onHitComplete
 }: PlayerStatsProps) {
   const isActive = currentTurn === playerId && !isDefeated;
   const isDisabled = (isActive && isMoveInProgress) || isDefeated;
@@ -699,6 +1113,16 @@ function PlayerStats({
     return cleanup;
   }, [shouldMiss, missTrigger, onMissComplete]);
 
+  // Apply hit animation (timeout-based - show triumphant expression)
+  useEffect(() => {
+    if (shouldHit && hitTrigger > 0) {
+      const timer = setTimeout(() => {
+        onHitComplete();
+      }, 1000); // Show triumphant expression for 1 second
+      return () => clearTimeout(timer);
+    }
+  }, [shouldHit, hitTrigger, onHitComplete]);
+
   return (
     <div 
       ref={animationRef}
@@ -713,12 +1137,33 @@ function PlayerStats({
       )}
       {isVictor && <Confetti key={confettiTrigger} trigger={confettiTrigger} />}
       {shouldSparkle && <Sparkles key={sparkleTrigger} trigger={sparkleTrigger} />}
-      <h3 className="text-2xl font-bold mb-3 text-amber-100" style={{ fontFamily: 'serif' }}>
-        {playerClass.name}
-        {isActive && ' ⚡'}
-        {isDefeated && ' 💀'}
-        {isVictor && ' 🏆'}
-      </h3>
+      
+      {/* Pixel Art Character */}
+      <div className="mb-4 flex justify-center">
+        <PixelCharacter 
+          playerClass={playerClass} 
+          size={128}
+          isActive={isActive}
+          isDefeated={isDefeated}
+          isVictor={isVictor}
+          shouldShake={shouldShake}
+          shouldSparkle={shouldSparkle}
+          shouldMiss={shouldMiss}
+          shouldHit={shouldHit}
+        />
+      </div>
+      
+      <div className="text-center mb-2">
+        <h3 className="text-2xl font-bold mb-1 text-amber-100" style={{ fontFamily: 'serif' }}>
+          {characterName}
+        </h3>
+        <p className="text-sm text-amber-300 italic">
+          {playerClass.name}
+          {isActive && ' ⚡'}
+          {isDefeated && ' 💀'}
+          {isVictor && ' 🏆'}
+        </p>
+      </div>
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
           <span className="text-amber-300">Hit Points:</span>
@@ -778,6 +1223,8 @@ export default function DnDBattle() {
   const router = useRouter();
   const [player1Class, setPlayer1Class] = useState<DnDClass | null>(null);
   const [player2Class, setPlayer2Class] = useState<DnDClass | null>(null);
+  const [player1Name, setPlayer1Name] = useState<string>('');
+  const [player2Name, setPlayer2Name] = useState<string>('');
   const [battleLog, setBattleLog] = useState<BattleLog[]>([]);
   const [isBattleActive, setIsBattleActive] = useState(false);
   const [currentTurn, setCurrentTurn] = useState<'player1' | 'player2'>('player1');
@@ -793,6 +1240,8 @@ export default function DnDBattle() {
   const [sparkleTrigger, setSparkleTrigger] = useState({ player1: 0, player2: 0 });
   const [missingPlayer, setMissingPlayer] = useState<'player1' | 'player2' | null>(null);
   const [missTrigger, setMissTrigger] = useState({ player1: 0, player2: 0 });
+  const [hittingPlayer, setHittingPlayer] = useState<'player1' | 'player2' | null>(null);
+  const [hitTrigger, setHitTrigger] = useState({ player1: 0, player2: 0 });
   const [isWaitingForAgent, setIsWaitingForAgent] = useState(false);
   const [isMoveInProgress, setIsMoveInProgress] = useState(false);
   const [defeatedPlayer, setDefeatedPlayer] = useState<'player1' | 'player2' | null>(null);
@@ -1471,6 +1920,18 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
       
       setPlayer1Class(p1);
       setPlayer2Class(p2);
+      
+      // Ensure names are set
+      if (!player1Name) {
+        setPlayer1Name(generateCharacterName(p1.name));
+      }
+      if (!player2Name) {
+        setPlayer2Name(generateCharacterName(p2.name));
+      }
+      
+      const finalP1Name = player1Name || generateCharacterName(p1.name);
+      const finalP2Name = player2Name || generateCharacterName(p2.name);
+      
       setIsBattleActive(true);
       setBattleLog([]);
       setCurrentTurn('player1');
@@ -1479,7 +1940,7 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
       setIsWaitingForAgent(true);
       try {
         const { narrative: openingNarrative, responseId } = await getBattleNarrative(
-          `The battle begins between ${p1.name} and ${p2.name}. Both combatants are at full health and ready to fight.`,
+          `The battle begins between ${finalP1Name} (${p1.name}) and ${finalP2Name} (${p2.name}). Both combatants are at full health and ready to fight.`,
           p1,
           p2,
           '', // Class details no longer needed
@@ -1521,6 +1982,10 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
       // Update the defender's HP
       const defender = attacker === 'player1' ? 'player2' : 'player1';
       updatePlayerHP(defender, newHP);
+      
+      // Trigger hit animation on attacker (they're happy!)
+      setHittingPlayer(attacker);
+      setHitTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
       
       // Trigger shake animation on defender
       setShakingPlayer(defender);
@@ -1659,6 +2124,10 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
         const defender = attacker === 'player1' ? 'player2' : 'player1';
         updatePlayerHP(defender, newHP);
         
+        // Trigger hit animation on attacker (they're happy!)
+        setHittingPlayer(attacker);
+        setHitTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
+        
         // Trigger shake animation on defender
         setShakingPlayer(defender);
 
@@ -1730,6 +2199,10 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
           const defender = attacker === 'player1' ? 'player2' : 'player1';
           updatePlayerHP(defender, newHP);
           
+          // Trigger hit animation on attacker (they're happy!)
+          setHittingPlayer(attacker);
+          setHitTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
+          
           // Trigger shake animation on defender
           setShakingPlayer(defender);
       
@@ -1781,6 +2254,10 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
         const defender = attacker === 'player1' ? 'player2' : 'player1';
         updatePlayerHP(defender, newHP);
         
+        // Trigger hit animation on attacker (they're happy!)
+        setHittingPlayer(attacker);
+        setHitTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
+        
         // Trigger shake animation on defender
         setShakingPlayer(defender);
 
@@ -1814,11 +2291,24 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
     setIsMoveInProgress(false);
   };
 
+  // Wrapper functions to generate names when classes are selected
+  const handlePlayer1Select = useCallback((dndClass: DnDClass) => {
+    setPlayer1Class(dndClass);
+    setPlayer1Name(generateCharacterName(dndClass.name));
+  }, []);
+
+  const handlePlayer2Select = useCallback((dndClass: DnDClass) => {
+    setPlayer2Class(dndClass);
+    setPlayer2Name(generateCharacterName(dndClass.name));
+  }, []);
+
   const resetBattle = () => {
     setIsBattleActive(false);
     setBattleLog([]);
     setPlayer1Class(null);
     setPlayer2Class(null);
+    setPlayer1Name('');
+    setPlayer2Name('');
     setClassDetails({});
     setBattleResponseId(null);
     setIsMoveInProgress(false);
@@ -1826,6 +2316,8 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
     setVictorPlayer(null);
     setMissingPlayer(null);
     setMissTrigger({ player1: 0, player2: 0 });
+    setHittingPlayer(null);
+    setHitTrigger({ player1: 0, player2: 0 });
   };
 
   return (
@@ -1913,13 +2405,13 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
                   title="Combatant 1"
                   availableClasses={availableClasses}
                   selectedClass={player1Class}
-                  onSelect={setPlayer1Class}
+                  onSelect={handlePlayer1Select}
                 />
                 <ClassSelection
                   title="Combatant 2"
                   availableClasses={availableClasses}
                   selectedClass={player2Class}
-                  onSelect={setPlayer2Class}
+                  onSelect={handlePlayer2Select}
                 />
               </div>
 
@@ -1972,14 +2464,17 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
                 playerClass={player1Class}
                 playerId="player1"
                 currentTurn={currentTurn}
+                characterName={player1Name || generateCharacterName(player1Class.name)}
                 onAttack={() => performAttack('player1')}
                 onUseAbility={(idx) => useAbility('player1', idx)}
                 shouldShake={shakingPlayer === 'player1'}
                 shouldSparkle={sparklingPlayer === 'player1'}
                 shouldMiss={missingPlayer === 'player1'}
+                shouldHit={hittingPlayer === 'player1'}
                 shakeTrigger={shakeTrigger.player1}
                 sparkleTrigger={sparkleTrigger.player1}
                 missTrigger={missTrigger.player1}
+                hitTrigger={hitTrigger.player1}
                 isMoveInProgress={isMoveInProgress}
                 isDefeated={defeatedPlayer === 'player1'}
                 isVictor={victorPlayer === 'player1'}
@@ -1987,19 +2482,23 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
                 onShakeComplete={() => setShakingPlayer(null)}
                 onSparkleComplete={() => setSparklingPlayer(null)}
                 onMissComplete={() => setMissingPlayer(null)}
+                onHitComplete={() => setHittingPlayer(null)}
               />
               <PlayerStats
                 playerClass={player2Class}
                 playerId="player2"
                 currentTurn={currentTurn}
+                characterName={player2Name || generateCharacterName(player2Class.name)}
                 onAttack={() => performAttack('player2')}
                 onUseAbility={(idx) => useAbility('player2', idx)}
                 shouldShake={shakingPlayer === 'player2'}
                 shouldSparkle={sparklingPlayer === 'player2'}
                 shouldMiss={missingPlayer === 'player2'}
+                shouldHit={hittingPlayer === 'player2'}
                 shakeTrigger={shakeTrigger.player2}
                 sparkleTrigger={sparkleTrigger.player2}
                 missTrigger={missTrigger.player2}
+                hitTrigger={hitTrigger.player2}
                 isMoveInProgress={isMoveInProgress}
                 isDefeated={defeatedPlayer === 'player2'}
                 isVictor={victorPlayer === 'player2'}
@@ -2007,6 +2506,7 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
                 onShakeComplete={() => setShakingPlayer(null)}
                 onSparkleComplete={() => setSparklingPlayer(null)}
                 onMissComplete={() => setMissingPlayer(null)}
+                onHitComplete={() => setHittingPlayer(null)}
               />
             </div>
           )}
