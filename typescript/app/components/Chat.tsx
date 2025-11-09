@@ -507,7 +507,7 @@ export default function Chat() {
             onClick={() => {
               const newCount = easterEggClicks + 1;
               setEasterEggClicks(newCount);
-              if (newCount >= 5) {
+              if (newCount >= 3) {
                 router.push('/dnd');
                 setEasterEggClicks(0);
               }
