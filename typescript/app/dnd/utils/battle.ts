@@ -70,9 +70,9 @@ export function createHealingVisualEffects(
  */
 export function buildDamageDiceArray(
   baseDamageDice: string,
-  bonusDamageDice?: string,
   rollDiceWithNotation: (notation: string) => number,
-  parseDiceNotation: (notation: string) => { dice: string; modifier: number }
+  parseDiceNotation: (notation: string) => { dice: string; modifier: number },
+  bonusDamageDice?: string
 ): { diceArray: Array<{ diceType: string; result: number }>; totalDamage: number } {
   const { dice } = parseDiceNotation(baseDamageDice);
   let damage = rollDiceWithNotation(baseDamageDice);

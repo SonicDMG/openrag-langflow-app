@@ -681,9 +681,9 @@ export default function DnDBattle() {
         diceToShow.push({ diceType: 'd20', result: d20Roll });
         const { diceArray, totalDamage: damage } = buildDamageDiceArray(
           attackAbility.damageDice,
-          attackAbility.bonusDamageDice,
           rollDiceWithNotation,
-          parseDiceNotation
+          parseDiceNotation,
+          attackAbility.bonusDamageDice
         );
         diceToShow.push(...diceArray);
         damages.push(damage);
@@ -764,9 +764,9 @@ export default function DnDBattle() {
     if (attackRoll >= defenderClass.armorClass) {
       const { diceArray, totalDamage: damage } = buildDamageDiceArray(
         attackAbility.damageDice,
-        attackAbility.bonusDamageDice,
         rollDiceWithNotation,
-        parseDiceNotation
+        parseDiceNotation,
+        attackAbility.bonusDamageDice
       );
       const diceToShow: Array<{ diceType: string; result: number }> = [
         { diceType: 'd20', result: d20Roll },
@@ -826,9 +826,9 @@ export default function DnDBattle() {
   ) => {
     const { diceArray, totalDamage: damage } = buildDamageDiceArray(
       attackAbility.damageDice,
-      attackAbility.bonusDamageDice,
       rollDiceWithNotation,
-      parseDiceNotation
+      parseDiceNotation,
+      attackAbility.bonusDamageDice
     );
     const defender = getOpponent(attacker);
     const newHP = Math.max(0, defenderClass.hitPoints - damage);
