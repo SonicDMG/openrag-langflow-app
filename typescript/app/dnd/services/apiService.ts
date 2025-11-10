@@ -1,5 +1,5 @@
 import { DnDClass, Ability } from '../types';
-import { CLASS_COLORS, CLASS_ICONS, FALLBACK_ABILITIES } from '../constants';
+import { CLASS_COLORS, CLASS_ICONS, FALLBACK_ABILITIES, MONSTER_ICONS } from '../constants';
 import { extractJsonFromResponse, parseSSEResponse } from '../utils/api';
 
 // Fetch all available D&D classes from OpenRAG
@@ -321,6 +321,311 @@ Important rules:
   }
 }
 
+// Fetch all available D&D monsters from OpenRAG
+export async function fetchAvailableMonsters(
+  addLog: (type: 'system' | 'narrative', message: string) => void
+): Promise<{ monsterNames: string[]; response: string }> {
+  try {
+    const query = `What are the available DnD monsters? Return only a JSON array of monster names, like ["Goblin", "Orc", "Dragon", "Troll", ...]. Do not include any other text, just the JSON array.`;
+    
+    addLog('system', '🔍 Querying OpenRAG for available D&D monsters...');
+    
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: query,
+        previousResponseId: null,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('No response body');
+    }
+
+    const { content } = await parseSSEResponse(reader);
+    
+    // Log the agent response
+    addLog('narrative', `**OpenRAG Response (Monster List):**\n\n${content}`);
+    
+    // Try to extract JSON array from response
+    let jsonString = content.trim();
+    // Remove markdown code block markers if present
+    jsonString = jsonString.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+    
+    // Find JSON array in the response
+    const arrayMatch = jsonString.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
+      try {
+        const parsed = JSON.parse(arrayMatch[0]);
+        if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+          return { monsterNames: parsed, response: content };
+        }
+      } catch {
+        // Continue to fallback
+      }
+    }
+    
+    // Fallback: try to parse the whole response
+    try {
+      const parsed = JSON.parse(jsonString);
+      if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+        return { monsterNames: parsed, response: content };
+      }
+    } catch {
+      // If parsing fails, return empty array
+    }
+    
+    console.warn('Could not parse monster list from response:', content.substring(0, 200));
+    return { monsterNames: [], response: content };
+  } catch (error) {
+    console.error('Error fetching available monsters:', error);
+    addLog('system', `❌ Error fetching monsters: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return { monsterNames: [], response: '' };
+  }
+}
+
+// Fetch monster stats from OpenRAG
+export async function fetchMonsterStats(
+  monsterName: string,
+  addLog: (type: 'system' | 'narrative', message: string) => void
+): Promise<{ stats: Partial<DnDClass> | null; response: string }> {
+  try {
+    const query = `For the DnD ${monsterName} monster, provide the following information in JSON format:
+{
+  "hitPoints": number (typical HP for this monster, appropriate for a challenging encounter),
+  "armorClass": number (typical AC, between 10-20),
+  "attackBonus": number (typical attack bonus modifier, between 2-8),
+  "damageDie": string (typical weapon damage die like "d6", "d8", "d10", or "d12"),
+  "description": string (brief 1-2 sentence description of the monster)
+}
+
+Return ONLY valid JSON, no other text. Use typical values for a challenging but fair encounter.`;
+    
+    addLog('system', `🔍 Querying OpenRAG for ${monsterName} monster stats...`);
+    
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: query,
+        previousResponseId: null,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('No response body');
+    }
+
+    const { content } = await parseSSEResponse(reader);
+    
+    // Log the agent response
+    addLog('narrative', `**OpenRAG Response (${monsterName} Stats):**\n\n${content}`);
+    
+    // Extract JSON from response using utility function
+    const statsJsonString = extractJsonFromResponse(
+      content,
+      ['hitPoints', 'armorClass', 'attackBonus', 'damageDie'], // required fields
+      ['search_query'] // exclude fields
+    );
+    
+    if (statsJsonString) {
+      try {
+        const parsed = JSON.parse(statsJsonString);
+        // Normalize damageDie format (convert "1d6" to "d6" for consistency)
+        let damageDie = parsed.damageDie || 'd8';
+        if (damageDie.match(/^\d+d\d+$/)) {
+          damageDie = 'd' + damageDie.split('d')[1];
+        }
+        
+        return {
+          stats: {
+            hitPoints: parsed.hitPoints || 30,
+            maxHitPoints: parsed.hitPoints || 30,
+            armorClass: parsed.armorClass || 14,
+            attackBonus: parsed.attackBonus || 4,
+            damageDie: damageDie,
+            description: parsed.description || `A ${monsterName} monster.`,
+          },
+          response: content,
+        };
+      } catch (parseError) {
+        console.warn(`Error parsing stats JSON for ${monsterName}:`, parseError);
+        // Try to extract partial data even if JSON is incomplete
+        const hitPointsMatch = statsJsonString.match(/"hitPoints"\s*:\s*(\d+)/);
+        const armorClassMatch = statsJsonString.match(/"armorClass"\s*:\s*(\d+)/);
+        const attackBonusMatch = statsJsonString.match(/"attackBonus"\s*:\s*(\d+)/);
+        const damageDieMatch = statsJsonString.match(/"damageDie"\s*:\s*"([^"]+)"/);
+        const descriptionMatch = statsJsonString.match(/"description"\s*:\s*"([^"]*)"/);
+        
+        if (hitPointsMatch || armorClassMatch) {
+          let damageDie = damageDieMatch ? damageDieMatch[1] : 'd8';
+          // Normalize damageDie format
+          if (damageDie.match(/^\d+d\d+$/)) {
+            damageDie = 'd' + damageDie.split('d')[1];
+          }
+          
+          return {
+            stats: {
+              hitPoints: hitPointsMatch ? parseInt(hitPointsMatch[1]) : 30,
+              maxHitPoints: hitPointsMatch ? parseInt(hitPointsMatch[1]) : 30,
+              armorClass: armorClassMatch ? parseInt(armorClassMatch[1]) : 14,
+              attackBonus: attackBonusMatch ? parseInt(attackBonusMatch[1]) : 4,
+              damageDie: damageDie,
+              description: descriptionMatch ? descriptionMatch[1] : `A ${monsterName} monster.`,
+            },
+            response: content,
+          };
+        }
+      }
+    }
+    
+    console.warn(`Could not parse stats for ${monsterName}:`, content.substring(0, 200));
+    return { stats: null, response: content };
+  } catch (error) {
+    console.error(`Error fetching stats for ${monsterName}:`, error);
+    addLog('system', `❌ Error fetching stats for ${monsterName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return { stats: null, response: '' };
+  }
+}
+
+// Extract structured abilities for monsters directly from the knowledge base
+export async function extractMonsterAbilities(monsterName: string): Promise<Ability[]> {
+  try {
+    // Ask the AI to return a random selection of abilities in a structured JSON format
+    // Randomly select 1-3 attack abilities and 0-1 healing abilities to keep responses small
+    const numAttacks = Math.floor(Math.random() * 3) + 1; // 1-3
+    const numHeals = Math.floor(Math.random() * 2); // 0-1 (monsters rarely heal)
+    
+    const extractionPrompt = `You are a D&D expert. From the D&D knowledge base, find information about the ${monsterName} monster and select abilities.
+
+Return your response as a JSON object with this exact structure:
+{
+  "abilities": [
+    {
+      "name": "Ability Name",
+      "type": "attack" or "healing",
+      "damageDice": "XdY" (for attacks, e.g., "1d10", "3d6", "2d8"),
+      "attackRoll": true or false (for attacks: true if requires attack roll, false if automatic damage),
+      "attacks": number (optional, for multi-attack abilities, default: 1),
+      "bonusDamageDice": "XdY" (optional, for attacks with bonus damage),
+      "healingDice": "XdY+Z" (for healing abilities, e.g., "1d8+3", "2d4+2"),
+      "description": "Brief description of the ability"
+    }
+  ]
+}
+
+Important rules:
+- For attack abilities: include "damageDice" and "attackRoll" fields
+- For healing abilities: include "healingDice" field
+- Use standard D&D dice notation (e.g., "1d10", "3d6", "2d8+4")
+- Return ONLY valid JSON, no other text before or after
+- Try to randomly select ${numAttacks} attack ability/abilities and ${numHeals} healing ability/abilities, but if the monster doesn't have that many of a type, just return what's available
+- If the monster has no attack abilities, return only healing abilities (and vice versa)
+- If the monster has no abilities of either type, return an empty abilities array: {"abilities": []}
+- It's OK if you can't find all requested abilities - just provide what's available for this monster`;
+
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: extractionPrompt,
+        previousResponseId: null,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+
+    if (!reader) {
+      throw new Error('No response body');
+    }
+
+    const { content: accumulatedResponse } = await parseSSEResponse(reader);
+
+    // Extract JSON from response using utility function
+    const abilitiesJsonString = extractJsonFromResponse(
+      accumulatedResponse,
+      ['abilities'] // required field
+    );
+    
+    if (!abilitiesJsonString) {
+      console.error('No JSON object with "abilities" field found. Full response:', accumulatedResponse.substring(0, 200) + '...');
+      console.warn(`Using fallback abilities for ${monsterName}`);
+      return FALLBACK_ABILITIES[monsterName] || [];
+    }
+    
+
+    try {
+      const parsed = JSON.parse(abilitiesJsonString);
+      if (parsed.abilities && Array.isArray(parsed.abilities)) {
+        // Validate and normalize abilities
+        const validAbilities: Ability[] = [];
+        
+        for (const ability of parsed.abilities) {
+          if (ability.type === 'attack' && ability.name && ability.damageDice) {
+            validAbilities.push({
+              name: ability.name,
+              type: 'attack',
+              damageDice: ability.damageDice,
+              attackRoll: ability.attackRoll !== undefined ? ability.attackRoll : true,
+              attacks: ability.attacks || 1,
+              bonusDamageDice: ability.bonusDamageDice,
+              description: ability.description || '',
+            } as Ability);
+          } else if (ability.type === 'healing' && ability.name && ability.healingDice) {
+            validAbilities.push({
+              name: ability.name,
+              type: 'healing',
+              healingDice: ability.healingDice,
+              description: ability.description || '',
+            } as Ability);
+          } else {
+            console.warn('Skipping invalid ability:', ability);
+          }
+        }
+        
+        if (validAbilities.length > 0) {
+          return validAbilities;
+        }
+      }
+      // If we parsed successfully but got no valid abilities, use fallback
+      console.warn('Parsed JSON but found no valid abilities:', parsed);
+      console.warn(`Using fallback abilities for ${monsterName}`);
+      return FALLBACK_ABILITIES[monsterName] || [];
+    } catch (parseError) {
+      console.error('Error parsing JSON from AI response:', parseError);
+      console.error('Extracted JSON string was:', abilitiesJsonString);
+      console.error('Full response was:', accumulatedResponse.substring(0, 200) + '...');
+      console.warn(`Using fallback abilities for ${monsterName}`);
+      return FALLBACK_ABILITIES[monsterName] || [];
+    }
+  } catch (error) {
+    console.error('Error extracting monster abilities:', error);
+    console.warn(`Using fallback abilities for ${monsterName}`);
+    return FALLBACK_ABILITIES[monsterName] || [];
+  }
+}
+
 // Get AI-generated battle narrative from Langflow API
 // Returns both the narrative text and the response ID for conversation continuity
 export async function getBattleNarrative(
@@ -336,18 +641,24 @@ export async function getBattleNarrative(
       return { narrative: eventDescription, responseId: previousResponseId };
     }
 
-    const prompt = `A D&D battle is happening between a ${attackerClass.name} and a ${defenderClass.name}.
+    // Determine if participants are classes or monsters (heuristic: check if name is in monster icons)
+    const attackerIsMonster = MONSTER_ICONS[attackerClass.name] !== undefined;
+    const defenderIsMonster = MONSTER_ICONS[defenderClass.name] !== undefined;
+    const attackerType = attackerIsMonster ? 'monster' : 'class';
+    const defenderType = defenderIsMonster ? 'monster' : 'class';
+
+    const prompt = `A D&D battle is happening between a ${attackerClass.name} ${attackerType} and a ${defenderClass.name} ${defenderType}.
 
 Current battle state:
 - ${attackerClass.name}: ${attackerClass.hitPoints}/${attackerClass.maxHitPoints} HP, AC ${attackerClass.armorClass}
 - ${defenderClass.name}: ${defenderClass.hitPoints}/${defenderClass.maxHitPoints} HP, AC ${defenderClass.armorClass}
 
-${attackerDetails ? `\n${attackerClass.name} class information:\n${attackerDetails}` : ''}
-${defenderDetails ? `\n${defenderClass.name} class information:\n${defenderDetails}` : ''}
+${attackerDetails ? `\n${attackerClass.name} ${attackerType} information:\n${attackerDetails}` : ''}
+${defenderDetails ? `\n${defenderClass.name} ${defenderType} information:\n${defenderDetails}` : ''}
 
 Battle event: ${eventDescription}
 
-Provide a brief, dramatic narrative description (2-3 sentences) of this battle event. Make it exciting and descriptive, incorporating the class abilities and combat styles.`;
+Provide a brief, dramatic narrative description (2-3 sentences) of this battle event. Make it exciting and descriptive, incorporating the ${attackerType} and ${defenderType} abilities and combat styles.`;
 
     const response = await fetch('/api/chat', {
       method: 'POST',

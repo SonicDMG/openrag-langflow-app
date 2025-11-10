@@ -2,7 +2,8 @@
 
 import { useRef, useEffect } from 'react';
 import { DnDClass, CharacterEmotion } from '../types';
-import { getClassColors, drawPixelCharacter } from '../utils/pixelArt';
+import { getClassColors, getMonsterColors, drawPixelCharacter, drawMonsterPixelArt } from '../utils/pixelArt';
+import { MONSTER_ICONS } from '../constants';
 
 // Pixel Character Component - Renders retro pixel art based on class and stats
 interface PixelCharacterProps {
@@ -21,7 +22,7 @@ interface PixelCharacterProps {
 
 export function PixelCharacter({ 
   playerClass, 
-  size = 128,
+  size = 256,
   emotion,
   isActive = false,
   isDefeated = false,
@@ -133,13 +134,19 @@ export function PixelCharacter({
     ctx.fillStyle = 'transparent';
     ctx.fillRect(0, 0, size, size);
 
-    // Get class-specific colors
-    const classColors = getClassColors(playerClass.name);
+    // Check if this is a monster or a class
+    const isMonster = MONSTER_ICONS[playerClass.name] !== undefined;
     const hpPercent = playerClass.hitPoints / playerClass.maxHitPoints;
     const currentEmotion = determineEmotion();
 
-    // Draw character based on class
-    drawPixelCharacter(ctx, size, playerClass, classColors, hpPercent, isDefeated, currentEmotion);
+    // Draw character based on type (monster or class)
+    if (isMonster) {
+      const monsterColors = getMonsterColors(playerClass.name);
+      drawMonsterPixelArt(ctx, size, playerClass, monsterColors, hpPercent, isDefeated, currentEmotion);
+    } else {
+      const classColors = getClassColors(playerClass.name);
+      drawPixelCharacter(ctx, size, playerClass, classColors, hpPercent, isDefeated, currentEmotion);
+    }
   }, [playerClass, size, emotion, isActive, isDefeated, isVictor, shouldShake, shouldSparkle, shouldMiss, shouldHit, shouldSurprise]);
 
   return (

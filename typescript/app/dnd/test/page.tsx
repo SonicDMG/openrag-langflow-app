@@ -4,11 +4,12 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { DnDClass, BattleLog, CharacterEmotion } from '../types';
-import { FALLBACK_CLASSES } from '../constants';
+import { FALLBACK_CLASSES, FALLBACK_MONSTERS, MONSTER_ICONS, CLASS_ICONS } from '../constants';
 import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../utils/dice';
 import { generateCharacterName } from '../utils/names';
 import { DiceRoll } from '../components/DiceRoll';
 import { PlayerStats } from '../components/PlayerStats';
+import { ClassSelection } from '../components/ClassSelection';
 import { useAIOpponent } from '../hooks/useAIOpponent';
 
 // Mock battle narrative generator (doesn't call agent)
@@ -18,6 +19,13 @@ const mockBattleNarrative = (eventDescription: string): string => {
 
 export default function DnDTestPage() {
   const router = useRouter();
+  
+  // Type selection for player 2 only (player 1 is always a class)
+  const [player2Type, setPlayer2Type] = useState<'class' | 'monster'>('class');
+  
+  // Pagination for monster selection
+  const [monsterPage, setMonsterPage] = useState(0);
+  const monstersPerPage = 12;
   
   // Test player setup
   const [player1Class, setPlayer1Class] = useState<DnDClass>(() => ({
@@ -60,6 +68,45 @@ export default function DnDTestPage() {
     ],
   }));
   
+  // Helper to create a test class/monster with test abilities
+  const createTestEntity = useCallback((entity: DnDClass): DnDClass => {
+    return {
+      ...entity,
+      hitPoints: entity.maxHitPoints,
+      abilities: [
+        {
+          name: 'Test Attack',
+          type: 'attack',
+          damageDice: '2d6',
+          attackRoll: true,
+          description: 'A test attack ability',
+        },
+        {
+          name: 'Test Heal',
+          type: 'healing',
+          healingDice: '1d8+3',
+          description: 'A test healing ability',
+        },
+      ],
+    };
+  }, []);
+  
+  // Handle player 1 selection
+  const handlePlayer1Select = useCallback((entity: DnDClass) => {
+    setPlayer1Class(createTestEntity(entity));
+    // For monsters, use the monster type name directly; for classes, generate a name
+    const isMonster = MONSTER_ICONS[entity.name] !== undefined;
+    setPlayer1Name(isMonster ? entity.name : generateCharacterName(entity.name));
+  }, [createTestEntity]);
+  
+  // Handle player 2 selection
+  const handlePlayer2Select = useCallback((entity: DnDClass) => {
+    setPlayer2Class(createTestEntity(entity));
+    // For monsters, use the monster type name directly; for classes, generate a name
+    const isMonster = MONSTER_ICONS[entity.name] !== undefined;
+    setPlayer2Name(isMonster ? entity.name : generateCharacterName(entity.name));
+  }, [createTestEntity]);
+  
   // Initialize names as null to prevent hydration mismatch
   // Names will be generated on the client side only
   const [player1Name, setPlayer1Name] = useState<string | null>(null);
@@ -67,8 +114,10 @@ export default function DnDTestPage() {
   
   // Generate names only on client side to avoid hydration mismatch
   useEffect(() => {
-    setPlayer1Name(generateCharacterName(player1Class.name));
-    setPlayer2Name(generateCharacterName(player2Class.name));
+    const isP1Monster = MONSTER_ICONS[player1Class.name] !== undefined;
+    const isP2Monster = MONSTER_ICONS[player2Class.name] !== undefined;
+    setPlayer1Name(isP1Monster ? player1Class.name : generateCharacterName(player1Class.name));
+    setPlayer2Name(isP2Monster ? player2Class.name : generateCharacterName(player2Class.name));
   }, [player1Class.name, player2Class.name]);
   const [battleLog, setBattleLog] = useState<BattleLog[]>([]);
   const [currentTurn, setCurrentTurn] = useState<'player1' | 'player2'>('player1');
@@ -659,6 +708,125 @@ export default function DnDTestPage() {
                 </p>
               </div>
             )}
+          </div>
+
+          {/* Character Selection */}
+          <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl">
+            <h2 className="text-2xl font-bold mb-4 text-amber-100" style={{ fontFamily: 'serif' }}>
+              Select Characters
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Player 1 Selection - Always a Class */}
+              <div className="bg-amber-800/50 border-2 border-amber-700 rounded-lg p-4">
+                <h3 className="text-lg font-semibold mb-3 text-amber-200">Player 1 (Class)</h3>
+                <ClassSelection
+                  title="Select Class"
+                  availableClasses={FALLBACK_CLASSES}
+                  selectedClass={player1Class}
+                  onSelect={handlePlayer1Select}
+                />
+              </div>
+
+              {/* Player 2 Selection - Can be Class or Monster */}
+              <div className="bg-amber-800/50 border-2 border-amber-700 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-lg font-semibold text-amber-200">Player 2</h3>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setPlayer2Type('class');
+                        setMonsterPage(0);
+                        const firstClass = FALLBACK_CLASSES[1];
+                        setPlayer2Class(createTestEntity(firstClass));
+                        setPlayer2Name(generateCharacterName(firstClass.name));
+                      }}
+                      className={`px-3 py-1 text-xs rounded border transition-all ${
+                        player2Type === 'class'
+                          ? 'bg-blue-800 text-white border-blue-600'
+                          : 'bg-amber-800/50 text-amber-300 border-amber-700 hover:bg-amber-700'
+                      }`}
+                    >
+                      Class
+                    </button>
+                    <button
+                      onClick={() => {
+                        setPlayer2Type('monster');
+                        setMonsterPage(0);
+                        const firstMonster = FALLBACK_MONSTERS[0];
+                        setPlayer2Class(createTestEntity(firstMonster));
+                        setPlayer2Name(firstMonster.name); // Monsters use their type name directly
+                      }}
+                      className={`px-3 py-1 text-xs rounded border transition-all ${
+                        player2Type === 'monster'
+                          ? 'bg-red-800 text-white border-red-600'
+                          : 'bg-amber-800/50 text-amber-300 border-amber-700 hover:bg-amber-700'
+                      }`}
+                    >
+                      Monster
+                    </button>
+                  </div>
+                </div>
+                {player2Type === 'class' ? (
+                  <ClassSelection
+                    title="Select Class"
+                    availableClasses={FALLBACK_CLASSES}
+                    selectedClass={player2Class}
+                    onSelect={handlePlayer2Select}
+                  />
+                ) : (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3 text-amber-200">Select Monster</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-2 mb-3">
+                      {FALLBACK_MONSTERS.slice(monsterPage * monstersPerPage, (monsterPage + 1) * monstersPerPage).map((monster) => {
+                        const icon = MONSTER_ICONS[monster.name] || '👹';
+                        return (
+                          <button
+                            key={monster.name}
+                            onClick={() => handlePlayer2Select(createTestEntity(monster))}
+                            className={`py-2 px-3 rounded-lg border-2 transition-all flex flex-col items-center gap-1 ${
+                              player2Class?.name === monster.name
+                                ? 'border-amber-400 bg-amber-800 shadow-lg scale-105'
+                                : 'border-amber-700 bg-amber-900/50 hover:bg-amber-800 hover:border-amber-600'
+                            }`}
+                          >
+                            <span 
+                              className="text-2xl leading-none"
+                              style={{ 
+                                imageRendering: 'pixelated' as const,
+                                filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.3))'
+                              }}
+                            >
+                              {icon}
+                            </span>
+                            <div className="font-bold text-xs text-amber-100 text-center">{monster.name}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {/* Pagination Controls */}
+                    <div className="flex items-center justify-between mt-3">
+                      <button
+                        onClick={() => setMonsterPage(prev => Math.max(0, prev - 1))}
+                        disabled={monsterPage === 0}
+                        className="px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-sm rounded border border-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                      >
+                        ← Previous
+                      </button>
+                      <span className="text-amber-300 text-sm">
+                        Page {monsterPage + 1} of {Math.ceil(FALLBACK_MONSTERS.length / monstersPerPage)}
+                      </span>
+                      <button
+                        onClick={() => setMonsterPage(prev => Math.min(Math.ceil(FALLBACK_MONSTERS.length / monstersPerPage) - 1, prev + 1))}
+                        disabled={monsterPage >= Math.ceil(FALLBACK_MONSTERS.length / monstersPerPage) - 1}
+                        className="px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-sm rounded border border-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                      >
+                        Next →
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Player Stats */}

@@ -10,7 +10,7 @@ import remarkGfm from 'remark-gfm';
 import { DnDClass, BattleLog, AttackAbility, CharacterEmotion, Ability } from '../dnd/types';
 
 // Constants
-import { FALLBACK_CLASSES, CLASS_COLORS, FALLBACK_ABILITIES, CLASS_ICONS } from '../dnd/constants';
+import { FALLBACK_CLASSES, FALLBACK_MONSTERS, CLASS_COLORS, FALLBACK_ABILITIES, CLASS_ICONS, MONSTER_ICONS, MONSTER_COLORS } from '../dnd/constants';
 
 // Utilities
 import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../dnd/utils/dice';
@@ -29,7 +29,7 @@ import {
 import { useAIOpponent } from '../dnd/hooks/useAIOpponent';
 
 // Services
-import { fetchAvailableClasses, fetchClassStats, extractAbilities, getBattleNarrative } from '../dnd/services/apiService';
+import { fetchAvailableClasses, fetchClassStats, extractAbilities, getBattleNarrative, fetchAvailableMonsters, fetchMonsterStats, extractMonsterAbilities } from '../dnd/services/apiService';
 
 // Components
 import { ClassSelection } from '../dnd/components/ClassSelection';
@@ -49,6 +49,12 @@ export default function DnDBattle() {
   const [availableClasses, setAvailableClasses] = useState<DnDClass[]>(FALLBACK_CLASSES);
   const [isLoadingClasses, setIsLoadingClasses] = useState(false);
   const [classesLoaded, setClassesLoaded] = useState(false);
+  const [availableMonsters, setAvailableMonsters] = useState<DnDClass[]>(FALLBACK_MONSTERS);
+  const [isLoadingMonsters, setIsLoadingMonsters] = useState(false);
+  const [monstersLoaded, setMonstersLoaded] = useState(false);
+  const [opponentType, setOpponentType] = useState<'class' | 'monster'>('class');
+  const [monsterPage, setMonsterPage] = useState(0);
+  const monstersPerPage = 12;
   const [classDetails, setClassDetails] = useState<Record<string, string>>({});
   const [isLoadingClassDetails, setIsLoadingClassDetails] = useState(false);
   const [battleResponseId, setBattleResponseId] = useState<string | null>(null);
@@ -426,8 +432,19 @@ export default function DnDBattle() {
       addLog('system', `✅ Found ${classNames.length} classes: ${classNames.join(', ')}`);
       addLog('system', `📋 Fetching stats for ${classNames.length} classes...`);
 
-      // Fetch stats for each class
+      // Create a map of fallback classes for quick lookup
+      const fallbackClassMap = new Map(FALLBACK_CLASSES.map(c => [c.name, c]));
+      
+      // Fetch stats for each class, using fallback as default
       const classPromises = classNames.map(async (className) => {
+        const fallback = fallbackClassMap.get(className);
+        
+        // If we have a fallback, use it as default (no need to query OpenRAG)
+        if (fallback) {
+          return fallback;
+        }
+        
+        // Only query OpenRAG for classes not in our fallback list
         const { stats, response: statsResponse } = await fetchClassStats(className, addLog);
         if (stats) {
           return {
@@ -447,10 +464,17 @@ export default function DnDBattle() {
 
       const loadedClasses = (await Promise.all(classPromises)).filter((cls): cls is DnDClass => cls !== null);
       
-      if (loadedClasses.length > 0) {
-        setAvailableClasses(loadedClasses);
-        addLog('system', `✅ Successfully loaded ${loadedClasses.length} classes from OpenRAG: ${loadedClasses.map(c => c.name).join(', ')}`);
-        console.log(`Loaded ${loadedClasses.length} classes from OpenRAG:`, loadedClasses.map(c => c.name).join(', '));
+      // Merge with fallback classes to ensure all known classes are available
+      const allClasses = new Map<string, DnDClass>();
+      FALLBACK_CLASSES.forEach(c => allClasses.set(c.name, c));
+      loadedClasses.forEach(c => allClasses.set(c.name, c));
+      
+      const finalClasses = Array.from(allClasses.values());
+      
+      if (finalClasses.length > 0) {
+        setAvailableClasses(finalClasses);
+        addLog('system', `✅ Successfully loaded ${finalClasses.length} classes (${loadedClasses.length} from OpenRAG, ${FALLBACK_CLASSES.length} from defaults)`);
+        console.log(`Loaded ${finalClasses.length} classes:`, finalClasses.map(c => c.name).join(', '));
       } else {
         console.warn('No classes could be loaded, using fallback classes');
         addLog('system', '⚠️ No classes could be loaded, using fallback classes');
@@ -464,6 +488,84 @@ export default function DnDBattle() {
       setClassesLoaded(true);
     } finally {
       setIsLoadingClasses(false);
+    }
+  };
+
+  // Load all monsters from OpenRAG (called manually via button)
+  const loadMonstersFromOpenRAG = async () => {
+    setIsLoadingMonsters(true);
+    addLog('system', '🚀 Starting to load monsters from OpenRAG...');
+    try {
+      const { monsterNames, response: monsterListResponse } = await fetchAvailableMonsters(addLog);
+      
+      if (monsterNames.length === 0) {
+        console.warn('No monsters found, using fallback monsters');
+        addLog('system', '⚠️ No monsters found in response, using fallback monsters');
+        setAvailableMonsters(FALLBACK_MONSTERS);
+        setMonstersLoaded(true);
+        setIsLoadingMonsters(false);
+        return;
+      }
+
+      addLog('system', `✅ Found ${monsterNames.length} monsters: ${monsterNames.join(', ')}`);
+      addLog('system', `📋 Fetching stats for ${monsterNames.length} monsters...`);
+
+      // Create a map of fallback monsters for quick lookup
+      const fallbackMonsterMap = new Map(FALLBACK_MONSTERS.map(m => [m.name, m]));
+      
+      // Fetch stats for each monster, using fallback as default
+      const monsterPromises = monsterNames.map(async (monsterName) => {
+        const fallback = fallbackMonsterMap.get(monsterName);
+        
+        // If we have a fallback, use it as default (no need to query OpenRAG)
+        if (fallback) {
+          return fallback;
+        }
+        
+        // Only query OpenRAG for monsters not in our fallback list
+        const { stats, response: statsResponse } = await fetchMonsterStats(monsterName, addLog);
+        if (stats) {
+          return {
+            name: monsterName,
+            hitPoints: stats.hitPoints || 30,
+            maxHitPoints: stats.maxHitPoints || stats.hitPoints || 30,
+            armorClass: stats.armorClass || 14,
+            attackBonus: stats.attackBonus || 4,
+            damageDie: stats.damageDie || 'd8',
+            abilities: [],
+            description: stats.description || `A ${monsterName} monster.`,
+            color: MONSTER_COLORS[monsterName] || 'bg-slate-900',
+          } as DnDClass;
+        }
+        return null;
+      });
+
+      const loadedMonsters = (await Promise.all(monsterPromises)).filter((monster): monster is DnDClass => monster !== null);
+      
+      // Merge with fallback monsters to ensure all known monsters are available
+      const allMonsters = new Map<string, DnDClass>();
+      FALLBACK_MONSTERS.forEach(m => allMonsters.set(m.name, m));
+      loadedMonsters.forEach(m => allMonsters.set(m.name, m));
+      
+      const finalMonsters = Array.from(allMonsters.values());
+      
+      if (finalMonsters.length > 0) {
+        setAvailableMonsters(finalMonsters);
+        addLog('system', `✅ Successfully loaded ${finalMonsters.length} monsters (${loadedMonsters.length} from OpenRAG, ${FALLBACK_MONSTERS.length} from defaults)`);
+        console.log(`Loaded ${finalMonsters.length} monsters:`, finalMonsters.map(m => m.name).join(', '));
+      } else {
+        console.warn('No monsters could be loaded, using fallback monsters');
+        addLog('system', '⚠️ No monsters could be loaded, using fallback monsters');
+        setAvailableMonsters(FALLBACK_MONSTERS);
+      }
+      setMonstersLoaded(true);
+    } catch (error) {
+      console.error('Error loading monsters:', error);
+      addLog('system', `❌ Error loading monsters: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setAvailableMonsters(FALLBACK_MONSTERS);
+      setMonstersLoaded(true);
+    } finally {
+      setIsLoadingMonsters(false);
     }
   };
 
@@ -488,10 +590,13 @@ export default function DnDBattle() {
       let p2Abilities: Ability[] = [];
       
       try {
-        [p1Abilities, p2Abilities] = await Promise.all([
-          extractAbilities(player1Class.name),
-          extractAbilities(player2Class.name),
-        ]);
+        // Use extractAbilities for player1 (always a class) and appropriate function for player2
+        const p1Promise = extractAbilities(player1Class.name);
+        const p2Promise = opponentType === 'monster' 
+          ? extractMonsterAbilities(player2Class.name)
+          : extractAbilities(player2Class.name);
+        
+        [p1Abilities, p2Abilities] = await Promise.all([p1Promise, p2Promise]);
       } catch (error) {
         // Silently use fallback abilities if extraction fails
         // extractAbilities should never throw, but this is a safety net
@@ -529,15 +634,20 @@ export default function DnDBattle() {
       setPlayer2Class(p2);
       
       // Ensure names are set
+      // For monsters, use the monster type name directly; for classes, generate a name
       if (!player1Name) {
-        setPlayer1Name(generateCharacterName(p1.name));
+        const isP1Monster = MONSTER_ICONS[p1.name] !== undefined;
+        setPlayer1Name(isP1Monster ? p1.name : generateCharacterName(p1.name));
       }
       if (!player2Name) {
-        setPlayer2Name(generateCharacterName(p2.name));
+        const isP2Monster = MONSTER_ICONS[p2.name] !== undefined;
+        setPlayer2Name(isP2Monster ? p2.name : generateCharacterName(p2.name));
       }
       
-      const finalP1Name = player1Name || generateCharacterName(p1.name);
-      const finalP2Name = player2Name || generateCharacterName(p2.name);
+      const isP1Monster = MONSTER_ICONS[p1.name] !== undefined;
+      const isP2Monster = MONSTER_ICONS[p2.name] !== undefined;
+      const finalP1Name = player1Name || (isP1Monster ? p1.name : generateCharacterName(p1.name));
+      const finalP2Name = player2Name || (isP2Monster ? p2.name : generateCharacterName(p2.name));
       
       setIsBattleActive(true);
       setBattleLog([]);
@@ -899,26 +1009,36 @@ export default function DnDBattle() {
   };
 
   // Wrapper function to generate name when player selects their class
-  // Also auto-selects a random opponent
+  // Also auto-selects a random opponent based on opponentType
   const handlePlayer1Select = useCallback((dndClass: DnDClass) => {
     setPlayer1Class(dndClass);
     setPlayer1Name(generateCharacterName(dndClass.name));
     
-    // Auto-select a random opponent that's different from the player's class
-    const availableOpponents = availableClasses.filter(cls => cls.name !== dndClass.name);
-    if (availableOpponents.length > 0) {
-      const randomOpponent = availableOpponents[Math.floor(Math.random() * availableOpponents.length)];
-      setPlayer2Class(randomOpponent);
-      setPlayer2Name(generateCharacterName(randomOpponent.name));
+    // Auto-select a random opponent based on opponentType
+    if (opponentType === 'monster') {
+      const availableOpponents = availableMonsters;
+      if (availableOpponents.length > 0) {
+        const randomOpponent = availableOpponents[Math.floor(Math.random() * availableOpponents.length)];
+        setPlayer2Class(randomOpponent);
+        setPlayer2Name(randomOpponent.name); // Monsters use their type name directly
+      }
     } else {
-      // Fallback: if no other classes available, use a fallback class
-      const fallbackOpponent = availableClasses[0];
-      if (fallbackOpponent) {
-        setPlayer2Class(fallbackOpponent);
-        setPlayer2Name(generateCharacterName(fallbackOpponent.name));
+      // Auto-select a random opponent that's different from the player's class
+      const availableOpponents = availableClasses.filter(cls => cls.name !== dndClass.name);
+      if (availableOpponents.length > 0) {
+        const randomOpponent = availableOpponents[Math.floor(Math.random() * availableOpponents.length)];
+        setPlayer2Class(randomOpponent);
+        setPlayer2Name(generateCharacterName(randomOpponent.name));
+      } else {
+        // Fallback: if no other classes available, use a fallback class
+        const fallbackOpponent = availableClasses[0];
+        if (fallbackOpponent) {
+          setPlayer2Class(fallbackOpponent);
+          setPlayer2Name(generateCharacterName(fallbackOpponent.name));
+        }
       }
     }
-  }, [availableClasses]);
+  }, [availableClasses, availableMonsters, opponentType]);
 
   // Use AI opponent hook
   const aiOpponentCleanup = useAIOpponent({
@@ -1012,25 +1132,37 @@ export default function DnDBattle() {
                   <span className="ml-2 text-sm text-amber-300 italic">(Loading class information from knowledge base...)</span>
                 )}
               </h2>
-              {!classesLoaded && !isLoadingClasses && (
+              {(!classesLoaded && !isLoadingClasses) || (!monstersLoaded && !isLoadingMonsters) ? (
                 <div className="text-center py-8 mb-4">
                   <div className="text-amber-200 mb-4">
-                    Click the button below to load all available D&D classes from OpenRAG.
+                    Click the buttons below to load D&D classes and monsters from OpenRAG.
                     <br />
                     <span className="text-sm text-amber-300">You can also use the fallback classes shown below.</span>
                   </div>
-                  <button
-                    onClick={loadClassesFromOpenRAG}
-                    disabled={isLoadingClasses}
-                    className="px-6 py-3 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-lg border-2 border-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
-                  >
-                    {isLoadingClasses ? 'Loading...' : 'Load Classes from OpenRAG'}
-                  </button>
+                  <div className="flex gap-4 justify-center flex-wrap">
+                    <button
+                      onClick={loadClassesFromOpenRAG}
+                      disabled={isLoadingClasses}
+                      className="px-6 py-3 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-lg border-2 border-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+                    >
+                      {isLoadingClasses ? 'Loading...' : 'Load Classes from OpenRAG'}
+                    </button>
+                    <button
+                      onClick={loadMonstersFromOpenRAG}
+                      disabled={isLoadingMonsters}
+                      className="px-6 py-3 bg-red-900 hover:bg-red-800 text-white font-bold rounded-lg border-2 border-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+                    >
+                      {isLoadingMonsters ? 'Loading...' : 'Load Monsters from OpenRAG'}
+                    </button>
+                  </div>
                 </div>
-              )}
-              {isLoadingClasses ? (
+              ) : null}
+              {(isLoadingClasses || isLoadingMonsters) ? (
                 <div className="text-center py-8">
-                  <div className="text-amber-200 mb-4">Loading available D&D classes from OpenRAG...</div>
+                  <div className="text-amber-200 mb-4">
+                    {isLoadingClasses && 'Loading available D&D classes from OpenRAG...'}
+                    {isLoadingMonsters && 'Loading available D&D monsters from OpenRAG...'}
+                  </div>
                   <div className="waiting-indicator">
                     <span className="waiting-dot"></span>
                     <span className="waiting-dot"></span>
@@ -1046,31 +1178,150 @@ export default function DnDBattle() {
                   selectedClass={player1Class}
                   onSelect={handlePlayer1Select}
                 />
-                {player2Class && (
-                  <div className="bg-amber-800/50 border-2 border-amber-700 rounded-lg p-4">
-                    <h3 className="text-lg font-semibold mb-2 text-amber-200">Opponent (Auto-Play)</h3>
-                    <div className="flex items-center gap-3">
+                <div className="bg-amber-800/50 border-2 border-amber-700 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-semibold text-amber-200">Opponent (Auto-Play)</h3>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setOpponentType('class');
+                          setPlayer2Class(null);
+                          setPlayer2Name('');
+                        }}
+                        className={`px-3 py-1 text-xs rounded border transition-all ${
+                          opponentType === 'class'
+                            ? 'bg-blue-800 text-white border-blue-600'
+                            : 'bg-amber-800/50 text-amber-300 border-amber-700 hover:bg-amber-700'
+                        }`}
+                      >
+                        Class
+                      </button>
+                      <button
+                      onClick={() => {
+                        setOpponentType('monster');
+                        setMonsterPage(0);
+                        setPlayer2Class(null);
+                        setPlayer2Name('');
+                      }}
+                        className={`px-3 py-1 text-xs rounded border transition-all ${
+                          opponentType === 'monster'
+                            ? 'bg-red-800 text-white border-red-600'
+                            : 'bg-amber-800/50 text-amber-300 border-amber-700 hover:bg-amber-700'
+                        }`}
+                      >
+                        Monster
+                      </button>
+                    </div>
+                  </div>
+                  {player2Class && (
+                    <div className="flex items-center gap-3 mb-3">
                       <span className="text-3xl" style={{ imageRendering: 'pixelated' as const }}>
-                        {CLASS_ICONS[player2Class.name] || '⚔️'}
+                        {opponentType === 'monster' 
+                          ? (MONSTER_ICONS[player2Class.name] || '👹')
+                          : (CLASS_ICONS[player2Class.name] || '⚔️')}
                       </span>
                       <div>
                         <div className="font-bold text-amber-100">{player2Name || player2Class.name}</div>
                         <div className="text-sm text-amber-300 italic">{player2Class.name}</div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                  {opponentType === 'monster' ? (
+                    availableMonsters.length > 0 ? (
+                      <div className="mt-3">
+                        <h3 className="text-lg font-semibold mb-3 text-amber-200">Select Monster Opponent</h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-2 mb-3">
+                          {availableMonsters.slice(monsterPage * monstersPerPage, (monsterPage + 1) * monstersPerPage).map((monster) => {
+                            const icon = MONSTER_ICONS[monster.name] || '👹';
+                            return (
+                              <button
+                                key={monster.name}
+                                onClick={() => {
+                                  setPlayer2Class(monster);
+                                  setPlayer2Name(monster.name); // Monsters use their type name directly
+                                }}
+                                className={`py-2 px-3 rounded-lg border-2 transition-all flex flex-col items-center gap-1 ${
+                                  player2Class?.name === monster.name
+                                    ? 'border-amber-400 bg-amber-800 shadow-lg scale-105'
+                                    : 'border-amber-700 bg-amber-900/50 hover:bg-amber-800 hover:border-amber-600'
+                                }`}
+                              >
+                                <span 
+                                  className="text-2xl leading-none"
+                                  style={{ 
+                                    imageRendering: 'pixelated' as const,
+                                    filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.3))'
+                                  }}
+                                >
+                                  {icon}
+                                </span>
+                                <div className="font-bold text-xs text-amber-100 text-center">{monster.name}</div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {/* Pagination Controls */}
+                        <div className="flex items-center justify-between mt-3">
+                          <button
+                            onClick={() => setMonsterPage(prev => Math.max(0, prev - 1))}
+                            disabled={monsterPage === 0}
+                            className="px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-sm rounded border border-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                          >
+                            ← Previous
+                          </button>
+                          <span className="text-amber-300 text-sm">
+                            Page {monsterPage + 1} of {Math.ceil(availableMonsters.length / monstersPerPage)}
+                          </span>
+                          <button
+                            onClick={() => setMonsterPage(prev => Math.min(Math.ceil(availableMonsters.length / monstersPerPage) - 1, prev + 1))}
+                            disabled={monsterPage >= Math.ceil(availableMonsters.length / monstersPerPage) - 1}
+                            className="px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-sm rounded border border-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                          >
+                            Next →
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-amber-300 text-sm italic text-center py-4">
+                        {monstersLoaded ? 'No monsters available. Click "Load Monsters from OpenRAG" to load monsters.' : 'Click "Load Monsters from OpenRAG" to load monsters.'}
+                      </div>
+                    )
+                  ) : (
+                    <div className="mt-3">
+                      <ClassSelection
+                        title="Select Class Opponent"
+                        availableClasses={availableClasses}
+                        selectedClass={player2Class}
+                        onSelect={(cls) => {
+                          setPlayer2Class(cls);
+                          setPlayer2Name(generateCharacterName(cls.name));
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
-                  {classesLoaded && (
-                    <div className="mt-4 text-center">
-                      <button
-                        onClick={loadClassesFromOpenRAG}
-                        disabled={isLoadingClasses}
-                        className="px-4 py-2 bg-amber-800 hover:bg-amber-700 text-amber-100 text-sm font-semibold rounded-lg border-2 border-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                      >
-                        {isLoadingClasses ? 'Refreshing...' : '🔄 Refresh Classes from OpenRAG'}
-                      </button>
+                  {(classesLoaded || monstersLoaded) && (
+                    <div className="mt-4 text-center flex gap-2 justify-center flex-wrap">
+                      {classesLoaded && (
+                        <button
+                          onClick={loadClassesFromOpenRAG}
+                          disabled={isLoadingClasses}
+                          className="px-4 py-2 bg-amber-800 hover:bg-amber-700 text-amber-100 text-sm font-semibold rounded-lg border-2 border-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                          {isLoadingClasses ? 'Refreshing...' : '🔄 Refresh Classes'}
+                        </button>
+                      )}
+                      {monstersLoaded && (
+                        <button
+                          onClick={loadMonstersFromOpenRAG}
+                          disabled={isLoadingMonsters}
+                          className="px-4 py-2 bg-red-800 hover:bg-red-700 text-amber-100 text-sm font-semibold rounded-lg border-2 border-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                          {isLoadingMonsters ? 'Refreshing...' : '🔄 Refresh Monsters'}
+                        </button>
+                      )}
                     </div>
                   )}
 

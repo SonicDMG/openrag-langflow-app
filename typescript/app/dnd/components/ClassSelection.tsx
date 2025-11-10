@@ -1,7 +1,7 @@
 'use client';
 
 import { DnDClass } from '../types';
-import { CLASS_ICONS } from '../constants';
+import { CLASS_ICONS, MONSTER_ICONS } from '../constants';
 
 interface ClassSelectionProps {
   title: string;
@@ -16,7 +16,11 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
       <h3 className="text-lg font-semibold mb-3 text-amber-200">{title}</h3>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-2">
         {availableClasses.map((dndClass) => {
-          const icon = CLASS_ICONS[dndClass.name] || '⚔️';
+          // Check if it's a monster or class based on icon mapping
+          const isMonster = MONSTER_ICONS[dndClass.name] !== undefined;
+          const icon = isMonster 
+            ? (MONSTER_ICONS[dndClass.name] || '👹')
+            : (CLASS_ICONS[dndClass.name] || '⚔️');
           return (
           <button
             key={dndClass.name}
