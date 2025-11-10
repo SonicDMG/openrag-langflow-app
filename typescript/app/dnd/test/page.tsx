@@ -133,6 +133,8 @@ export default function DnDTestPage() {
   const [hitTrigger, setHitTrigger] = useState({ player1: 0, player2: 0 });
   const [surprisedPlayer, setSurprisedPlayer] = useState<'player1' | 'player2' | null>(null);
   const [surpriseTrigger, setSurpriseTrigger] = useState({ player1: 0, player2: 0 });
+  const [castingPlayer, setCastingPlayer] = useState<'player1' | 'player2' | null>(null);
+  const [castTrigger, setCastTrigger] = useState({ player1: 0, player2: 0 });
   const [shakeIntensity, setShakeIntensity] = useState<{ player1: number; player2: number }>({ player1: 0, player2: 0 });
   const [sparkleIntensity, setSparkleIntensity] = useState<{ player1: number; player2: number }>({ player1: 0, player2: 0 });
   const [defeatedPlayer, setDefeatedPlayer] = useState<'player1' | 'player2' | null>(null);
@@ -152,7 +154,7 @@ export default function DnDTestPage() {
   
   // Queue for visual effects that should trigger after dice roll completes
   type PendingVisualEffect = {
-    type: 'shake' | 'sparkle' | 'miss' | 'hit' | 'surprise';
+    type: 'shake' | 'sparkle' | 'miss' | 'hit' | 'surprise' | 'cast';
     player: 'player1' | 'player2';
     intensity?: number; // Damage amount for shake, healing amount for sparkle
   };
@@ -210,6 +212,10 @@ export default function DnDTestPage() {
         console.log('[TestPage] Setting surprise effect for', effect.player);
         setSurprisedPlayer(effect.player);
         setSurpriseTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
+        break;
+      case 'cast':
+        setCastingPlayer(effect.player);
+        setCastTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
         break;
     }
   }, []);
@@ -318,16 +324,22 @@ export default function DnDTestPage() {
     
     const newHP = Math.max(0, defenderClass.hitPoints - damage);
     
+    // Build visual effects array (includes cast effect for wizards)
+    const visualEffects: PendingVisualEffect[] = [
+      { type: 'hit', player: attacker },
+      { type: 'shake', player: defender, intensity: damage }
+    ];
+    if (attackerClass.name === 'Wizard') {
+      visualEffects.push({ type: 'cast', player: attacker });
+    }
+    
     console.log('[TestPage] Triggering dice roll for', attacker);
     triggerDiceRoll(
       [
         { diceType: 'd20', result: d20Roll },
         { diceType: attackerClass.damageDie, result: damage }
       ],
-      [
-        { type: 'hit', player: attacker },
-        { type: 'shake', player: defender, intensity: damage }
-      ],
+      visualEffects,
       [
         () => {
           console.log('[TestPage] HP update callback for', defender, 'newHP:', newHP);
@@ -371,9 +383,15 @@ export default function DnDTestPage() {
     
     addLog('roll', `🎲 ${attackerClass.name} rolls ${d20Roll} + ${attackerClass.attackBonus} = ${attackRoll} (misses AC ${defenderClass.armorClass})`);
     
+    // Build visual effects array (includes cast effect for wizards)
+    const visualEffects: PendingVisualEffect[] = [{ type: 'miss', player: attacker }];
+    if (attackerClass.name === 'Wizard') {
+      visualEffects.push({ type: 'cast', player: attacker });
+    }
+    
     triggerDiceRoll(
       [{ diceType: 'd20', result: d20Roll }],
-      [{ type: 'miss', player: attacker }],
+      visualEffects,
       [
         () => {
           addLog('attack', `❌ ${attackerClass.name} misses!`);
@@ -393,6 +411,7 @@ export default function DnDTestPage() {
   
   const testHeal = (player: 'player1' | 'player2') => {
     const playerClass = player === 'player1' ? player1Class : player2Class;
+    
     const heal = rollDiceWithNotation('1d8+3');
     const { dice } = parseDiceNotation('1d8+3');
     
@@ -400,9 +419,15 @@ export default function DnDTestPage() {
     
     const newHP = Math.min(playerClass.maxHitPoints, playerClass.hitPoints + heal);
     
+    // Build visual effects array (includes cast effect for wizards)
+    const visualEffects: PendingVisualEffect[] = [{ type: 'sparkle', player, intensity: heal }];
+    if (playerClass.name === 'Wizard') {
+      visualEffects.push({ type: 'cast', player });
+    }
+    
     triggerDiceRoll(
       [{ diceType: dice, result: heal }],
-      [{ type: 'sparkle', player, intensity: heal }],
+      visualEffects,
       [
         () => updatePlayerHP(player, newHP), // HP update happens after dice roll
         () => {
@@ -586,6 +611,8 @@ export default function DnDTestPage() {
     setHitTrigger({ player1: 0, player2: 0 });
     setSurprisedPlayer(null);
     setSurpriseTrigger({ player1: 0, player2: 0 });
+    setCastingPlayer(null);
+    setCastTrigger({ player1: 0, player2: 0 });
     setShakeIntensity({ player1: 0, player2: 0 });
     setSparkleIntensity({ player1: 0, player2: 0 });
     setManualEmotion1(null);
@@ -636,6 +663,14 @@ export default function DnDTestPage() {
 
   const handlePlayer2SurpriseComplete = useCallback(() => {
     setSurprisedPlayer(null);
+  }, []);
+
+  const handlePlayer1CastComplete = useCallback(() => {
+    setCastingPlayer(null);
+  }, []);
+
+  const handlePlayer2CastComplete = useCallback(() => {
+    setCastingPlayer(null);
   }, []);
   
   return (
@@ -857,6 +892,8 @@ export default function DnDTestPage() {
                 shouldMiss={missingPlayer === 'player1'}
                 shouldHit={hittingPlayer === 'player1'}
                 shouldSurprise={surprisedPlayer === 'player1'}
+                shouldCast={castingPlayer === 'player1'}
+                castTrigger={castTrigger.player1}
                 shakeTrigger={shakeTrigger.player1}
                 sparkleTrigger={sparkleTrigger.player1}
                 missTrigger={missTrigger.player1}
@@ -873,6 +910,7 @@ export default function DnDTestPage() {
                 onMissComplete={handlePlayer1MissComplete}
                 onHitComplete={handlePlayer1HitComplete}
                 onSurpriseComplete={handlePlayer1SurpriseComplete}
+                onCastComplete={handlePlayer1CastComplete}
                 showEmotionControls={true}
                 onEmotionChange={setManualEmotion1}
                 allowAllTurns={!isAIModeActive}
@@ -933,6 +971,8 @@ export default function DnDTestPage() {
                 shouldMiss={missingPlayer === 'player2'}
                 shouldHit={hittingPlayer === 'player2'}
                 shouldSurprise={surprisedPlayer === 'player2'}
+                shouldCast={castingPlayer === 'player2'}
+                castTrigger={castTrigger.player2}
                 shakeTrigger={shakeTrigger.player2}
                 sparkleTrigger={sparkleTrigger.player2}
                 missTrigger={missTrigger.player2}
@@ -947,6 +987,7 @@ export default function DnDTestPage() {
                 onMissComplete={handlePlayer2MissComplete}
                 onHitComplete={handlePlayer2HitComplete}
                 onSurpriseComplete={handlePlayer2SurpriseComplete}
+                onCastComplete={handlePlayer2CastComplete}
                 showEmotionControls={true}
                 onEmotionChange={setManualEmotion2}
                 allowAllTurns={!isAIModeActive}

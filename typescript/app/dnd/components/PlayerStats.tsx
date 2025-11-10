@@ -21,6 +21,8 @@ interface PlayerStatsProps {
   shouldMiss: boolean;
   shouldHit: boolean;
   shouldSurprise: boolean;
+  shouldCast: boolean;
+  castTrigger: number;
   shakeTrigger: number;
   sparkleTrigger: number;
   missTrigger: number;
@@ -38,6 +40,7 @@ interface PlayerStatsProps {
   onMissComplete: () => void;
   onHitComplete: () => void;
   onSurpriseComplete: () => void;
+  onCastComplete: () => void;
   // Optional emotion test controls (for test page)
   showEmotionControls?: boolean;
   onEmotionChange?: (emotion: CharacterEmotion | null) => void;
@@ -61,6 +64,8 @@ function PlayerStatsComponent({
   shouldMiss,
   shouldHit,
   shouldSurprise,
+  shouldCast,
+  castTrigger,
   shakeTrigger,
   sparkleTrigger,
   missTrigger,
@@ -78,6 +83,7 @@ function PlayerStatsComponent({
   onMissComplete,
   onHitComplete,
   onSurpriseComplete,
+  onCastComplete,
   showEmotionControls = false,
   onEmotionChange,
   testButtons = [],
@@ -164,6 +170,16 @@ function PlayerStatsComponent({
     }
   }, [shouldSurprise, surpriseTrigger, onSurpriseComplete]);
 
+  // Apply cast animation (timeout-based - show casting glow)
+  useEffect(() => {
+    if (shouldCast && castTrigger > 0) {
+      const timer = setTimeout(() => {
+        onCastComplete();
+      }, 1500); // Show casting glow for 1.5 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [shouldCast, castTrigger, onCastComplete]);
+
   return (
     <div 
       ref={animationRef}
@@ -197,6 +213,7 @@ function PlayerStatsComponent({
           shouldSparkle={shouldSparkle}
           shouldMiss={shouldMiss}
           shouldHit={shouldHit}
+          shouldCast={shouldCast}
           emotion={emotion}
         />
       </div>

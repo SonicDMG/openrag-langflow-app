@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { DnDClass, CharacterEmotion } from '../types';
 import { getClassColors, getMonsterColors, drawPixelCharacter, drawMonsterPixelArt } from '../utils/pixelArt';
 import { MONSTER_ICONS } from '../constants';
@@ -18,6 +18,7 @@ interface PixelCharacterProps {
   shouldMiss?: boolean; // Whether character just missed an attack
   shouldHit?: boolean; // Whether character just landed a successful hit
   shouldSurprise?: boolean; // Whether character is surprised by large damage
+  shouldCast?: boolean; // Whether wizard is casting a spell
 }
 
 export function PixelCharacter({ 
@@ -31,10 +32,14 @@ export function PixelCharacter({
   shouldSparkle = false,
   shouldMiss = false,
   shouldHit = false,
-  shouldSurprise = false
+  shouldSurprise = false,
+  shouldCast = false
 }: PixelCharacterProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const prevShouldMissRef = useRef(false);
+  const [idleFrame, setIdleFrame] = useState(0);
+  const animationFrameRef = useRef<number | null>(null);
+  const lastFrameTimeRef = useRef<number>(performance.now());
 
   // Apply face palm animation when shouldMiss becomes true
   useEffect(() => {
@@ -116,6 +121,41 @@ export function PixelCharacter({
     return 'determined'; // Default
   };
 
+  // Determine if character should be idle (no active animations)
+  const isIdle = !shouldShake && !shouldSparkle && !shouldMiss && !shouldHit && !shouldSurprise && !isDefeated && !isVictor;
+
+  // Idle animation loop
+  useEffect(() => {
+    if (!isIdle) {
+      // Stop animation when not idle
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      return;
+    }
+
+    const animate = (currentTime: number) => {
+      // Throttle to ~12 fps for smooth but not too fast animation
+      if (currentTime - lastFrameTimeRef.current >= 83) {
+        setIdleFrame(prev => (prev + 1) % 60); // Cycle through 60 frames (5 seconds at 12fps)
+        lastFrameTimeRef.current = currentTime;
+      }
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
+
+    // Initialize time reference and start animation immediately
+    lastFrameTimeRef.current = performance.now();
+    animationFrameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+    };
+  }, [isIdle]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -140,14 +180,21 @@ export function PixelCharacter({
     const currentEmotion = determineEmotion();
 
     // Draw character based on type (monster or class)
+    // Pass idleFrame only when idle, otherwise pass 0
+    const animationFrame = isIdle ? idleFrame : 0;
     if (isMonster) {
       const monsterColors = getMonsterColors(playerClass.name);
-      drawMonsterPixelArt(ctx, size, playerClass, monsterColors, hpPercent, isDefeated, currentEmotion);
+      drawMonsterPixelArt(ctx, size, playerClass, monsterColors, hpPercent, isDefeated, currentEmotion, animationFrame);
     } else {
       const classColors = getClassColors(playerClass.name);
-      drawPixelCharacter(ctx, size, playerClass, classColors, hpPercent, isDefeated, currentEmotion);
+      // Determine if casting is for healing or attack
+      // Healing: sparkle effect is active
+      // Attack: hit or miss effect is active (both indicate an attack spell was cast)
+      const isHealing = shouldCast && shouldSparkle;
+      const isAttacking = shouldCast && (shouldHit || shouldMiss);
+      drawPixelCharacter(ctx, size, playerClass, classColors, hpPercent, isDefeated, currentEmotion, animationFrame, shouldCast, isHealing, isAttacking);
     }
-  }, [playerClass, size, emotion, isActive, isDefeated, isVictor, shouldShake, shouldSparkle, shouldMiss, shouldHit, shouldSurprise]);
+  }, [playerClass, size, emotion, isActive, isDefeated, isVictor, shouldShake, shouldSparkle, shouldMiss, shouldHit, shouldSurprise, shouldCast, idleFrame, isIdle]);
 
   return (
     <canvas

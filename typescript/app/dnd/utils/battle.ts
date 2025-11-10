@@ -2,7 +2,7 @@ import { DnDClass } from '../types';
 
 // Type for visual effects
 export type PendingVisualEffect = {
-  type: 'shake' | 'sparkle' | 'miss' | 'hit' | 'surprise';
+  type: 'shake' | 'sparkle' | 'miss' | 'hit' | 'surprise' | 'cast';
   player: 'player1' | 'player2';
   intensity?: number; // Damage amount for shake, healing amount for sparkle
 };
@@ -32,12 +32,18 @@ export function createHitVisualEffects(
   attacker: 'player1' | 'player2',
   defender: 'player1' | 'player2',
   damage: number,
-  defenderClass: DnDClass
+  defenderClass: DnDClass,
+  attackerClass?: DnDClass
 ): PendingVisualEffect[] {
   const visualEffects: PendingVisualEffect[] = [
     { type: 'hit', player: attacker },
     { type: 'shake', player: defender, intensity: damage }
   ];
+  
+  // Add cast effect for wizard and bard attackers
+  if (attackerClass?.name === 'Wizard' || attackerClass?.name === 'Bard') {
+    visualEffects.push({ type: 'cast', player: attacker });
+  }
   
   // Add surprise effect if damage is significant
   if (isSurprisingDamage(damage, defenderClass)) {
@@ -50,8 +56,18 @@ export function createHitVisualEffects(
 /**
  * Create visual effects array for a miss
  */
-export function createMissVisualEffects(attacker: 'player1' | 'player2'): PendingVisualEffect[] {
-  return [{ type: 'miss', player: attacker }];
+export function createMissVisualEffects(
+  attacker: 'player1' | 'player2',
+  attackerClass?: DnDClass
+): PendingVisualEffect[] {
+  const visualEffects: PendingVisualEffect[] = [{ type: 'miss', player: attacker }];
+  
+  // Add cast effect for wizard and bard attackers (they're still casting even on a miss)
+  if (attackerClass?.name === 'Wizard' || attackerClass?.name === 'Bard') {
+    visualEffects.push({ type: 'cast', player: attacker });
+  }
+  
+  return visualEffects;
 }
 
 /**
@@ -59,9 +75,17 @@ export function createMissVisualEffects(attacker: 'player1' | 'player2'): Pendin
  */
 export function createHealingVisualEffects(
   target: 'player1' | 'player2',
-  healAmount: number
+  healAmount: number,
+  casterClass?: DnDClass
 ): PendingVisualEffect[] {
-  return [{ type: 'sparkle', player: target, intensity: healAmount }];
+  const visualEffects: PendingVisualEffect[] = [{ type: 'sparkle', player: target, intensity: healAmount }];
+  
+  // Add cast effect for wizard and bard casters
+  if (casterClass?.name === 'Wizard' || casterClass?.name === 'Bard') {
+    visualEffects.push({ type: 'cast', player: target });
+  }
+  
+  return visualEffects;
 }
 
 /**

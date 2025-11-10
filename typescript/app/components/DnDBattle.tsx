@@ -78,6 +78,8 @@ export default function DnDBattle() {
   const [isDiceRolling, setIsDiceRolling] = useState(false);
   const [manualEmotion1, setManualEmotion1] = useState<CharacterEmotion | null>(null);
   const [manualEmotion2, setManualEmotion2] = useState<CharacterEmotion | null>(null);
+  const [castingPlayer, setCastingPlayer] = useState<'player1' | 'player2' | null>(null);
+  const [castTrigger, setCastTrigger] = useState({ player1: 0, player2: 0 });
   const logEndRef = useRef<HTMLDivElement>(null);
   
   // Queue for visual effects that should trigger after dice roll completes
@@ -171,6 +173,10 @@ export default function DnDBattle() {
       case 'surprise':
         setSurprisedPlayer(effect.player);
         setSurpriseTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
+        break;
+      case 'cast':
+        setCastingPlayer(effect.player);
+        setCastTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
         break;
     }
   }, []);
@@ -411,6 +417,10 @@ export default function DnDBattle() {
 
   const handleSurpriseComplete = useCallback(() => {
     setSurprisedPlayer(null);
+  }, []);
+
+  const handleCastComplete = useCallback(() => {
+    setCastingPlayer(null);
   }, []);
 
   // Load all classes from OpenRAG (called manually via button)
@@ -694,8 +704,8 @@ export default function DnDBattle() {
       
       const newHP = Math.max(0, defenderClass.hitPoints - damage);
       
-      // Create visual effects using helper function
-      const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass);
+      // Create visual effects using helper function (includes cast effect for wizards)
+      const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass);
       
       triggerDiceRoll(
         [
@@ -724,7 +734,7 @@ export default function DnDBattle() {
       // Miss - show the attack roll dice
       triggerDiceRoll(
         [{ diceType: 'd20', result: d20Roll }],
-        createMissVisualEffects(attacker),
+        createMissVisualEffects(attacker, attackerClass),
         [
           createPostMissCallback(
             attackerClass,
@@ -756,7 +766,7 @@ export default function DnDBattle() {
     
     triggerDiceRoll(
       [{ diceType: dice, result: heal }],
-      createHealingVisualEffects(attacker, heal),
+      createHealingVisualEffects(attacker, heal, attackerClass),
       [
         () => updatePlayerHP(attacker, newHP),
         createPostHealingCallback(
@@ -823,7 +833,7 @@ export default function DnDBattle() {
     ).join(' ') : '';
 
     if (totalDamage > 0) {
-      const visualEffects = createHitVisualEffects(attacker, defender, totalDamage, defenderClass);
+      const visualEffects = createHitVisualEffects(attacker, defender, totalDamage, defenderClass, attackerClass);
       triggerDiceRoll(
         diceToShow,
         visualEffects,
@@ -850,7 +860,7 @@ export default function DnDBattle() {
     } else {
       triggerDiceRoll(
         diceToShow,
-        createMissVisualEffects(attacker),
+        createMissVisualEffects(attacker, attackerClass),
         [
           async () => {
             addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
@@ -894,7 +904,7 @@ export default function DnDBattle() {
       
       const defender = getOpponent(attacker);
       const newHP = Math.max(0, defenderClass.hitPoints - damage);
-      const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass);
+      const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass);
       
       triggerDiceRoll(
         diceToShow,
@@ -919,7 +929,7 @@ export default function DnDBattle() {
     } else {
       triggerDiceRoll(
         [{ diceType: 'd20', result: d20Roll }],
-        createMissVisualEffects(attacker),
+        createMissVisualEffects(attacker, attackerClass),
         [
           createPostMissCallback(
             attackerClass,
@@ -951,7 +961,7 @@ export default function DnDBattle() {
     );
     const defender = getOpponent(attacker);
     const newHP = Math.max(0, defenderClass.hitPoints - damage);
-    const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass);
+    const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass);
     
     triggerDiceRoll(
       diceArray,
@@ -1073,6 +1083,8 @@ export default function DnDBattle() {
     setHitTrigger({ player1: 0, player2: 0 });
     setSurprisedPlayer(null);
     setSurpriseTrigger({ player1: 0, player2: 0 });
+    setCastingPlayer(null);
+    setCastTrigger({ player1: 0, player2: 0 });
     setManualEmotion1(null);
     setManualEmotion2(null);
     setIsOpponentAutoPlaying(false);
@@ -1366,6 +1378,8 @@ export default function DnDBattle() {
                 shouldMiss={missingPlayer === 'player1'}
                 shouldHit={hittingPlayer === 'player1'}
                 shouldSurprise={surprisedPlayer === 'player1'}
+                shouldCast={castingPlayer === 'player1'}
+                castTrigger={castTrigger.player1}
                 shakeTrigger={shakeTrigger.player1}
                 sparkleTrigger={sparkleTrigger.player1}
                 missTrigger={missTrigger.player1}
@@ -1383,6 +1397,7 @@ export default function DnDBattle() {
                 onMissComplete={handleMissComplete}
                 onHitComplete={handleHitComplete}
                 onSurpriseComplete={handleSurpriseComplete}
+                onCastComplete={handleCastComplete}
               />
               <PlayerStats
                 playerClass={player2Class}
@@ -1396,6 +1411,8 @@ export default function DnDBattle() {
                 shouldMiss={missingPlayer === 'player2'}
                 shouldHit={hittingPlayer === 'player2'}
                 shouldSurprise={surprisedPlayer === 'player2'}
+                shouldCast={castingPlayer === 'player2'}
+                castTrigger={castTrigger.player2}
                 shakeTrigger={shakeTrigger.player2}
                 sparkleTrigger={sparkleTrigger.player2}
                 missTrigger={missTrigger.player2}
@@ -1411,6 +1428,7 @@ export default function DnDBattle() {
                 onMissComplete={handleMissComplete}
                 onHitComplete={handleHitComplete}
                 onSurpriseComplete={handleSurpriseComplete}
+                onCastComplete={handleCastComplete}
                 isOpponent={true}
               />
             </div>

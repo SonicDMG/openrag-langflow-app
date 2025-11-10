@@ -13,7 +13,7 @@ export function getClassColors(className: string): {
     Fighter: { primary: '#7f1d1d', secondary: '#991b1b', accent: '#dc2626', skin: '#fbbf24', hair: '#1c1917' },
     Wizard: { primary: '#1e3a8a', secondary: '#1e40af', accent: '#3b82f6', skin: '#fde68a', hair: '#fbbf24' },
     Rogue: { primary: '#581c87', secondary: '#6b21a8', accent: '#a855f7', skin: '#fbbf24', hair: '#1c1917' },
-    Cleric: { primary: '#78350f', secondary: '#92400e', accent: '#fbbf24', skin: '#fde68a', hair: '#fef3c7' },
+    Cleric: { primary: '#78350f', secondary: '#92400e', accent: '#fbbf24', skin: '#fde68a', hair: '#92400e' },
     Barbarian: { primary: '#7c2d12', secondary: '#9a3412', accent: '#ea580c', skin: '#fbbf24', hair: '#dc2626' },
     Ranger: { primary: '#14532d', secondary: '#166534', accent: '#22c55e', skin: '#fbbf24', hair: '#1c1917' },
     Paladin: { primary: '#831843', secondary: '#9f1239', accent: '#ec4899', skin: '#fde68a', hair: '#fbbf24' },
@@ -720,11 +720,19 @@ export function drawPixelCharacter(
   colors: ReturnType<typeof getClassColors>,
   hpPercent: number,
   isDefeated: boolean,
-  emotion: CharacterEmotion
+  emotion: CharacterEmotion,
+  animationFrame: number = 0,
+  shouldCast: boolean = false,
+  isHealing: boolean = false,
+  isAttacking: boolean = false
 ) {
   const GRID_SIZE = 64; // Base sprite is now 64x64 for more detail
   const scale = size / GRID_SIZE; // Scale to desired size
   const pixelSize = scale;
+
+  // Calculate animation progress (0 to 1, cycles smoothly)
+  const animationProgress = (animationFrame / 60) * Math.PI * 2;
+  const hasAnimation = animationFrame > 0;
 
   // Helper to draw a pixel
   const pixel = (x: number, y: number, color: string) => {
@@ -795,14 +803,20 @@ export function drawPixelCharacter(
     pixel(20, 5, colors.accent);
     pixel(42, 5, colors.accent);
   } else if (playerClass.name === 'Bard') {
-    // Bard: Feathered hat or decorative headpiece
-    rect(20, 4, 24, 6, colors.primary);
-    // Feather
-    rect(44, 2, 2, 8, colors.accent);
-    pixel(45, 1, colors.accent);
-    pixel(45, 2, '#fbbf24');
-    // Decorative band
-    rect(22, 6, 20, 1, colors.accent);
+    // Bard: Flamboyant feathered hat with multiple plumes
+    rect(20, 4, 24, 6, '#dc2626'); // Red hat base
+    // Multiple colorful plumes
+    rect(44, 0, 2, 10, '#fbbf24'); // Yellow plume
+    rect(46, 1, 2, 9, '#8b5cf6'); // Purple plume
+    rect(48, 2, 2, 8, '#22c55e'); // Green plume
+    pixel(45, 0, '#fbbf24');
+    pixel(47, 1, '#8b5cf6');
+    pixel(49, 2, '#22c55e');
+    // Decorative band with gems
+    rect(22, 6, 20, 1, '#fbbf24'); // Gold band
+    pixel(26, 5, '#ffffff'); // Gem
+    pixel(32, 5, '#ffffff'); // Gem
+    pixel(38, 5, '#ffffff'); // Gem
   } else if (playerClass.name === 'Sorcerer') {
     // Sorcerer: Magical aura or crown
     rect(18, 6, 28, 6, colors.primary);
@@ -865,18 +879,182 @@ export function drawPixelCharacter(
   // Draw facial expression based on emotion
   drawFaceExpression(ctx, pixelSize, emotion, isDefeated);
 
-  // Body/Torso - more detailed
-  rect(22, 28, 20, 24, colors.primary);
-  // Chest details
-  rect(28, 30, 8, 4, colors.secondary);
-  rect(26, 34, 12, 2, colors.secondary);
+  // Body/Torso - more detailed (moves with fighter animation)
+  let torsoOffsetX = 0;
+  let torsoOffsetY = 0;
+  if (hasAnimation && playerClass.name === 'Fighter') {
+    const swordOffsetX = Math.sin(animationProgress * 0.9) * 2.0;
+    const swordOffsetY = Math.sin(animationProgress * 0.9) * -2.5;
+    torsoOffsetX = swordOffsetX * 0.3;
+    torsoOffsetY = swordOffsetY * 0.2;
+  }
   
-  // Arms - more detailed with better proportions
-  rect(16, 30, 6, 16, colors.skin);
-  rect(42, 30, 6, 16, colors.skin);
-  // Shoulders
-  rect(20, 28, 4, 4, colors.skin);
-  rect(40, 28, 4, 4, colors.skin);
+  // Cleric-specific: Make torso more visible with lighter color and highlights
+  if (playerClass.name === 'Cleric') {
+    const clericTorsoColor = '#a0522d'; // Sienna brown - lighter and more visible
+    const clericTorsoSecondary = '#8b4513'; // Saddle brown
+    const clericTorsoHighlight = '#cd853f'; // Peru - lighter highlight
+    rect(22 + torsoOffsetX, 28 + torsoOffsetY, 20, 24, clericTorsoColor);
+    // Chest details with highlights
+    rect(28 + torsoOffsetX, 30 + torsoOffsetY, 8, 4, clericTorsoSecondary);
+    rect(26 + torsoOffsetX, 34 + torsoOffsetY, 12, 2, clericTorsoSecondary);
+    // Add highlights for visibility
+    rect(24 + torsoOffsetX, 30 + torsoOffsetY, 4, 2, clericTorsoHighlight);
+    rect(36 + torsoOffsetX, 30 + torsoOffsetY, 4, 2, clericTorsoHighlight);
+    pixel(30 + torsoOffsetX, 32 + torsoOffsetY, clericTorsoHighlight);
+    pixel(34 + torsoOffsetX, 32 + torsoOffsetY, clericTorsoHighlight);
+  } else if (playerClass.name === 'Bard') {
+    // Bard: Red flamboyant wardrobe
+    rect(22 + torsoOffsetX, 28 + torsoOffsetY, 20, 24, '#dc2626'); // Red primary
+    // Chest details with gold trim
+    rect(28 + torsoOffsetX, 30 + torsoOffsetY, 8, 4, '#991b1b'); // Darker red
+    rect(26 + torsoOffsetX, 34 + torsoOffsetY, 12, 2, '#991b1b');
+    // Gold decorative trim
+    pixel(24 + torsoOffsetX, 30 + torsoOffsetY, '#fbbf24'); // Gold trim
+    pixel(40 + torsoOffsetX, 30 + torsoOffsetY, '#fbbf24');
+    pixel(24 + torsoOffsetX, 48 + torsoOffsetY, '#fbbf24');
+    pixel(40 + torsoOffsetX, 48 + torsoOffsetY, '#fbbf24');
+  } else {
+    rect(22 + torsoOffsetX, 28 + torsoOffsetY, 20, 24, colors.primary);
+    // Chest details
+    rect(28 + torsoOffsetX, 30 + torsoOffsetY, 8, 4, colors.secondary);
+    rect(26 + torsoOffsetX, 34 + torsoOffsetY, 12, 2, colors.secondary);
+  }
+  
+  // Shoulders (always drawn, move with fighter animation)
+  let shoulderLeftOffsetX = 0;
+  let shoulderLeftOffsetY = 0;
+  let shoulderRightOffsetX = 0;
+  let shoulderRightOffsetY = 0;
+  if (hasAnimation && playerClass.name === 'Fighter') {
+    const swordOffsetX = Math.sin(animationProgress * 0.9) * 2.0;
+    const swordOffsetY = Math.sin(animationProgress * 0.9) * -2.5;
+    shoulderLeftOffsetX = -swordOffsetX * 0.3;
+    shoulderLeftOffsetY = swordOffsetY * 0.2;
+    shoulderRightOffsetX = swordOffsetX * 0.4;
+    shoulderRightOffsetY = swordOffsetY * 0.3;
+  }
+  rect(20 + shoulderLeftOffsetX, 28 + shoulderLeftOffsetY, 4, 4, colors.skin);
+  rect(40 + shoulderRightOffsetX, 28 + shoulderRightOffsetY, 4, 4, colors.skin);
+  
+  // Arms - class-specific animations
+  if (playerClass.name === 'Bard') {
+    if (hasAnimation) {
+      // Bard: Rocking motion - whole guitar and arms rock back and forth like playing
+      const rockAngle = Math.sin(animationProgress * 1.5) * 0.15; // Rocking angle (radians)
+      const rockOffsetX = Math.sin(animationProgress * 1.5) * 2.0; // Horizontal rocking
+      const rockOffsetY = Math.cos(animationProgress * 1.5) * 1.5; // Vertical rocking
+      // Left arm holding guitar neck at far left side (rocks with guitar)
+      // Note: Right arm (strumming hand) is drawn after guitar in class-specific features section
+      rect(10 + Math.round(rockOffsetX), 24 + Math.round(rockOffsetY), 6, 20, colors.skin);
+    } else {
+      // Static: Left arm holding guitar neck
+      // Note: Right arm (strumming hand) is drawn after guitar in class-specific features section
+      rect(10, 24, 6, 20, colors.skin);
+    }
+  } else if (hasAnimation && playerClass.name === 'Ranger') {
+    // Ranger: Drawing bow - left arm holds bow steady, right arm pulls back
+    const drawProgress = (Math.sin(animationProgress) + 1) / 2; // 0 to 1
+    const pullBack = drawProgress * 4; // Pull back 0-4 pixels (more pronounced)
+    // Left arm holding bow (steady)
+    rect(16, 30, 6, 16, colors.skin);
+    // Right arm pulling back bowstring
+    rect(42 - pullBack, 30, 6, 16, colors.skin);
+  } else if (hasAnimation && playerClass.name === 'Wizard') {
+    // Wizard: Casting motion - hands move in arcane gesture
+    const castOffset = Math.sin(animationProgress * 1.5) * 3.0;
+    const castOffset2 = Math.sin(animationProgress * 1.5 + Math.PI / 2) * 2.5;
+    // Left arm (casting gesture)
+    rect(16, 30 + castOffset, 6, 16, colors.skin);
+    // Right arm (holding staff, slight movement)
+    rect(42, 30 + castOffset2, 6, 16, colors.skin);
+  } else if (hasAnimation && playerClass.name === 'Sorcerer') {
+    // Sorcerer: Magical gesture - hands channeling magic
+    const magicOffset = Math.sin(animationProgress * 2) * 3.0;
+    // Both arms channeling magic
+    rect(16, 30 + magicOffset, 6, 16, colors.skin);
+    rect(42, 30 - magicOffset, 6, 16, colors.skin);
+  } else if (hasAnimation && playerClass.name === 'Monk') {
+    // Monk: Meditative stance - breathing motion
+    const breathOffset = Math.sin(animationProgress * 0.8) * 2.0;
+    rect(16, 30 + breathOffset, 6, 16, colors.skin);
+    rect(42, 30 + breathOffset, 6, 16, colors.skin);
+  } else if (playerClass.name === 'Cleric') {
+    // Cleric: Holding scepter with both hands in center, raising it high above head
+    // When idle: animate raising and lowering
+    // When attacking/healing: keep scepter at highest position (casting pose)
+    let handRaise: number;
+    if (hasAnimation) {
+      // Idle animation: scepter raises and lowers
+      const raiseProgress = (Math.sin(animationProgress * 0.8) + 1) / 2; // 0 to 1
+      const scepterRaise = raiseProgress * -12; // Negative Y means up (raises from 0 to -12 pixels)
+      handRaise = scepterRaise * 0.8; // Hands move 80% of scepter movement (up to -9.6 pixels)
+    } else {
+      // Not idle (attacking/healing): scepter at highest position (casting)
+      handRaise = -12 * 0.8; // Maximum raise position (-9.6 pixels)
+    }
+    // Both hands positioned in center to hold scepter
+    // Left hand (slightly left of center)
+    rect(28, 30 + handRaise, 6, 16, colors.skin);
+    // Right hand (slightly right of center)
+    rect(30, 30 + handRaise, 6, 16, colors.skin);
+  } else if (hasAnimation && playerClass.name === 'Druid') {
+    // Druid: Nature connection - gentle sway
+    const natureSway = Math.sin(animationProgress * 0.7) * 2.5;
+    rect(16, 30 + natureSway, 6, 16, colors.skin);
+    rect(42, 30 - natureSway, 6, 16, colors.skin);
+  } else if (hasAnimation && playerClass.name === 'Fighter') {
+    // Fighter: Sword arm moves diagonally up and away, with body following the motion
+    const swordOffsetX = Math.sin(animationProgress * 0.9) * 2.0; // Horizontal movement
+    const swordOffsetY = Math.sin(animationProgress * 0.9) * -2.5; // Upward movement (negative Y)
+    // Body parts move together - torso and shoulders follow the sword arm motion
+    const bodyOffsetX = swordOffsetX * 0.3; // Torso moves slightly with arm
+    const bodyOffsetY = swordOffsetY * 0.2; // Torso moves slightly with arm
+    const leftArmOffsetX = -swordOffsetX * 0.4; // Left arm counterbalances
+    const leftArmOffsetY = swordOffsetY * 0.3; // Left arm moves slightly up
+    rect(16 + leftArmOffsetX, 30 + leftArmOffsetY, 6, 16, colors.skin); // Left arm counterbalances
+    rect(42 + swordOffsetX, 30 + swordOffsetY, 6, 16, colors.skin); // Right arm with sword moves diagonally
+  } else if (hasAnimation && playerClass.name === 'Paladin') {
+    // Paladin: Holding weapon with holy readiness
+    const holyReady = Math.sin(animationProgress * 1.0) * 1.8;
+    rect(16, 30 + holyReady, 6, 16, colors.skin);
+    rect(42, 30 + holyReady * 0.6, 6, 16, colors.skin);
+  } else if (playerClass.name === 'Rogue') {
+    // Rogue: Crossed arms in X pattern with daggers
+    if (hasAnimation) {
+      // Animated: quick subtle movements
+      const daggerCheck = Math.sin(animationProgress * 1.8) * 2.0;
+      // Left arm crosses over to right side (X pattern)
+      rect(28, 30 + daggerCheck, 6, 16, colors.skin);
+      // Right arm crosses over to left side (X pattern)
+      rect(30, 30 - daggerCheck * 0.7, 6, 16, colors.skin);
+    } else {
+      // Static: crossed arms in X pattern
+      // Left arm crosses over to right side (X pattern)
+      rect(28, 30, 6, 16, colors.skin);
+      // Right arm crosses over to left side (X pattern)
+      rect(30, 30, 6, 16, colors.skin);
+    }
+  } else if (hasAnimation && playerClass.name === 'Barbarian') {
+    // Barbarian: Aggressive stance - ready to fight
+    const battleReady = Math.sin(animationProgress * 1.1) * 2.2;
+    rect(16, 30 + battleReady, 6, 16, colors.skin);
+    rect(42, 30 + battleReady, 6, 16, colors.skin);
+  } else if (hasAnimation && playerClass.name === 'Warlock') {
+    // Warlock: Channeling dark magic
+    const darkMagic = Math.sin(animationProgress * 1.6) * 2.5;
+    rect(16, 30 + darkMagic, 6, 16, colors.skin);
+    rect(42, 30 - darkMagic, 6, 16, colors.skin);
+  } else if (hasAnimation && playerClass.name === 'Artificer') {
+    // Artificer: Tinkering with tools
+    const tinkerOffset = Math.sin(animationProgress * 1.4) * 2.0;
+    rect(16, 30 + tinkerOffset, 6, 16, colors.skin);
+    rect(42, 30 - tinkerOffset * 0.8, 6, 16, colors.skin);
+  } else {
+    // Default: Static arms (for any unhandled classes)
+    rect(16, 30, 6, 16, colors.skin);
+    rect(42, 30, 6, 16, colors.skin);
+  }
   
   // Shoulder pads/armor based on AC
   if (playerClass.armorClass >= 16) {
@@ -889,166 +1067,755 @@ export function drawPixelCharacter(
     pixel(42, 32, colors.accent);
   }
 
-  // Legs - more detailed
-  rect(24, 52, 8, 12, colors.primary);
-  rect(32, 52, 8, 12, colors.primary);
-  // Knees
-  rect(25, 58, 6, 2, colors.secondary);
-  rect(33, 58, 6, 2, colors.secondary);
+  // Legs - more detailed (class-specific for Cleric with robe)
+  if (playerClass.name === 'Cleric') {
+    // Cleric: Robe swaying in the wind with visible legs underneath
+    const robeSway = hasAnimation ? Math.sin(animationProgress * 0.6) * 3.0 : 0; // More pronounced sway
+    const robeSwayLeft = robeSway * 0.8; // Left side sways less
+    const robeSwayRight = robeSway * 1.2; // Right side sways more
+    
+    // Draw legs first (visible underneath robe) - use much brighter color for visibility
+    const legColor = '#f4d03f'; // Bright yellow-gold for high visibility
+    const legShadow = '#f39c12'; // Slightly darker for depth
+    rect(24, 52, 8, 12, legColor);
+    rect(32, 52, 8, 12, legColor);
+    // Leg highlights for visibility
+    rect(25, 54, 6, 2, '#fef9e7');
+    rect(33, 54, 2, 2, '#fef9e7');
+    // Knees
+    rect(25, 58, 6, 2, legShadow);
+    rect(33, 58, 6, 2, legShadow);
+    // Feet (visible at bottom) - make them very visible
+    rect(25, 63, 6, 1, legColor);
+    rect(33, 63, 6, 1, legColor);
+    pixel(26, 63, '#fef9e7');
+    pixel(34, 63, '#fef9e7');
+    
+    // Robe - long flowing robe that sways in the wind
+    // Use a more visible color - lighter brown with better contrast
+    const robeColor = '#a0522d'; // Sienna brown - more visible than dark brown
+    const robeSecondary = '#8b4513'; // Saddle brown for details
+    const robeHighlight = '#cd853f'; // Peru - lighter highlight
+    
+    // Main robe body - starts from mid-torso (y=46) down to feet (y=64) to ensure visibility
+    // Make it wider and more prominent, extending over bottom of torso
+    const robeStartY = 46; // Start higher to overlap with bottom of torso
+    const robeEndY = 64;
+    const robeHeight = robeEndY - robeStartY;
+    
+    // Main robe body - draw as solid sections that sway
+    // Left side of robe - wider and more visible
+    for (let y = robeStartY; y < robeEndY; y++) {
+      const progress = (y - robeStartY) / robeHeight; // 0 at top, 1 at bottom
+      const swayAtY = robeSwayLeft * progress; // More sway at bottom
+      const width = 10 + Math.floor(progress * 6); // Wider at bottom (10-16 pixels)
+      const xPos = 20 + Math.round(swayAtY);
+      // Draw solid rectangle for each row
+      rect(xPos, y, width, 1, robeColor);
+      // Add highlight on left edge for depth
+      if (y % 3 === 0) {
+        pixel(xPos, y, robeHighlight);
+      }
+    }
+    
+    // Right side of robe
+    for (let y = robeStartY; y < robeEndY; y++) {
+      const progress = (y - robeStartY) / robeHeight;
+      const swayAtY = robeSwayRight * progress;
+      const width = 10 + Math.floor(progress * 6);
+      const xPos = 34 - Math.round(swayAtY);
+      rect(xPos, y, width, 1, robeColor);
+      // Add highlight on right edge
+      if (y % 3 === 0) {
+        pixel(xPos + width - 1, y, robeHighlight);
+      }
+    }
+    
+    // Center section of robe - connects left and right, sways less
+    // Make this the main visible part
+    for (let y = robeStartY; y < robeEndY; y++) {
+      const progress = (y - robeStartY) / robeHeight;
+      const swayAtY = robeSway * 0.5 * progress;
+      const width = 14 + Math.floor(progress * 4); // 14-18 pixels wide - wider center
+      const xPos = 25 + Math.round(swayAtY);
+      rect(xPos, y, width, 1, robeColor);
+      // Add center highlight
+      if (y % 4 === 0) {
+        pixel(xPos + Math.floor(width / 2), y, robeHighlight);
+      }
+    }
+    
+    // Robe hem - bottom edge that sways more dramatically (make it very visible)
+    const hemSway = robeSway * 1.5;
+    // Left hem - thicker and more visible
+    rect(18 + Math.round(hemSway * 0.8), 62, 12, 2, robeColor);
+    rect(18 + Math.round(hemSway * 0.8), 63, 12, 1, robeSecondary);
+    // Right hem
+    rect(34 + Math.round(hemSway * 1.2), 62, 12, 2, robeColor);
+    rect(34 + Math.round(hemSway * 1.2), 63, 12, 1, robeSecondary);
+    // Center hem
+    rect(26 + Math.round(hemSway * 0.6), 62, 12, 2, robeColor);
+    rect(26 + Math.round(hemSway * 0.6), 63, 12, 1, robeSecondary);
+    
+    // Robe details - vertical folds/seams that move with sway (more visible)
+    for (let y = robeStartY + 2; y < robeEndY - 2; y += 3) {
+      const progress = (y - robeStartY) / robeHeight;
+      const swayAtY = robeSway * 0.5 * progress;
+      pixel(28 + Math.round(swayAtY), y, robeSecondary);
+      pixel(30 + Math.round(swayAtY), y, robeSecondary);
+    }
+    for (let y = robeStartY + 3; y < robeEndY - 3; y += 3) {
+      const progress = (y - robeStartY) / robeHeight;
+      const swayAtY = robeSwayRight * progress;
+      pixel(38 + Math.round(swayAtY), y, robeSecondary);
+    }
+    for (let y = robeStartY + 3; y < robeEndY - 3; y += 3) {
+      const progress = (y - robeStartY) / robeHeight;
+      const swayAtY = robeSwayLeft * progress;
+      pixel(22 + Math.round(swayAtY), y, robeSecondary);
+    }
+    
+    // Robe opening at bottom (shows legs/feet) - wider gap in center
+    pixel(30, 63, legColor);
+    pixel(31, 63, legColor);
+    pixel(32, 63, legColor);
+    pixel(33, 63, legColor);
+    pixel(29, 63, legColor);
+    pixel(34, 63, legColor);
+  } else {
+    // Default legs for other classes
+    rect(24, 52, 8, 12, colors.primary);
+    rect(32, 52, 8, 12, colors.primary);
+    // Knees
+    rect(25, 58, 6, 2, colors.secondary);
+    rect(33, 58, 6, 2, colors.secondary);
+  }
 
   // Class-specific features - more detailed
   if (playerClass.name === 'Wizard') {
-    // Staff - more detailed
-    rect(44, 20, 2, 36, '#8b5cf6');
-    // Staff top/crystal
-    rect(42, 18, 6, 4, colors.accent);
-    pixel(43, 17, colors.accent);
-    pixel(44, 17, colors.accent);
-    pixel(45, 17, colors.accent);
-    // Staff details
-    rect(44, 30, 2, 2, '#fbbf24');
-    rect(44, 40, 2, 2, '#fbbf24');
-  } else if (playerClass.name === 'Fighter') {
-    // Sword - more detailed
-    rect(46, 24, 2, 24, '#cbd5e1');
-    // Sword hilt
-    rect(45, 24, 4, 4, '#78350f');
-    rect(44, 26, 6, 2, '#fbbf24');
-    // Sword guard
-    rect(43, 28, 2, 8, '#fbbf24');
-    rect(47, 28, 2, 8, '#fbbf24');
-    // Blade details
-    pixel(46, 30, '#ffffff');
-    pixel(46, 35, '#ffffff');
-    pixel(46, 40, '#ffffff');
-  } else if (playerClass.name === 'Paladin') {
-    // Paladin: Holy sword with glowing effect
-    rect(46, 24, 2, 24, '#cbd5e1');
-    // Glowing blade
-    pixel(45, 26, colors.accent);
-    pixel(47, 26, colors.accent);
-    pixel(45, 30, colors.accent);
-    pixel(47, 30, colors.accent);
-    // Sword hilt with holy symbol
-    rect(45, 24, 4, 4, '#78350f');
-    rect(44, 26, 6, 2, '#fbbf24');
-    pixel(46, 25, colors.accent); // Holy symbol on hilt
-    // Sword guard
-    rect(43, 28, 2, 8, '#fbbf24');
-    rect(47, 28, 2, 8, '#fbbf24');
-    // Blade details
-    pixel(46, 30, '#ffffff');
-    pixel(46, 35, '#ffffff');
-    pixel(46, 40, '#ffffff');
-  } else if (playerClass.name === 'Rogue') {
-    // Dagger - more detailed
-    rect(44, 28, 2, 12, '#cbd5e1');
-    rect(43, 28, 4, 2, '#fbbf24');
-    pixel(44, 26, '#fbbf24');
-    pixel(45, 26, '#fbbf24');
-    // Second dagger (dual wielding)
-    rect(40, 30, 2, 8, '#cbd5e1');
-    pixel(40, 28, '#fbbf24');
-  } else if (playerClass.name === 'Ranger') {
-    // Bow - more detailed
-    rect(44, 30, 4, 2, '#78350f');
-    rect(46, 28, 2, 6, '#78350f');
-    // Bowstring
-    pixel(45, 29, '#ffffff');
-    pixel(45, 33, '#ffffff');
-    // Arrow
-    rect(48, 30, 1, 4, '#1c1917');
-    pixel(48, 29, '#fbbf24'); // Arrowhead
-  } else if (playerClass.name === 'Cleric') {
-    // Holy symbol - more detailed
-    rect(26, 32, 12, 12, colors.accent);
-    // Symbol details
-    rect(28, 34, 8, 8, '#ffffff');
-    pixel(30, 36, colors.accent);
-    pixel(34, 36, colors.accent);
-    pixel(32, 38, colors.accent);
-    // Glowing effect
-    pixel(29, 35, colors.accent);
-    pixel(35, 35, colors.accent);
-    pixel(32, 40, colors.accent);
-  } else if (playerClass.name === 'Barbarian') {
-    // Axe - more detailed
-    rect(44, 24, 4, 20, '#1c1917');
-    rect(46, 24, 4, 4, colors.accent);
-    // Axe blade
-    rect(48, 26, 2, 8, '#cbd5e1');
-    pixel(49, 28, '#ffffff');
-    pixel(49, 30, '#ffffff');
-    // Battle damage on axe
-    pixel(48, 27, '#78350f');
-  } else if (playerClass.name === 'Bard') {
-    // Lute or musical instrument
-    rect(42, 28, 8, 12, '#78350f');
-    // Instrument body
-    rect(44, 30, 4, 8, colors.primary);
-    // Strings
-    for (let i = 0; i < 4; i++) {
-      pixel(45 + i, 32, '#ffffff');
-      pixel(45 + i, 36, '#ffffff');
+    // Staff - moves with right arm
+    const castOffset2 = hasAnimation ? Math.sin(animationProgress * 1.5 + Math.PI / 2) * 2.5 : 0;
+    rect(44, 20 + castOffset2, 2, 36, '#8b5cf6');
+    // Staff top/crystal (glows when casting)
+    const glowIntensity = hasAnimation ? (Math.sin(animationProgress * 2) + 1) / 2 : 0.5;
+    
+    // Determine casting color: green for healing, red for attack, blue/white for default
+    const isCasting = shouldCast;
+    const castColor = isHealing ? 'green' : (isAttacking ? 'red' : 'blue');
+    
+    // Color palettes for different spell types
+    const greenColors = {
+      outer: '#86efac', // Light green
+      mid: '#4ade80',   // Medium green
+      bright: '#22c55e', // Bright green
+      core: '#10b981',  // Core green
+      white: '#ffffff'   // White center
+    };
+    const redColors = {
+      outer: '#fca5a5', // Light red
+      mid: '#f87171',   // Medium red
+      bright: '#ef4444', // Bright red
+      core: '#dc2626',  // Core red
+      white: '#ffffff'  // White center
+    };
+    const blueColors = {
+      outer: '#bfdbfe', // Light blue
+      mid: '#93c5fd',   // Medium blue
+      bright: '#60a5fa', // Bright blue
+      core: '#3b82f6',  // Core blue
+      white: '#ffffff'  // White center
+    };
+    const castColors = castColor === 'green' ? greenColors : (castColor === 'red' ? redColors : blueColors);
+    
+    // Ball position (top of staff)
+    const ballX = 44; // Center of staff
+    const ballY = 18 + castOffset2; // Top of staff
+    
+    // Draw the ball/crystal with bright glow when casting
+    if (shouldCast) {
+      // Bright outer glow layer (drawn first, widest spread)
+      pixel(40, 15 + castOffset2, castColors.outer); // Far outer glow
+      pixel(47, 15 + castOffset2, castColors.outer);
+      pixel(41, 14 + castOffset2, castColors.mid); // Outer glow top
+      pixel(46, 14 + castOffset2, castColors.mid);
+      pixel(41, 16 + castOffset2, castColors.mid); // Outer glow sides
+      pixel(46, 16 + castOffset2, castColors.mid);
+      pixel(42, 15 + castOffset2, castColors.bright); // Mid glow
+      pixel(45, 15 + castOffset2, castColors.bright);
+      pixel(43, 15 + castOffset2, castColors.white); // Bright center top
+      pixel(44, 15 + castOffset2, castColors.white);
+      // Main ball - bright colored
+      rect(42, 18 + castOffset2, 6, 4, castColors.white);
+      pixel(43, 17 + castOffset2, castColors.white);
+      pixel(44, 17 + castOffset2, castColors.white);
+      pixel(45, 17 + castOffset2, castColors.white);
+      // Inner bright core
+      pixel(43, 18 + castOffset2, castColors.bright);
+      pixel(44, 18 + castOffset2, castColors.white); // Brightest center
+      pixel(45, 18 + castOffset2, castColors.bright);
+      pixel(43, 19 + castOffset2, castColors.bright);
+      pixel(44, 19 + castOffset2, castColors.white); // Brightest center
+      pixel(45, 19 + castOffset2, castColors.bright);
+      // Additional bright glow pixels around the ball
+      pixel(42, 16 + castOffset2, castColors.white); // Bright side glow
+      pixel(46, 16 + castOffset2, castColors.white);
+      pixel(42, 17 + castOffset2, castColors.outer); // Side glow
+      pixel(46, 17 + castOffset2, castColors.outer);
+      
+      // Radiating power beams (like cleric's scepter)
+      const beamCount = 16; // Many beams for powerful effect
+      const maxBeamLength = 18; // Long beams radiating outward
+      const beamCenterX = ballX + 1; // Center of ball
+      const beamCenterY = ballY - 1; // Top of ball
+      
+      for (let i = 0; i < beamCount; i++) {
+        const angle = (i / beamCount) * Math.PI * 2;
+        const beamLength = maxBeamLength;
+        const beamX = Math.round(beamCenterX + Math.cos(angle) * beamLength);
+        const beamY = Math.round(beamCenterY + Math.sin(angle) * beamLength);
+        
+        // Draw beam trail (radiating outward)
+        for (let j = 2; j <= beamLength; j += 2) {
+          const trailX = Math.round(beamCenterX + Math.cos(angle) * j);
+          const trailY = Math.round(beamCenterY + Math.sin(angle) * j);
+          const trailIntensity = 1 - (j / beamLength) * 0.6; // Fade out along beam
+          
+          if (trailIntensity > 0.2 && trailX >= 0 && trailX < 64 && trailY >= 0 && trailY < 64) {
+            // Use brighter colors closer to center, dimmer further out
+            const trailColor = trailIntensity > 0.7 ? castColors.white : 
+                              (trailIntensity > 0.5 ? castColors.bright : 
+                              (trailIntensity > 0.3 ? castColors.mid : castColors.outer));
+            pixel(trailX, trailY, trailColor);
+          }
+        }
+        
+        // Inner bright core beam (every other beam)
+        if (i % 2 === 0) {
+          const innerLength = beamLength * 0.6;
+          const innerX = Math.round(beamCenterX + Math.cos(angle) * innerLength);
+          const innerY = Math.round(beamCenterY + Math.sin(angle) * innerLength);
+          if (innerX >= 0 && innerX < 64 && innerY >= 0 && innerY < 64) {
+            pixel(innerX, innerY, castColors.white);
+          }
+        }
+      }
+      
+      // Large magical aura emanating from the ball when casting
+      const auraCenterX = beamCenterX;
+      const auraCenterY = beamCenterY;
+      const auraRadius = 16; // Large radius for powerful spell
+      
+      // Draw circular aura with multiple rings
+      for (let ring = 1; ring <= 3; ring++) {
+        const ringRadius = auraRadius - (ring * 2);
+        const ringIntensity = 1.0 - (ring * 0.25); // Outer rings are dimmer
+        const points = ring === 1 ? 24 : (ring === 2 ? 16 : 12); // More points for inner ring
+        
+        for (let i = 0; i < points; i++) {
+          const angle = (i / points) * Math.PI * 2;
+          const auraX = Math.round(auraCenterX + Math.cos(angle) * ringRadius);
+          const auraY = Math.round(auraCenterY + Math.sin(angle) * ringRadius);
+          
+          // Only draw if within bounds and at appropriate intensity
+          if (auraX >= 0 && auraX < 64 && auraY >= 0 && auraY < 64) {
+            const color = ringIntensity > 0.7 ? castColors.white : 
+                         (ringIntensity > 0.5 ? castColors.bright : 
+                         (ringIntensity > 0.3 ? castColors.mid : castColors.outer));
+            pixel(auraX, auraY, color);
+          }
+        }
+      }
+      
+      // Add sparkles/particles in the aura (emanating from ball)
+      const sparkleCount = 16;
+      for (let i = 0; i < sparkleCount; i++) {
+        const sparkleAngle = (i / sparkleCount) * Math.PI * 2;
+        const sparkleDist = 6 + (i % 4) * 2; // Varying distances
+        const sparkleX = Math.round(auraCenterX + Math.cos(sparkleAngle) * sparkleDist);
+        const sparkleY = Math.round(auraCenterY + Math.sin(sparkleAngle) * sparkleDist);
+        
+        if (sparkleX >= 0 && sparkleX < 64 && sparkleY >= 0 && sparkleY < 64) {
+          pixel(sparkleX, sparkleY, castColors.white);
+        }
+      }
+    } else {
+      // Normal appearance when not casting
+      rect(42, 18 + castOffset2, 6, 4, colors.accent);
+      pixel(43, 17 + castOffset2, colors.accent);
+      pixel(44, 17 + castOffset2, colors.accent);
+      pixel(45, 17 + castOffset2, colors.accent);
+      // Magical glow effect (only during idle animation)
+      if (hasAnimation && glowIntensity > 0.7) {
+        pixel(43, 16 + castOffset2, '#ffffff');
+        pixel(45, 16 + castOffset2, '#ffffff');
+      }
     }
-    // Decorative details
-    pixel(43, 31, colors.accent);
-    pixel(47, 31, colors.accent);
-  } else if (playerClass.name === 'Sorcerer') {
-    // Magical orb or wand
-    rect(44, 24, 4, 4, colors.accent);
-    // Orb glow
-    pixel(45, 25, '#ffffff');
-    pixel(46, 25, '#ffffff');
-    // Magical energy trail
-    rect(45, 28, 2, 20, colors.accent);
-    pixel(44, 30, colors.accent);
-    pixel(47, 30, colors.accent);
-    pixel(44, 35, colors.accent);
-    pixel(47, 35, colors.accent);
-  } else if (playerClass.name === 'Warlock') {
-    // Eldritch tome or dark staff
-    rect(42, 26, 6, 8, '#1c1917');
-    // Book details
-    rect(43, 27, 4, 6, '#78350f');
-    pixel(44, 28, '#fbbf24'); // Eye symbol
-    pixel(45, 28, '#fbbf24');
-    // Dark energy
-    pixel(48, 30, colors.accent);
-    pixel(48, 32, colors.accent);
-    pixel(48, 34, colors.accent);
-  } else if (playerClass.name === 'Monk') {
-    // Unarmed or simple staff
-    rect(44, 28, 2, 16, '#78350f');
     // Staff details
-    rect(43, 28, 4, 2, colors.accent);
+    rect(44, 30 + castOffset2, 2, 2, '#fbbf24');
+    rect(44, 40 + castOffset2, 2, 2, '#fbbf24');
+  } else if (playerClass.name === 'Fighter') {
+    // Sword - moves with arm (diagonally up and away), longer and at 45-degree angle
+    // Calculate offsets to match the arm position exactly
+    const swordOffsetX = hasAnimation ? Math.sin(animationProgress * 0.9) * 2.0 : 0;
+    const swordOffsetY = hasAnimation ? Math.sin(animationProgress * 0.9) * -2.5 : 0;
+    
+    // Sword base position (hand position) - must match the bottom of the right arm
+    // Right arm is at: x=42+swordOffsetX, y=30+swordOffsetY, width=6, height=16
+    // So the hand (bottom of arm) is at: x=45-46 (middle/end of arm), y=45-46 (bottom of arm)
+    const handX = 45 + swordOffsetX; // Middle of the 6-pixel wide arm (42 + 3 = 45)
+    const handY = 45 + swordOffsetY; // Bottom of the 16-pixel tall arm (30 + 16 - 1 = 45)
+    
+    // 45-degree angle: pointing up and to the right
+    // At 45 degrees, x and y offsets are equal (cos(45°) = sin(45°) ≈ 0.707)
+    const angle = Math.PI / 4; // 45 degrees
+    const swordLength = 36; // Fixed sword length in pixels (longer sword)
+    
+    // Calculate the direction vector (constant, doesn't change with hand position)
+    const dirX = Math.cos(angle);
+    const dirY = -Math.sin(angle); // Negative because Y increases downward
+    
+    // Calculate end position based on fixed length
+    const swordEndX = handX + dirX * swordLength;
+    const swordEndY = handY + dirY * swordLength;
+    
+    // Draw sword blade at 45-degree angle with FIXED length
+    // Use fixed number of steps to ensure consistent visual length
+    const steps = Math.ceil(swordLength); // One step per pixel of length
+    
+    // Draw main blade line (thicker - 3 pixels wide)
+    // Use fixed step count to ensure constant visual length
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      // Calculate position along the fixed-length diagonal
+      const x = Math.round(handX + dirX * swordLength * t);
+      const y = Math.round(handY + dirY * swordLength * t);
+      // Draw center pixel
+      pixel(x, y, '#cbd5e1');
+      // Draw thickness - for 45-degree diagonal, add pixels to sides
+      // Since it's 45°, we add pixels diagonally adjacent
+      pixel(x + 1, y, '#cbd5e1'); // Right side
+      pixel(x, y - 1, '#cbd5e1'); // Top side (for diagonal thickness)
+      // Add highlight on the edge
+      if (i % 3 === 0) {
+        pixel(x + 1, y, '#ffffff');
+      }
+    }
+    
+    // Add blade shine/details along the length (fixed positions)
+    for (let i = 4; i < steps - 2; i += 5) {
+      const t = i / steps;
+      const x = Math.round(handX + dirX * swordLength * t);
+      const y = Math.round(handY + dirY * swordLength * t);
+      pixel(x + 1, y, '#ffffff');
+    }
+    
+    // Sword hilt (at hand position - aligned with hand)
+    rect(44 + swordOffsetX, 44 + swordOffsetY, 4, 4, '#78350f');
+    rect(43 + swordOffsetX, 46 + swordOffsetY, 6, 2, '#fbbf24');
+    // Sword guard (more prominent - taller, positioned above hand)
+    rect(42 + swordOffsetX, 40 + swordOffsetY, 2, 8, '#fbbf24');
+    rect(46 + swordOffsetX, 40 + swordOffsetY, 2, 8, '#fbbf24');
+    // Guard details and highlights
+    pixel(42 + swordOffsetX, 42 + swordOffsetY, '#ffffff');
+    pixel(46 + swordOffsetX, 42 + swordOffsetY, '#ffffff');
+    pixel(42 + swordOffsetX, 44 + swordOffsetY, '#dc2626');
+    pixel(46 + swordOffsetX, 44 + swordOffsetY, '#dc2626');
+  } else if (playerClass.name === 'Paladin') {
+    // Paladin: Holy sword with glowing effect - moves with arm
+    const holyReady = hasAnimation ? Math.sin(animationProgress * 1.0) * 1.8 : 0;
+    const holyOffsetY = holyReady * 0.6;
+    // Sword blade
+    rect(46, 24 + holyOffsetY, 2, 24, '#cbd5e1');
+    // Glowing blade
+    pixel(45, 26 + holyOffsetY, colors.accent);
+    pixel(47, 26 + holyOffsetY, colors.accent);
+    pixel(45, 30 + holyOffsetY, colors.accent);
+    pixel(47, 30 + holyOffsetY, colors.accent);
+    // Sword hilt with holy symbol
+    rect(45, 24 + holyOffsetY, 4, 4, '#78350f');
+    rect(44, 26 + holyOffsetY, 6, 2, '#fbbf24');
+    pixel(46, 25 + holyOffsetY, colors.accent); // Holy symbol on hilt
+    // Sword guard
+    rect(43, 28 + holyOffsetY, 2, 8, '#fbbf24');
+    rect(47, 28 + holyOffsetY, 2, 8, '#fbbf24');
+    // Blade details
+    pixel(46, 30 + holyOffsetY, '#ffffff');
+    pixel(46, 35 + holyOffsetY, '#ffffff');
+    pixel(46, 40 + holyOffsetY, '#ffffff');
+  } else if (playerClass.name === 'Rogue') {
+    // Crossed daggers in X pattern - moves with crossed arms
+    const daggerCheck = hasAnimation ? Math.sin(animationProgress * 1.8) * 2.0 : 0;
+    const daggerOffset2 = hasAnimation ? daggerCheck * -0.7 : 0;
+    // Left dagger (in left hand, crossed to right side, pointing diagonally left/up)
+    // Left arm ends at y=46 (30 + 16), hand is at bottom of arm
+    const leftHandY = 30 + daggerCheck + 16; // End of left arm
+    const leftHandX = 28 + 3; // Center of left arm (28-34, center at 31)
+    // Dagger extends from hand diagonally up and left, crossing the body
+    rect(leftHandX - 2, leftHandY - 10, 2, 10, '#cbd5e1');
+    rect(leftHandX - 3, leftHandY - 10, 4, 2, '#fbbf24');
+    pixel(leftHandX - 2, leftHandY - 12, '#fbbf24');
+    pixel(leftHandX - 1, leftHandY - 12, '#fbbf24');
+    // Right dagger (in right hand, crossed to left side, pointing diagonally right/up)
+    // Right arm ends at y=46 (30 + 16), hand is at bottom of arm
+    const rightHandY = 30 + daggerOffset2 + 16; // End of right arm
+    const rightHandX = 30 + 3; // Center of right arm (30-36, center at 33)
+    // Dagger extends from hand diagonally up and right, crossing the body
+    rect(rightHandX + 2, rightHandY - 10, 2, 10, '#cbd5e1');
+    rect(rightHandX + 3, rightHandY - 10, 4, 2, '#fbbf24');
+    pixel(rightHandX + 4, rightHandY - 12, '#fbbf24');
+    pixel(rightHandX + 5, rightHandY - 12, '#fbbf24');
+  } else if (playerClass.name === 'Ranger') {
+    // Bow - animated based on draw
+    if (hasAnimation) {
+      const drawProgress = (Math.sin(animationProgress) + 1) / 2; // 0 to 1
+      const pullBack = drawProgress * 4; // More pronounced pull back
+      // Bow body (moves slightly as arm pulls)
+      rect(44 - pullBack * 0.3, 30, 4, 2, '#78350f');
+      rect(46 - pullBack * 0.3, 28, 2, 6, '#78350f');
+      // Bowstring (pulled back)
+      pixel(45 - pullBack, 29, '#ffffff');
+      pixel(45 - pullBack, 33, '#ffffff');
+      // Arrow (pulled back with string)
+      rect(48 - pullBack, 30, 1, 4, '#1c1917');
+      pixel(48 - pullBack, 29, '#fbbf24'); // Arrowhead
+    } else {
+      // Static bow
+      rect(44, 30, 4, 2, '#78350f');
+      rect(46, 28, 2, 6, '#78350f');
+      pixel(45, 29, '#ffffff');
+      pixel(45, 33, '#ffffff');
+      rect(48, 30, 1, 4, '#1c1917');
+      pixel(48, 29, '#fbbf24');
+    }
+  } else if (playerClass.name === 'Cleric') {
+    // Large scepter held with both hands in center, raised high above head
+    // When idle: animate raising and lowering
+    // When attacking/healing: keep scepter at highest position (casting pose)
+    let scepterRaise: number;
+    let handRaise: number;
+    if (hasAnimation) {
+      // Idle animation: scepter raises and lowers
+      const raiseProgress = (Math.sin(animationProgress * 0.8) + 1) / 2; // 0 to 1
+      scepterRaise = raiseProgress * -14; // Negative Y means up (raises from 0 to -14 pixels, high above head)
+      handRaise = scepterRaise * 0.8; // Match the hand movement from arm animation
+    } else {
+      // Not idle (attacking/healing): scepter at highest position (casting)
+      scepterRaise = -14; // Maximum raise position
+      handRaise = scepterRaise * 0.8; // Hands at maximum raise position (-11.2 pixels)
+    }
+    
+    // Scepter handle (held at center of body, extends upward)
+    // Base of scepter is at hand position (around y=46, which is bottom of arms at y=30+16)
+    const handY = 46 + handRaise; // Hands move up and down with scepter
+    const scepterBaseY = handY;
+    const scepterLength = 32; // Length of scepter shaft
+    const scepterTopY = scepterBaseY - scepterLength + scepterRaise; // Scepter extends upward, raising high above head
+    
+    // Large scepter shaft (thicker than a staff - 4 pixels wide)
+    const scepterX = 31; // Center of body (64/2 = 32, but offset slightly for visual balance)
+    rect(scepterX, scepterTopY, 4, scepterLength, '#78350f'); // Scepter shaft
+    
+    // Scepter decorative bands
+    rect(scepterX, scepterTopY + 8, 4, 2, '#fbbf24');
+    rect(scepterX, scepterTopY + 16, 4, 2, '#fbbf24');
+    rect(scepterX, scepterTopY + 24, 4, 2, '#fbbf24');
+    
+    // Scepter top ornament (larger, more ornate)
+    const topY = scepterTopY;
+    rect(scepterX - 1, topY - 2, 6, 4, colors.accent);
+    rect(scepterX, topY - 4, 4, 2, colors.accent);
+    pixel(scepterX + 1, topY - 5, colors.accent);
+    pixel(scepterX + 2, topY - 5, colors.accent);
+    
+    // Brilliant white light emanating from top of scepter
+    // When idle: pulse the light
+    // When attacking/healing: light at maximum intensity (casting) with large radius
+    const isCasting = !hasAnimation; // Casting when not idle
+    const lightIntensity = hasAnimation ? (Math.sin(animationProgress * 2) + 1) / 2 : 1.0;
+    
+    // Core bright white light (always visible, larger when casting)
+    pixel(scepterX + 1, topY - 6, '#ffffff');
+    pixel(scepterX + 2, topY - 6, '#ffffff');
+    pixel(scepterX + 1, topY - 7, '#ffffff');
+    pixel(scepterX + 2, topY - 7, '#ffffff');
+    if (isCasting) {
+      // Larger core when casting
+      pixel(scepterX, topY - 6, '#ffffff');
+      pixel(scepterX + 3, topY - 6, '#ffffff');
+      pixel(scepterX, topY - 7, '#ffffff');
+      pixel(scepterX + 3, topY - 7, '#ffffff');
+      pixel(scepterX + 1, topY - 8, '#ffffff');
+      pixel(scepterX + 2, topY - 8, '#ffffff');
+      pixel(scepterX + 1, topY - 9, '#ffffff');
+      pixel(scepterX + 2, topY - 9, '#ffffff');
+    }
+    
+    // Radiating light beams (brilliant white, pulsing)
+    // When casting: many more beams with much longer range
+    const beamCount = isCasting ? 16 : 8; // Double the beams when casting
+    const maxBeamLength = isCasting ? 20 : 6; // Much longer beams when casting
+    for (let i = 0; i < beamCount; i++) {
+      const angle = (i / beamCount) * Math.PI * 2;
+      const beamLength = isCasting ? maxBeamLength : (2 + Math.floor(lightIntensity * 4));
+      const beamX = Math.round(scepterX + 2 + Math.cos(angle) * beamLength);
+      const beamY = Math.round(topY - 6 + Math.sin(angle) * beamLength);
+      
+      // Draw beam trail when casting (more dramatic)
+      if (isCasting) {
+        // Draw multiple points along the beam for a trail effect
+        for (let j = 1; j <= beamLength; j += 2) {
+          const trailX = Math.round(scepterX + 2 + Math.cos(angle) * j);
+          const trailY = Math.round(topY - 6 + Math.sin(angle) * j);
+          const trailIntensity = 1 - (j / beamLength) * 0.5; // Fade out along beam
+          if (trailIntensity > 0.3) {
+            pixel(trailX, trailY, trailIntensity > 0.7 ? '#ffffff' : '#e5e5e5');
+          }
+        }
+      } else {
+        // Outer glow (lighter gray for softer appearance) - idle mode
+        if (lightIntensity > 0.3) {
+          pixel(beamX, beamY, lightIntensity > 0.7 ? '#ffffff' : '#e5e5e5');
+        }
+      }
+      
+      // Inner bright core (every other beam)
+      if (i % 2 === 0 && (isCasting || lightIntensity > 0.5)) {
+        const innerLength = isCasting ? beamLength * 0.7 : (beamLength * 0.6);
+        const innerX = Math.round(scepterX + 2 + Math.cos(angle) * innerLength);
+        const innerY = Math.round(topY - 6 + Math.sin(angle) * innerLength);
+        pixel(innerX, innerY, '#ffffff');
+      }
+    }
+    
+    // Large magical aura emanating from the top of the scepter when casting
+    if (isCasting) {
+      // Use the scepter top position as the center of the aura
+      const auraCenterX = scepterX + 2; // Center of scepter (scepterX is 31, so center is 33)
+      const auraCenterY = topY - 6; // Top of scepter light (where the core light is)
+      const auraRadius = 18; // Large radius for powerful spell
+      
+      // Draw circular aura with multiple rings
+      for (let ring = 1; ring <= 3; ring++) {
+        const ringRadius = auraRadius - (ring * 2);
+        const ringIntensity = 1.0 - (ring * 0.2); // Outer rings are dimmer
+        const points = ring === 1 ? 24 : (ring === 2 ? 16 : 12); // More points for inner ring
+        
+        for (let i = 0; i < points; i++) {
+          const angle = (i / points) * Math.PI * 2;
+          const auraX = Math.round(auraCenterX + Math.cos(angle) * ringRadius);
+          const auraY = Math.round(auraCenterY + Math.sin(angle) * ringRadius);
+          
+          // Only draw if within bounds and at appropriate intensity
+          if (auraX >= 0 && auraX < 64 && auraY >= 0 && auraY < 64) {
+            const color = ringIntensity > 0.7 ? '#ffffff' : (ringIntensity > 0.5 ? '#e5e5e5' : '#d1d5db');
+            pixel(auraX, auraY, color);
+          }
+        }
+      }
+      
+      // Add sparkles/particles in the aura (emanating from scepter top)
+      const sparkleCount = 20;
+      for (let i = 0; i < sparkleCount; i++) {
+        const sparkleAngle = (i / sparkleCount) * Math.PI * 2;
+        const sparkleDist = 8 + (i % 5) * 2; // Varying distances
+        const sparkleX = Math.round(auraCenterX + Math.cos(sparkleAngle) * sparkleDist);
+        const sparkleY = Math.round(auraCenterY + Math.sin(sparkleAngle) * sparkleDist);
+        
+        if (sparkleX >= 0 && sparkleX < 64 && sparkleY >= 0 && sparkleY < 64) {
+          pixel(sparkleX, sparkleY, '#ffffff');
+        }
+      }
+    }
+    
+    // Additional light particles around the top (rotating)
+    const particleCount = isCasting ? 12 : 6; // More particles when casting
+    for (let i = 0; i < particleCount; i++) {
+      const particleAngle = (i / particleCount) * Math.PI * 2 + (hasAnimation ? animationProgress * 0.3 : 0);
+      const particleDist = isCasting ? (4 + (i % 4) * 2) : (2 + Math.floor(lightIntensity * 3));
+      const particleX = Math.round(scepterX + 2 + Math.cos(particleAngle) * particleDist);
+      const particleY = Math.round(topY - 6 + Math.sin(particleAngle) * particleDist);
+      if (isCasting || lightIntensity > 0.4) {
+        pixel(particleX, particleY, '#ffffff');
+      }
+    }
+    
+    // Extra bright flash at peak intensity (or always when casting)
+    if (isCasting || lightIntensity > 0.8) {
+      pixel(scepterX, topY - 6, '#ffffff');
+      pixel(scepterX + 3, topY - 6, '#ffffff');
+      pixel(scepterX + 1, topY - 8, '#ffffff');
+      pixel(scepterX + 2, topY - 8, '#ffffff');
+      if (isCasting) {
+        // Even more intense flash when casting
+        pixel(scepterX - 1, topY - 7, '#ffffff');
+        pixel(scepterX + 4, topY - 7, '#ffffff');
+        pixel(scepterX + 1, topY - 10, '#ffffff');
+        pixel(scepterX + 2, topY - 10, '#ffffff');
+      }
+    }
+  } else if (playerClass.name === 'Barbarian') {
+    // Axe - moves with arms
+    const battleReady = hasAnimation ? Math.sin(animationProgress * 1.1) * 2.2 : 0;
+    // Axe handle
+    rect(44, 24 + battleReady, 4, 20, '#1c1917');
+    rect(46, 24 + battleReady, 4, 4, colors.accent);
+    // Axe blade
+    rect(48, 26 + battleReady, 2, 8, '#cbd5e1');
+    pixel(49, 28 + battleReady, '#ffffff');
+    pixel(49, 30 + battleReady, '#ffffff');
+    // Battle damage on axe
+    pixel(48, 27 + battleReady, '#78350f');
+  } else if (playerClass.name === 'Bard') {
+    // Guitar held across body in playing position - lower on body, not covering face
+    // Rocking motion for playing animation
+    const rockAngle = hasAnimation ? Math.sin(animationProgress * 1.5) * 0.15 : 0;
+    const rockOffsetX = hasAnimation ? Math.sin(animationProgress * 1.5) * 2.0 : 0;
+    const rockOffsetY = hasAnimation ? Math.cos(animationProgress * 1.5) * 1.5 : 0;
+    
+    // Determine casting color: green for healing, purple for attack
+    const isCasting = shouldCast;
+    const castColor = isHealing ? 'green' : (isAttacking ? 'purple' : 'blue');
+    
+    // Color palettes for different spell types
+    const greenColors = {
+      outer: '#86efac', // Light green
+      mid: '#4ade80',   // Medium green
+      bright: '#22c55e', // Bright green
+      core: '#10b981',  // Core green
+      white: '#ffffff'   // White center
+    };
+    const purpleColors = {
+      outer: '#c4b5fd', // Light purple
+      mid: '#a78bfa',   // Medium purple
+      bright: '#8b5cf6', // Bright purple
+      core: '#7c3aed',  // Core purple
+      white: '#ffffff'  // White center
+    };
+    const blueColors = {
+      outer: '#bfdbfe', // Light blue
+      mid: '#93c5fd',   // Medium blue
+      bright: '#60a5fa', // Bright blue
+      core: '#3b82f6',  // Core blue
+      white: '#ffffff'  // White center
+    };
+    const castColors = castColor === 'green' ? greenColors : (castColor === 'purple' ? purpleColors : blueColors);
+    
+    // Guitar neck (extends from far left side to body) - drawn first so body can overlap
+    // Neck extends from left side (x=8) diagonally to body, rocks with animation
+    const neckX = 8 + Math.round(rockOffsetX);
+    const neckY = 22 + Math.round(rockOffsetY);
+    rect(neckX, neckY, 3, 24, '#92400e'); // Darker brown neck - extends from left side
+    // Fretboard on top of neck
+    rect(neckX + 1, neckY, 2, 24, '#1c1917'); // Black fretboard
+    
+    // Guitar body (held across body - lower position, not covering face) - rocks with animation
+    const bodyX = 18 + Math.round(rockOffsetX);
+    const bodyY = 32 + Math.round(rockOffsetY);
+    // Main body (sound hole area) - positioned lower
+    rect(bodyX, bodyY, 28, 14, '#78350f'); // Brown guitar body - lower on body
+    // Sound hole (center of body)
+    rect(bodyX + 10, bodyY + 4, 8, 6, '#1c1917'); // Dark center
+    pixel(bodyX + 12, bodyY + 5, '#dc2626'); // Red inner ring (matches bard's red wardrobe)
+    pixel(bodyX + 13, bodyY + 5, '#dc2626');
+    pixel(bodyX + 14, bodyY + 5, '#dc2626');
+    pixel(bodyX + 15, bodyY + 5, '#dc2626');
+    pixel(bodyX + 12, bodyY + 8, '#dc2626');
+    pixel(bodyX + 13, bodyY + 8, '#dc2626');
+    pixel(bodyX + 14, bodyY + 8, '#dc2626');
+    pixel(bodyX + 15, bodyY + 8, '#dc2626');
+    
+    // Strings removed - they were causing visual issues and aren't needed
+    // The guitar is recognizable without visible strings
+    
+    // Decorative details on guitar body
+    pixel(bodyX + 2, bodyY + 2, '#fbbf24'); // Gold accents
+    pixel(bodyX + 24, bodyY + 2, '#fbbf24');
+    pixel(bodyX + 2, bodyY + 10, '#fbbf24');
+    pixel(bodyX + 24, bodyY + 10, '#fbbf24');
+    
+    // Strumming hand drawn after guitar so it appears in front
+    // Right hand plucking strings over guitar body (rocks with guitar)
+    if (hasAnimation) {
+      const rockOffsetX = Math.sin(animationProgress * 1.5) * 2.0;
+      const rockOffsetY = Math.cos(animationProgress * 1.5) * 1.5;
+      // Hand positioned over strings, in front of guitar
+      rect(30 + Math.round(rockOffsetX), 34 + Math.round(rockOffsetY), 6, 14, colors.skin);
+      // Fingers plucking strings
+      pixel(32 + Math.round(rockOffsetX), 36 + Math.round(rockOffsetY), colors.skin);
+      pixel(33 + Math.round(rockOffsetX), 37 + Math.round(rockOffsetY), colors.skin);
+      pixel(34 + Math.round(rockOffsetX), 38 + Math.round(rockOffsetY), colors.skin);
+    } else {
+      rect(30, 34, 6, 14, colors.skin);
+      pixel(32, 36, colors.skin);
+      pixel(33, 37, colors.skin);
+      pixel(34, 38, colors.skin);
+    }
+    
+    // Note: Casting glow effects are drawn at the end of the function to ensure visibility
+  } else if (playerClass.name === 'Sorcerer') {
+    // Magical orb or wand - moves with arms
+    const magicOffset = hasAnimation ? Math.sin(animationProgress * 2) * 3.0 : 0;
+    const magicOffset2 = -magicOffset; // Opposite direction
+    // Left hand orb
+    rect(44, 24 + magicOffset, 4, 4, colors.accent);
+    pixel(45, 25 + magicOffset, '#ffffff');
+    pixel(46, 25 + magicOffset, '#ffffff');
+    // Right hand wand
+    rect(45, 28 + magicOffset2, 2, 20, colors.accent);
+    pixel(44, 30 + magicOffset2, colors.accent);
+    pixel(47, 30 + magicOffset2, colors.accent);
+    pixel(44, 35 + magicOffset2, colors.accent);
+    pixel(47, 35 + magicOffset2, colors.accent);
+  } else if (playerClass.name === 'Warlock') {
+    // Eldritch tome or dark staff - moves with arms
+    const darkMagic = hasAnimation ? Math.sin(animationProgress * 1.6) * 2.5 : 0;
+    const darkMagic2 = -darkMagic; // Opposite direction
+    // Left hand tome
+    rect(42, 26 + darkMagic, 6, 8, '#1c1917');
+    rect(43, 27 + darkMagic, 4, 6, '#78350f');
+    pixel(44, 28 + darkMagic, '#fbbf24'); // Eye symbol
+    pixel(45, 28 + darkMagic, '#fbbf24');
+    // Right hand dark energy
+    pixel(48, 30 + darkMagic2, colors.accent);
+    pixel(48, 32 + darkMagic2, colors.accent);
+    pixel(48, 34 + darkMagic2, colors.accent);
+  } else if (playerClass.name === 'Monk') {
+    // Unarmed or simple staff - moves with arms
+    const breathOffset = hasAnimation ? Math.sin(animationProgress * 0.8) * 2.0 : 0;
+    rect(44, 28 + breathOffset, 2, 16, '#78350f');
+    // Staff details
+    rect(43, 28 + breathOffset, 4, 2, colors.accent);
     // Energy aura (ki)
-    pixel(46, 30, colors.accent);
-    pixel(46, 35, colors.accent);
-    pixel(46, 40, colors.accent);
+    pixel(46, 30 + breathOffset, colors.accent);
+    pixel(46, 35 + breathOffset, colors.accent);
+    pixel(46, 40 + breathOffset, colors.accent);
   } else if (playerClass.name === 'Druid') {
-    // Staff with nature elements
-    rect(44, 20, 2, 28, '#78350f');
+    // Staff with nature elements - moves with arms
+    const natureSway = hasAnimation ? Math.sin(animationProgress * 0.7) * 2.5 : 0;
+    const natureSway2 = -natureSway; // Opposite direction for right arm
+    // Staff (held in right hand, moves opposite to left arm)
+    rect(44, 20 + natureSway2, 2, 28, '#78350f');
     // Staff top with leaves
-    rect(42, 18, 6, 4, colors.accent);
-    pixel(43, 17, colors.accent);
-    pixel(45, 17, colors.accent);
-    pixel(44, 16, colors.accent);
+    rect(42, 18 + natureSway2, 6, 4, colors.accent);
+    pixel(43, 17 + natureSway2, colors.accent);
+    pixel(45, 17 + natureSway2, colors.accent);
+    pixel(44, 16 + natureSway2, colors.accent);
     // Nature details on staff
-    pixel(44, 25, colors.accent);
-    pixel(44, 30, colors.accent);
-    pixel(44, 35, colors.accent);
+    pixel(44, 25 + natureSway2, colors.accent);
+    pixel(44, 30 + natureSway2, colors.accent);
+    pixel(44, 35 + natureSway2, colors.accent);
   } else if (playerClass.name === 'Artificer') {
-    // Mechanical tool or crossbow
-    rect(42, 28, 8, 6, colors.secondary);
-    // Crossbow body
-    rect(44, 30, 4, 4, '#1c1917');
-    // Bolt
-    rect(48, 31, 2, 2, '#cbd5e1');
+    // Mechanical tool or crossbow - moves with arms
+    const tinkerOffset = hasAnimation ? Math.sin(animationProgress * 1.4) * 2.0 : 0;
+    const tinkerOffset2 = tinkerOffset * -0.8; // Opposite direction for right arm
+    // Crossbow (held in right hand)
+    rect(42, 28 + tinkerOffset2, 8, 6, colors.secondary);
+    rect(44, 30 + tinkerOffset2, 4, 4, '#1c1917');
+    rect(48, 31 + tinkerOffset2, 2, 2, '#cbd5e1');
     // Mechanical details
-    pixel(43, 29, colors.accent);
-    pixel(47, 29, colors.accent);
-    pixel(45, 32, '#fbbf24');
+    pixel(43, 29 + tinkerOffset2, colors.accent);
+    pixel(47, 29 + tinkerOffset2, colors.accent);
+    pixel(45, 32 + tinkerOffset2, '#fbbf24');
   }
 
   // Draw damage indicators (bruising/blood) based on HP loss
@@ -1162,6 +1929,150 @@ export function drawPixelCharacter(
     ctx.fillStyle = `rgba(251, 191, 36, 0.3)`;
     ctx.fillRect(40 * pixelSize, 20 * pixelSize, 12 * pixelSize, 16 * pixelSize);
   }
+  
+  // Draw bard casting effects after all other elements to ensure visibility
+  if (playerClass.name === 'Bard' && shouldCast) {
+    // Determine casting color: green for healing, purple for attack
+    const castColor = isHealing ? 'green' : (isAttacking ? 'purple' : 'blue');
+    
+    // Color palettes for different spell types
+    const greenColors = {
+      outer: '#86efac', // Light green
+      mid: '#4ade80',   // Medium green
+      bright: '#22c55e', // Bright green
+      core: '#10b981',  // Core green
+      white: '#ffffff'   // White center
+    };
+    const purpleColors = {
+      outer: '#c4b5fd', // Light purple
+      mid: '#a78bfa',   // Medium purple
+      bright: '#8b5cf6', // Bright purple
+      core: '#7c3aed',  // Core purple
+      white: '#ffffff'  // White center
+    };
+    const blueColors = {
+      outer: '#bfdbfe', // Light blue
+      mid: '#93c5fd',   // Medium blue
+      bright: '#60a5fa', // Bright blue
+      core: '#3b82f6',  // Core blue
+      white: '#ffffff'  // White center
+    };
+    const castColors = castColor === 'green' ? greenColors : (castColor === 'purple' ? purpleColors : blueColors);
+    
+    // Calculate guitar position - use same calculation as guitar drawing
+    // Base guitar body position: x=18, y=32
+    // Sound hole is at bodyX + 10, bodyY + 4 with size 8x6, so center is at bodyX + 14, bodyY + 7
+    // Use the same animationProgress that was calculated at the top of the function
+    const rockOffsetX = hasAnimation ? Math.sin(animationProgress * 1.5) * 2.0 : 0;
+    const rockOffsetY = hasAnimation ? Math.cos(animationProgress * 1.5) * 1.5 : 0;
+    const bodyX = 18 + Math.round(rockOffsetX);
+    const bodyY = 32 + Math.round(rockOffsetY);
+    
+    // Glow emanates from the sound hole (center of guitar body)
+    const glowCenterX = bodyX + 14; // Center of sound hole (bodyX + 10 + 4)
+    const glowCenterY = bodyY + 7; // Center of sound hole (bodyY + 4 + 3)
+    
+    // Bright outer glow layer (drawn first, widest spread) - relative to glow center
+    // More extensive glow for better visibility
+    for (let dx = -8; dx <= 8; dx++) {
+      for (let dy = -6; dy <= 6; dy++) {
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= 8 && dist > 6) {
+          pixel(glowCenterX + dx, glowCenterY + dy, castColors.outer);
+        } else if (dist <= 6 && dist > 4) {
+          pixel(glowCenterX + dx, glowCenterY + dy, castColors.mid);
+        } else if (dist <= 4 && dist > 2) {
+          pixel(glowCenterX + dx, glowCenterY + dy, castColors.bright);
+        } else if (dist <= 2) {
+          pixel(glowCenterX + dx, glowCenterY + dy, castColors.white);
+        }
+      }
+    }
+    
+    // Additional bright center core for maximum visibility
+    pixel(glowCenterX - 1, glowCenterY - 1, castColors.white);
+    pixel(glowCenterX, glowCenterY - 1, castColors.white);
+    pixel(glowCenterX + 1, glowCenterY - 1, castColors.white);
+    pixel(glowCenterX - 1, glowCenterY, castColors.white);
+    pixel(glowCenterX, glowCenterY, castColors.white);
+    pixel(glowCenterX + 1, glowCenterY, castColors.white);
+    pixel(glowCenterX - 1, glowCenterY + 1, castColors.white);
+    pixel(glowCenterX, glowCenterY + 1, castColors.white);
+    pixel(glowCenterX + 1, glowCenterY + 1, castColors.white);
+    
+    // Radiating power beams from sound hole
+    const beamCount = 16; // Many beams for powerful effect
+    const maxBeamLength = 18; // Long beams radiating outward
+    
+    for (let i = 0; i < beamCount; i++) {
+      const angle = (i / beamCount) * Math.PI * 2;
+      const beamLength = maxBeamLength;
+      
+      // Draw beam trail (radiating outward)
+      for (let j = 2; j <= beamLength; j += 2) {
+        const trailX = Math.round(glowCenterX + Math.cos(angle) * j);
+        const trailY = Math.round(glowCenterY + Math.sin(angle) * j);
+        const trailIntensity = 1 - (j / beamLength) * 0.6; // Fade out along beam
+        
+        if (trailIntensity > 0.2 && trailX >= 0 && trailX < 64 && trailY >= 0 && trailY < 64) {
+          // Use brighter colors closer to center, dimmer further out
+          const trailColor = trailIntensity > 0.7 ? castColors.white : 
+                            (trailIntensity > 0.5 ? castColors.bright : 
+                            (trailIntensity > 0.3 ? castColors.mid : castColors.outer));
+          pixel(trailX, trailY, trailColor);
+        }
+      }
+      
+      // Inner bright core beam (every other beam)
+      if (i % 2 === 0) {
+        const innerLength = beamLength * 0.6;
+        const innerX = Math.round(glowCenterX + Math.cos(angle) * innerLength);
+        const innerY = Math.round(glowCenterY + Math.sin(angle) * innerLength);
+        if (innerX >= 0 && innerX < 64 && innerY >= 0 && innerY < 64) {
+          pixel(innerX, innerY, castColors.white);
+        }
+      }
+    }
+    
+    // Large magical aura emanating from the sound hole when casting
+    const auraCenterX = glowCenterX;
+    const auraCenterY = glowCenterY;
+    const auraRadius = 16; // Large radius for powerful spell
+    
+    // Draw circular aura with multiple rings
+    for (let ring = 1; ring <= 3; ring++) {
+      const ringRadius = auraRadius - (ring * 2);
+      const ringIntensity = 1.0 - (ring * 0.25); // Outer rings are dimmer
+      const points = ring === 1 ? 24 : (ring === 2 ? 16 : 12); // More points for inner ring
+      
+      for (let i = 0; i < points; i++) {
+        const angle = (i / points) * Math.PI * 2;
+        const auraX = Math.round(auraCenterX + Math.cos(angle) * ringRadius);
+        const auraY = Math.round(auraCenterY + Math.sin(angle) * ringRadius);
+        
+        // Only draw if within bounds and at appropriate intensity
+        if (auraX >= 0 && auraX < 64 && auraY >= 0 && auraY < 64) {
+          const color = ringIntensity > 0.7 ? castColors.white : 
+                       (ringIntensity > 0.5 ? castColors.bright : 
+                       (ringIntensity > 0.3 ? castColors.mid : castColors.outer));
+          pixel(auraX, auraY, color);
+        }
+      }
+    }
+    
+    // Add sparkles/particles in the aura (emanating from sound hole)
+    const sparkleCount = 16;
+    for (let i = 0; i < sparkleCount; i++) {
+      const sparkleAngle = (i / sparkleCount) * Math.PI * 2;
+      const sparkleDist = 6 + (i % 4) * 2; // Varying distances
+      const sparkleX = Math.round(auraCenterX + Math.cos(sparkleAngle) * sparkleDist);
+      const sparkleY = Math.round(auraCenterY + Math.sin(sparkleAngle) * sparkleDist);
+      
+      if (sparkleX >= 0 && sparkleX < 64 && sparkleY >= 0 && sparkleY < 64) {
+        pixel(sparkleX, sparkleY, castColors.white);
+      }
+    }
+  }
 }
 
 // Get monster sprite size (grid dimensions) - updated for 64x64 grid
@@ -1205,7 +2116,8 @@ export function drawMonsterPixelArt(
   colors: ReturnType<typeof getMonsterColors>,
   hpPercent: number,
   isDefeated: boolean,
-  emotion: CharacterEmotion // Not used for monsters, kept for compatibility
+  emotion: CharacterEmotion, // Not used for monsters, kept for compatibility
+  animationFrame: number = 0
 ) {
   const spriteSize = getMonsterSpriteSize(monsterClass.name);
   const GRID_SIZE = 64; // Base grid is now 64x64
