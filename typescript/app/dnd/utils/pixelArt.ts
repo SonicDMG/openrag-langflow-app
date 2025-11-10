@@ -2005,7 +2005,10 @@ export function drawMonsterPixelArt(
   hpPercent: number,
   isDefeated: boolean,
   emotion: CharacterEmotion, // Not used for monsters, kept for compatibility
-  animationFrame: number = 0
+  animationFrame: number = 0,
+  shouldCast: boolean = false,
+  isHealing: boolean = false,
+  isAttacking: boolean = false
 ) {
   const spriteSize = getMonsterSpriteSize(monsterClass.name);
   const GRID_SIZE = 64; // Base grid is now 64x64
@@ -2136,13 +2139,25 @@ export function drawMonsterPixelArt(
     pixel(27, 47, colors.accent);
   } else if (monsterName === 'Dragon') {
     // Dragon: Actual dragon - quadrupedal, long neck, wings, tail - uses full 64x64 canvas
-    // Head - reptilian, at end of long neck (more detailed)
-    rect(8, 4, 16, 12, colors.skin);
+    // Calculate animation progress for idle animation (0 to 1, cycles)
+    const animationProgress = (animationFrame / 60) * Math.PI * 2; // 60 frames per cycle
+    const isIdle = !shouldCast && !isDefeated;
+    
+    // Idle animation offsets
+    const headOffsetX = isIdle ? Math.sin(animationProgress * 0.8) * 2 : 0; // Head sways side to side
+    const headOffsetY = isIdle ? Math.sin(animationProgress * 0.6) * 1.5 : 0; // Head bobs slightly
+    const tailOffsetX = isIdle ? Math.sin(animationProgress * 0.7 + Math.PI) * 3 : 0; // Tail sways opposite to head
+    const tailOffsetY = isIdle ? Math.sin(animationProgress * 0.5 + Math.PI) * 2 : 0; // Tail curves
+    
+    // Head - reptilian, at end of long neck (more detailed) - with idle animation
+    const headX = 8 + Math.round(headOffsetX);
+    const headY = 4 + Math.round(headOffsetY);
+    rect(headX, headY, 16, 12, colors.skin);
     // Head shape refinement
-    pixel(7, 5, colors.skin);
-    pixel(24, 5, colors.skin);
-    pixel(6, 7, colors.skin);
-    pixel(25, 7, colors.skin);
+    pixel(headX - 1, headY + 1, colors.skin);
+    pixel(headX + 16, headY + 1, colors.skin);
+    pixel(headX - 2, headY + 3, colors.skin);
+    pixel(headX + 17, headY + 3, colors.skin);
     // Long neck connecting to body (more detailed)
     rect(12, 16, 8, 12, colors.skin);
     // Neck scales
@@ -2150,26 +2165,52 @@ export function drawMonsterPixelArt(
       pixel(14, y, colors.secondary);
       pixel(18, y, colors.secondary);
     }
-    // Snout/jaw - more detailed
-    rect(4, 8, 6, 6, colors.skin);
-    rect(22, 8, 6, 6, colors.skin);
+    // Snout/jaw - more detailed (with head offset)
+    rect(headX - 4, headY + 4, 6, 6, colors.skin);
+    rect(headX + 14, headY + 4, 6, 6, colors.skin);
     // Teeth
-    pixel(5, 10, '#ffffff');
-    pixel(6, 11, '#ffffff');
-    pixel(25, 10, '#ffffff');
-    pixel(24, 11, '#ffffff');
-    // Horns - more detailed
-    pixel(10, 2, colors.accent);
-    pixel(11, 1, colors.accent);
-    pixel(20, 1, colors.accent);
-    pixel(21, 2, colors.accent);
-    pixel(12, 0, colors.accent);
-    pixel(19, 0, colors.accent);
-    // Eyes - larger and more detailed
-    rect(10, 8, 2, 2, '#000000');
-    rect(20, 8, 2, 2, '#000000');
-    pixel(9, 9, '#fbbf24'); // Eye shine
-    pixel(21, 9, '#fbbf24');
+    pixel(headX - 3, headY + 6, '#ffffff');
+    pixel(headX - 2, headY + 7, '#ffffff');
+    pixel(headX + 17, headY + 6, '#ffffff');
+    pixel(headX + 16, headY + 7, '#ffffff');
+    // Horns - more detailed (with head offset)
+    pixel(headX + 2, headY - 2, colors.accent);
+    pixel(headX + 3, headY - 3, colors.accent);
+    pixel(headX + 12, headY - 3, colors.accent);
+    pixel(headX + 13, headY - 2, colors.accent);
+    pixel(headX + 4, headY - 4, colors.accent);
+    pixel(headX + 11, headY - 4, colors.accent);
+    // Eyes - larger and more detailed (with head offset)
+    rect(headX + 2, headY + 4, 2, 2, '#000000');
+    rect(headX + 12, headY + 4, 2, 2, '#000000');
+    pixel(headX + 1, headY + 5, '#fbbf24'); // Eye shine
+    pixel(headX + 13, headY + 5, '#fbbf24');
+    
+    // Green glow effect for healing on neck and chest - pulsing effect
+    if (isHealing) {
+      // Calculate pulsing intensity (0.4 to 1.0)
+      const pulse = Math.sin(animationProgress * 6) * 0.3 + 0.7;
+      const pulseIntensity = pulse;
+      
+      // Neck glow - pulsing
+      ctx.fillStyle = `rgba(34, 197, 94, ${0.7 * pulseIntensity})`; // Green with pulsing transparency
+      ctx.fillRect(12 * pixelSize, 16 * pixelSize, 8 * pixelSize, 12 * pixelSize);
+      
+      // Chest/body glow - pulsing, covering more of the body
+      ctx.fillStyle = `rgba(34, 197, 94, ${0.6 * pulseIntensity})`;
+      ctx.fillRect(16 * pixelSize, 28 * pixelSize, 32 * pixelSize, 20 * pixelSize); // Full body width
+      
+      // Brighter pulsing core on neck
+      const neckPulse = Math.sin(animationProgress * 8) * 0.2 + 0.8;
+      ctx.fillStyle = `rgba(74, 222, 128, ${0.5 * neckPulse})`; // Brighter green
+      ctx.fillRect(14 * pixelSize, 18 * pixelSize, 4 * pixelSize, 8 * pixelSize);
+      
+      // Brighter pulsing core on chest
+      const chestPulse = Math.sin(animationProgress * 8 + Math.PI / 2) * 0.2 + 0.8;
+      ctx.fillStyle = `rgba(74, 222, 128, ${0.4 * chestPulse})`; // Brighter green
+      ctx.fillRect(20 * pixelSize, 30 * pixelSize, 24 * pixelSize, 12 * pixelSize);
+    }
+    
     // Body - large barrel chest, quadrupedal stance (more detailed)
     rect(16, 28, 32, 20, colors.primary);
     // Scales pattern - more detailed
@@ -2222,16 +2263,59 @@ export function drawMonsterPixelArt(
     pixel(46, 59, colors.accent);
     pixel(48, 59, colors.accent);
     pixel(50, 59, colors.accent);
-    // Tail - long and tapering, curves behind (more detailed)
-    rect(48, 48, 6, 12, colors.primary);
-    rect(50, 60, 4, 4, colors.primary);
-    pixel(52, 63, colors.primary);
-    pixel(53, 63, colors.primary);
-    // Tail spikes
-    pixel(49, 50, colors.accent);
-    pixel(51, 52, colors.accent);
-    pixel(49, 54, colors.accent);
-    pixel(51, 56, colors.accent);
+    // Tail - long and tapering, curves behind (more detailed) - with idle animation
+    const tailBaseX = 48 + Math.round(tailOffsetX);
+    const tailBaseY = 48 + Math.round(tailOffsetY);
+    rect(tailBaseX, tailBaseY, 6, 12, colors.primary);
+    const tailTipX = 50 + Math.round(tailOffsetX * 1.2);
+    const tailTipY = 60 + Math.round(tailOffsetY * 1.5);
+    rect(tailTipX, tailTipY, 4, 4, colors.primary);
+    pixel(tailTipX + 2, tailTipY + 3, colors.primary);
+    pixel(tailTipX + 3, tailTipY + 3, colors.primary);
+    // Tail spikes (with tail offset)
+    pixel(tailBaseX + 1, tailBaseY + 2, colors.accent);
+    pixel(tailBaseX + 3, tailBaseY + 4, colors.accent);
+    pixel(tailBaseX + 1, tailBaseY + 6, colors.accent);
+    pixel(tailBaseX + 3, tailBaseY + 8, colors.accent);
+    
+    // Fire breath effect when attacking - drawn on top of everything, points left and down
+    if (isAttacking) {
+      // Draw massive fire breath from mouth, pointing left and down towards opponent
+      // Start from front of mouth (left side of head)
+      const fireStartX = headX; // Start from front of mouth
+      const fireStartY = headY + 12; // Start from lower part of mouth
+      // Use animation frame for deterministic but dynamic fire effect
+      const fireTime = (animationFrame % 10) / 10; // Cycle every 10 frames
+      // Core fire - bright orange/red, bigger and much longer
+      for (let i = 0; i < 50; i++) {
+        // Fire goes left (towards opponent) and slightly down
+        const fireX = fireStartX - i * 2.2; // Move left, longer range
+        const fireY = fireStartY + i * 0.8 + Math.sin(i * 0.3 + fireTime * Math.PI * 2) * 2.5; // Move down with wave
+        const fireSize = Math.max(2, 9 - i * 0.1); // Bigger starting size, slower decay
+        const fireAlpha = Math.max(0.3, 1 - i * 0.02);
+        // Core flame - bigger
+        ctx.fillStyle = `rgba(255, ${100 + i * 3}, 0, ${fireAlpha})`;
+        ctx.fillRect(fireX * pixelSize, fireY * pixelSize, fireSize * pixelSize, fireSize * pixelSize);
+        // Outer flame - bigger
+        ctx.fillStyle = `rgba(255, ${50 + i * 2}, 0, ${fireAlpha * 0.7})`;
+        ctx.fillRect((fireX - 2) * pixelSize, (fireY - 2) * pixelSize, (fireSize + 4) * pixelSize, (fireSize + 4) * pixelSize);
+        // Brightest core
+        ctx.fillStyle = `rgba(255, ${150 + i * 2}, ${50 + i * 1}, ${fireAlpha * 1.2})`;
+        ctx.fillRect((fireX + 1) * pixelSize, (fireY + 1) * pixelSize, (fireSize - 2) * pixelSize, (fireSize - 2) * pixelSize);
+      }
+      // Additional fire particles (deterministic based on frame) - more particles, longer range
+      for (let i = 0; i < 30; i++) {
+        // Use a simple hash function for deterministic "random" values
+        const hash = (i * 7 + animationFrame) % 100;
+        const hash2 = (i * 11 + animationFrame * 3) % 100;
+        const particleX = fireStartX - (hash / 100) * 100; // Much longer range, going left
+        const particleY = fireStartY + (hash2 / 100) * 50 + ((hash2 / 100) - 0.5) * 20; // More spread down
+        const particleBrightness = 150 + (hash % 50);
+        const particleAlpha = 0.8 - i * 0.015;
+        ctx.fillStyle = `rgba(255, ${particleBrightness}, 0, ${particleAlpha})`;
+        ctx.fillRect(particleX * pixelSize, particleY * pixelSize, 3 * pixelSize, 3 * pixelSize);
+      }
+    }
   } else if (monsterName === 'Troll') {
     // Troll: Large, green, regenerating - uses 56x56 sprite (2x detail)
     // Head - large and ugly (more detailed)
@@ -3463,13 +3547,25 @@ export function drawMonsterPixelArt(
     rect(32, 52, 8, 12, colors.primary);
   } else if (monsterName === 'White Dragon') {
     // White Dragon: Ice dragon - same form as regular dragon but white/blue - uses full 64x64 canvas (2x detail)
-    // Head - reptilian, at end of long neck (more detailed)
-    rect(8, 4, 16, 12, colors.skin);
+    // Calculate animation progress for idle animation (0 to 1, cycles)
+    const animationProgress = (animationFrame / 60) * Math.PI * 2; // 60 frames per cycle
+    const isIdle = !shouldCast && !isDefeated;
+    
+    // Idle animation offsets
+    const headOffsetX = isIdle ? Math.sin(animationProgress * 0.8) * 2 : 0; // Head sways side to side
+    const headOffsetY = isIdle ? Math.sin(animationProgress * 0.6) * 1.5 : 0; // Head bobs slightly
+    const tailOffsetX = isIdle ? Math.sin(animationProgress * 0.7 + Math.PI) * 3 : 0; // Tail sways opposite to head
+    const tailOffsetY = isIdle ? Math.sin(animationProgress * 0.5 + Math.PI) * 2 : 0; // Tail curves
+    
+    // Head - reptilian, at end of long neck (more detailed) - with idle animation
+    const headX = 8 + Math.round(headOffsetX);
+    const headY = 4 + Math.round(headOffsetY);
+    rect(headX, headY, 16, 12, colors.skin);
     // Head shape refinement
-    pixel(7, 5, colors.skin);
-    pixel(24, 5, colors.skin);
-    pixel(6, 7, colors.skin);
-    pixel(25, 7, colors.skin);
+    pixel(headX - 1, headY + 1, colors.skin);
+    pixel(headX + 16, headY + 1, colors.skin);
+    pixel(headX - 2, headY + 3, colors.skin);
+    pixel(headX + 17, headY + 3, colors.skin);
     // Long neck connecting to body (more detailed)
     rect(12, 16, 8, 12, colors.skin);
     // Neck scales
@@ -3477,26 +3573,52 @@ export function drawMonsterPixelArt(
       pixel(14, y, colors.secondary);
       pixel(18, y, colors.secondary);
     }
-    // Snout/jaw (more detailed)
-    rect(4, 8, 6, 6, colors.skin);
-    rect(22, 8, 6, 6, colors.skin);
+    // Snout/jaw (more detailed) (with head offset)
+    rect(headX - 4, headY + 4, 6, 6, colors.skin);
+    rect(headX + 14, headY + 4, 6, 6, colors.skin);
     // Teeth
-    pixel(5, 10, '#ffffff');
-    pixel(6, 11, '#ffffff');
-    pixel(25, 10, '#ffffff');
-    pixel(24, 11, '#ffffff');
-    // Horns - ice crystals (more detailed)
-    pixel(10, 2, colors.accent);
-    pixel(11, 1, colors.accent);
-    pixel(20, 1, colors.accent);
-    pixel(21, 2, colors.accent);
-    pixel(12, 0, colors.accent);
-    pixel(19, 0, colors.accent);
-    // Eyes (more detailed)
-    rect(10, 8, 2, 2, '#000000');
-    rect(20, 8, 2, 2, '#000000');
-    pixel(9, 9, '#fbbf24'); // Eye shine
-    pixel(21, 9, '#fbbf24');
+    pixel(headX - 3, headY + 6, '#ffffff');
+    pixel(headX - 2, headY + 7, '#ffffff');
+    pixel(headX + 17, headY + 6, '#ffffff');
+    pixel(headX + 16, headY + 7, '#ffffff');
+    // Horns - ice crystals (more detailed) (with head offset)
+    pixel(headX + 2, headY - 2, colors.accent);
+    pixel(headX + 3, headY - 3, colors.accent);
+    pixel(headX + 12, headY - 3, colors.accent);
+    pixel(headX + 13, headY - 2, colors.accent);
+    pixel(headX + 4, headY - 4, colors.accent);
+    pixel(headX + 11, headY - 4, colors.accent);
+    // Eyes (more detailed) (with head offset)
+    rect(headX + 2, headY + 4, 2, 2, '#000000');
+    rect(headX + 12, headY + 4, 2, 2, '#000000');
+    pixel(headX + 1, headY + 5, '#fbbf24'); // Eye shine
+    pixel(headX + 13, headY + 5, '#fbbf24');
+    
+    // Green glow effect for healing on neck and chest - pulsing effect
+    if (isHealing) {
+      // Calculate pulsing intensity (0.4 to 1.0)
+      const pulse = Math.sin(animationProgress * 6) * 0.3 + 0.7;
+      const pulseIntensity = pulse;
+      
+      // Neck glow - pulsing
+      ctx.fillStyle = `rgba(34, 197, 94, ${0.7 * pulseIntensity})`; // Green with pulsing transparency
+      ctx.fillRect(12 * pixelSize, 16 * pixelSize, 8 * pixelSize, 12 * pixelSize);
+      
+      // Chest/body glow - pulsing, covering more of the body
+      ctx.fillStyle = `rgba(34, 197, 94, ${0.6 * pulseIntensity})`;
+      ctx.fillRect(16 * pixelSize, 28 * pixelSize, 32 * pixelSize, 20 * pixelSize); // Full body width
+      
+      // Brighter pulsing core on neck
+      const neckPulse = Math.sin(animationProgress * 8) * 0.2 + 0.8;
+      ctx.fillStyle = `rgba(74, 222, 128, ${0.5 * neckPulse})`; // Brighter green
+      ctx.fillRect(14 * pixelSize, 18 * pixelSize, 4 * pixelSize, 8 * pixelSize);
+      
+      // Brighter pulsing core on chest
+      const chestPulse = Math.sin(animationProgress * 8 + Math.PI / 2) * 0.2 + 0.8;
+      ctx.fillStyle = `rgba(74, 222, 128, ${0.4 * chestPulse})`; // Brighter green
+      ctx.fillRect(20 * pixelSize, 30 * pixelSize, 24 * pixelSize, 12 * pixelSize);
+    }
+    
     // Body - large barrel chest, quadrupedal stance (more detailed)
     rect(16, 28, 32, 20, colors.primary);
     // Ice scales pattern (more detailed)
@@ -3549,19 +3671,59 @@ export function drawMonsterPixelArt(
     pixel(46, 59, colors.accent);
     pixel(48, 59, colors.accent);
     pixel(50, 59, colors.accent);
-    // Tail (more detailed)
-    rect(48, 48, 6, 12, colors.primary);
-    rect(50, 60, 4, 4, colors.primary);
-    pixel(52, 63, colors.primary);
-    pixel(53, 63, colors.primary);
-    // Tail spikes
-    pixel(49, 50, colors.accent);
-    pixel(51, 52, colors.accent);
-    pixel(49, 54, colors.accent);
-    pixel(51, 56, colors.accent);
-    // Ice breath effect
-    pixel(6, 10, colors.accent);
-    pixel(24, 10, colors.accent);
+    // Tail (more detailed) - with idle animation
+    const tailBaseX = 48 + Math.round(tailOffsetX);
+    const tailBaseY = 48 + Math.round(tailOffsetY);
+    rect(tailBaseX, tailBaseY, 6, 12, colors.primary);
+    const tailTipX = 50 + Math.round(tailOffsetX * 1.2);
+    const tailTipY = 60 + Math.round(tailOffsetY * 1.5);
+    rect(tailTipX, tailTipY, 4, 4, colors.primary);
+    pixel(tailTipX + 2, tailTipY + 3, colors.primary);
+    pixel(tailTipX + 3, tailTipY + 3, colors.primary);
+    // Tail spikes (with tail offset)
+    pixel(tailBaseX + 1, tailBaseY + 2, colors.accent);
+    pixel(tailBaseX + 3, tailBaseY + 4, colors.accent);
+    pixel(tailBaseX + 1, tailBaseY + 6, colors.accent);
+    pixel(tailBaseX + 3, tailBaseY + 8, colors.accent);
+    
+    // Ice breath effect when attacking - drawn on top of everything, points left and down
+    if (isAttacking) {
+      // Draw massive ice breath from mouth, pointing left and down towards opponent
+      // Start from front of mouth (left side of head)
+      const iceStartX = headX; // Start from front of mouth
+      const iceStartY = headY + 12; // Start from lower part of mouth
+      // Use animation frame for deterministic but dynamic ice effect
+      const iceTime = (animationFrame % 10) / 10; // Cycle every 10 frames
+      // Core ice - bright blue/white, bigger and much longer
+      for (let i = 0; i < 50; i++) {
+        // Ice goes left (towards opponent) and slightly down
+        const iceX = iceStartX - i * 2.2; // Move left, longer range
+        const iceY = iceStartY + i * 0.8 + Math.sin(i * 0.3 + iceTime * Math.PI * 2) * 2.5; // Move down with wave
+        const iceSize = Math.max(2, 9 - i * 0.1); // Bigger starting size, slower decay
+        const iceAlpha = Math.max(0.3, 1 - i * 0.02);
+        // Core ice - bigger
+        ctx.fillStyle = `rgba(200, ${220 + i * 2}, 255, ${iceAlpha})`;
+        ctx.fillRect(iceX * pixelSize, iceY * pixelSize, iceSize * pixelSize, iceSize * pixelSize);
+        // Outer ice - bigger
+        ctx.fillStyle = `rgba(150, ${200 + i * 2}, 255, ${iceAlpha * 0.7})`;
+        ctx.fillRect((iceX - 2) * pixelSize, (iceY - 2) * pixelSize, (iceSize + 4) * pixelSize, (iceSize + 4) * pixelSize);
+        // Brightest core
+        ctx.fillStyle = `rgba(220, ${240 + i * 2}, 255, ${iceAlpha * 1.2})`;
+        ctx.fillRect((iceX + 1) * pixelSize, (iceY + 1) * pixelSize, (iceSize - 2) * pixelSize, (iceSize - 2) * pixelSize);
+      }
+      // Additional ice particles (deterministic based on frame) - more particles, longer range
+      for (let i = 0; i < 30; i++) {
+        // Use a simple hash function for deterministic "random" values
+        const hash = (i * 7 + animationFrame) % 100;
+        const hash2 = (i * 11 + animationFrame * 3) % 100;
+        const particleX = iceStartX - (hash / 100) * 100; // Much longer range, going left
+        const particleY = iceStartY + (hash2 / 100) * 50 + ((hash2 / 100) - 0.5) * 20; // More spread down
+        const particleBrightness = 200 + (hash % 30);
+        const particleAlpha = 0.8 - i * 0.015;
+        ctx.fillStyle = `rgba(180, ${particleBrightness}, 255, ${particleAlpha})`;
+        ctx.fillRect(particleX * pixelSize, particleY * pixelSize, 3 * pixelSize, 3 * pixelSize);
+      }
+    }
   } else if (monsterName === 'Blob of Annihilation') {
     // Blob of Annihilation: Dark, formless entity - uses full 64x64 canvas (2x detail)
     // Main blob - irregular shape (more detailed)

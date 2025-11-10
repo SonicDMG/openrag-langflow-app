@@ -41,8 +41,8 @@ export function createHitVisualEffects(
     { type: 'shake', player: defender, intensity: damage }
   ];
   
-  // Add cast effect for spell-casting classes
-  if (attackerClass && shouldShowCastEffect(attackerClass.name)) {
+  // Add cast effect for spell-casting classes or dragons (for fire breath)
+  if (attackerClass && (shouldShowCastEffect(attackerClass.name) || attackerClass.name === 'Dragon' || attackerClass.name === 'White Dragon')) {
     visualEffects.push({ type: 'cast', player: attacker });
   }
   
@@ -63,8 +63,8 @@ export function createMissVisualEffects(
 ): PendingVisualEffect[] {
   const visualEffects: PendingVisualEffect[] = [{ type: 'miss', player: attacker }];
   
-  // Add cast effect for spell-casting classes (they're still casting even on a miss)
-  if (attackerClass && shouldShowCastEffect(attackerClass.name)) {
+  // Add cast effect for spell-casting classes or dragons (they're still casting even on a miss)
+  if (attackerClass && (shouldShowCastEffect(attackerClass.name) || attackerClass.name === 'Dragon' || attackerClass.name === 'White Dragon')) {
     visualEffects.push({ type: 'cast', player: attacker });
   }
   
@@ -81,8 +81,8 @@ export function createHealingVisualEffects(
 ): PendingVisualEffect[] {
   const visualEffects: PendingVisualEffect[] = [{ type: 'sparkle', player: target, intensity: healAmount }];
   
-  // Add cast effect for spell-casting classes
-  if (casterClass && shouldShowCastEffect(casterClass.name)) {
+  // Add cast effect for spell-casting classes or dragons (for healing glow)
+  if (casterClass && (shouldShowCastEffect(casterClass.name) || casterClass.name === 'Dragon' || casterClass.name === 'White Dragon')) {
     visualEffects.push({ type: 'cast', player: target });
   }
   

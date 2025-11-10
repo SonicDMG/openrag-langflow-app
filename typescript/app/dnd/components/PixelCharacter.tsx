@@ -184,7 +184,10 @@ export function PixelCharacter({
     const animationFrame = isIdle ? idleFrame : 0;
     if (isMonster) {
       const monsterColors = getMonsterColors(playerClass.name);
-      drawMonsterPixelArt(ctx, size, playerClass, monsterColors, hpPercent, isDefeated, currentEmotion, animationFrame);
+      // Determine if casting is for healing or attack (similar to classes)
+      const isHealing = shouldCast && shouldSparkle;
+      const isAttacking = shouldCast && (shouldHit || shouldMiss || !shouldSparkle);
+      drawMonsterPixelArt(ctx, size, playerClass, monsterColors, hpPercent, isDefeated, currentEmotion, animationFrame, shouldCast, isHealing, isAttacking);
     } else {
       const classColors = getClassColors(playerClass.name);
       // Determine if casting is for healing or attack
