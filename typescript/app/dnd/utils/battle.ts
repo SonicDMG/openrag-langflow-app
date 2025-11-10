@@ -1,4 +1,5 @@
 import { DnDClass } from '../types';
+import { shouldShowCastEffect } from './spellEffects';
 
 // Type for visual effects
 export type PendingVisualEffect = {
@@ -40,8 +41,8 @@ export function createHitVisualEffects(
     { type: 'shake', player: defender, intensity: damage }
   ];
   
-  // Add cast effect for wizard and bard attackers
-  if (attackerClass?.name === 'Wizard' || attackerClass?.name === 'Bard') {
+  // Add cast effect for spell-casting classes
+  if (attackerClass && shouldShowCastEffect(attackerClass.name)) {
     visualEffects.push({ type: 'cast', player: attacker });
   }
   
@@ -62,8 +63,8 @@ export function createMissVisualEffects(
 ): PendingVisualEffect[] {
   const visualEffects: PendingVisualEffect[] = [{ type: 'miss', player: attacker }];
   
-  // Add cast effect for wizard and bard attackers (they're still casting even on a miss)
-  if (attackerClass?.name === 'Wizard' || attackerClass?.name === 'Bard') {
+  // Add cast effect for spell-casting classes (they're still casting even on a miss)
+  if (attackerClass && shouldShowCastEffect(attackerClass.name)) {
     visualEffects.push({ type: 'cast', player: attacker });
   }
   
@@ -80,8 +81,8 @@ export function createHealingVisualEffects(
 ): PendingVisualEffect[] {
   const visualEffects: PendingVisualEffect[] = [{ type: 'sparkle', player: target, intensity: healAmount }];
   
-  // Add cast effect for wizard and bard casters
-  if (casterClass?.name === 'Wizard' || casterClass?.name === 'Bard') {
+  // Add cast effect for spell-casting classes
+  if (casterClass && shouldShowCastEffect(casterClass.name)) {
     visualEffects.push({ type: 'cast', player: target });
   }
   

@@ -1,5 +1,6 @@
 import { DnDClass, CharacterEmotion } from '../types';
 import { MONSTER_ICONS } from '../constants';
+import { getSpellColorPalette, determineSpellType, getClassSpellConfig } from './spellEffects';
 
 // Get class-specific color palette
 export function getClassColors(className: string): {
@@ -1199,33 +1200,11 @@ export function drawPixelCharacter(
     // Staff top/crystal (glows when casting)
     const glowIntensity = hasAnimation ? (Math.sin(animationProgress * 2) + 1) / 2 : 0.5;
     
-    // Determine casting color: green for healing, red for attack, blue/white for default
+    // Determine casting color using centralized utility
     const isCasting = shouldCast;
-    const castColor = isHealing ? 'green' : (isAttacking ? 'red' : 'blue');
-    
-    // Color palettes for different spell types
-    const greenColors = {
-      outer: '#86efac', // Light green
-      mid: '#4ade80',   // Medium green
-      bright: '#22c55e', // Bright green
-      core: '#10b981',  // Core green
-      white: '#ffffff'   // White center
-    };
-    const redColors = {
-      outer: '#fca5a5', // Light red
-      mid: '#f87171',   // Medium red
-      bright: '#ef4444', // Bright red
-      core: '#dc2626',  // Core red
-      white: '#ffffff'  // White center
-    };
-    const blueColors = {
-      outer: '#bfdbfe', // Light blue
-      mid: '#93c5fd',   // Medium blue
-      bright: '#60a5fa', // Bright blue
-      core: '#3b82f6',  // Core blue
-      white: '#ffffff'  // White center
-    };
-    const castColors = castColor === 'green' ? greenColors : (castColor === 'red' ? redColors : blueColors);
+    const spellType = determineSpellType(isHealing, isAttacking);
+    const classConfig = getClassSpellConfig(playerClass.name);
+    const castColors = getSpellColorPalette(spellType, classConfig.classSpecific);
     
     // Ball position (top of staff)
     const ballX = 44; // Center of staff
@@ -1672,34 +1651,6 @@ export function drawPixelCharacter(
     const rockOffsetX = hasAnimation ? Math.sin(animationProgress * 1.5) * 2.0 : 0;
     const rockOffsetY = hasAnimation ? Math.cos(animationProgress * 1.5) * 1.5 : 0;
     
-    // Determine casting color: green for healing, purple for attack
-    const isCasting = shouldCast;
-    const castColor = isHealing ? 'green' : (isAttacking ? 'purple' : 'blue');
-    
-    // Color palettes for different spell types
-    const greenColors = {
-      outer: '#86efac', // Light green
-      mid: '#4ade80',   // Medium green
-      bright: '#22c55e', // Bright green
-      core: '#10b981',  // Core green
-      white: '#ffffff'   // White center
-    };
-    const purpleColors = {
-      outer: '#c4b5fd', // Light purple
-      mid: '#a78bfa',   // Medium purple
-      bright: '#8b5cf6', // Bright purple
-      core: '#7c3aed',  // Core purple
-      white: '#ffffff'  // White center
-    };
-    const blueColors = {
-      outer: '#bfdbfe', // Light blue
-      mid: '#93c5fd',   // Medium blue
-      bright: '#60a5fa', // Bright blue
-      core: '#3b82f6',  // Core blue
-      white: '#ffffff'  // White center
-    };
-    const castColors = castColor === 'green' ? greenColors : (castColor === 'purple' ? purpleColors : blueColors);
-    
     // Guitar neck (extends from far left side to body) - drawn first so body can overlap
     // Neck extends from left side (x=8) diagonally to body, rocks with animation
     const neckX = 8 + Math.round(rockOffsetX);
@@ -1750,8 +1701,6 @@ export function drawPixelCharacter(
       pixel(33, 37, colors.skin);
       pixel(34, 38, colors.skin);
     }
-    
-    // Note: Casting glow effects are drawn at the end of the function to ensure visibility
   } else if (playerClass.name === 'Sorcerer') {
     // Magical orb or wand - moves with arms
     const magicOffset = hasAnimation ? Math.sin(animationProgress * 2) * 3.0 : 0;
@@ -1930,146 +1879,85 @@ export function drawPixelCharacter(
     ctx.fillRect(40 * pixelSize, 20 * pixelSize, 12 * pixelSize, 16 * pixelSize);
   }
   
-  // Draw bard casting effects after all other elements to ensure visibility
-  if (playerClass.name === 'Bard' && shouldCast) {
-    // Determine casting color: green for healing, purple for attack
-    const castColor = isHealing ? 'green' : (isAttacking ? 'purple' : 'blue');
+  // Draw bard musical notes when casting spells
+  // Notes appear to the right side of the bard, colored based on spell type
+  // Check if this is a bard (case-insensitive)
+  const isBard = playerClass.name === 'Bard' || playerClass.name.toLowerCase() === 'bard';
+  
+  // Draw notes when bard is casting spells
+  if (isBard && shouldCast) {
+    // Determine casting color using centralized utility
+    const spellType = determineSpellType(isHealing, isAttacking);
+    const classConfig = getClassSpellConfig(playerClass.name);
+    // Default to attack (purple) if spell type can't be determined
+    const finalSpellType = spellType === 'default' ? 'attack' : spellType;
+    const castColors = getSpellColorPalette(finalSpellType, classConfig.classSpecific);
     
-    // Color palettes for different spell types
-    const greenColors = {
-      outer: '#86efac', // Light green
-      mid: '#4ade80',   // Medium green
-      bright: '#22c55e', // Bright green
-      core: '#10b981',  // Core green
-      white: '#ffffff'   // White center
-    };
-    const purpleColors = {
-      outer: '#c4b5fd', // Light purple
-      mid: '#a78bfa',   // Medium purple
-      bright: '#8b5cf6', // Bright purple
-      core: '#7c3aed',  // Core purple
-      white: '#ffffff'  // White center
-    };
-    const blueColors = {
-      outer: '#bfdbfe', // Light blue
-      mid: '#93c5fd',   // Medium blue
-      bright: '#60a5fa', // Bright blue
-      core: '#3b82f6',  // Core blue
-      white: '#ffffff'  // White center
-    };
-    const castColors = castColor === 'green' ? greenColors : (castColor === 'purple' ? purpleColors : blueColors);
+    // Use the bright color for notes (most visible)
+    const noteColor = castColors.bright;
     
-    // Calculate guitar position - use same calculation as guitar drawing
-    // Base guitar body position: x=18, y=32
-    // Sound hole is at bodyX + 10, bodyY + 4 with size 8x6, so center is at bodyX + 14, bodyY + 7
-    // Use the same animationProgress that was calculated at the top of the function
-    const rockOffsetX = hasAnimation ? Math.sin(animationProgress * 1.5) * 2.0 : 0;
-    const rockOffsetY = hasAnimation ? Math.cos(animationProgress * 1.5) * 1.5 : 0;
-    const bodyX = 18 + Math.round(rockOffsetX);
-    const bodyY = 32 + Math.round(rockOffsetY);
+    // Notes appear to the right side of the character (around x=48-56, well within 64x64 bounds)
+    // Position them at different heights to create a musical staff effect
+    const baseX = 48; // Right side of character, but within visible bounds
+    const notePositions = [
+      { x: baseX, y: 18 }, // High note
+      { x: baseX + 4, y: 26 }, // Middle-high note
+      { x: baseX, y: 34 }, // Middle note
+      { x: baseX + 4, y: 42 }, // Middle-low note
+      { x: baseX, y: 50 }, // Low note
+    ];
     
-    // Glow emanates from the sound hole (center of guitar body)
-    const glowCenterX = bodyX + 14; // Center of sound hole (bodyX + 10 + 4)
-    const glowCenterY = bodyY + 7; // Center of sound hole (bodyY + 4 + 3)
-    
-    // Bright outer glow layer (drawn first, widest spread) - relative to glow center
-    // More extensive glow for better visibility
-    for (let dx = -8; dx <= 8; dx++) {
-      for (let dy = -6; dy <= 6; dy++) {
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist <= 8 && dist > 6) {
-          pixel(glowCenterX + dx, glowCenterY + dy, castColors.outer);
-        } else if (dist <= 6 && dist > 4) {
-          pixel(glowCenterX + dx, glowCenterY + dy, castColors.mid);
-        } else if (dist <= 4 && dist > 2) {
-          pixel(glowCenterX + dx, glowCenterY + dy, castColors.bright);
-        } else if (dist <= 2) {
-          pixel(glowCenterX + dx, glowCenterY + dy, castColors.white);
-        }
-      }
-    }
-    
-    // Additional bright center core for maximum visibility
-    pixel(glowCenterX - 1, glowCenterY - 1, castColors.white);
-    pixel(glowCenterX, glowCenterY - 1, castColors.white);
-    pixel(glowCenterX + 1, glowCenterY - 1, castColors.white);
-    pixel(glowCenterX - 1, glowCenterY, castColors.white);
-    pixel(glowCenterX, glowCenterY, castColors.white);
-    pixel(glowCenterX + 1, glowCenterY, castColors.white);
-    pixel(glowCenterX - 1, glowCenterY + 1, castColors.white);
-    pixel(glowCenterX, glowCenterY + 1, castColors.white);
-    pixel(glowCenterX + 1, glowCenterY + 1, castColors.white);
-    
-    // Radiating power beams from sound hole
-    const beamCount = 16; // Many beams for powerful effect
-    const maxBeamLength = 18; // Long beams radiating outward
-    
-    for (let i = 0; i < beamCount; i++) {
-      const angle = (i / beamCount) * Math.PI * 2;
-      const beamLength = maxBeamLength;
+    // Draw musical notes (quarter notes)
+    // Each note has: note head (oval), stem (vertical line), flag (optional)
+    notePositions.forEach((pos, index) => {
+      const noteX = pos.x;
+      const noteY = pos.y;
       
-      // Draw beam trail (radiating outward)
-      for (let j = 2; j <= beamLength; j += 2) {
-        const trailX = Math.round(glowCenterX + Math.cos(angle) * j);
-        const trailY = Math.round(glowCenterY + Math.sin(angle) * j);
-        const trailIntensity = 1 - (j / beamLength) * 0.6; // Fade out along beam
-        
-        if (trailIntensity > 0.2 && trailX >= 0 && trailX < 64 && trailY >= 0 && trailY < 64) {
-          // Use brighter colors closer to center, dimmer further out
-          const trailColor = trailIntensity > 0.7 ? castColors.white : 
-                            (trailIntensity > 0.5 ? castColors.bright : 
-                            (trailIntensity > 0.3 ? castColors.mid : castColors.outer));
-          pixel(trailX, trailY, trailColor);
+      // Ensure we're within bounds
+      if (noteX < 0 || noteX >= 64 || noteY < 0 || noteY >= 64) return;
+      
+      // Note head (filled oval shape, 4x3 pixels for better visibility)
+      pixel(noteX, noteY, noteColor);
+      pixel(noteX + 1, noteY, noteColor);
+      pixel(noteX + 2, noteY, noteColor);
+      pixel(noteX + 3, noteY, noteColor);
+      pixel(noteX, noteY + 1, noteColor);
+      pixel(noteX + 1, noteY + 1, noteColor);
+      pixel(noteX + 2, noteY + 1, noteColor);
+      pixel(noteX + 3, noteY + 1, noteColor);
+      pixel(noteX + 1, noteY + 2, noteColor);
+      pixel(noteX + 2, noteY + 2, noteColor);
+      
+      // Stem (vertical line, 7 pixels tall, going up from note head)
+      const stemX = noteX + 3;
+      for (let i = 0; i < 7; i++) {
+        const stemY = noteY - i;
+        if (stemY >= 0 && stemY < 64 && stemX >= 0 && stemX < 64) {
+          pixel(stemX, stemY, noteColor);
         }
       }
       
-      // Inner bright core beam (every other beam)
-      if (i % 2 === 0) {
-        const innerLength = beamLength * 0.6;
-        const innerX = Math.round(glowCenterX + Math.cos(angle) * innerLength);
-        const innerY = Math.round(glowCenterY + Math.sin(angle) * innerLength);
-        if (innerX >= 0 && innerX < 64 && innerY >= 0 && innerY < 64) {
-          pixel(innerX, innerY, castColors.white);
-        }
+      // Flag (curved line at top of stem, for eighth note effect)
+      if (index % 2 === 0) {
+        if (noteX + 4 < 64 && noteY - 6 >= 0) pixel(noteX + 4, noteY - 6, noteColor);
+        if (noteX + 5 < 64 && noteY - 5 >= 0) pixel(noteX + 5, noteY - 5, noteColor);
+        if (noteX + 5 < 64 && noteY - 4 >= 0) pixel(noteX + 5, noteY - 4, noteColor);
+        if (noteX + 4 < 64 && noteY - 3 >= 0) pixel(noteX + 4, noteY - 3, noteColor);
       }
-    }
+    });
     
-    // Large magical aura emanating from the sound hole when casting
-    const auraCenterX = glowCenterX;
-    const auraCenterY = glowCenterY;
-    const auraRadius = 16; // Large radius for powerful spell
-    
-    // Draw circular aura with multiple rings
-    for (let ring = 1; ring <= 3; ring++) {
-      const ringRadius = auraRadius - (ring * 2);
-      const ringIntensity = 1.0 - (ring * 0.25); // Outer rings are dimmer
-      const points = ring === 1 ? 24 : (ring === 2 ? 16 : 12); // More points for inner ring
+    // Add some floating particles/sparkles around the notes for magical effect
+    const particleCount = 8;
+    const centerX = baseX + 6;
+    const centerY = 34;
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (i / particleCount) * Math.PI * 2 + (hasAnimation ? animationProgress * 0.5 : 0);
+      const dist = 5 + (i % 3);
+      const particleX = Math.round(centerX + Math.cos(angle) * dist);
+      const particleY = Math.round(centerY + Math.sin(angle) * dist);
       
-      for (let i = 0; i < points; i++) {
-        const angle = (i / points) * Math.PI * 2;
-        const auraX = Math.round(auraCenterX + Math.cos(angle) * ringRadius);
-        const auraY = Math.round(auraCenterY + Math.sin(angle) * ringRadius);
-        
-        // Only draw if within bounds and at appropriate intensity
-        if (auraX >= 0 && auraX < 64 && auraY >= 0 && auraY < 64) {
-          const color = ringIntensity > 0.7 ? castColors.white : 
-                       (ringIntensity > 0.5 ? castColors.bright : 
-                       (ringIntensity > 0.3 ? castColors.mid : castColors.outer));
-          pixel(auraX, auraY, color);
-        }
-      }
-    }
-    
-    // Add sparkles/particles in the aura (emanating from sound hole)
-    const sparkleCount = 16;
-    for (let i = 0; i < sparkleCount; i++) {
-      const sparkleAngle = (i / sparkleCount) * Math.PI * 2;
-      const sparkleDist = 6 + (i % 4) * 2; // Varying distances
-      const sparkleX = Math.round(auraCenterX + Math.cos(sparkleAngle) * sparkleDist);
-      const sparkleY = Math.round(auraCenterY + Math.sin(sparkleAngle) * sparkleDist);
-      
-      if (sparkleX >= 0 && sparkleX < 64 && sparkleY >= 0 && sparkleY < 64) {
-        pixel(sparkleX, sparkleY, castColors.white);
+      if (particleX >= 0 && particleX < 64 && particleY >= 0 && particleY < 64) {
+        pixel(particleX, particleY, castColors.white);
       }
     }
   }

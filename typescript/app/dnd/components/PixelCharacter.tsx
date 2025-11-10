@@ -188,10 +188,13 @@ export function PixelCharacter({
     } else {
       const classColors = getClassColors(playerClass.name);
       // Determine if casting is for healing or attack
-      // Healing: sparkle effect is active
+      // Healing: sparkle effect is active (indicates healing spell)
       // Attack: hit or miss effect is active (both indicate an attack spell was cast)
+      // Note: shouldCast and shouldSparkle/shouldHit/shouldMiss should be set simultaneously
+      // but we check both to ensure spell type is determined correctly
       const isHealing = shouldCast && shouldSparkle;
-      const isAttacking = shouldCast && (shouldHit || shouldMiss);
+      // For attacks: shouldCast with hit/miss, OR shouldCast without sparkle (attack is more common)
+      const isAttacking = shouldCast && (shouldHit || shouldMiss || !shouldSparkle);
       drawPixelCharacter(ctx, size, playerClass, classColors, hpPercent, isDefeated, currentEmotion, animationFrame, shouldCast, isHealing, isAttacking);
     }
   }, [playerClass, size, emotion, isActive, isDefeated, isVictor, shouldShake, shouldSparkle, shouldMiss, shouldHit, shouldSurprise, shouldCast, idleFrame, isIdle]);

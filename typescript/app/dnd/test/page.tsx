@@ -7,6 +7,7 @@ import { DnDClass, BattleLog, CharacterEmotion } from '../types';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS, MONSTER_ICONS, CLASS_ICONS } from '../constants';
 import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../utils/dice';
 import { generateCharacterName } from '../utils/names';
+import { createHitVisualEffects, createMissVisualEffects, createHealingVisualEffects, getOpponent, type PendingVisualEffect } from '../utils/battle';
 import { DiceRoll } from '../components/DiceRoll';
 import { PlayerStats } from '../components/PlayerStats';
 import { ClassSelection } from '../components/ClassSelection';
@@ -153,11 +154,7 @@ export default function DnDTestPage() {
   const diceQueueRef = useRef<Array<Array<{ diceType: string; result: number }>>>([]);
   
   // Queue for visual effects that should trigger after dice roll completes
-  type PendingVisualEffect = {
-    type: 'shake' | 'sparkle' | 'miss' | 'hit' | 'surprise' | 'cast';
-    player: 'player1' | 'player2';
-    intensity?: number; // Damage amount for shake, healing amount for sparkle
-  };
+  // (PendingVisualEffect type imported from battle utils)
   
   // Callback to execute after dice roll completes (for HP updates, etc.)
   type PostDiceRollCallback = () => void;
@@ -310,7 +307,7 @@ export default function DnDTestPage() {
     console.log('[TestPage] testAttackHit called for', attacker);
     const attackerClass = attacker === 'player1' ? player1Class : player2Class;
     const defenderClass = attacker === 'player1' ? player2Class : player1Class;
-    const defender = attacker === 'player1' ? 'player2' : 'player1';
+    const defender = getOpponent(attacker);
     
     console.log('[TestPage] Attacker:', attackerClass.name, 'Defender:', defenderClass.name);
     
@@ -324,14 +321,8 @@ export default function DnDTestPage() {
     
     const newHP = Math.max(0, defenderClass.hitPoints - damage);
     
-    // Build visual effects array (includes cast effect for wizards)
-    const visualEffects: PendingVisualEffect[] = [
-      { type: 'hit', player: attacker },
-      { type: 'shake', player: defender, intensity: damage }
-    ];
-    if (attackerClass.name === 'Wizard') {
-      visualEffects.push({ type: 'cast', player: attacker });
-    }
+    // Build visual effects array using the proper helper function (includes cast effect for spell-casting classes)
+    const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass);
     
     console.log('[TestPage] Triggering dice roll for', attacker);
     triggerDiceRoll(
@@ -383,11 +374,8 @@ export default function DnDTestPage() {
     
     addLog('roll', `🎲 ${attackerClass.name} rolls ${d20Roll} + ${attackerClass.attackBonus} = ${attackRoll} (misses AC ${defenderClass.armorClass})`);
     
-    // Build visual effects array (includes cast effect for wizards)
-    const visualEffects: PendingVisualEffect[] = [{ type: 'miss', player: attacker }];
-    if (attackerClass.name === 'Wizard') {
-      visualEffects.push({ type: 'cast', player: attacker });
-    }
+    // Build visual effects array using the proper helper function (includes cast effect for spell-casting classes)
+    const visualEffects = createMissVisualEffects(attacker, attackerClass);
     
     triggerDiceRoll(
       [{ diceType: 'd20', result: d20Roll }],
@@ -419,11 +407,8 @@ export default function DnDTestPage() {
     
     const newHP = Math.min(playerClass.maxHitPoints, playerClass.hitPoints + heal);
     
-    // Build visual effects array (includes cast effect for wizards)
-    const visualEffects: PendingVisualEffect[] = [{ type: 'sparkle', player, intensity: heal }];
-    if (playerClass.name === 'Wizard') {
-      visualEffects.push({ type: 'cast', player });
-    }
+    // Build visual effects array using the proper helper function (includes cast effect for spell-casting classes)
+    const visualEffects = createHealingVisualEffects(player, heal, playerClass);
     
     triggerDiceRoll(
       [{ diceType: dice, result: heal }],
