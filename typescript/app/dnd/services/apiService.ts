@@ -1,5 +1,5 @@
 import { DnDClass, Ability } from '../types';
-import { CLASS_COLORS, CLASS_ICONS, FALLBACK_ABILITIES, MONSTER_ICONS } from '../constants';
+import { CLASS_COLORS, CLASS_ICONS, FALLBACK_ABILITIES, MONSTER_ICONS, FALLBACK_MONSTER_ABILITIES } from '../constants';
 import { extractJsonFromResponse, parseSSEResponse } from '../utils/api';
 
 // Fetch all available D&D classes from OpenRAG
@@ -198,12 +198,8 @@ Return ONLY valid JSON, no other text. Use typical values for a level 1-3 charac
 // Uses AI to return attack and healing abilities in a well-defined JSON structure
 export async function extractAbilities(className: string): Promise<Ability[]> {
   try {
-    // Ask the AI to return a random selection of abilities in a structured JSON format
-    // Randomly select 1-3 attack abilities and 1-3 healing abilities to keep responses small
-    const numAttacks = Math.floor(Math.random() * 3) + 1; // 1-3
-    const numHeals = Math.floor(Math.random() * 3) + 1; // 1-3
-    
-    const extractionPrompt = `You are a D&D expert. From the D&D knowledge base, find information about the ${className} class and select abilities.
+    // Ask the AI to return ALL available abilities for this class
+    const extractionPrompt = `You are a D&D expert. From the D&D knowledge base, find information about the ${className} class and return ALL available attack and healing abilities.
 
 Return your response as a JSON object with this exact structure:
 {
@@ -226,10 +222,9 @@ Important rules:
 - For healing abilities: include "healingDice" field
 - Use standard D&D dice notation (e.g., "1d10", "3d6", "2d8+4")
 - Return ONLY valid JSON, no other text before or after
-- Try to randomly select ${numAttacks} attack ability/abilities and ${numHeals} healing ability/abilities, but if the class doesn't have that many of a type, just return what's available
-- If the class has no attack abilities, return only healing abilities (and vice versa)
+- Return ALL available attack and healing abilities for this class - do not limit the number
 - If the class has no abilities of either type, return an empty abilities array: {"abilities": []}
-- It's OK if you can't find all requested abilities - just provide what's available for this class`;
+- Include all abilities that are appropriate for this class`;
 
     const response = await fetch('/api/chat', {
       method: 'POST',
@@ -506,12 +501,8 @@ Return ONLY valid JSON, no other text. Use typical values for a challenging but 
 // Extract structured abilities for monsters directly from the knowledge base
 export async function extractMonsterAbilities(monsterName: string): Promise<Ability[]> {
   try {
-    // Ask the AI to return a random selection of abilities in a structured JSON format
-    // Randomly select 1-3 attack abilities and 0-1 healing abilities to keep responses small
-    const numAttacks = Math.floor(Math.random() * 3) + 1; // 1-3
-    const numHeals = Math.floor(Math.random() * 2); // 0-1 (monsters rarely heal)
-    
-    const extractionPrompt = `You are a D&D expert. From the D&D knowledge base, find information about the ${monsterName} monster and select abilities.
+    // Ask the AI to return ALL available abilities for this monster
+    const extractionPrompt = `You are a D&D expert. From the D&D knowledge base, find information about the ${monsterName} monster and return ALL available attack and healing abilities.
 
 Return your response as a JSON object with this exact structure:
 {
@@ -534,10 +525,9 @@ Important rules:
 - For healing abilities: include "healingDice" field
 - Use standard D&D dice notation (e.g., "1d10", "3d6", "2d8+4")
 - Return ONLY valid JSON, no other text before or after
-- Try to randomly select ${numAttacks} attack ability/abilities and ${numHeals} healing ability/abilities, but if the monster doesn't have that many of a type, just return what's available
-- If the monster has no attack abilities, return only healing abilities (and vice versa)
+- Return ALL available attack and healing abilities for this monster - do not limit the number
 - If the monster has no abilities of either type, return an empty abilities array: {"abilities": []}
-- It's OK if you can't find all requested abilities - just provide what's available for this monster`;
+- Include all abilities that are appropriate for this monster`;
 
     const response = await fetch('/api/chat', {
       method: 'POST',
@@ -571,7 +561,7 @@ Important rules:
     if (!abilitiesJsonString) {
       console.error('No JSON object with "abilities" field found. Full response:', accumulatedResponse.substring(0, 200) + '...');
       console.warn(`Using fallback abilities for ${monsterName}`);
-      return FALLBACK_ABILITIES[monsterName] || [];
+      return FALLBACK_MONSTER_ABILITIES[monsterName] || [];
     }
     
 
@@ -611,18 +601,18 @@ Important rules:
       // If we parsed successfully but got no valid abilities, use fallback
       console.warn('Parsed JSON but found no valid abilities:', parsed);
       console.warn(`Using fallback abilities for ${monsterName}`);
-      return FALLBACK_ABILITIES[monsterName] || [];
+      return FALLBACK_MONSTER_ABILITIES[monsterName] || [];
     } catch (parseError) {
       console.error('Error parsing JSON from AI response:', parseError);
       console.error('Extracted JSON string was:', abilitiesJsonString);
       console.error('Full response was:', accumulatedResponse.substring(0, 200) + '...');
       console.warn(`Using fallback abilities for ${monsterName}`);
-      return FALLBACK_ABILITIES[monsterName] || [];
+      return FALLBACK_MONSTER_ABILITIES[monsterName] || [];
     }
   } catch (error) {
     console.error('Error extracting monster abilities:', error);
     console.warn(`Using fallback abilities for ${monsterName}`);
-    return FALLBACK_ABILITIES[monsterName] || [];
+    return FALLBACK_MONSTER_ABILITIES[monsterName] || [];
   }
 }
 

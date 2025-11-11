@@ -1,5 +1,41 @@
 import { DnDClass, Ability } from './types';
 
+/**
+ * Randomly selects up to 5 abilities from available abilities, ensuring a mix of attack and healing abilities.
+ * Prioritizes having at least 1 of each type if available, then fills remaining slots randomly.
+ */
+export function selectRandomAbilities(availableAbilities: Ability[]): Ability[] {
+  if (availableAbilities.length === 0) {
+    return [];
+  }
+
+  // Separate abilities by type
+  const attackAbilities = availableAbilities.filter(a => a.type === 'attack');
+  const healingAbilities = availableAbilities.filter(a => a.type === 'healing');
+
+  const selected: Ability[] = [];
+  
+  // Ensure we have at least 1 attack and 1 healing if available
+  if (attackAbilities.length > 0 && selected.length < 5) {
+    const randomAttack = attackAbilities[Math.floor(Math.random() * attackAbilities.length)];
+    selected.push(randomAttack);
+  }
+  
+  if (healingAbilities.length > 0 && selected.length < 5) {
+    const randomHealing = healingAbilities[Math.floor(Math.random() * healingAbilities.length)];
+    selected.push(randomHealing);
+  }
+
+  // Fill remaining slots randomly from all available abilities
+  const remaining = availableAbilities.filter(a => !selected.includes(a));
+  while (selected.length < 5 && remaining.length > 0) {
+    const randomIndex = Math.floor(Math.random() * remaining.length);
+    selected.push(remaining.splice(randomIndex, 1)[0]);
+  }
+
+  return selected;
+}
+
 // Default fallback abilities for each class when agent response fails
 export const FALLBACK_ABILITIES: Record<string, Ability[]> = {
   'Fighter': [
@@ -226,7 +262,147 @@ export const FALLBACK_ABILITIES: Record<string, Ability[]> = {
   ],
 };
 
+// Default fallback abilities for each monster when agent response fails
+export const FALLBACK_MONSTER_ABILITIES: Record<string, Ability[]> = {
+  'Goblin': [
+    {
+      name: 'Scimitar',
+      type: 'attack',
+      damageDice: '1d6',
+      attackRoll: true,
+      description: 'A quick slash with a curved blade.',
+    },
+    {
+      name: 'Shortbow',
+      type: 'attack',
+      damageDice: '1d6',
+      attackRoll: true,
+      description: 'A ranged attack with a small bow.',
+    },
+  ],
+  'Dragon': [
+    {
+      name: 'Bite',
+      type: 'attack',
+      damageDice: '2d10',
+      attackRoll: true,
+      description: 'A powerful bite attack.',
+    },
+    {
+      name: 'Claw',
+      type: 'attack',
+      damageDice: '2d6',
+      attackRoll: true,
+      attacks: 2,
+      description: 'Two devastating claw attacks.',
+    },
+    {
+      name: 'Breath Weapon',
+      type: 'attack',
+      damageDice: '6d6',
+      attackRoll: false,
+      description: 'A devastating breath attack.',
+    },
+  ],
+  'Troll': [
+    {
+      name: 'Bite',
+      type: 'attack',
+      damageDice: '1d6',
+      attackRoll: true,
+      description: 'A savage bite.',
+    },
+    {
+      name: 'Claw',
+      type: 'attack',
+      damageDice: '2d4',
+      attackRoll: true,
+      attacks: 2,
+      description: 'Two claw attacks.',
+    },
+    {
+      name: 'Regeneration',
+      type: 'healing',
+      healingDice: '1d10+3',
+      description: 'The troll regenerates lost hit points.',
+    },
+  ],
+  'Vampire': [
+    {
+      name: 'Bite',
+      type: 'attack',
+      damageDice: '1d6+3',
+      attackRoll: true,
+      description: 'A draining bite attack.',
+    },
+    {
+      name: 'Claw',
+      type: 'attack',
+      damageDice: '1d8+3',
+      attackRoll: true,
+      attacks: 2,
+      description: 'Two claw attacks.',
+    },
+    {
+      name: 'Regeneration',
+      type: 'healing',
+      healingDice: '2d10',
+      description: 'The vampire regenerates lost hit points.',
+    },
+  ],
+  'Demon': [
+    {
+      name: 'Claw',
+      type: 'attack',
+      damageDice: '2d6',
+      attackRoll: true,
+      attacks: 2,
+      description: 'Two demonic claw attacks.',
+    },
+    {
+      name: 'Tail Sting',
+      type: 'attack',
+      damageDice: '1d8+4',
+      attackRoll: true,
+      description: 'A poisonous tail attack.',
+    },
+  ],
+  'Beholder': [
+    {
+      name: 'Eye Ray',
+      type: 'attack',
+      damageDice: '3d6',
+      attackRoll: false,
+      description: 'A magical eye ray attack.',
+    },
+    {
+      name: 'Bite',
+      type: 'attack',
+      damageDice: '2d8',
+      attackRoll: true,
+      description: 'A powerful bite with its central eye.',
+    },
+  ],
+  'Lich': [
+    {
+      name: 'Paralyzing Touch',
+      type: 'attack',
+      damageDice: '3d6',
+      attackRoll: true,
+      description: 'A touch that paralyzes the target.',
+    },
+    {
+      name: 'Disrupt Life',
+      type: 'attack',
+      damageDice: '4d8',
+      attackRoll: false,
+      description: 'Drains life force from nearby creatures.',
+    },
+  ],
+};
+
 // Default fallback classes in case OpenRAG fetch fails
+// Note: abilities are included by default and will be randomly selected on each run
 export const FALLBACK_CLASSES: DnDClass[] = [
   {
     name: 'Fighter',
@@ -235,7 +411,7 @@ export const FALLBACK_CLASSES: DnDClass[] = [
     armorClass: 18,
     attackBonus: 5,
     damageDie: 'd10',
-    abilities: [],
+    abilities: FALLBACK_ABILITIES['Fighter'] || [],
     description: 'A master of weapons and armor, the Fighter excels in combat.',
     color: 'bg-red-900',
   },
@@ -246,7 +422,7 @@ export const FALLBACK_CLASSES: DnDClass[] = [
     armorClass: 12,
     attackBonus: 3,
     damageDie: 'd6',
-    abilities: [],
+    abilities: FALLBACK_ABILITIES['Wizard'] || [],
     description: 'A wielder of arcane magic, the Wizard commands powerful spells.',
     color: 'bg-blue-900',
   },
@@ -257,7 +433,7 @@ export const FALLBACK_CLASSES: DnDClass[] = [
     armorClass: 15,
     attackBonus: 4,
     damageDie: 'd8',
-    abilities: [],
+    abilities: FALLBACK_ABILITIES['Rogue'] || [],
     description: 'A stealthy combatant who strikes from the shadows.',
     color: 'bg-purple-900',
   },
@@ -268,7 +444,7 @@ export const FALLBACK_CLASSES: DnDClass[] = [
     armorClass: 16,
     attackBonus: 4,
     damageDie: 'd8',
-    abilities: [],
+    abilities: FALLBACK_ABILITIES['Cleric'] || [],
     description: 'A holy warrior who channels divine power.',
     color: 'bg-yellow-900',
   },
@@ -279,7 +455,7 @@ export const FALLBACK_CLASSES: DnDClass[] = [
     armorClass: 14,
     attackBonus: 5,
     damageDie: 'd12',
-    abilities: [],
+    abilities: FALLBACK_ABILITIES['Barbarian'] || [],
     description: 'A fierce warrior who fights with primal fury.',
     color: 'bg-orange-900',
   },
@@ -290,7 +466,7 @@ export const FALLBACK_CLASSES: DnDClass[] = [
     armorClass: 15,
     attackBonus: 4,
     damageDie: 'd10',
-    abilities: [],
+    abilities: FALLBACK_ABILITIES['Ranger'] || [],
     description: 'A skilled tracker and archer of the wilderness.',
     color: 'bg-green-900',
   },
@@ -301,7 +477,7 @@ export const FALLBACK_CLASSES: DnDClass[] = [
     armorClass: 18,
     attackBonus: 5,
     damageDie: 'd10',
-    abilities: [],
+    abilities: FALLBACK_ABILITIES['Paladin'] || [],
     description: 'A holy warrior who smites evil with divine power.',
     color: 'bg-pink-900',
   },
@@ -312,7 +488,7 @@ export const FALLBACK_CLASSES: DnDClass[] = [
     armorClass: 14,
     attackBonus: 4,
     damageDie: 'd8',
-    abilities: [],
+    abilities: FALLBACK_ABILITIES['Bard'] || [],
     description: 'A versatile performer who uses music and magic.',
     color: 'bg-indigo-900',
   },
@@ -323,7 +499,7 @@ export const FALLBACK_CLASSES: DnDClass[] = [
     armorClass: 13,
     attackBonus: 3,
     damageDie: 'd6',
-    abilities: [],
+    abilities: FALLBACK_ABILITIES['Sorcerer'] || [],
     description: 'A spellcaster with innate magical power.',
     color: 'bg-cyan-900',
   },
@@ -334,7 +510,7 @@ export const FALLBACK_CLASSES: DnDClass[] = [
     armorClass: 13,
     attackBonus: 4,
     damageDie: 'd8',
-    abilities: [],
+    abilities: FALLBACK_ABILITIES['Warlock'] || [],
     description: 'A spellcaster who made a pact with otherworldly beings.',
     color: 'bg-violet-900',
   },
@@ -345,7 +521,7 @@ export const FALLBACK_CLASSES: DnDClass[] = [
     armorClass: 16,
     attackBonus: 4,
     damageDie: 'd8',
-    abilities: [],
+    abilities: FALLBACK_ABILITIES['Monk'] || [],
     description: 'A master of martial arts and ki energy.',
     color: 'bg-amber-900',
   },
@@ -356,7 +532,7 @@ export const FALLBACK_CLASSES: DnDClass[] = [
     armorClass: 15,
     attackBonus: 4,
     damageDie: 'd8',
-    abilities: [],
+    abilities: FALLBACK_ABILITIES['Druid'] || [],
     description: 'A guardian of nature who wields primal magic.',
     color: 'bg-emerald-900',
   },
@@ -367,72 +543,73 @@ export const FALLBACK_CLASSES: DnDClass[] = [
     armorClass: 17,
     attackBonus: 4,
     damageDie: 'd8',
-    abilities: [],
+    abilities: FALLBACK_ABILITIES['Artificer'] || [],
     description: 'A master of magical invention and technology.',
     color: 'bg-teal-900',
   },
 ];
 
 // Default fallback monsters with pre-configured stats
+// Note: abilities are included by default and will be randomly selected on each run
 export const FALLBACK_MONSTERS: DnDClass[] = [
-  { name: 'Goblin', hitPoints: 7, maxHitPoints: 7, armorClass: 15, attackBonus: 2, damageDie: 'd6', abilities: [], description: 'A small, green humanoid with pointed ears.', color: 'bg-green-800' },
-  { name: 'Orc', hitPoints: 15, maxHitPoints: 15, armorClass: 13, attackBonus: 3, damageDie: 'd8', abilities: [], description: 'A brutish humanoid with gray-green skin.', color: 'bg-gray-800' },
-  { name: 'Dragon', hitPoints: 200, maxHitPoints: 200, armorClass: 19, attackBonus: 8, damageDie: 'd12', abilities: [], description: 'A massive, powerful reptilian creature.', color: 'bg-red-800' },
-  { name: 'Troll', hitPoints: 84, maxHitPoints: 84, armorClass: 15, attackBonus: 5, damageDie: 'd8', abilities: [], description: 'A large, regenerating humanoid with green skin.', color: 'bg-green-700' },
-  { name: 'Ogre', hitPoints: 59, maxHitPoints: 59, armorClass: 11, attackBonus: 5, damageDie: 'd10', abilities: [], description: 'A large, brutish giant.', color: 'bg-gray-700' },
-  { name: 'Kobold', hitPoints: 5, maxHitPoints: 5, armorClass: 12, attackBonus: 2, damageDie: 'd4', abilities: [], description: 'A small, reptilian humanoid.', color: 'bg-yellow-800' },
-  { name: 'Skeleton', hitPoints: 13, maxHitPoints: 13, armorClass: 13, attackBonus: 2, damageDie: 'd6', abilities: [], description: 'An animated skeleton warrior.', color: 'bg-gray-600' },
-  { name: 'Zombie', hitPoints: 22, maxHitPoints: 22, armorClass: 8, attackBonus: 1, damageDie: 'd6', abilities: [], description: 'A shambling undead creature.', color: 'bg-green-600' },
-  { name: 'Vampire', hitPoints: 144, maxHitPoints: 144, armorClass: 16, attackBonus: 6, damageDie: 'd8', abilities: [], description: 'An undead creature that feeds on blood.', color: 'bg-red-900' },
-  { name: 'Werewolf', hitPoints: 58, maxHitPoints: 58, armorClass: 11, attackBonus: 4, damageDie: 'd8', abilities: [], description: 'A humanoid that transforms into a wolf.', color: 'bg-gray-800' },
-  { name: 'Demon', hitPoints: 200, maxHitPoints: 200, armorClass: 19, attackBonus: 8, damageDie: 'd10', abilities: [], description: 'A powerful fiend from the Abyss.', color: 'bg-purple-900' },
-  { name: 'Devil', hitPoints: 200, maxHitPoints: 200, armorClass: 19, attackBonus: 8, damageDie: 'd10', abilities: [], description: 'A powerful fiend from the Nine Hells.', color: 'bg-red-900' },
-  { name: 'Beholder', hitPoints: 180, maxHitPoints: 180, armorClass: 18, attackBonus: 7, damageDie: 'd10', abilities: [], description: 'A floating eye with many magical abilities.', color: 'bg-purple-800' },
-  { name: 'Mind Flayer', hitPoints: 71, maxHitPoints: 71, armorClass: 15, attackBonus: 5, damageDie: 'd8', abilities: [], description: 'A psionic humanoid with tentacles on its face.', color: 'bg-indigo-900' },
-  { name: 'Lich', hitPoints: 135, maxHitPoints: 135, armorClass: 17, attackBonus: 7, damageDie: 'd10', abilities: [], description: 'An undead spellcaster of great power.', color: 'bg-gray-800' },
-  { name: 'Giant', hitPoints: 126, maxHitPoints: 126, armorClass: 13, attackBonus: 6, damageDie: 'd12', abilities: [], description: 'A massive humanoid creature.', color: 'bg-orange-800' },
-  { name: 'Elemental', hitPoints: 90, maxHitPoints: 90, armorClass: 14, attackBonus: 5, damageDie: 'd8', abilities: [], description: 'A creature of pure elemental energy.', color: 'bg-blue-800' },
-  { name: 'Undead', hitPoints: 45, maxHitPoints: 45, armorClass: 12, attackBonus: 3, damageDie: 'd6', abilities: [], description: 'A generic undead creature.', color: 'bg-gray-700' },
-  { name: 'Beast', hitPoints: 34, maxHitPoints: 34, armorClass: 13, attackBonus: 4, damageDie: 'd8', abilities: [], description: 'A wild animal or magical beast.', color: 'bg-amber-800' },
-  { name: 'Aberration', hitPoints: 68, maxHitPoints: 68, armorClass: 15, attackBonus: 5, damageDie: 'd8', abilities: [], description: 'An alien creature from beyond reality.', color: 'bg-violet-900' },
-  { name: 'Allosaurus', hitPoints: 51, maxHitPoints: 51, armorClass: 13, attackBonus: 5, damageDie: 'd10', abilities: [], description: 'A large carnivorous dinosaur.', color: 'bg-green-700' },
-  { name: 'Anklyosaurus', hitPoints: 68, maxHitPoints: 68, armorClass: 15, attackBonus: 4, damageDie: 'd10', abilities: [], description: 'An armored herbivorous dinosaur.', color: 'bg-amber-700' },
-  { name: 'Bugbear Stalker', hitPoints: 27, maxHitPoints: 27, armorClass: 14, attackBonus: 3, damageDie: 'd8', abilities: [], description: 'A large, stealthy goblinoid.', color: 'bg-gray-800' },
-  { name: 'Goblin Boss', hitPoints: 21, maxHitPoints: 21, armorClass: 17, attackBonus: 3, damageDie: 'd6', abilities: [], description: 'A goblin leader with better equipment.', color: 'bg-green-900' },
-  { name: 'Goblin Minion', hitPoints: 7, maxHitPoints: 7, armorClass: 15, attackBonus: 2, damageDie: 'd6', abilities: [], description: 'A weak goblin follower.', color: 'bg-green-800' },
-  { name: 'Hobgoblin Captain', hitPoints: 39, maxHitPoints: 39, armorClass: 17, attackBonus: 4, damageDie: 'd8', abilities: [], description: 'A disciplined goblinoid military leader.', color: 'bg-orange-800' },
-  { name: 'Pirate', hitPoints: 11, maxHitPoints: 11, armorClass: 12, attackBonus: 2, damageDie: 'd6', abilities: [], description: 'A seafaring bandit.', color: 'bg-amber-800' },
-  { name: 'Pirate Captain', hitPoints: 52, maxHitPoints: 52, armorClass: 15, attackBonus: 5, damageDie: 'd8', abilities: [], description: 'A skilled pirate leader.', color: 'bg-amber-900' },
-  { name: 'Pteradon', hitPoints: 13, maxHitPoints: 13, armorClass: 13, attackBonus: 3, damageDie: 'd6', abilities: [], description: 'A flying reptile with wings.', color: 'bg-gray-600' },
-  { name: 'Sphinx of Wonder', hitPoints: 136, maxHitPoints: 136, armorClass: 17, attackBonus: 7, damageDie: 'd10', abilities: [], description: 'A magical creature with a lion body and human head.', color: 'bg-yellow-800' },
-  { name: 'Swarm of Crawling Claws', hitPoints: 36, maxHitPoints: 36, armorClass: 12, attackBonus: 3, damageDie: 'd4', abilities: [], description: 'A swarm of animated severed hands.', color: 'bg-gray-700' },
-  { name: 'Tough Boss', hitPoints: 100, maxHitPoints: 100, armorClass: 18, attackBonus: 7, damageDie: 'd12', abilities: [], description: 'A powerful boss monster.', color: 'bg-red-900' },
-  { name: 'Troll Limb', hitPoints: 21, maxHitPoints: 21, armorClass: 13, attackBonus: 3, damageDie: 'd6', abilities: [], description: 'A regenerating troll body part.', color: 'bg-green-700' },
-  { name: 'Vampire Familiar', hitPoints: 10, maxHitPoints: 10, armorClass: 12, attackBonus: 2, damageDie: 'd4', abilities: [], description: 'A small creature serving a vampire.', color: 'bg-gray-900' },
-  { name: 'Hezrou', hitPoints: 136, maxHitPoints: 136, armorClass: 16, attackBonus: 6, damageDie: 'd10', abilities: [], description: 'A large, toad-like demon.', color: 'bg-purple-900' },
-  { name: 'Manes', hitPoints: 9, maxHitPoints: 9, armorClass: 9, attackBonus: 1, damageDie: 'd4', abilities: [], description: 'A weak, mindless demon.', color: 'bg-gray-700' },
-  { name: 'Marilith', hitPoints: 189, maxHitPoints: 189, armorClass: 18, attackBonus: 8, damageDie: 'd10', abilities: [], description: 'A six-armed snake-bodied demon.', color: 'bg-purple-800' },
-  { name: 'Nalfeshnee', hitPoints: 184, maxHitPoints: 184, armorClass: 18, attackBonus: 7, damageDie: 'd10', abilities: [], description: 'A large, boar-like demon.', color: 'bg-purple-900' },
-  { name: 'Quasit', hitPoints: 7, maxHitPoints: 7, armorClass: 13, attackBonus: 2, damageDie: 'd4', abilities: [], description: 'A small, mischievous demon.', color: 'bg-indigo-900' },
-  { name: 'Shadow Demon', hitPoints: 66, maxHitPoints: 66, armorClass: 13, attackBonus: 5, damageDie: 'd8', abilities: [], description: 'A demon made of shadow.', color: 'bg-gray-900' },
-  { name: 'Vrock', hitPoints: 104, maxHitPoints: 104, armorClass: 15, attackBonus: 6, damageDie: 'd8', abilities: [], description: 'A vulture-like demon with wings.', color: 'bg-purple-800' },
-  { name: 'Yochlol', hitPoints: 136, maxHitPoints: 136, armorClass: 15, attackBonus: 6, damageDie: 'd8', abilities: [], description: 'A spider-like demon servant.', color: 'bg-violet-900' },
-  { name: 'Barbed Devil', hitPoints: 110, maxHitPoints: 110, armorClass: 15, attackBonus: 6, damageDie: 'd8', abilities: [], description: 'A devil covered in sharp barbs.', color: 'bg-red-900' },
-  { name: 'Bearded Devil', hitPoints: 52, maxHitPoints: 52, armorClass: 13, attackBonus: 4, damageDie: 'd8', abilities: [], description: 'A devil with a long beard of tentacles.', color: 'bg-red-800' },
-  { name: 'Bone Devil', hitPoints: 142, maxHitPoints: 142, armorClass: 19, attackBonus: 6, damageDie: 'd8', abilities: [], description: 'A skeletal devil with sharp claws.', color: 'bg-gray-700' },
-  { name: 'Chain Devil', hitPoints: 85, maxHitPoints: 85, armorClass: 16, attackBonus: 5, damageDie: 'd8', abilities: [], description: 'A devil wrapped in chains.', color: 'bg-gray-800' },
-  { name: 'Erinyes', hitPoints: 153, maxHitPoints: 153, armorClass: 18, attackBonus: 7, damageDie: 'd8', abilities: [], description: 'A winged female devil with a bow.', color: 'bg-red-900' },
-  { name: 'Dao', hitPoints: 187, maxHitPoints: 187, armorClass: 18, attackBonus: 7, damageDie: 'd10', abilities: [], description: 'An earth genie with rocky skin.', color: 'bg-orange-900' },
-  { name: 'Horned Devil', hitPoints: 178, maxHitPoints: 178, armorClass: 18, attackBonus: 7, damageDie: 'd10', abilities: [], description: 'A powerful devil with large horns.', color: 'bg-red-900' },
-  { name: 'Ice Devil', hitPoints: 180, maxHitPoints: 180, armorClass: 18, attackBonus: 7, damageDie: 'd10', abilities: [], description: 'A blue-white devil of ice and cold.', color: 'bg-blue-700' },
-  { name: 'Efreeti', hitPoints: 200, maxHitPoints: 200, armorClass: 17, attackBonus: 7, damageDie: 'd10', abilities: [], description: 'A fire genie from the Elemental Plane of Fire.', color: 'bg-orange-800' },
-  { name: 'Imp', hitPoints: 10, maxHitPoints: 10, armorClass: 13, attackBonus: 2, damageDie: 'd4', abilities: [], description: 'A small, weak devil.', color: 'bg-red-800' },
-  { name: 'Marid', hitPoints: 229, maxHitPoints: 229, armorClass: 17, attackBonus: 7, damageDie: 'd10', abilities: [], description: 'A water genie from the Elemental Plane of Water.', color: 'bg-blue-800' },
-  { name: 'Lemure', hitPoints: 13, maxHitPoints: 13, armorClass: 7, attackBonus: 1, damageDie: 'd4', abilities: [], description: 'A mindless, blob-like devil.', color: 'bg-gray-700' },
-  { name: 'Swarm of Lemures', hitPoints: 45, maxHitPoints: 45, armorClass: 9, attackBonus: 2, damageDie: 'd4', abilities: [], description: 'A swarm of mindless devils.', color: 'bg-gray-700' },
-  { name: 'Pit Fiend', hitPoints: 300, maxHitPoints: 300, armorClass: 19, attackBonus: 9, damageDie: 'd12', abilities: [], description: 'The most powerful type of devil.', color: 'bg-red-900' },
-  { name: 'White Dragon', hitPoints: 200, maxHitPoints: 200, armorClass: 18, attackBonus: 8, damageDie: 'd12', abilities: [], description: 'A powerful ice dragon.', color: 'bg-blue-200' },
-  { name: 'Blob of Annihilation', hitPoints: 400, maxHitPoints: 400, armorClass: 20, attackBonus: 10, damageDie: 'd12', abilities: [], description: 'A formless entity of pure destruction.', color: 'bg-gray-900' },
+  { name: 'Goblin', hitPoints: 7, maxHitPoints: 7, armorClass: 15, attackBonus: 2, damageDie: 'd6', abilities: FALLBACK_MONSTER_ABILITIES['Goblin'] || [], description: 'A small, green humanoid with pointed ears.', color: 'bg-green-800' },
+  { name: 'Orc', hitPoints: 15, maxHitPoints: 15, armorClass: 13, attackBonus: 3, damageDie: 'd8', abilities: FALLBACK_MONSTER_ABILITIES['Orc'] || [], description: 'A brutish humanoid with gray-green skin.', color: 'bg-gray-800' },
+  { name: 'Dragon', hitPoints: 200, maxHitPoints: 200, armorClass: 19, attackBonus: 8, damageDie: 'd12', abilities: FALLBACK_MONSTER_ABILITIES['Dragon'] || [], description: 'A massive, powerful reptilian creature.', color: 'bg-red-800' },
+  { name: 'Troll', hitPoints: 84, maxHitPoints: 84, armorClass: 15, attackBonus: 5, damageDie: 'd8', abilities: FALLBACK_MONSTER_ABILITIES['Troll'] || [], description: 'A large, regenerating humanoid with green skin.', color: 'bg-green-700' },
+  { name: 'Ogre', hitPoints: 59, maxHitPoints: 59, armorClass: 11, attackBonus: 5, damageDie: 'd10', abilities: FALLBACK_MONSTER_ABILITIES['Ogre'] || [], description: 'A large, brutish giant.', color: 'bg-gray-700' },
+  { name: 'Kobold', hitPoints: 5, maxHitPoints: 5, armorClass: 12, attackBonus: 2, damageDie: 'd4', abilities: FALLBACK_MONSTER_ABILITIES['Kobold'] || [], description: 'A small, reptilian humanoid.', color: 'bg-yellow-800' },
+  { name: 'Skeleton', hitPoints: 13, maxHitPoints: 13, armorClass: 13, attackBonus: 2, damageDie: 'd6', abilities: FALLBACK_MONSTER_ABILITIES['Skeleton'] || [], description: 'An animated skeleton warrior.', color: 'bg-gray-600' },
+  { name: 'Zombie', hitPoints: 22, maxHitPoints: 22, armorClass: 8, attackBonus: 1, damageDie: 'd6', abilities: FALLBACK_MONSTER_ABILITIES['Zombie'] || [], description: 'A shambling undead creature.', color: 'bg-green-600' },
+  { name: 'Vampire', hitPoints: 144, maxHitPoints: 144, armorClass: 16, attackBonus: 6, damageDie: 'd8', abilities: FALLBACK_MONSTER_ABILITIES['Vampire'] || [], description: 'An undead creature that feeds on blood.', color: 'bg-red-900' },
+  { name: 'Werewolf', hitPoints: 58, maxHitPoints: 58, armorClass: 11, attackBonus: 4, damageDie: 'd8', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A humanoid that transforms into a wolf.', color: 'bg-gray-800' },
+  { name: 'Demon', hitPoints: 200, maxHitPoints: 200, armorClass: 19, attackBonus: 8, damageDie: 'd10', abilities: FALLBACK_MONSTER_ABILITIES['Demon'] || [], description: 'A powerful fiend from the Abyss.', color: 'bg-purple-900' },
+  { name: 'Devil', hitPoints: 200, maxHitPoints: 200, armorClass: 19, attackBonus: 8, damageDie: 'd10', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A powerful fiend from the Nine Hells.', color: 'bg-red-900' },
+  { name: 'Beholder', hitPoints: 180, maxHitPoints: 180, armorClass: 18, attackBonus: 7, damageDie: 'd10', abilities: FALLBACK_MONSTER_ABILITIES['Beholder'] || [], description: 'A floating eye with many magical abilities.', color: 'bg-purple-800' },
+  { name: 'Mind Flayer', hitPoints: 71, maxHitPoints: 71, armorClass: 15, attackBonus: 5, damageDie: 'd8', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A psionic humanoid with tentacles on its face.', color: 'bg-indigo-900' },
+  { name: 'Lich', hitPoints: 135, maxHitPoints: 135, armorClass: 17, attackBonus: 7, damageDie: 'd10', abilities: FALLBACK_MONSTER_ABILITIES['Lich'] || [], description: 'An undead spellcaster of great power.', color: 'bg-gray-800' },
+  { name: 'Giant', hitPoints: 126, maxHitPoints: 126, armorClass: 13, attackBonus: 6, damageDie: 'd12', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A massive humanoid creature.', color: 'bg-orange-800' },
+  { name: 'Elemental', hitPoints: 90, maxHitPoints: 90, armorClass: 14, attackBonus: 5, damageDie: 'd8', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A creature of pure elemental energy.', color: 'bg-blue-800' },
+  { name: 'Undead', hitPoints: 45, maxHitPoints: 45, armorClass: 12, attackBonus: 3, damageDie: 'd6', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A generic undead creature.', color: 'bg-gray-700' },
+  { name: 'Beast', hitPoints: 34, maxHitPoints: 34, armorClass: 13, attackBonus: 4, damageDie: 'd8', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A wild animal or magical beast.', color: 'bg-amber-800' },
+  { name: 'Aberration', hitPoints: 68, maxHitPoints: 68, armorClass: 15, attackBonus: 5, damageDie: 'd8', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'An alien creature from beyond reality.', color: 'bg-violet-900' },
+  { name: 'Allosaurus', hitPoints: 51, maxHitPoints: 51, armorClass: 13, attackBonus: 5, damageDie: 'd10', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A large carnivorous dinosaur.', color: 'bg-green-700' },
+  { name: 'Anklyosaurus', hitPoints: 68, maxHitPoints: 68, armorClass: 15, attackBonus: 4, damageDie: 'd10', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'An armored herbivorous dinosaur.', color: 'bg-amber-700' },
+  { name: 'Bugbear Stalker', hitPoints: 27, maxHitPoints: 27, armorClass: 14, attackBonus: 3, damageDie: 'd8', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A large, stealthy goblinoid.', color: 'bg-gray-800' },
+  { name: 'Goblin Boss', hitPoints: 21, maxHitPoints: 21, armorClass: 17, attackBonus: 3, damageDie: 'd6', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A goblin leader with better equipment.', color: 'bg-green-900' },
+  { name: 'Goblin Minion', hitPoints: 7, maxHitPoints: 7, armorClass: 15, attackBonus: 2, damageDie: 'd6', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A weak goblin follower.', color: 'bg-green-800' },
+  { name: 'Hobgoblin Captain', hitPoints: 39, maxHitPoints: 39, armorClass: 17, attackBonus: 4, damageDie: 'd8', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A disciplined goblinoid military leader.', color: 'bg-orange-800' },
+  { name: 'Pirate', hitPoints: 11, maxHitPoints: 11, armorClass: 12, attackBonus: 2, damageDie: 'd6', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A seafaring bandit.', color: 'bg-amber-800' },
+  { name: 'Pirate Captain', hitPoints: 52, maxHitPoints: 52, armorClass: 15, attackBonus: 5, damageDie: 'd8', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A skilled pirate leader.', color: 'bg-amber-900' },
+  { name: 'Pteradon', hitPoints: 13, maxHitPoints: 13, armorClass: 13, attackBonus: 3, damageDie: 'd6', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A flying reptile with wings.', color: 'bg-gray-600' },
+  { name: 'Sphinx of Wonder', hitPoints: 136, maxHitPoints: 136, armorClass: 17, attackBonus: 7, damageDie: 'd10', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A magical creature with a lion body and human head.', color: 'bg-yellow-800' },
+  { name: 'Swarm of Crawling Claws', hitPoints: 36, maxHitPoints: 36, armorClass: 12, attackBonus: 3, damageDie: 'd4', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A swarm of animated severed hands.', color: 'bg-gray-700' },
+  { name: 'Tough Boss', hitPoints: 100, maxHitPoints: 100, armorClass: 18, attackBonus: 7, damageDie: 'd12', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A powerful boss monster.', color: 'bg-red-900' },
+  { name: 'Troll Limb', hitPoints: 21, maxHitPoints: 21, armorClass: 13, attackBonus: 3, damageDie: 'd6', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A regenerating troll body part.', color: 'bg-green-700' },
+  { name: 'Vampire Familiar', hitPoints: 10, maxHitPoints: 10, armorClass: 12, attackBonus: 2, damageDie: 'd4', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A small creature serving a vampire.', color: 'bg-gray-900' },
+  { name: 'Hezrou', hitPoints: 136, maxHitPoints: 136, armorClass: 16, attackBonus: 6, damageDie: 'd10', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A large, toad-like demon.', color: 'bg-purple-900' },
+  { name: 'Manes', hitPoints: 9, maxHitPoints: 9, armorClass: 9, attackBonus: 1, damageDie: 'd4', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A weak, mindless demon.', color: 'bg-gray-700' },
+  { name: 'Marilith', hitPoints: 189, maxHitPoints: 189, armorClass: 18, attackBonus: 8, damageDie: 'd10', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A six-armed snake-bodied demon.', color: 'bg-purple-800' },
+  { name: 'Nalfeshnee', hitPoints: 184, maxHitPoints: 184, armorClass: 18, attackBonus: 7, damageDie: 'd10', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A large, boar-like demon.', color: 'bg-purple-900' },
+  { name: 'Quasit', hitPoints: 7, maxHitPoints: 7, armorClass: 13, attackBonus: 2, damageDie: 'd4', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A small, mischievous demon.', color: 'bg-indigo-900' },
+  { name: 'Shadow Demon', hitPoints: 66, maxHitPoints: 66, armorClass: 13, attackBonus: 5, damageDie: 'd8', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A demon made of shadow.', color: 'bg-gray-900' },
+  { name: 'Vrock', hitPoints: 104, maxHitPoints: 104, armorClass: 15, attackBonus: 6, damageDie: 'd8', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A vulture-like demon with wings.', color: 'bg-purple-800' },
+  { name: 'Yochlol', hitPoints: 136, maxHitPoints: 136, armorClass: 15, attackBonus: 6, damageDie: 'd8', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A spider-like demon servant.', color: 'bg-violet-900' },
+  { name: 'Barbed Devil', hitPoints: 110, maxHitPoints: 110, armorClass: 15, attackBonus: 6, damageDie: 'd8', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A devil covered in sharp barbs.', color: 'bg-red-900' },
+  { name: 'Bearded Devil', hitPoints: 52, maxHitPoints: 52, armorClass: 13, attackBonus: 4, damageDie: 'd8', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A devil with a long beard of tentacles.', color: 'bg-red-800' },
+  { name: 'Bone Devil', hitPoints: 142, maxHitPoints: 142, armorClass: 19, attackBonus: 6, damageDie: 'd8', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A skeletal devil with sharp claws.', color: 'bg-gray-700' },
+  { name: 'Chain Devil', hitPoints: 85, maxHitPoints: 85, armorClass: 16, attackBonus: 5, damageDie: 'd8', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A devil wrapped in chains.', color: 'bg-gray-800' },
+  { name: 'Erinyes', hitPoints: 153, maxHitPoints: 153, armorClass: 18, attackBonus: 7, damageDie: 'd8', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A winged female devil with a bow.', color: 'bg-red-900' },
+  { name: 'Dao', hitPoints: 187, maxHitPoints: 187, armorClass: 18, attackBonus: 7, damageDie: 'd10', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'An earth genie with rocky skin.', color: 'bg-orange-900' },
+  { name: 'Horned Devil', hitPoints: 178, maxHitPoints: 178, armorClass: 18, attackBonus: 7, damageDie: 'd10', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A powerful devil with large horns.', color: 'bg-red-900' },
+  { name: 'Ice Devil', hitPoints: 180, maxHitPoints: 180, armorClass: 18, attackBonus: 7, damageDie: 'd10', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A blue-white devil of ice and cold.', color: 'bg-blue-700' },
+  { name: 'Efreeti', hitPoints: 200, maxHitPoints: 200, armorClass: 17, attackBonus: 7, damageDie: 'd10', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A fire genie from the Elemental Plane of Fire.', color: 'bg-orange-800' },
+  { name: 'Imp', hitPoints: 10, maxHitPoints: 10, armorClass: 13, attackBonus: 2, damageDie: 'd4', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A small, weak devil.', color: 'bg-red-800' },
+  { name: 'Marid', hitPoints: 229, maxHitPoints: 229, armorClass: 17, attackBonus: 7, damageDie: 'd10', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A water genie from the Elemental Plane of Water.', color: 'bg-blue-800' },
+  { name: 'Lemure', hitPoints: 13, maxHitPoints: 13, armorClass: 7, attackBonus: 1, damageDie: 'd4', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A mindless, blob-like devil.', color: 'bg-gray-700' },
+  { name: 'Swarm of Lemures', hitPoints: 45, maxHitPoints: 45, armorClass: 9, attackBonus: 2, damageDie: 'd4', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A swarm of mindless devils.', color: 'bg-gray-700' },
+  { name: 'Pit Fiend', hitPoints: 300, maxHitPoints: 300, armorClass: 19, attackBonus: 9, damageDie: 'd12', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'The most powerful type of devil.', color: 'bg-red-900' },
+  { name: 'White Dragon', hitPoints: 200, maxHitPoints: 200, armorClass: 18, attackBonus: 8, damageDie: 'd12', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A powerful ice dragon.', color: 'bg-blue-200' },
+  { name: 'Blob of Annihilation', hitPoints: 400, maxHitPoints: 400, armorClass: 20, attackBonus: 10, damageDie: 'd12', abilities: FALLBACK_MONSTER_ABILITIES['Werewolf'] || [], description: 'A formless entity of pure destruction.', color: 'bg-gray-900' },
 ];
 
 // Class icon mapping for pixel art style graphics

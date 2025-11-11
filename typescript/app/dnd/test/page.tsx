@@ -3,11 +3,11 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { DnDClass, BattleLog, CharacterEmotion } from '../types';
+import { DnDClass, BattleLog, CharacterEmotion, Ability, AttackAbility } from '../types';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS, MONSTER_ICONS, CLASS_ICONS } from '../constants';
 import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../utils/dice';
 import { generateCharacterName } from '../utils/names';
-import { createHitVisualEffects, createMissVisualEffects, createHealingVisualEffects, getOpponent, type PendingVisualEffect } from '../utils/battle';
+import { createHitVisualEffects, createMissVisualEffects, createHealingVisualEffects, getOpponent, buildDamageDiceArray, type PendingVisualEffect } from '../utils/battle';
 import { DiceRoll } from '../components/DiceRoll';
 import { PlayerStats } from '../components/PlayerStats';
 import { ClassSelection } from '../components/ClassSelection';
@@ -28,67 +28,26 @@ export default function DnDTestPage() {
   const [monsterPage, setMonsterPage] = useState(0);
   const monstersPerPage = 12;
   
-  // Test player setup
+  // Test player setup - preserve actual abilities from classes
   const [player1Class, setPlayer1Class] = useState<DnDClass>(() => ({
     ...FALLBACK_CLASSES[0],
     hitPoints: FALLBACK_CLASSES[0].maxHitPoints,
-    abilities: [
-      {
-        name: 'Test Attack',
-        type: 'attack',
-        damageDice: '2d6',
-        attackRoll: true,
-        description: 'A test attack ability',
-      },
-      {
-        name: 'Test Heal',
-        type: 'healing',
-        healingDice: '1d8+3',
-        description: 'A test healing ability',
-      },
-    ],
+    abilities: FALLBACK_CLASSES[0].abilities || [],
   }));
   
   const [player2Class, setPlayer2Class] = useState<DnDClass>(() => ({
     ...FALLBACK_CLASSES[1],
     hitPoints: FALLBACK_CLASSES[1].maxHitPoints,
-    abilities: [
-      {
-        name: 'Test Attack',
-        type: 'attack',
-        damageDice: '2d6',
-        attackRoll: true,
-        description: 'A test attack ability',
-      },
-      {
-        name: 'Test Heal',
-        type: 'healing',
-        healingDice: '1d8+3',
-        description: 'A test healing ability',
-      },
-    ],
+    abilities: FALLBACK_CLASSES[1].abilities || [],
   }));
   
-  // Helper to create a test class/monster with test abilities
+  // Helper to create a test class/monster preserving actual abilities
   const createTestEntity = useCallback((entity: DnDClass): DnDClass => {
     return {
       ...entity,
       hitPoints: entity.maxHitPoints,
-      abilities: [
-        {
-          name: 'Test Attack',
-          type: 'attack',
-          damageDice: '2d6',
-          attackRoll: true,
-          description: 'A test attack ability',
-        },
-        {
-          name: 'Test Heal',
-          type: 'healing',
-          healingDice: '1d8+3',
-          description: 'A test healing ability',
-        },
-      ],
+      // Preserve actual abilities from the entity, or use empty array if none
+      abilities: entity.abilities && entity.abilities.length > 0 ? entity.abilities : [],
     };
   }, []);
   
@@ -555,6 +514,235 @@ export default function DnDTestPage() {
       ]
     );
   };
+
+  // Test ability handler - handles all ability types
+  const testUseAbility = (player: 'player1' | 'player2', abilityIndex: number) => {
+    if (isMoveInProgress) return;
+    
+    setIsMoveInProgress(true);
+    const attackerClass = player === 'player1' ? player1Class : player2Class;
+    const defenderClass = player === 'player1' ? player2Class : player1Class;
+    const ability = attackerClass.abilities[abilityIndex];
+    
+    if (!ability) {
+      setIsMoveInProgress(false);
+      return;
+    }
+    
+    addLog('roll', `✨ ${attackerClass.name} uses ${ability.name}!`);
+    
+    if (ability.type === 'healing') {
+      // Handle healing ability
+      const heal = rollDiceWithNotation(ability.healingDice);
+      const { dice } = parseDiceNotation(ability.healingDice);
+      const newHP = Math.min(attackerClass.maxHitPoints, attackerClass.hitPoints + heal);
+      
+      triggerDiceRoll(
+        [{ diceType: dice, result: heal }],
+        createHealingVisualEffects(player, heal, attackerClass),
+        [
+          () => updatePlayerHP(player, newHP),
+          () => {
+            addLog('ability', `💚 ${attackerClass.name} heals for ${heal} HP!`);
+            addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} and heals for ${heal} HP.`));
+            const nextTurn = player === 'player1' ? 'player2' : 'player1';
+            setTimeout(() => {
+              setCurrentTurn(nextTurn);
+              setIsMoveInProgress(false);
+            }, 450);
+          }
+        ]
+      );
+    } else if (ability.type === 'attack') {
+      const attackAbility = ability as AttackAbility;
+      const numAttacks = attackAbility.attacks || 1;
+      const defender = getOpponent(player);
+      
+      if (numAttacks > 1) {
+        // Handle multi-attack
+        const attackRolls: number[] = [];
+        const d20Rolls: number[] = [];
+        const damages: number[] = [];
+        const hits: boolean[] = [];
+        let totalDamage = 0;
+        const diceToShow: Array<{ diceType: string; result: number }> = [];
+        
+        for (let i = 0; i < numAttacks; i++) {
+          const d20Roll = rollDice('d20');
+          d20Rolls.push(d20Roll);
+          const attackRoll = d20Roll + attackerClass.attackBonus;
+          attackRolls.push(attackRoll);
+          const hit = attackRoll >= defenderClass.armorClass;
+          hits.push(hit);
+          
+          if (hit) {
+            diceToShow.push({ diceType: 'd20', result: d20Roll });
+            const { diceArray, totalDamage: damage } = buildDamageDiceArray(
+              attackAbility.damageDice,
+              rollDiceWithNotation,
+              parseDiceNotation,
+              attackAbility.bonusDamageDice
+            );
+            diceToShow.push(...diceArray);
+            damages.push(damage);
+            totalDamage += damage;
+          } else {
+            diceToShow.push({ diceType: 'd20', result: d20Roll });
+            damages.push(0);
+          }
+        }
+        
+        const newHP = totalDamage > 0 ? Math.max(0, defenderClass.hitPoints - totalDamage) : defenderClass.hitPoints;
+        
+        if (totalDamage > 0) {
+          const visualEffects = createHitVisualEffects(player, defender, totalDamage, defenderClass, attackerClass);
+          triggerDiceRoll(
+            diceToShow,
+            visualEffects,
+            [
+              () => updatePlayerHP(defender, newHP),
+              () => {
+                addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
+                const hitDetails = hits.map((hit, i) => 
+                  hit ? `Attack ${i + 1} hits for ${damages[i]} damage.` : `Attack ${i + 1} misses.`
+                ).join(' ');
+                addLog('attack', `⚔️ ${attackerClass.name} uses ${ability.name}: ${hitDetails} Total damage: ${totalDamage}!`);
+                addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. Total damage: ${totalDamage}.`));
+                
+                if (newHP <= 0) {
+                  setDefeatedPlayer(defender);
+                  setVictorPlayer(player);
+                  setConfettiTrigger(prev => prev + 1);
+                  addLog('system', `🏆 ${attackerClass.name} wins!`);
+                } else {
+                  const nextTurn = player === 'player1' ? 'player2' : 'player1';
+                  setTimeout(() => {
+                    setCurrentTurn(nextTurn);
+                    setIsMoveInProgress(false);
+                  }, 450);
+                }
+              }
+            ]
+          );
+        } else {
+          triggerDiceRoll(
+            diceToShow,
+            createMissVisualEffects(player, attackerClass),
+            [
+              () => {
+                addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
+                addLog('attack', `❌ ${attackerClass.name} uses ${ability.name} but all attacks miss!`);
+                addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} but all attacks miss.`));
+                const nextTurn = player === 'player1' ? 'player2' : 'player1';
+                setTimeout(() => {
+                  setCurrentTurn(nextTurn);
+                  setIsMoveInProgress(false);
+                }, 650);
+              }
+            ]
+          );
+        }
+      } else if (attackAbility.attackRoll) {
+        // Handle single attack with roll
+        const d20Roll = rollDice('d20');
+        const attackRoll = d20Roll + attackerClass.attackBonus;
+        
+        addLog('roll', `🎲 ${attackerClass.name} rolls ${d20Roll} + ${attackerClass.attackBonus} = ${attackRoll} (vs AC ${defenderClass.armorClass})`);
+        
+        if (attackRoll >= defenderClass.armorClass) {
+          const { diceArray, totalDamage: damage } = buildDamageDiceArray(
+            attackAbility.damageDice,
+            rollDiceWithNotation,
+            parseDiceNotation,
+            attackAbility.bonusDamageDice
+          );
+          const diceToShow: Array<{ diceType: string; result: number }> = [
+            { diceType: 'd20', result: d20Roll },
+            ...diceArray
+          ];
+          
+          const newHP = Math.max(0, defenderClass.hitPoints - damage);
+          const visualEffects = createHitVisualEffects(player, defender, damage, defenderClass, attackerClass);
+          
+          triggerDiceRoll(
+            diceToShow,
+            visualEffects,
+            [
+              () => updatePlayerHP(defender, newHP),
+              () => {
+                addLog('attack', `⚔️ ${attackerClass.name} hits for ${damage} damage!`);
+                addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} and hits for ${damage} damage.`));
+                
+                if (newHP <= 0) {
+                  setDefeatedPlayer(defender);
+                  setVictorPlayer(player);
+                  setConfettiTrigger(prev => prev + 1);
+                  addLog('system', `🏆 ${attackerClass.name} wins!`);
+                } else {
+                  const nextTurn = player === 'player1' ? 'player2' : 'player1';
+                  setTimeout(() => {
+                    setCurrentTurn(nextTurn);
+                    setIsMoveInProgress(false);
+                  }, 450);
+                }
+              }
+            ]
+          );
+        } else {
+          triggerDiceRoll(
+            [{ diceType: 'd20', result: d20Roll }],
+            createMissVisualEffects(player, attackerClass),
+            [
+              () => {
+                addLog('attack', `❌ ${attackerClass.name} misses!`);
+                addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} but misses.`));
+                const nextTurn = player === 'player1' ? 'player2' : 'player1';
+                setTimeout(() => {
+                  setCurrentTurn(nextTurn);
+                  setIsMoveInProgress(false);
+                }, 650);
+              }
+            ]
+          );
+        }
+      } else {
+        // Handle automatic damage (no attack roll)
+        const { diceArray, totalDamage: damage } = buildDamageDiceArray(
+          attackAbility.damageDice,
+          rollDiceWithNotation,
+          parseDiceNotation,
+          attackAbility.bonusDamageDice
+        );
+        const newHP = Math.max(0, defenderClass.hitPoints - damage);
+        const visualEffects = createHitVisualEffects(player, defender, damage, defenderClass, attackerClass);
+        
+        triggerDiceRoll(
+          diceArray,
+          visualEffects,
+          [
+            () => updatePlayerHP(defender, newHP),
+            () => {
+              addLog('attack', `⚔️ ${attackerClass.name} deals ${damage} damage!`);
+              addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} and deals ${damage} damage.`));
+              
+              if (newHP <= 0) {
+                setDefeatedPlayer(defender);
+                setVictorPlayer(player);
+                setConfettiTrigger(prev => prev + 1);
+                addLog('system', `🏆 ${attackerClass.name} wins!`);
+              } else {
+                const nextTurn = player === 'player1' ? 'player2' : 'player1';
+                setTimeout(() => {
+                  setCurrentTurn(nextTurn);
+                  setIsMoveInProgress(false);
+                }, 450);
+              }
+            }
+          ]
+        );
+      }
+    }
+  };
   
   // Use AI opponent hook
   const aiOpponentCleanup = useAIOpponent({
@@ -566,12 +754,7 @@ export default function DnDTestPage() {
     callbacks: {
       onAttack: () => testAttackHit('player2'),
       onUseAbility: (abilityIndex: number) => {
-        const ability = player2Class.abilities[abilityIndex];
-        if (ability?.type === 'healing') {
-          testHeal('player2');
-        } else if (ability?.type === 'attack') {
-          testAttackHit('player2');
-        }
+        testUseAbility('player2', abilityIndex);
       },
       onHeal: () => testHeal('player2'),
     },
@@ -858,14 +1041,7 @@ export default function DnDTestPage() {
                 currentTurn={currentTurn}
                 characterName={player1Name || 'Loading...'}
                 onUseAbility={(index) => {
-                  setIsMoveInProgress(true);
-                  const ability = player1Class.abilities[index];
-                  if (ability?.type === 'healing') {
-                    testHeal('player1');
-                  } else if (ability?.type === 'attack') {
-                    // For test attack ability, just do a hit
-                    testAttackHit('player1');
-                  }
+                  testUseAbility('player1', index);
                 }}
                 onAttack={() => {
                   setIsMoveInProgress(true);
@@ -900,6 +1076,15 @@ export default function DnDTestPage() {
                 onEmotionChange={setManualEmotion1}
                 allowAllTurns={!isAIModeActive}
                 testButtons={[
+                  // Add buttons for all abilities
+                  ...player1Class.abilities.map((ability, index) => ({
+                    label: ability.type === 'healing' ? `💚 ${ability.name}` : `⚔️ ${ability.name}`,
+                    onClick: () => testUseAbility('player1', index),
+                    className: ability.type === 'healing' 
+                      ? 'px-3 py-1 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
+                      : 'px-3 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'
+                  })),
+                  // Keep existing test buttons
                   {
                     label: '💥 High Damage',
                     onClick: () => testHighDamage('player1'),
@@ -936,14 +1121,7 @@ export default function DnDTestPage() {
                 characterName={player2Name || 'Loading...'}
                 onUseAbility={(index) => {
                   if (isAIModeActive) return; // Don't allow manual control in AI mode
-                  setIsMoveInProgress(true);
-                  const ability = player2Class.abilities[index];
-                  if (ability?.type === 'healing') {
-                    testHeal('player2');
-                  } else if (ability?.type === 'attack') {
-                    // For test attack ability, just do a hit
-                    testAttackHit('player2');
-                  }
+                  testUseAbility('player2', index);
                 }}
                 onAttack={isAIModeActive ? undefined : () => {
                   setIsMoveInProgress(true);
@@ -977,6 +1155,15 @@ export default function DnDTestPage() {
                 onEmotionChange={setManualEmotion2}
                 allowAllTurns={!isAIModeActive}
                 testButtons={[
+                  // Add buttons for all abilities
+                  ...player2Class.abilities.map((ability, index) => ({
+                    label: ability.type === 'healing' ? `💚 ${ability.name}` : `⚔️ ${ability.name}`,
+                    onClick: () => testUseAbility('player2', index),
+                    className: ability.type === 'healing' 
+                      ? 'px-3 py-1 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
+                      : 'px-3 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'
+                  })),
+                  // Keep existing test buttons
                   {
                     label: '💥 High Damage',
                     onClick: () => testHighDamage('player2'),

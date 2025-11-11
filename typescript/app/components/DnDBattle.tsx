@@ -10,7 +10,7 @@ import remarkGfm from 'remark-gfm';
 import { DnDClass, BattleLog, AttackAbility, CharacterEmotion, Ability } from '../dnd/types';
 
 // Constants
-import { FALLBACK_CLASSES, FALLBACK_MONSTERS, CLASS_COLORS, FALLBACK_ABILITIES, CLASS_ICONS, MONSTER_ICONS, MONSTER_COLORS } from '../dnd/constants';
+import { FALLBACK_CLASSES, FALLBACK_MONSTERS, CLASS_COLORS, FALLBACK_ABILITIES, CLASS_ICONS, MONSTER_ICONS, MONSTER_COLORS, selectRandomAbilities, FALLBACK_MONSTER_ABILITIES } from '../dnd/constants';
 
 // Utilities
 import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../dnd/utils/dice';
@@ -440,18 +440,30 @@ export default function DnDBattle() {
       }
 
       addLog('system', `✅ Found ${classNames.length} classes: ${classNames.join(', ')}`);
-      addLog('system', `📋 Fetching stats for ${classNames.length} classes...`);
+      addLog('system', `📋 Fetching stats and abilities for ${classNames.length} classes...`);
 
       // Create a map of fallback classes for quick lookup
       const fallbackClassMap = new Map(FALLBACK_CLASSES.map(c => [c.name, c]));
       
-      // Fetch stats for each class, using fallback as default
+      // Fetch stats and abilities for each class, using fallback as default
       const classPromises = classNames.map(async (className) => {
         const fallback = fallbackClassMap.get(className);
         
-        // If we have a fallback, use it as default (no need to query OpenRAG)
+        // Fetch abilities from OpenRAG for this class
+        let abilities: Ability[] = [];
+        try {
+          abilities = await extractAbilities(className);
+        } catch (error) {
+          console.warn(`Failed to load abilities for ${className}, using fallback:`, error);
+          abilities = fallback?.abilities || FALLBACK_ABILITIES[className] || [];
+        }
+        
+        // If we have a fallback, use it as base but update with OpenRAG abilities if loaded
         if (fallback) {
-          return fallback;
+          return {
+            ...fallback,
+            abilities: abilities.length > 0 ? abilities : fallback.abilities,
+          };
         }
         
         // Only query OpenRAG for classes not in our fallback list
@@ -464,7 +476,7 @@ export default function DnDBattle() {
             armorClass: stats.armorClass || 14,
             attackBonus: stats.attackBonus || 4,
             damageDie: stats.damageDie || 'd8',
-            abilities: [],
+            abilities: abilities,
             description: stats.description || `A ${className} character.`,
             color: CLASS_COLORS[className] || 'bg-slate-900',
           } as DnDClass;
@@ -518,18 +530,30 @@ export default function DnDBattle() {
       }
 
       addLog('system', `✅ Found ${monsterNames.length} monsters: ${monsterNames.join(', ')}`);
-      addLog('system', `📋 Fetching stats for ${monsterNames.length} monsters...`);
+      addLog('system', `📋 Fetching stats and abilities for ${monsterNames.length} monsters...`);
 
       // Create a map of fallback monsters for quick lookup
       const fallbackMonsterMap = new Map(FALLBACK_MONSTERS.map(m => [m.name, m]));
       
-      // Fetch stats for each monster, using fallback as default
+      // Fetch stats and abilities for each monster, using fallback as default
       const monsterPromises = monsterNames.map(async (monsterName) => {
         const fallback = fallbackMonsterMap.get(monsterName);
         
-        // If we have a fallback, use it as default (no need to query OpenRAG)
+        // Fetch abilities from OpenRAG for this monster
+        let abilities: Ability[] = [];
+        try {
+          abilities = await extractMonsterAbilities(monsterName);
+        } catch (error) {
+          console.warn(`Failed to load abilities for ${monsterName}, using fallback:`, error);
+          abilities = fallback?.abilities || FALLBACK_MONSTER_ABILITIES[monsterName] || [];
+        }
+        
+        // If we have a fallback, use it as base but update with OpenRAG abilities if loaded
         if (fallback) {
-          return fallback;
+          return {
+            ...fallback,
+            abilities: abilities.length > 0 ? abilities : fallback.abilities,
+          };
         }
         
         // Only query OpenRAG for monsters not in our fallback list
@@ -542,7 +566,7 @@ export default function DnDBattle() {
             armorClass: stats.armorClass || 14,
             attackBonus: stats.attackBonus || 4,
             damageDie: stats.damageDie || 'd8',
-            abilities: [],
+            abilities: abilities,
             description: stats.description || `A ${monsterName} monster.`,
             color: MONSTER_COLORS[monsterName] || 'bg-slate-900',
           } as DnDClass;
@@ -591,36 +615,18 @@ export default function DnDBattle() {
     }
 
     setIsLoadingClassDetails(true);
-    addLog('system', 'Loading class abilities from knowledge base...');
 
     try {
-      // Extract abilities directly from the knowledge base (with structured JSON)
-      // Wrap in try-catch to ensure errors don't propagate - fallback abilities will be used
-      let p1Abilities: Ability[] = [];
-      let p2Abilities: Ability[] = [];
+      // Use default abilities from the class/monster and randomly select 5 for this battle
+      // This avoids loading from OpenRAG on every battle start
+      const p1IsMonster = MONSTER_ICONS[player1Class.name] !== undefined;
+      const p2IsMonster = MONSTER_ICONS[player2Class.name] !== undefined;
+      const p1AvailableAbilities = player1Class.abilities || (p1IsMonster ? FALLBACK_MONSTER_ABILITIES[player1Class.name] : FALLBACK_ABILITIES[player1Class.name]) || [];
+      const p2AvailableAbilities = player2Class.abilities || (p2IsMonster ? FALLBACK_MONSTER_ABILITIES[player2Class.name] : FALLBACK_ABILITIES[player2Class.name]) || [];
       
-      try {
-        // Use extractAbilities for player1 (always a class) and appropriate function for player2
-        const p1Promise = extractAbilities(player1Class.name);
-        const p2Promise = opponentType === 'monster' 
-          ? extractMonsterAbilities(player2Class.name)
-          : extractAbilities(player2Class.name);
-        
-        [p1Abilities, p2Abilities] = await Promise.all([p1Promise, p2Promise]);
-      } catch (error) {
-        // Silently use fallback abilities if extraction fails
-        // extractAbilities should never throw, but this is a safety net
-        p1Abilities = FALLBACK_ABILITIES[player1Class.name] || [];
-        p2Abilities = FALLBACK_ABILITIES[player2Class.name] || [];
-      }
-      
-      // Ensure we have abilities (fallback will be applied in extractAbilities, but double-check as safety net)
-      if (!p1Abilities || p1Abilities.length === 0) {
-        p1Abilities = FALLBACK_ABILITIES[player1Class.name] || [];
-      }
-      if (!p2Abilities || p2Abilities.length === 0) {
-        p2Abilities = FALLBACK_ABILITIES[player2Class.name] || [];
-      }
+      // Randomly select 5 abilities from available ones
+      const p1Abilities = selectRandomAbilities(p1AvailableAbilities);
+      const p2Abilities = selectRandomAbilities(p2AvailableAbilities);
       
       // Store empty class details (we don't need the full text anymore)
       setClassDetails({
@@ -628,7 +634,7 @@ export default function DnDBattle() {
         [player2Class.name]: '',
       });
 
-      // Reset classes to fresh instances with updated abilities
+      // Reset classes to fresh instances with randomly selected abilities
       const p1 = { 
         ...player1Class, 
         hitPoints: player1Class.maxHitPoints,
