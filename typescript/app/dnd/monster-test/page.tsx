@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import MonsterCreator from '../components/MonsterCreator';
-import RigPlayer from '../components/RigPlayer';
+import { Sparkles } from '../components/Sparkles';
+import { applyAnimationClass } from '../utils/animations';
 
 interface CreatedMonster {
   monsterId: string;
@@ -17,11 +18,20 @@ export default function MonsterTestPage() {
   const [createdMonsters, setCreatedMonsters] = useState<CreatedMonster[]>([]);
   const [selectedMonsterId, setSelectedMonsterId] = useState<string | null>(null);
   const [expression, setExpression] = useState('neutral');
-  const [wind, setWind] = useState(0.6);
-  const [cast, setCast] = useState(false);
-  const [spellType, setSpellType] = useState<'attack' | 'heal' | 'neutral'>('neutral');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Card animation states (same as battle/test pages)
+  const [shouldShake, setShouldShake] = useState(false);
+  const [shouldSparkle, setShouldSparkle] = useState(false);
+  const [shouldMiss, setShouldMiss] = useState(false);
+  const [shakeTrigger, setShakeTrigger] = useState(0);
+  const [sparkleTrigger, setSparkleTrigger] = useState(0);
+  const [missTrigger, setMissTrigger] = useState(0);
+  const [shakeIntensity, setShakeIntensity] = useState(0);
+  const [sparkleIntensity, setSparkleIntensity] = useState(0);
+  
+  const animationRef = useRef<HTMLDivElement>(null);
 
   // Load existing monsters from localStorage (or you could fetch from an API)
   useEffect(() => {
@@ -60,6 +70,65 @@ export default function MonsterTestPage() {
       setSelectedMonsterId(updated.length > 0 ? updated[0].monsterId : null);
     }
   };
+
+  // Apply shake animation
+  useEffect(() => {
+    if (animationRef.current && shouldShake) {
+      const intensity = shakeIntensity > 0 ? shakeIntensity : 1;
+      const scale = 0.15 + (Math.sqrt(Math.min(intensity / 30, 1.0)) * 1.85); // Using 30 as default max HP
+      animationRef.current.style.setProperty('--shake-intensity', scale.toString());
+    }
+    
+    const cleanup = applyAnimationClass(
+      animationRef.current,
+      shouldShake,
+      shakeTrigger,
+      'shake',
+      400,
+      () => setShouldShake(false)
+    );
+    return cleanup;
+  }, [shouldShake, shakeTrigger, shakeIntensity]);
+
+  // Apply sparkle animation
+  useEffect(() => {
+    if (shouldSparkle && sparkleTrigger > 0) {
+      const timer = setTimeout(() => {
+        setShouldSparkle(false);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [shouldSparkle, sparkleTrigger]);
+
+  // Apply miss animation
+  useEffect(() => {
+    const cleanup = applyAnimationClass(
+      animationRef.current,
+      shouldMiss,
+      missTrigger,
+      'miss',
+      600,
+      () => setShouldMiss(false)
+    );
+    return cleanup;
+  }, [shouldMiss, missTrigger]);
+
+  const testShake = useCallback(() => {
+    setShakeIntensity(10);
+    setShouldShake(true);
+    setShakeTrigger(prev => prev + 1);
+  }, []);
+
+  const testSparkle = useCallback(() => {
+    setSparkleIntensity(15);
+    setShouldSparkle(true);
+    setSparkleTrigger(prev => prev + 1);
+  }, []);
+
+  const testMiss = useCallback(() => {
+    setShouldMiss(true);
+    setMissTrigger(prev => prev + 1);
+  }, []);
 
   const testApiDirectly = async () => {
     setIsLoading(true);
@@ -191,16 +260,28 @@ export default function MonsterTestPage() {
           {/* Preview */}
           {selectedMonsterId && (
             <>
-              <div className="border border-amber-700 rounded p-4 bg-amber-950/50 flex items-center justify-center min-h-[512px] overflow-hidden">
+              <div 
+                ref={animationRef}
+                className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl sparkle-container relative flex items-center justify-center min-h-[512px]"
+              >
+                {shouldSparkle && (
+                  <Sparkles 
+                    key={sparkleTrigger} 
+                    trigger={sparkleTrigger} 
+                    count={sparkleIntensity > 0 ? Math.max(1, Math.ceil(sparkleIntensity * 0.6)) : 12}
+                  />
+                )}
+                
                 <div className="flex items-center justify-center">
-                  <RigPlayer
-                    bundleUrl={`/cdn/monsters/${selectedMonsterId}`}
-                    expression={expression}
-                    wind={wind}
-                    cast={cast}
-                    spellType={spellType}
-                    width={256}
-                    height={256}
+                  <img
+                    src={`/cdn/monsters/${selectedMonsterId}/256.png`}
+                    alt="Monster preview"
+                    style={{
+                      imageRendering: 'pixelated',
+                      width: '256px',
+                      height: '256px',
+                    }}
+                    className={expression === 'happy' ? 'brightness-110' : expression === 'angry' ? 'brightness-90 contrast-110' : ''}
                   />
                 </div>
               </div>
@@ -224,98 +305,27 @@ export default function MonsterTestPage() {
                   </label>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-amber-100">
-                    Wind Strength: {wind.toFixed(1)}
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={wind}
-                      onChange={(e) => setWind(parseFloat(e.target.value))}
-                      className="mt-1 w-full"
-                    />
-                  </label>
-                  <div className="flex gap-2 text-xs text-amber-200">
-                    <span>None</span>
-                    <span className="flex-1"></span>
-                    <span>Strong</span>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={cast}
-                      onChange={(e) => setCast(e.target.checked)}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm font-medium text-amber-100">Cast Spell (Particle Effects)</span>
-                  </label>
-                </div>
-
-                {cast && (
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-amber-100">
-                      Spell Type
-                      <select
-                        value={spellType}
-                        onChange={(e) => setSpellType(e.target.value as 'attack' | 'heal' | 'neutral')}
-                        className="mt-1 w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100"
-                      >
-                        <option value="neutral">Neutral (Blue)</option>
-                        <option value="attack">Attack (Red/Orange)</option>
-                        <option value="heal">Heal (Green)</option>
-                      </select>
-                    </label>
-                  </div>
-                )}
-
-                {/* Quick Test Buttons */}
+                {/* Card Animation Test Buttons */}
                 <div className="pt-2 border-t space-y-2">
-                  <p className="text-xs font-medium text-amber-200">Quick Tests:</p>
-                  <div className="grid grid-cols-2 gap-2">
+                  <p className="text-xs font-medium text-amber-200">Card Animations:</p>
+                  <div className="flex gap-2">
                     <button
-                      onClick={() => {
-                        setExpression('happy');
-                        setWind(0.3);
-                        setCast(false);
-                      }}
-                      className="px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm"
+                      onClick={testShake}
+                      className="px-3 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all"
                     >
-                      Happy + Light Wind
+                      Test Shake
                     </button>
                     <button
-                      onClick={() => {
-                        setExpression('angry');
-                        setWind(0.9);
-                        setCast(false);
-                      }}
-                      className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm"
+                      onClick={testSparkle}
+                      className="px-3 py-1 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all"
                     >
-                      Angry + Strong Wind
+                      Test Sparkle
                     </button>
                     <button
-                      onClick={() => {
-                        setExpression('neutral');
-                        setWind(0);
-                        setCast(true);
-                      }}
-                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm"
+                      onClick={testMiss}
+                      className="px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all"
                     >
-                      Casting Spell
-                    </button>
-                    <button
-                      onClick={() => {
-                        setExpression('neutral');
-                        setWind(0.6);
-                        setCast(false);
-                      }}
-                      className="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm"
-                    >
-                      Reset
+                      Test Miss
                     </button>
                   </div>
                 </div>

@@ -1,8 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { AnimationConfig } from '../utils/rigTypes';
-import { WIND_PARTS, WEAPON_PARTS } from '../constants';
 
 interface MonsterCreatorProps {
   onMonsterCreated?: (monsterId: string) => void;
@@ -18,11 +16,6 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [model, setModel] = useState('5000');
-  
-  // Animation configuration
-  const [windParts, setWindParts] = useState<string[]>(['hair', 'robeL', 'robeR', 'cape']);
-  const [weaponPart, setWeaponPart] = useState<string>('staffTip');
-  const [spellEffectType, setSpellEffectType] = useState<'particles' | 'fire' | 'sparkles' | 'glow'>('particles');
   
   // Background removal options
   const [transparentBackground, setTransparentBackground] = useState(true);
@@ -98,11 +91,6 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
             armorClass: 14,
             attackBonus: 4,
             damageDie: 'd8',
-          },
-          animationConfig: {
-            windParts,
-            weaponPart,
-            spellEffectType,
           },
           removeBg,
         }),
@@ -263,72 +251,6 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
         >
           Generate random seed
         </button>
-      </div>
-
-      {/* Animation Configuration */}
-      <div className="border-t border-amber-700 pt-4 space-y-4">
-        <h3 className="text-lg font-semibold text-amber-100">Animation Configuration</h3>
-        
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-amber-100">
-            Wind-Affected Parts
-            <p className="text-xs text-amber-300 mb-2">Select parts that should sway in the wind</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {WIND_PARTS.map((part) => (
-                <label key={part.value} className="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={windParts.includes(part.value)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setWindParts([...windParts, part.value]);
-                      } else {
-                        setWindParts(windParts.filter(p => p !== part.value));
-                      }
-                    }}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm text-amber-200">{part.label}</span>
-                </label>
-              ))}
-            </div>
-          </label>
-        </div>
-
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-amber-100">
-            Weapon/Spell Source
-            <select
-              value={weaponPart}
-              onChange={(e) => setWeaponPart(e.target.value)}
-              className="mt-1 w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100"
-            >
-              {WEAPON_PARTS.map((part) => (
-                <option key={part.value} value={part.value}>
-                  {part.label}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-amber-300 mt-1">Where spell effects should originate from</p>
-          </label>
-        </div>
-
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-amber-100">
-            Spell Effect Type
-            <select
-              value={spellEffectType}
-              onChange={(e) => setSpellEffectType(e.target.value as any)}
-              className="mt-1 w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100"
-            >
-              <option value="particles">Particles (Default)</option>
-              <option value="fire">Fire</option>
-              <option value="sparkles">Sparkles</option>
-              <option value="glow">Glow Only</option>
-            </select>
-            <p className="text-xs text-amber-300 mt-1">Visual style for spell effects</p>
-          </label>
-        </div>
       </div>
 
       {error && (
