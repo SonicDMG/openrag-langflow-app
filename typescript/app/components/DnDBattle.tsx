@@ -428,7 +428,7 @@ export default function DnDBattle() {
     setIsLoadingClasses(true);
     addLog('system', '🚀 Starting to load classes from OpenRAG...');
     try {
-      const { classNames, response: classListResponse } = await fetchAvailableClasses(addLog);
+      const { classNames } = await fetchAvailableClasses(addLog);
       
       if (classNames.length === 0) {
         console.warn('No classes found, using fallback classes');
@@ -467,7 +467,7 @@ export default function DnDBattle() {
         }
         
         // Only query OpenRAG for classes not in our fallback list
-        const { stats, response: statsResponse } = await fetchClassStats(className, addLog);
+        const { stats } = await fetchClassStats(className, addLog);
         if (stats) {
           return {
             name: className,
@@ -518,7 +518,7 @@ export default function DnDBattle() {
     setIsLoadingMonsters(true);
     addLog('system', '🚀 Starting to load monsters from OpenRAG...');
     try {
-      const { monsterNames, response: monsterListResponse } = await fetchAvailableMonsters(addLog);
+      const { monsterNames } = await fetchAvailableMonsters(addLog);
       
       if (monsterNames.length === 0) {
         console.warn('No monsters found, using fallback monsters');
@@ -557,7 +557,7 @@ export default function DnDBattle() {
         }
         
         // Only query OpenRAG for monsters not in our fallback list
-        const { stats, response: statsResponse } = await fetchMonsterStats(monsterName, addLog);
+        const { stats } = await fetchMonsterStats(monsterName, addLog);
         if (stats) {
           return {
             name: monsterName,

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { Rig, PartName } from '../utils/rigTypes';
+import { DEFAULT_WIND_PARTS, DEFAULT_WEAPON_PARTS } from '../constants';
 
 interface RigPlayerProps {
   bundleUrl: string;
@@ -131,6 +132,12 @@ export default function RigPlayer({
           // Load the full 256.png image as the base (static background + character)
           const fullImageUrl = `${bundleUrl}/256.png`;
           const fullTexture = await PIXI.Assets.load(fullImageUrl);
+          
+          // Check if texture loaded successfully
+          if (!fullTexture) {
+            throw new Error('Failed to load base texture');
+          }
+          
           loadedTextures.push(fullImageUrl);
           
           // PixiJS v8: Use 'source' instead of 'baseTexture'
@@ -153,6 +160,7 @@ export default function RigPlayer({
           (app as any)._baseSprite = baseSprite;
         } catch (error) {
           // Base image not available, will use rig parts only
+          console.warn('Failed to load base sprite, using rig parts only:', error);
         }
         
         // Now load rig and extract wind-affected parts to layer on top
@@ -175,8 +183,8 @@ export default function RigPlayer({
           
           // Get animation config from rig metadata, or use defaults
           const animConfig = rig.meta?.animationConfig;
-          const windParts = animConfig?.windParts || ['hatTip', 'beard', 'hair', 'sleeveL', 'sleeveR', 'cape', 'robeL', 'robeR'];
-          const weaponParts = ['staffTip', 'swordTip', 'wandTip', 'wingL', 'wingR', 'tail', 'mouth'];
+          const windParts = animConfig?.windParts || DEFAULT_WIND_PARTS;
+          const weaponParts = DEFAULT_WEAPON_PARTS;
           const allAnimatedParts = [...windParts, ...weaponParts];
           
           for (const b of rig.bones) {
@@ -193,7 +201,7 @@ export default function RigPlayer({
 
           // Load and create sprites for wind-affected parts and weapon parts
           const windPartNames = windParts; // Use from config
-          const weaponPartNames = ['staffTip', 'swordTip', 'wandTip', 'wingL', 'wingR', 'tail', 'mouth'];
+          const weaponPartNames = DEFAULT_WEAPON_PARTS;
           const allPartNames = [...windPartNames, ...weaponPartNames];
           for (const partName of allPartNames) {
             const slot = rig.slots.find(s => s.name === partName);
@@ -203,6 +211,13 @@ export default function RigPlayer({
 
               try {
                 const texture = await PIXI.Assets.load(textureUrl);
+                
+                // Check if texture loaded successfully before using it
+                if (!texture) {
+                  console.warn(`Texture ${textureUrl} for ${partName} is null, skipping`);
+                  continue;
+                }
+                
                 loadedTextures.push(textureUrl); // Track for cleanup
                 // Set scale mode to nearest for pixelated rendering
                 // PixiJS v8: Use 'source' instead of 'baseTexture'
@@ -214,6 +229,13 @@ export default function RigPlayer({
                     // Ignore if scaleMode can't be set
                   }
                 }
+                
+                // Additional safety check: ensure texture has valid dimensions
+                if (!texture.width || !texture.height) {
+                  console.warn(`Texture ${textureUrl} for ${partName} has invalid dimensions, skipping`);
+                  continue;
+                }
+                
                 const spr = new PIXI.Sprite(texture);
                 
                 // Position sprite based on part rect and pivot
@@ -327,7 +349,7 @@ export default function RigPlayer({
             const animConfig = currentRig?.meta?.animationConfig;
             
             // Wind effects: apply to configured wind-affected parts
-            const configuredWindParts = animConfig?.windParts || ['hatTip', 'beard', 'hair', 'sleeveL', 'sleeveR', 'cape', 'robeL', 'robeR'];
+            const configuredWindParts = animConfig?.windParts || DEFAULT_WIND_PARTS;
             
             if (currentState.wind > 0) {
               const sway = (phase: number, amp: number) =>
@@ -373,6 +395,7 @@ export default function RigPlayer({
                               animatedParts.staffTip || 
                               animatedParts.swordTip || 
                               animatedParts.wandTip ||
+                              animatedParts.hand ||
                               animatedParts.wingL ||
                               animatedParts.wingR ||
                               animatedParts.tail ||
@@ -449,8 +472,9 @@ export default function RigPlayer({
             const sway = (phase: number, amp: number) =>
               Math.sin(t * 3 + phase) * amp * currentState.wind;
 
-            const windParts = ['beard', 'robeL', 'robeR', 'hatTip', 'armL', 'armR']; // Added arms for more visible animation
-            for (const partName of windParts) {
+            // Fallback wind parts for rig-based animations (includes arms for more visible animation)
+            const fallbackWindParts = ['beard', 'robeL', 'robeR', 'hatTip', 'armL', 'armR'];
+            for (const partName of fallbackWindParts) {
               if (currentBones[partName]) {
                 currentBones[partName].rotation = sway(0.6, 0.15); // Increased from 0.08 to 0.15
               }

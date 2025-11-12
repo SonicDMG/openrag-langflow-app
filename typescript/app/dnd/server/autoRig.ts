@@ -1,5 +1,6 @@
 import sharp from 'sharp';
 import { Rig, Bone, Slot, Part, PartName } from '../utils/rigTypes';
+import { BASIC_WEAPON_PARTS } from '../constants';
 
 export interface AutoRigResult {
   rig: Rig;
@@ -267,6 +268,18 @@ export async function autoRig(png256: Buffer): Promise<AutoRigResult> {
       z: 4,
       parent: 'armR',
     },
+    hand: {
+      name: 'hand',
+      rect: {
+        x: Math.floor(centerX + width * 0.12),
+        y: Math.floor(centerY + height * 0.15),
+        w: Math.floor(width * 0.06),
+        h: Math.floor(height * 0.08),
+      },
+      pivot: { x: Math.floor(width * 0.03), y: Math.floor(height * 0.04) },
+      z: 4,
+      parent: 'armR',
+    },
   };
 
   // Build bones hierarchy
@@ -294,11 +307,12 @@ export async function autoRig(png256: Buffer): Promise<AutoRigResult> {
     { name: 'staffTip', parent: 'armR' },
     { name: 'swordTip', parent: 'armR' },
     { name: 'wandTip', parent: 'armR' },
+    { name: 'hand', parent: 'armR' },
   ];
   
   // Detect weapon location by checking which weapon parts have significant content
   // This is a simple heuristic - in a full implementation, you'd use image analysis
-  const weaponParts = ['staffTip', 'swordTip', 'wandTip'];
+  const weaponParts = BASIC_WEAPON_PARTS;
   let detectedWeapon: string | null = null;
   let weaponPosition: { x: number; y: number } | null = null;
   

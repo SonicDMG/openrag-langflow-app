@@ -2,36 +2,11 @@
 
 import { useState } from 'react';
 import { AnimationConfig } from '../utils/rigTypes';
+import { WIND_PARTS, WEAPON_PARTS } from '../constants';
 
 interface MonsterCreatorProps {
   onMonsterCreated?: (monsterId: string) => void;
 }
-
-// Available parts that can be affected by wind
-const WIND_PARTS = [
-  { value: 'hair', label: 'Hair' },
-  { value: 'hatTip', label: 'Hat Tip' },
-  { value: 'beard', label: 'Beard' },
-  { value: 'cape', label: 'Cape' },
-  { value: 'robeL', label: 'Robe Left' },
-  { value: 'robeR', label: 'Robe Right' },
-  { value: 'sleeveL', label: 'Sleeve Left' },
-  { value: 'sleeveR', label: 'Sleeve Right' },
-  { value: 'wingL', label: 'Wing Left' },
-  { value: 'wingR', label: 'Wing Right' },
-  { value: 'tail', label: 'Tail' },
-];
-
-// Available weapon/spell source parts
-const WEAPON_PARTS = [
-  { value: 'staffTip', label: 'Staff Tip' },
-  { value: 'swordTip', label: 'Sword Tip' },
-  { value: 'wandTip', label: 'Wand Tip' },
-  { value: 'wingL', label: 'Wing Left' },
-  { value: 'wingR', label: 'Wing Right' },
-  { value: 'tail', label: 'Tail' },
-  { value: 'mouth', label: 'Mouth (Breath Weapon)' },
-];
 
 export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps) {
   const [klass, setKlass] = useState('');

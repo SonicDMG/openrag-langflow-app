@@ -770,3 +770,40 @@ export const MONSTER_COLORS: Record<string, string> = {
   'Blob of Annihilation': 'bg-gray-900',
 };
 
+// Animation configuration constants - shared across components
+// Parts that can be affected by wind animation
+export const WIND_PARTS = [
+  { value: 'hair', label: 'Hair' },
+  { value: 'hatTip', label: 'Hat Tip' },
+  { value: 'beard', label: 'Beard' },
+  { value: 'cape', label: 'Cape' },
+  { value: 'robeL', label: 'Robe Left' },
+  { value: 'robeR', label: 'Robe Right' },
+  { value: 'sleeveL', label: 'Sleeve Left' },
+  { value: 'sleeveR', label: 'Sleeve Right' },
+  { value: 'wingL', label: 'Wing Left' },
+  { value: 'wingR', label: 'Wing Right' },
+  { value: 'tail', label: 'Tail' },
+] as const;
+
+// Default wind parts array (for fallback/default configurations)
+export const DEFAULT_WIND_PARTS = ['hatTip', 'beard', 'hair', 'sleeveL', 'sleeveR', 'cape', 'robeL', 'robeR'];
+
+// Weapon/spell source parts - where spell effects should originate from
+export const WEAPON_PARTS = [
+  { value: 'staffTip', label: 'Staff Tip' },
+  { value: 'swordTip', label: 'Sword Tip' },
+  { value: 'wandTip', label: 'Wand Tip' },
+  { value: 'hand', label: 'Hand' },
+  { value: 'wingL', label: 'Wing Left' },
+  { value: 'wingR', label: 'Wing Right' },
+  { value: 'tail', label: 'Tail' },
+  { value: 'mouth', label: 'Mouth (Breath Weapon)' },
+] as const;
+
+// Default weapon parts array (for fallback/default configurations)
+export const DEFAULT_WEAPON_PARTS = ['staffTip', 'swordTip', 'wandTip', 'hand', 'wingL', 'wingR', 'tail', 'mouth'];
+
+// Basic weapon parts (for auto-rigging detection)
+export const BASIC_WEAPON_PARTS = ['staffTip', 'swordTip', 'wandTip', 'hand'];
+
