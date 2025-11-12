@@ -16,13 +16,28 @@ config({ path: resolve(process.cwd(), '..', '.env') });
  */
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, seed, model = '5000', image_count = 1 } = await req.json();
+    const { prompt, seed, model = '5000', image_count = 1, transparentBackground = true } = await req.json();
 
     if (!prompt) {
       return NextResponse.json(
         { error: 'prompt is required' },
         { status: 400 }
       );
+    }
+    
+    // Enhance prompt to request transparent background if requested
+    let enhancedPrompt = prompt;
+    if (transparentBackground) {
+      // Add transparent background request to prompt
+      // Try multiple phrasings to increase chances of success
+      const bgPhrases = [
+        ', transparent background',
+        ', no background',
+        ', alpha channel',
+        ', isolated on transparent background',
+      ];
+      // Use the first phrase (most common)
+      enhancedPrompt = prompt + bgPhrases[0];
     }
 
     const apiKey = process.env.EVERART_API_KEY;
@@ -50,10 +65,10 @@ export async function POST(req: NextRequest) {
         baseParams.seed = seed;
       }
 
-      // Create generation using SDK
+      // Create generation using SDK with enhanced prompt
       const generations = await everartClient.v1.generations.create(
         model,
-        prompt,
+        enhancedPrompt,
         'txt2img',
         baseParams
       );

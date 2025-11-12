@@ -48,6 +48,10 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
   const [windParts, setWindParts] = useState<string[]>(['hair', 'robeL', 'robeR', 'cape']);
   const [weaponPart, setWeaponPart] = useState<string>('staffTip');
   const [spellEffectType, setSpellEffectType] = useState<'particles' | 'fire' | 'sparkles' | 'glow'>('particles');
+  
+  // Background removal options
+  const [transparentBackground, setTransparentBackground] = useState(true);
+  const [removeBg, setRemoveBg] = useState(false);
 
   const handleGenerateImage = async () => {
     if (!prompt) {
@@ -68,6 +72,7 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
           prompt,
           seed,
           model,
+          transparentBackground,
         }),
       });
 
@@ -124,6 +129,7 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
             weaponPart,
             spellEffectType,
           },
+          removeBg,
         }),
       });
 
@@ -190,6 +196,41 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
             <option value="8000">Recraft-Vector (Vector Art)</option>
           </select>
         </label>
+      </div>
+
+      {/* Background Options */}
+      <div className="space-y-2 border-t border-amber-700 pt-4">
+        <h3 className="text-sm font-semibold text-amber-100">Background Options</h3>
+        
+        <label className="flex items-center space-x-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={transparentBackground}
+            onChange={(e) => setTransparentBackground(e.target.checked)}
+            className="w-4 h-4"
+          />
+          <span className="text-sm text-amber-200">
+            Request transparent background in prompt
+          </span>
+        </label>
+        <p className="text-xs text-amber-300 ml-6">
+          Adds "transparent background" to the image generation prompt
+        </p>
+        
+        <label className="flex items-center space-x-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={removeBg}
+            onChange={(e) => setRemoveBg(e.target.checked)}
+            className="w-4 h-4"
+          />
+          <span className="text-sm text-amber-200">
+            Remove background (post-processing)
+          </span>
+        </label>
+        <p className="text-xs text-amber-300 ml-6">
+          Automatically removes background from generated/downloaded images using edge detection
+        </p>
       </div>
 
       <div className="space-y-2">

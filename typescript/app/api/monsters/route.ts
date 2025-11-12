@@ -4,6 +4,7 @@ import { pixelize } from '@/app/dnd/server/pixelize';
 import { autoRig } from '@/app/dnd/server/autoRig';
 import { saveMonsterBundle } from '@/app/dnd/server/storage';
 import { downloadImage } from '@/app/dnd/server/imageGeneration';
+import { removeBackground, ensureTransparentBackground } from '@/app/dnd/server/backgroundRemoval';
 import { MonsterBundle } from '@/app/dnd/utils/rigTypes';
 
 // Note: This function will be called with MCP tool access
@@ -26,7 +27,7 @@ async function generateReferenceImageWithEverArt(
 
 export async function POST(req: NextRequest) {
   try {
-    const { klass, prompt, seed = Math.floor(Math.random() * 1000000), stats, imageUrl, animationConfig } = await req.json();
+    const { klass, prompt, seed = Math.floor(Math.random() * 1000000), stats, imageUrl, animationConfig, removeBg = false } = await req.json();
 
     if (!klass || !prompt) {
       return NextResponse.json(
@@ -49,6 +50,19 @@ export async function POST(req: NextRequest) {
       // Use provided image URL
       try {
         refPng = await downloadImage(imageUrl);
+        
+        // Optionally remove background if requested
+        if (removeBg) {
+          console.log('Removing background from image...');
+          refPng = await removeBackground(refPng, {
+            threshold: 30,
+            useEdgeDetection: true,
+            preserveAntiAliasing: true,
+          });
+        } else {
+          // Ensure image has alpha channel even if we're not removing background
+          refPng = await ensureTransparentBackground(refPng);
+        }
       } catch (error) {
         console.error('Failed to download provided image:', error);
         return NextResponse.json(
