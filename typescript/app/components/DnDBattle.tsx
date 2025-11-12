@@ -1357,12 +1357,20 @@ export default function DnDBattle() {
                     Select your character to automatically assign an opponent
                   </p>
                 )}
-                <button
-                  onClick={() => router.push('/dnd/test')}
-                  className="w-full py-2 px-4 bg-purple-900 hover:bg-purple-800 text-white font-semibold rounded-lg border-2 border-purple-700 transition-all shadow-md"
-                >
-                  🧪 Test Game
-                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => router.push('/dnd/test')}
+                    className="w-full py-2 px-4 bg-purple-900 hover:bg-purple-800 text-white font-semibold rounded-lg border-2 border-purple-700 transition-all shadow-md"
+                  >
+                    🧪 Test Game
+                  </button>
+                  <button
+                    onClick={() => router.push('/dnd/monster-test')}
+                    className="w-full py-2 px-4 bg-blue-900 hover:bg-blue-800 text-white font-semibold rounded-lg border-2 border-blue-700 transition-all shadow-md"
+                  >
+                    🎨 Monster Creator
+                  </button>
+                </div>
               </div>
                 </>
               )}
