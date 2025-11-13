@@ -2,7 +2,6 @@
 
 import { useRef, useEffect, memo, useState } from 'react';
 import { DnDClass } from '../types';
-import { PixelCharacter } from './PixelCharacter';
 import { Sparkles } from './Sparkles';
 import { Confetti } from './Confetti';
 import { applyAnimationClass } from '../utils/animations';
@@ -273,7 +272,10 @@ function CharacterCardComponent({
             border: '2px solid #D4C4B0',
             borderRadius: '8px',
             padding: '8px',
-            minHeight: '200px'
+            minHeight: '200px',
+            height: '200px',
+            width: '100%',
+            maxWidth: '280px'
           }}
         >
           {monsterImageUrl ? (
@@ -299,27 +301,30 @@ function CharacterCardComponent({
                 alt={characterName}
                 style={{
                   imageRendering: 'pixelated' as const,
-                  width: '200px',
+                  width: '100%',
                   height: '200px',
-                  objectFit: 'contain'
+                  objectFit: 'cover',
+                  display: 'block'
                 }}
                 onError={() => setImageError(true)}
               />
             )
           ) : (
-            // If no monsterImageUrl, try PixelCharacter with fallback to placeholder
-            <PixelCharacter 
-              playerClass={playerClass} 
-              size={200}
-              isActive={isActive}
-              isDefeated={isDefeated}
-              isVictor={isVictor}
-              shouldShake={shouldShake}
-              shouldSparkle={shouldSparkle}
-              shouldMiss={shouldMiss}
-              shouldHit={shouldHit}
-              shouldCast={shouldCast}
-            />
+            // If no monsterImageUrl, show placeholder with icon
+            <div className="flex flex-col items-center justify-center w-[200px] h-[200px]">
+              <div 
+                className="text-8xl mb-2"
+                style={{ 
+                  imageRendering: 'pixelated' as const,
+                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
+                }}
+              >
+                {icon}
+              </div>
+              <div className="text-xs text-center px-2" style={{ color: '#8B6F47' }}>
+                {playerClass.name}
+              </div>
+            </div>
           )}
         </div>
 

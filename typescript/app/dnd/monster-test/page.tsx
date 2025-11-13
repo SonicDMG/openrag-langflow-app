@@ -3,23 +3,45 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import MonsterCreator from '../components/MonsterCreator';
+import { CharacterCard } from '../components/CharacterCard';
 import { Sparkles } from '../components/Sparkles';
 import { applyAnimationClass } from '../utils/animations';
+import { FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../constants';
+import { DnDClass } from '../types';
 
 interface CreatedMonster {
   monsterId: string;
   klass: string;
   prompt: string;
   createdAt: string;
+  stats?: {
+    hitPoints: number;
+    maxHitPoints: number;
+    armorClass: number;
+    attackBonus: number;
+    damageDie: string;
+    description?: string;
+  };
+  imageUrl?: string;
 }
 
 export default function MonsterTestPage() {
   const router = useRouter();
   const [createdMonsters, setCreatedMonsters] = useState<CreatedMonster[]>([]);
   const [selectedMonsterId, setSelectedMonsterId] = useState<string | null>(null);
+  const [selectedKlass, setSelectedKlass] = useState<string>('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [expression, setExpression] = useState('neutral');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Combine all available classes and monsters for dropdown
+  const allOptions = [
+    ...FALLBACK_CLASSES.map(c => ({ name: c.name, type: 'class' as const })),
+    ...FALLBACK_MONSTERS.map(m => ({ name: m.name, type: 'monster' as const }))
+  ].sort((a, b) => a.name.localeCompare(b.name));
   
   // Card animation states (same as battle/test pages)
   const [shouldShake, setShouldShake] = useState(false);
@@ -33,43 +55,200 @@ export default function MonsterTestPage() {
   
   const animationRef = useRef<HTMLDivElement>(null);
 
-  // Load existing monsters from localStorage (or you could fetch from an API)
+  // Load existing monsters from API
   useEffect(() => {
-    const saved = localStorage.getItem('createdMonsters');
-    if (saved) {
+    const loadMonsters = async () => {
       try {
-        const monsters = JSON.parse(saved);
-        setCreatedMonsters(monsters);
-        if (monsters.length > 0 && !selectedMonsterId) {
-          setSelectedMonsterId(monsters[0].monsterId);
+        const response = await fetch('/api/monsters');
+        if (response.ok) {
+          const data = await response.json();
+          const monsters: CreatedMonster[] = data.monsters.map((m: any) => ({
+            monsterId: m.monsterId,
+            klass: m.klass || 'Unknown',
+            prompt: m.prompt || '',
+            createdAt: m.createdAt || new Date().toISOString(),
+            stats: m.stats,
+            imageUrl: m.imageUrl,
+          }));
+          setCreatedMonsters(monsters);
+          if (monsters.length > 0 && !selectedMonsterId) {
+            setSelectedMonsterId(monsters[0].monsterId);
+            setSelectedKlass(monsters[0].klass);
+          }
         }
       } catch (e) {
-        console.error('Failed to load saved monsters:', e);
+        console.error('Failed to load monsters:', e);
       }
-    }
+    };
+    loadMonsters();
   }, []);
 
-  const handleMonsterCreated = (monsterId: string) => {
+  // Update selectedKlass when monster selection changes
+  useEffect(() => {
+    if (selectedMonsterId) {
+      const monster = createdMonsters.find(m => m.monsterId === selectedMonsterId);
+      if (monster) {
+        setSelectedKlass(monster.klass);
+      }
+    }
+  }, [selectedMonsterId, createdMonsters]);
+
+  const handleMonsterCreated = (monsterId: string, klass: string, imageUrl: string) => {
     const newMonster: CreatedMonster = {
       monsterId,
-      klass: 'Unknown', // Could be enhanced to fetch from API
-      prompt: 'Unknown',
+      klass: klass || 'Unknown',
+      prompt: '',
       createdAt: new Date().toISOString(),
+      imageUrl: `/cdn/monsters/${monsterId}/280x200.png`,
     };
     const updated = [newMonster, ...createdMonsters];
     setCreatedMonsters(updated);
     setSelectedMonsterId(monsterId);
-    localStorage.setItem('createdMonsters', JSON.stringify(updated));
+    setSelectedKlass(klass || 'Unknown');
   };
 
-  const handleDeleteMonster = (monsterId: string) => {
-    const updated = createdMonsters.filter((m) => m.monsterId !== monsterId);
-    setCreatedMonsters(updated);
-    localStorage.setItem('createdMonsters', JSON.stringify(updated));
-    if (selectedMonsterId === monsterId) {
-      setSelectedMonsterId(updated.length > 0 ? updated[0].monsterId : null);
+  const handleSaveAssociation = async () => {
+    if (!selectedMonsterId || !selectedKlass) {
+      setSaveError('Please select a class/monster type to associate');
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+    setSaveSuccess(false);
+
+    try {
+      const response = await fetch('/api/monsters', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          monsterId: selectedMonsterId,
+          klass: selectedKlass,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to save association');
+      }
+
+      // Update local state
+      setSaveSuccess(true);
+      setCreatedMonsters(prev => prev.map(m => 
+        m.monsterId === selectedMonsterId 
+          ? { ...m, klass: selectedKlass }
+          : m
+      ));
+      
+      setTimeout(() => {
+        setSaveSuccess(false);
+      }, 5000);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save association');
+    } finally {
+      setIsSaving(false);
     }
   };
+
+  const handleDeleteMonster = async (monsterId: string) => {
+    try {
+      const response = await fetch('/api/monsters', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ monsterId }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete monster');
+      }
+
+      const updated = createdMonsters.filter((m) => m.monsterId !== monsterId);
+      setCreatedMonsters(updated);
+      if (selectedMonsterId === monsterId) {
+        setSelectedMonsterId(updated.length > 0 ? updated[0].monsterId : null);
+        setSelectedKlass(updated.length > 0 ? updated[0].klass : '');
+      }
+    } catch (err) {
+      console.error('Failed to delete monster:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete monster');
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (!confirm(`Are you sure you want to delete ALL ${createdMonsters.length} monsters? This action cannot be undone.`)) {
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/monsters', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ deleteAll: true }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete all monsters');
+      }
+
+      const data = await response.json();
+      setCreatedMonsters([]);
+      setSelectedMonsterId(null);
+      setSelectedKlass('');
+      alert(`Successfully deleted ${data.deletedCount} monster(s)`);
+    } catch (err) {
+      console.error('Failed to delete all monsters:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete all monsters');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Create DnDClass object for the selected monster
+  const selectedMonsterClass: DnDClass | null = selectedMonsterId ? (() => {
+    const monster = createdMonsters.find(m => m.monsterId === selectedMonsterId);
+    if (!monster) {
+      // Return a default if monster not found
+      return {
+        name: 'Monster',
+        hitPoints: 30,
+        maxHitPoints: 30,
+        armorClass: 14,
+        attackBonus: 4,
+        damageDie: 'd8',
+        abilities: [],
+        description: 'A monster created in the monster creator.',
+        color: 'bg-slate-900',
+      };
+    }
+    
+    const klassToUse = selectedKlass || monster.klass || 'Monster';
+    const fallbackClass = FALLBACK_CLASSES.find(c => c.name === klassToUse);
+    const fallbackMonster = FALLBACK_MONSTERS.find(m => m.name === klassToUse);
+    const fallback = fallbackClass || fallbackMonster;
+    
+    return {
+      name: klassToUse,
+      hitPoints: monster.stats?.hitPoints || fallback?.hitPoints || 30,
+      maxHitPoints: monster.stats?.maxHitPoints || monster.stats?.hitPoints || fallback?.maxHitPoints || 30,
+      armorClass: monster.stats?.armorClass || fallback?.armorClass || 14,
+      attackBonus: monster.stats?.attackBonus || fallback?.attackBonus || 4,
+      damageDie: monster.stats?.damageDie || fallback?.damageDie || 'd8',
+      abilities: fallback?.abilities || [],
+      description: monster.stats?.description || fallback?.description || `A ${klassToUse} created in the monster creator.`,
+      color: fallback?.color || 'bg-slate-900',
+    };
+  })() : null;
 
   // Apply shake animation
   useEffect(() => {
@@ -225,13 +404,15 @@ export default function MonsterTestPage() {
 
           {/* Monster Selection */}
           {createdMonsters.length > 0 ? (
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-amber-100">
-                Select Monster
+            <div className="space-y-3 bg-amber-900/30 border border-amber-700 rounded p-4">
+              <div>
+                <label className="block text-sm font-medium text-amber-100 mb-2">
+                  Select Monster
+                </label>
                 <select
                   value={selectedMonsterId || ''}
                   onChange={(e) => setSelectedMonsterId(e.target.value)}
-                  className="mt-1 w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100"
+                  className="w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100"
                 >
                   {createdMonsters.map((monster) => (
                     <option key={monster.monsterId} value={monster.monsterId}>
@@ -239,14 +420,61 @@ export default function MonsterTestPage() {
                     </option>
                   ))}
                 </select>
-              </label>
+              </div>
+
+              {/* Association Selection */}
+              {selectedMonsterId && (
+                <div className="space-y-3 pt-3 border-t border-amber-700">
+                  <div>
+                    <label className="block text-sm font-medium text-amber-100 mb-2">
+                      Associate with Class/Monster Type
+                    </label>
+                    <select
+                      value={selectedKlass}
+                      onChange={(e) => setSelectedKlass(e.target.value)}
+                      className="w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100"
+                    >
+                      <option value="">Select a class or monster...</option>
+                      {allOptions.map((option) => (
+                        <option key={option.name} value={option.name}>
+                          {option.name} ({option.type === 'class' ? 'Class' : 'Monster'})
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-amber-300 mt-1">
+                      Choose which D&D class or monster type this created monster represents.
+                    </p>
+                  </div>
+
+                  {saveError && (
+                    <div className="p-2 bg-red-900/50 border border-red-600 text-red-100 rounded text-sm">
+                      {saveError}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleSaveAssociation}
+                    disabled={isSaving || !selectedKlass}
+                    className="w-full px-6 py-3 bg-green-700 hover:bg-green-600 text-white rounded-lg font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg border-2 border-green-600"
+                  >
+                    {isSaving ? '⏳ Saving...' : saveSuccess ? '✓ Association Saved!' : '💾 Save Association'}
+                  </button>
+
+                  {saveSuccess && (
+                    <div className="p-3 bg-green-900/50 border border-green-600 text-green-100 rounded text-sm">
+                      ✓ Monster successfully associated with <strong>{selectedKlass}</strong>! You can now use this monster in battles.
+                    </div>
+                  )}
+                </div>
+              )}
+
               <button
                 onClick={() => {
                   if (selectedMonsterId) {
                     handleDeleteMonster(selectedMonsterId);
                   }
                 }}
-                className="w-full px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                className="w-full px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm font-semibold"
               >
                 Delete Selected Monster
               </button>
@@ -258,79 +486,93 @@ export default function MonsterTestPage() {
           )}
 
           {/* Preview */}
-          {selectedMonsterId && (
-            <>
-              <div 
-                ref={animationRef}
-                className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl sparkle-container relative flex items-center justify-center min-h-[512px]"
-              >
-                {shouldSparkle && (
-                  <Sparkles 
-                    key={sparkleTrigger} 
-                    trigger={sparkleTrigger} 
-                    count={sparkleIntensity > 0 ? Math.max(1, Math.ceil(sparkleIntensity * 0.6)) : 12}
-                  />
-                )}
-                
-                <div className="flex items-center justify-center">
-                  <img
-                    src={`/cdn/monsters/${selectedMonsterId}/256.png`}
-                    alt="Monster preview"
-                    style={{
-                      imageRendering: 'pixelated',
-                      width: '256px',
-                      height: '256px',
-                    }}
-                    className={expression === 'happy' ? 'brightness-110' : expression === 'angry' ? 'brightness-90 contrast-110' : ''}
-                  />
-                </div>
+          {selectedMonsterId && selectedMonsterClass ? (
+            <div className="flex justify-center">
+              <CharacterCard
+                playerClass={selectedMonsterClass}
+                characterName={selectedKlass || selectedMonsterClass.name || 'Monster'}
+                monsterImageUrl={`/cdn/monsters/${selectedMonsterId}/280x200.png`}
+                shouldShake={shouldShake}
+                shouldSparkle={shouldSparkle}
+                shouldMiss={shouldMiss}
+                shakeTrigger={shakeTrigger}
+                sparkleTrigger={sparkleTrigger}
+                missTrigger={missTrigger}
+                shakeIntensity={shakeIntensity}
+                sparkleIntensity={sparkleIntensity}
+                onShakeComplete={() => setShouldShake(false)}
+                onSparkleComplete={() => setShouldSparkle(false)}
+                onMissComplete={() => setShouldMiss(false)}
+                testButtons={[
+                  {
+                    label: 'Test Shake',
+                    onClick: testShake,
+                    className: 'px-2 py-0.5 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'
+                  },
+                  {
+                    label: 'Test Sparkle',
+                    onClick: testSparkle,
+                    className: 'px-2 py-0.5 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
+                  },
+                  {
+                    label: 'Test Miss',
+                    onClick: testMiss,
+                    className: 'px-2 py-0.5 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all'
+                  }
+                ]}
+              />
+            </div>
+          ) : selectedMonsterId ? (
+            <div className="p-4 bg-amber-900/30 border border-amber-700 rounded text-center text-amber-200">
+              Loading monster data...
+            </div>
+          ) : null}
+
+          {/* Animation Controls - Show when monster is selected */}
+          {selectedMonsterId && selectedMonsterClass && (
+            <div className="border border-amber-700 rounded p-4 space-y-4 bg-amber-900/30">
+              <h3 className="font-semibold text-amber-100">Animation Controls</h3>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-amber-100">
+                  Expression
+                  <select
+                    value={expression}
+                    onChange={(e) => setExpression(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100"
+                  >
+                    <option value="neutral">Neutral</option>
+                    <option value="happy">Happy</option>
+                    <option value="angry">Angry</option>
+                  </select>
+                </label>
               </div>
 
-              {/* Animation Controls */}
-              <div className="border border-amber-700 rounded p-4 space-y-4 bg-amber-900/30">
-                <h3 className="font-semibold text-amber-100">Animation Controls</h3>
-
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-amber-100">
-                    Expression
-                    <select
-                      value={expression}
-                      onChange={(e) => setExpression(e.target.value)}
-                      className="mt-1 w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100"
-                    >
-                      <option value="neutral">Neutral</option>
-                      <option value="happy">Happy</option>
-                      <option value="angry">Angry</option>
-                    </select>
-                  </label>
-                </div>
-
-                {/* Card Animation Test Buttons */}
-                <div className="pt-2 border-t space-y-2">
-                  <p className="text-xs font-medium text-amber-200">Card Animations:</p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={testShake}
-                      className="px-3 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all"
-                    >
-                      Test Shake
-                    </button>
-                    <button
-                      onClick={testSparkle}
-                      className="px-3 py-1 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all"
-                    >
-                      Test Sparkle
-                    </button>
-                    <button
-                      onClick={testMiss}
-                      className="px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all"
-                    >
-                      Test Miss
-                    </button>
-                  </div>
+              {/* Card Animation Test Buttons */}
+              <div className="pt-2 border-t space-y-2">
+                <p className="text-xs font-medium text-amber-200">Card Animations:</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={testShake}
+                    className="px-3 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all"
+                  >
+                    Test Shake
+                  </button>
+                  <button
+                    onClick={testSparkle}
+                    className="px-3 py-1 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all"
+                  >
+                    Test Sparkle
+                  </button>
+                  <button
+                    onClick={testMiss}
+                    className="px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all"
+                  >
+                    Test Miss
+                  </button>
                 </div>
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -338,7 +580,16 @@ export default function MonsterTestPage() {
       {/* Monster List */}
       {createdMonsters.length > 0 && (
         <div className="border border-amber-700 rounded p-4 bg-amber-900/30">
-          <h2 className="text-xl font-semibold mb-4 text-amber-100">Created Monsters ({createdMonsters.length})</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-amber-100">Created Monsters ({createdMonsters.length})</h2>
+            <button
+              onClick={handleDeleteAll}
+              disabled={isLoading}
+              className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all border-2 border-red-600"
+            >
+              {isLoading ? 'Deleting...' : '🗑️ Delete All'}
+            </button>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {createdMonsters.map((monster) => (
               <div

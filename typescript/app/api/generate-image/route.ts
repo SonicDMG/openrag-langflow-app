@@ -16,7 +16,7 @@ config({ path: resolve(process.cwd(), '..', '.env') });
  */
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, seed, model = '5000', image_count = 1, transparentBackground = true } = await req.json();
+    const { prompt, seed, model = '5000', image_count = 1, transparentBackground = true, aspectRatio } = await req.json();
 
     if (!prompt) {
       return NextResponse.json(
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // Enhance prompt to request transparent background if requested
+    // Enhance prompt to request transparent background and aspect ratio if requested
     let enhancedPrompt = prompt;
     if (transparentBackground) {
       // Add transparent background request to prompt
@@ -38,6 +38,13 @@ export async function POST(req: NextRequest) {
       ];
       // Use the first phrase (most common)
       enhancedPrompt = prompt + bgPhrases[0];
+    }
+    
+    // Add aspect ratio hint to prompt if specified
+    // This helps the AI generate images that better match the desired aspect ratio
+    if (aspectRatio) {
+      const aspectRatioHint = `, ${aspectRatio} aspect ratio`;
+      enhancedPrompt = enhancedPrompt + aspectRatioHint;
     }
 
     const apiKey = process.env.EVERART_API_KEY;

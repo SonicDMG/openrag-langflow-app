@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../constants';
 
 interface MonsterCreatorProps {
-  onMonsterCreated?: (monsterId: string) => void;
+  onMonsterCreated?: (monsterId: string, klass: string, imageUrl: string) => void;
 }
 
 export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps) {
@@ -20,6 +21,12 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
   // Background removal options
   const [transparentBackground, setTransparentBackground] = useState(true);
   const [removeBg, setRemoveBg] = useState(false);
+
+  // Combine all available classes and monsters for dropdown
+  const allOptions = [
+    ...FALLBACK_CLASSES.map(c => ({ name: c.name, type: 'class' as const })),
+    ...FALLBACK_MONSTERS.map(m => ({ name: m.name, type: 'monster' as const }))
+  ].sort((a, b) => a.name.localeCompare(b.name));
 
   const handleGenerateImage = async () => {
     if (!prompt) {
@@ -41,6 +48,7 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
           seed,
           model,
           transparentBackground,
+          aspectRatio: 'wide landscape', // Hint for 280:200 aspect ratio
         }),
       });
 
@@ -105,7 +113,7 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
       setSuccess(`Monster created! ID: ${data.monsterId}`);
       
       if (onMonsterCreated) {
-        onMonsterCreated(data.monsterId);
+        onMonsterCreated(data.monsterId, klass, imageUrl);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -121,14 +129,22 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
       <div className="space-y-2">
         <label className="block text-sm font-medium text-amber-100">
           Class/Type
-          <input
-            type="text"
+          <select
             value={klass}
             onChange={(e) => setKlass(e.target.value)}
-            placeholder="e.g., Wizard, Dragon, Goblin"
-            className="mt-1 w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100 placeholder-amber-400"
-          />
+            className="mt-1 w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100"
+          >
+            <option value="">Select a class or monster...</option>
+            {allOptions.map((option) => (
+              <option key={option.name} value={option.name}>
+                {option.name} ({option.type === 'class' ? 'Class' : 'Monster'})
+              </option>
+            ))}
+          </select>
         </label>
+        <p className="text-xs text-amber-300">
+          Select from available D&D classes and monsters. This links your created monster to its playing card stats.
+        </p>
       </div>
 
       <div className="space-y-2">

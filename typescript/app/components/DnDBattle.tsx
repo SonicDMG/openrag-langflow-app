@@ -52,6 +52,10 @@ export default function DnDBattle() {
   const [availableMonsters, setAvailableMonsters] = useState<DnDClass[]>(FALLBACK_MONSTERS);
   const [isLoadingMonsters, setIsLoadingMonsters] = useState(false);
   const [monstersLoaded, setMonstersLoaded] = useState(false);
+  const [createdMonsters, setCreatedMonsters] = useState<Array<DnDClass & { monsterId: string; imageUrl: string }>>([]);
+  const [isLoadingCreatedMonsters, setIsLoadingCreatedMonsters] = useState(false);
+  const [player1MonsterId, setPlayer1MonsterId] = useState<string | null>(null);
+  const [player2MonsterId, setPlayer2MonsterId] = useState<string | null>(null);
   const [opponentType, setOpponentType] = useState<'class' | 'monster'>('class');
   const [monsterPage, setMonsterPage] = useState(0);
   const monstersPerPage = 12;
@@ -103,6 +107,46 @@ export default function DnDBattle() {
   useEffect(() => {
     scrollToBottom();
   }, [battleLog]);
+
+  // Load created monsters on mount
+  useEffect(() => {
+    const loadCreatedMonsters = async () => {
+      setIsLoadingCreatedMonsters(true);
+      try {
+        const response = await fetch('/api/monsters');
+        if (response.ok) {
+          const data = await response.json();
+          // Convert created monsters to DnDClass format
+          const convertedMonsters = data.monsters.map((m: any) => {
+            // Find matching class/monster from fallbacks to get stats and abilities
+            const fallbackClass = FALLBACK_CLASSES.find(c => c.name === m.klass);
+            const fallbackMonster = FALLBACK_MONSTERS.find(m2 => m2.name === m.klass);
+            const fallback = fallbackClass || fallbackMonster;
+            
+            return {
+              name: m.klass,
+              hitPoints: m.stats?.hitPoints || fallback?.hitPoints || 30,
+              maxHitPoints: m.stats?.maxHitPoints || m.stats?.hitPoints || fallback?.maxHitPoints || 30,
+              armorClass: m.stats?.armorClass || fallback?.armorClass || 14,
+              attackBonus: m.stats?.attackBonus || fallback?.attackBonus || 4,
+              damageDie: m.stats?.damageDie || fallback?.damageDie || 'd8',
+              abilities: fallback?.abilities || [],
+              description: m.stats?.description || fallback?.description || `A ${m.klass} created in the monster creator.`,
+              color: fallback?.color || 'bg-slate-900',
+              monsterId: m.monsterId,
+              imageUrl: m.imageUrl?.replace('/256.png', '/280x200.png').replace('/200.png', '/280x200.png') || m.imageUrl,
+            } as DnDClass & { monsterId: string; imageUrl: string };
+          });
+          setCreatedMonsters(convertedMonsters);
+        }
+      } catch (error) {
+        console.error('Failed to load created monsters:', error);
+      } finally {
+        setIsLoadingCreatedMonsters(false);
+      }
+    };
+    loadCreatedMonsters();
+  }, []);
 
   // Helper function to add log entries (defined early as it's used by many functions)
   const addLog = useCallback((type: BattleLog['type'], message: string) => {
@@ -1024,9 +1068,15 @@ export default function DnDBattle() {
 
   // Wrapper function to generate name when player selects their class
   // Also auto-selects a random opponent based on opponentType
-  const handlePlayer1Select = useCallback((dndClass: DnDClass) => {
+  const handlePlayer1Select = useCallback((dndClass: DnDClass & { monsterId?: string; imageUrl?: string }) => {
     setPlayer1Class(dndClass);
     setPlayer1Name(generateCharacterName(dndClass.name));
+    // Store monsterId if this is a created monster
+    if ('monsterId' in dndClass && dndClass.monsterId) {
+      setPlayer1MonsterId(dndClass.monsterId);
+    } else {
+      setPlayer1MonsterId(null);
+    }
     
     // Auto-select a random opponent based on opponentType
     if (opponentType === 'monster') {
@@ -1035,6 +1085,7 @@ export default function DnDBattle() {
         const randomOpponent = availableOpponents[Math.floor(Math.random() * availableOpponents.length)];
         setPlayer2Class(randomOpponent);
         setPlayer2Name(randomOpponent.name); // Monsters use their type name directly
+        setPlayer2MonsterId(null);
       }
     } else {
       // Auto-select a random opponent that's different from the player's class
@@ -1043,12 +1094,14 @@ export default function DnDBattle() {
         const randomOpponent = availableOpponents[Math.floor(Math.random() * availableOpponents.length)];
         setPlayer2Class(randomOpponent);
         setPlayer2Name(generateCharacterName(randomOpponent.name));
+        setPlayer2MonsterId(null);
       } else {
         // Fallback: if no other classes available, use a fallback class
         const fallbackOpponent = availableClasses[0];
         if (fallbackOpponent) {
           setPlayer2Class(fallbackOpponent);
           setPlayer2Name(generateCharacterName(fallbackOpponent.name));
+          setPlayer2MonsterId(null);
         }
       }
     }
@@ -1076,6 +1129,8 @@ export default function DnDBattle() {
     setPlayer2Class(null);
     setPlayer1Name('');
     setPlayer2Name('');
+    setPlayer1MonsterId(null);
+    setPlayer2MonsterId(null);
     setClassDetails({});
     setBattleResponseId(null);
     setIsMoveInProgress(false);
@@ -1186,6 +1241,54 @@ export default function DnDBattle() {
               ) : (
                 <>
               <div className="grid grid-cols-1 gap-4">
+                {/* Created Monsters Section */}
+                {createdMonsters.length > 0 && (
+                  <div className="bg-purple-900/30 border-2 border-purple-700 rounded-lg p-4">
+                    <h3 className="text-lg font-semibold mb-3 text-amber-200">Your Created Monsters</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+                      {createdMonsters.map((monster) => {
+                        const icon = MONSTER_ICONS[monster.name] || CLASS_ICONS[monster.name] || '👹';
+                        return (
+                          <button
+                            key={monster.monsterId}
+                            onClick={() => handlePlayer1Select(monster)}
+                            className={`py-2 px-3 rounded-lg border-2 transition-all flex flex-col items-center gap-1 ${
+                              player1MonsterId === monster.monsterId
+                                ? 'border-purple-400 bg-purple-800 shadow-lg scale-105'
+                                : 'border-purple-700 bg-purple-900/50 hover:bg-purple-800 hover:border-purple-600'
+                            }`}
+                          >
+                            {monster.imageUrl ? (
+                              <img
+                                src={monster.imageUrl}
+                                alt={monster.name}
+                                className="w-12 h-12 object-contain"
+                                style={{ imageRendering: 'pixelated' as const }}
+                                onError={(e) => {
+                                  // Fallback to icon if image fails
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                  const iconSpan = target.nextElementSibling as HTMLSpanElement;
+                                  if (iconSpan) iconSpan.style.display = 'block';
+                                }}
+                              />
+                            ) : null}
+                            <span 
+                              className={`text-2xl leading-none ${monster.imageUrl ? 'hidden' : ''}`}
+                              style={{ 
+                                imageRendering: 'pixelated' as const,
+                                filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.3))'
+                              }}
+                            >
+                              {icon}
+                            </span>
+                            <div className="font-bold text-xs text-amber-100 text-center">{monster.name}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 <ClassSelection
                   title="Choose Your Character"
                   availableClasses={availableClasses}
@@ -1201,6 +1304,7 @@ export default function DnDBattle() {
                           setOpponentType('class');
                           setPlayer2Class(null);
                           setPlayer2Name('');
+                          setPlayer2MonsterId(null);
                         }}
                         className={`px-3 py-1 text-xs rounded border transition-all ${
                           opponentType === 'class'
@@ -1216,6 +1320,7 @@ export default function DnDBattle() {
                         setMonsterPage(0);
                         setPlayer2Class(null);
                         setPlayer2Name('');
+                        setPlayer2MonsterId(null);
                       }}
                         className={`px-3 py-1 text-xs rounded border transition-all ${
                           opponentType === 'monster'
@@ -1241,65 +1346,120 @@ export default function DnDBattle() {
                     </div>
                   )}
                   {opponentType === 'monster' ? (
-                    availableMonsters.length > 0 ? (
-                      <div className="mt-3">
-                        <h3 className="text-lg font-semibold mb-3 text-amber-200">Select Monster Opponent</h3>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-2 mb-3">
-                          {availableMonsters.slice(monsterPage * monstersPerPage, (monsterPage + 1) * monstersPerPage).map((monster) => {
-                            const icon = MONSTER_ICONS[monster.name] || '👹';
-                            return (
-                              <button
-                                key={monster.name}
-                                onClick={() => {
-                                  setPlayer2Class(monster);
-                                  setPlayer2Name(monster.name); // Monsters use their type name directly
-                                }}
-                                className={`py-2 px-3 rounded-lg border-2 transition-all flex flex-col items-center gap-1 ${
-                                  player2Class?.name === monster.name
-                                    ? 'border-amber-400 bg-amber-800 shadow-lg scale-105'
-                                    : 'border-amber-700 bg-amber-900/50 hover:bg-amber-800 hover:border-amber-600'
-                                }`}
-                              >
-                                <span 
-                                  className="text-2xl leading-none"
-                                  style={{ 
-                                    imageRendering: 'pixelated' as const,
-                                    filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.3))'
+                    <>
+                      {/* Created Monsters for Opponent */}
+                      {createdMonsters.length > 0 && (
+                        <div className="mt-3 mb-4">
+                          <h3 className="text-lg font-semibold mb-3 text-amber-200">Your Created Monsters</h3>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+                            {createdMonsters.map((monster) => {
+                              const icon = MONSTER_ICONS[monster.name] || CLASS_ICONS[monster.name] || '👹';
+                              return (
+                                <button
+                                  key={monster.monsterId}
+                                  onClick={() => {
+                                    setPlayer2Class(monster);
+                                    setPlayer2Name(monster.name);
+                                    setPlayer2MonsterId(monster.monsterId);
                                   }}
+                                  className={`py-2 px-3 rounded-lg border-2 transition-all flex flex-col items-center gap-1 ${
+                                    player2MonsterId === monster.monsterId
+                                      ? 'border-purple-400 bg-purple-800 shadow-lg scale-105'
+                                      : 'border-purple-700 bg-purple-900/50 hover:bg-purple-800 hover:border-purple-600'
+                                  }`}
                                 >
-                                  {icon}
-                                </span>
-                                <div className="font-bold text-xs text-amber-100 text-center">{monster.name}</div>
-                              </button>
-                            );
-                          })}
+                                  {monster.imageUrl ? (
+                                    <img
+                                      src={monster.imageUrl}
+                                      alt={monster.name}
+                                      className="w-12 h-12 object-contain"
+                                      style={{ imageRendering: 'pixelated' as const }}
+                                      onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        target.style.display = 'none';
+                                        const iconSpan = target.nextElementSibling as HTMLSpanElement;
+                                        if (iconSpan) iconSpan.style.display = 'block';
+                                      }}
+                                    />
+                                  ) : null}
+                                  <span 
+                                    className={`text-2xl leading-none ${monster.imageUrl ? 'hidden' : ''}`}
+                                    style={{ 
+                                      imageRendering: 'pixelated' as const,
+                                      filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.3))'
+                                    }}
+                                  >
+                                    {icon}
+                                  </span>
+                                  <div className="font-bold text-xs text-amber-100 text-center">{monster.name}</div>
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
-                        {/* Pagination Controls */}
-                        <div className="flex items-center justify-between mt-3">
-                          <button
-                            onClick={() => setMonsterPage(prev => Math.max(0, prev - 1))}
-                            disabled={monsterPage === 0}
-                            className="px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-sm rounded border border-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                          >
-                            ← Previous
-                          </button>
-                          <span className="text-amber-300 text-sm">
-                            Page {monsterPage + 1} of {Math.ceil(availableMonsters.length / monstersPerPage)}
-                          </span>
-                          <button
-                            onClick={() => setMonsterPage(prev => Math.min(Math.ceil(availableMonsters.length / monstersPerPage) - 1, prev + 1))}
-                            disabled={monsterPage >= Math.ceil(availableMonsters.length / monstersPerPage) - 1}
-                            className="px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-sm rounded border border-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                          >
-                            Next →
-                          </button>
+                      )}
+                      {/* Standard Monsters */}
+                      {availableMonsters.length > 0 ? (
+                        <div className="mt-3">
+                          <h3 className="text-lg font-semibold mb-3 text-amber-200">Select Monster Opponent</h3>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-2 mb-3">
+                            {availableMonsters.slice(monsterPage * monstersPerPage, (monsterPage + 1) * monstersPerPage).map((monster) => {
+                              const icon = MONSTER_ICONS[monster.name] || '👹';
+                              return (
+                                <button
+                                  key={monster.name}
+                                  onClick={() => {
+                                    setPlayer2Class(monster);
+                                    setPlayer2Name(monster.name); // Monsters use their type name directly
+                                    setPlayer2MonsterId(null);
+                                  }}
+                                  className={`py-2 px-3 rounded-lg border-2 transition-all flex flex-col items-center gap-1 ${
+                                    player2Class?.name === monster.name && !player2MonsterId
+                                      ? 'border-amber-400 bg-amber-800 shadow-lg scale-105'
+                                      : 'border-amber-700 bg-amber-900/50 hover:bg-amber-800 hover:border-amber-600'
+                                  }`}
+                                >
+                                  <span 
+                                    className="text-2xl leading-none"
+                                    style={{ 
+                                      imageRendering: 'pixelated' as const,
+                                      filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.3))'
+                                    }}
+                                  >
+                                    {icon}
+                                  </span>
+                                  <div className="font-bold text-xs text-amber-100 text-center">{monster.name}</div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {/* Pagination Controls */}
+                          <div className="flex items-center justify-between mt-3">
+                            <button
+                              onClick={() => setMonsterPage(prev => Math.max(0, prev - 1))}
+                              disabled={monsterPage === 0}
+                              className="px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-sm rounded border border-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            >
+                              ← Previous
+                            </button>
+                            <span className="text-amber-300 text-sm">
+                              Page {monsterPage + 1} of {Math.ceil(availableMonsters.length / monstersPerPage)}
+                            </span>
+                            <button
+                              onClick={() => setMonsterPage(prev => Math.min(Math.ceil(availableMonsters.length / monstersPerPage) - 1, prev + 1))}
+                              disabled={monsterPage >= Math.ceil(availableMonsters.length / monstersPerPage) - 1}
+                              className="px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-sm rounded border border-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            >
+                              Next →
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="text-amber-300 text-sm italic text-center py-4">
-                        {monstersLoaded ? 'No monsters available. Click "Load Monsters from OpenRAG" to load monsters.' : 'Click "Load Monsters from OpenRAG" to load monsters.'}
-                      </div>
-                    )
+                      ) : (
+                        <div className="text-amber-300 text-sm italic text-center py-4">
+                          {monstersLoaded ? 'No monsters available. Click "Load Monsters from OpenRAG" to load monsters.' : 'Click "Load Monsters from OpenRAG" to load monsters.'}
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <div className="mt-3">
                       <ClassSelection
@@ -1309,6 +1469,7 @@ export default function DnDBattle() {
                         onSelect={(cls) => {
                           setPlayer2Class(cls);
                           setPlayer2Name(generateCharacterName(cls.name));
+                          setPlayer2MonsterId(null);
                         }}
                       />
                     </div>
@@ -1379,6 +1540,7 @@ export default function DnDBattle() {
               <CharacterCard
                 playerClass={player1Class}
                 characterName={player1Name || 'Loading...'}
+                monsterImageUrl={player1MonsterId ? `/cdn/monsters/${player1MonsterId}/280x200.png` : undefined}
                 onAttack={() => performAttack('player1')}
                 onUseAbility={(idx) => useAbility('player1', idx)}
                 shouldShake={shakingPlayer === 'player1'}
@@ -1410,6 +1572,7 @@ export default function DnDBattle() {
               <CharacterCard
                 playerClass={player2Class}
                 characterName={player2Name || 'Loading...'}
+                monsterImageUrl={player2MonsterId ? `/cdn/monsters/${player2MonsterId}/280x200.png` : undefined}
                 onUseAbility={(idx) => useAbility('player2', idx)}
                 shouldShake={shakingPlayer === 'player2'}
                 shouldSparkle={sparklingPlayer === 'player2'}
