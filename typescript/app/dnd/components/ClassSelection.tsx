@@ -1,6 +1,8 @@
 'use client';
 
+import { useRef } from 'react';
 import { DnDClass } from '../types';
+import { CharacterCard } from './CharacterCard';
 
 interface ClassSelectionProps {
   title: string;
@@ -11,7 +13,7 @@ interface ClassSelectionProps {
 }
 
 export function ClassSelection({ title, availableClasses, selectedClass, onSelect, createdMonsters = [] }: ClassSelectionProps) {
-  const placeholderImageUrl = '/cdn/placeholder.png';
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   // Helper to find associated monster for a class
   const findAssociatedMonster = (className: string): (DnDClass & { monsterId: string; imageUrl: string }) | null => {
@@ -23,37 +25,86 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
       });
     return associated.length > 0 ? associated[0] : null;
   };
+
+  const scrollLeft = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: -200, behavior: 'smooth' }); // Scaled for compact cards (192px + gap)
+    }
+  };
+
+  const scrollRight = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: 200, behavior: 'smooth' }); // Scaled for compact cards
+    }
+  };
   
   return (
     <div>
       <h3 className="text-lg font-semibold mb-3 text-amber-200">{title}</h3>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-        {availableClasses.map((dndClass) => {
-          const associatedMonster = findAssociatedMonster(dndClass.name);
-          const imageUrl = associatedMonster 
-            ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
-            : placeholderImageUrl;
-          
-          return (
-          <button
-            key={dndClass.name}
-            onClick={() => onSelect({ ...dndClass, hitPoints: dndClass.maxHitPoints })}
-              className={`py-2 px-3 rounded-lg border-2 transition-all flex flex-col items-center gap-1 ${
-              selectedClass?.name === dndClass.name
-                ? 'border-amber-400 bg-amber-800 shadow-lg scale-105'
-                : 'border-amber-700 bg-amber-900/50 hover:bg-amber-800 hover:border-amber-600'
-            }`}
-          >
-              <img
-                src={imageUrl}
-                alt={dndClass.name}
-                className="w-12 h-12 object-cover rounded"
-                style={{ imageRendering: 'pixelated' as const }}
-              />
-              <div className="font-bold text-xs text-amber-100 text-center">{dndClass.name}</div>
-          </button>
-          );
-        })}
+      <div className="relative">
+        {/* Left scroll button */}
+        <button
+          onClick={scrollLeft}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-amber-900/90 hover:bg-amber-800 text-amber-100 p-2 rounded-full border-2 border-amber-700 shadow-lg transition-all"
+          aria-label="Scroll left"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+
+        {/* Scrollable container */}
+        <div
+          ref={scrollContainerRef}
+          className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 px-10"
+          style={{
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+          }}
+        >
+          {availableClasses.map((dndClass) => {
+            const associatedMonster = findAssociatedMonster(dndClass.name);
+            const monsterImageUrl = associatedMonster 
+              ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
+              : undefined;
+            
+            const isSelected = selectedClass?.name === dndClass.name;
+            
+            return (
+              <div
+                key={dndClass.name}
+                onClick={() => onSelect({ ...dndClass, hitPoints: dndClass.maxHitPoints })}
+                className={`flex-shrink-0 cursor-pointer transition-all ${
+                  isSelected
+                    ? 'ring-4 ring-amber-400 shadow-2xl'
+                    : 'hover:shadow-lg'
+                }`}
+                style={{
+                  transform: isSelected ? 'scale(1.03)' : 'scale(1)',
+                  padding: '4px', // Add padding to accommodate zoom without overflow
+                }}
+              >
+                <CharacterCard
+                  playerClass={{ ...dndClass, hitPoints: dndClass.maxHitPoints }}
+                  characterName={dndClass.name}
+                  monsterImageUrl={monsterImageUrl}
+                  size="compact"
+                />
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Right scroll button */}
+        <button
+          onClick={scrollRight}
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-amber-900/90 hover:bg-amber-800 text-amber-100 p-2 rounded-full border-2 border-amber-700 shadow-lg transition-all"
+          aria-label="Scroll right"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
       </div>
     </div>
   );

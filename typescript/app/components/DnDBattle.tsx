@@ -57,8 +57,7 @@ export default function DnDBattle() {
   const [player1MonsterId, setPlayer1MonsterId] = useState<string | null>(null);
   const [player2MonsterId, setPlayer2MonsterId] = useState<string | null>(null);
   const [opponentType, setOpponentType] = useState<'class' | 'monster'>('class');
-  const [monsterPage, setMonsterPage] = useState(0);
-  const monstersPerPage = 12;
+  const monsterScrollRef = useRef<HTMLDivElement>(null);
   const [classDetails, setClassDetails] = useState<Record<string, string>>({});
   const [isLoadingClassDetails, setIsLoadingClassDetails] = useState(false);
   const [battleResponseId, setBattleResponseId] = useState<string | null>(null);
@@ -1322,7 +1321,6 @@ export default function DnDBattle() {
                       <button
                       onClick={() => {
                         setOpponentType('monster');
-                        setMonsterPage(0);
                         setPlayer2Class(null);
                         setPlayer2Name('');
                         setPlayer2MonsterId(null);
@@ -1366,53 +1364,79 @@ export default function DnDBattle() {
                       {availableMonsters.length > 0 ? (
                         <div className="mt-3">
                           <h3 className="text-lg font-semibold mb-3 text-amber-200">Select Monster Opponent</h3>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-2 mb-3">
-                            {availableMonsters.slice(monsterPage * monstersPerPage, (monsterPage + 1) * monstersPerPage).map((monster) => {
-                              const associatedMonster = findAssociatedMonster(monster.name);
-                              const imageUrl = associatedMonster 
-                                ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
-                                : '/cdn/placeholder.png';
-                              return (
-                                <button
-                                  key={monster.name}
-                                  onClick={() => {
-                                    setPlayerClassWithMonster('player2', monster, monster.name);
-                                  }}
-                                  className={`py-2 px-3 rounded-lg border-2 transition-all flex flex-col items-center gap-1 ${
-                                    player2Class?.name === monster.name
-                                      ? 'border-amber-400 bg-amber-800 shadow-lg scale-105'
-                                      : 'border-amber-700 bg-amber-900/50 hover:bg-amber-800 hover:border-amber-600'
-                                  }`}
-                                >
-                                  <img
-                                    src={imageUrl}
-                                    alt={monster.name}
-                                    className="w-12 h-12 object-cover rounded"
-                                    style={{ imageRendering: 'pixelated' as const }}
-                                  />
-                                  <div className="font-bold text-xs text-amber-100 text-center">{monster.name}</div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                          {/* Pagination Controls */}
-                          <div className="flex items-center justify-between mt-3">
+                          <div className="relative">
+                            {/* Left scroll button */}
                             <button
-                              onClick={() => setMonsterPage(prev => Math.max(0, prev - 1))}
-                              disabled={monsterPage === 0}
-                              className="px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-sm rounded border border-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                              onClick={() => {
+                                if (monsterScrollRef.current) {
+                                  monsterScrollRef.current.scrollBy({ left: -200, behavior: 'smooth' }); // Scaled for compact cards
+                                }
+                              }}
+                              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-amber-900/90 hover:bg-amber-800 text-amber-100 p-2 rounded-full border-2 border-amber-700 shadow-lg transition-all"
+                              aria-label="Scroll left"
                             >
-                              ← Previous
+                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                              </svg>
                             </button>
-                            <span className="text-amber-300 text-sm">
-                              Page {monsterPage + 1} of {Math.ceil(availableMonsters.length / monstersPerPage)}
-                            </span>
-                            <button
-                              onClick={() => setMonsterPage(prev => Math.min(Math.ceil(availableMonsters.length / monstersPerPage) - 1, prev + 1))}
-                              disabled={monsterPage >= Math.ceil(availableMonsters.length / monstersPerPage) - 1}
-                              className="px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-sm rounded border border-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+
+                            {/* Scrollable container */}
+                            <div
+                              ref={monsterScrollRef}
+                              className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 px-10"
+                              style={{
+                                scrollbarWidth: 'none',
+                                msOverflowStyle: 'none',
+                              }}
                             >
-                              Next →
+                              {availableMonsters.map((monster) => {
+                                const associatedMonster = findAssociatedMonster(monster.name);
+                                const monsterImageUrl = associatedMonster 
+                                  ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
+                                  : undefined;
+                                
+                                const isSelected = player2Class?.name === monster.name;
+                                
+                                return (
+                                  <div
+                                    key={monster.name}
+                                    onClick={() => {
+                                      setPlayerClassWithMonster('player2', monster, monster.name);
+                                    }}
+                                    className={`flex-shrink-0 cursor-pointer transition-all ${
+                                      isSelected
+                                        ? 'ring-4 ring-amber-400 shadow-2xl'
+                                        : 'hover:shadow-lg'
+                                    }`}
+                                    style={{
+                                      transform: isSelected ? 'scale(1.03)' : 'scale(1)',
+                                      padding: '4px', // Add padding to accommodate zoom without overflow
+                                    }}
+                                  >
+                                    <CharacterCard
+                                      playerClass={{ ...monster, hitPoints: monster.maxHitPoints }}
+                                      characterName={monster.name}
+                                      monsterImageUrl={monsterImageUrl}
+                                      size="compact"
+                                    />
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {/* Right scroll button */}
+                            <button
+                              onClick={() => {
+                                if (monsterScrollRef.current) {
+                                  monsterScrollRef.current.scrollBy({ left: 200, behavior: 'smooth' }); // Scaled for compact cards
+                                }
+                              }}
+                              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-amber-900/90 hover:bg-amber-800 text-amber-100 p-2 rounded-full border-2 border-amber-700 shadow-lg transition-all"
+                              aria-label="Scroll right"
+                            >
+                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
                             </button>
                           </div>
                         </div>

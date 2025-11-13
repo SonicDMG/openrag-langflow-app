@@ -47,6 +47,8 @@ interface CharacterCardProps {
   testButtons?: Array<{ label: string; onClick: () => void; className?: string }>;
   // Monster image URL (optional - for monster creator preview)
   monsterImageUrl?: string;
+  // Size variant - 'normal' for battle cards, 'compact' for selection
+  size?: 'normal' | 'compact';
 }
 
 function CharacterCardComponent({
@@ -83,6 +85,7 @@ function CharacterCardComponent({
   allowAllTurns = false,
   testButtons = [],
   monsterImageUrl,
+  size = 'normal',
 }: CharacterCardProps) {
   const animationRef = useRef<HTMLDivElement>(null);
   const effectiveIsActive = allowAllTurns ? !isDefeated : isActive;
@@ -173,16 +176,35 @@ function CharacterCardComponent({
     }
   }, [monsterImageUrl]);
 
+  // Size scaling - compact is 60% of normal
+  const isCompact = size === 'compact';
+  const maxWidth = isCompact ? '192px' : '320px'; // 320 * 0.6 = 192
+  const padding = isCompact ? '0.75rem' : '1rem'; // p-3 vs p-4
+  const imageWidth = isCompact ? '168px' : '280px'; // 280 * 0.6 = 168
+  const imageHeight = isCompact ? '120px' : '200px'; // 200 * 0.6 = 120
+  const borderWidth = isCompact ? '2px' : '3px';
+  const borderRadius = isCompact ? '8px' : '12px';
+  const iconSize = isCompact ? 'w-6 h-6' : 'w-10 h-10';
+  const titleSize = isCompact ? 'text-base' : 'text-xl';
+  const typeSize = isCompact ? 'text-[10px]' : 'text-xs';
+  const abilityHeadingSize = isCompact ? 'text-[9px]' : 'text-xs';
+  const abilityTextSize = isCompact ? 'text-[9px]' : 'text-xs';
+  const statsTextSize = isCompact ? 'text-[10px]' : 'text-sm';
+  const abilityGap = isCompact ? 'gap-0' : 'gap-1';
+  const abilityLineHeight = isCompact ? 'leading-tight' : 'leading-normal';
+  const hpBarMaxWidth = isCompact ? '84px' : '140px'; // 140 * 0.6 = 84
+  const diamondSize = isCompact ? '6px' : '8px';
+
   return (
     <div 
       ref={animationRef}
       className="relative overflow-hidden"
       style={{ 
         backgroundColor: '#F5F1E8', // Light beige background
-        border: '3px solid #5C4033', // Dark brown border
-        borderRadius: '12px',
+        border: `${borderWidth} solid #5C4033`, // Dark brown border
+        borderRadius: borderRadius,
         width: '100%',
-        maxWidth: '320px', // Constrain width to maintain portrait aspect
+        maxWidth: maxWidth, // Constrain width to maintain portrait aspect
         aspectRatio: '3/4', // Portrait orientation: 3 wide by 4 tall
         ...(isActive ? { boxShadow: '0 0 20px rgba(251, 191, 36, 0.5)' } : {})
       }}
@@ -190,7 +212,7 @@ function CharacterCardComponent({
       {/* Defeated overlay */}
       {isDefeated && (
         <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none bg-black/30">
-          <div className="text-8xl text-red-900 drop-shadow-2xl" style={{ filter: 'drop-shadow(0 0 10px rgba(0,0,0,0.8))' }}>
+          <div className={`${isCompact ? 'text-5xl' : 'text-8xl'} text-red-900 drop-shadow-2xl`} style={{ filter: 'drop-shadow(0 0 10px rgba(0,0,0,0.8))' }}>
             ☠️
           </div>
         </div>
@@ -209,11 +231,11 @@ function CharacterCardComponent({
       )}
 
       {/* Card Content */}
-      <div className="p-4 h-full flex flex-col">
+      <div className="h-full flex flex-col" style={{ padding: padding }}>
         {/* Header with name, type, and symbol */}
-        <div className="relative mb-3">
+        <div className="relative" style={{ marginBottom: isCompact ? '0.5rem' : '0.75rem' }}>
           {/* Purple abstract symbol in top right - flame/swirling design */}
-          <div className="absolute top-0 right-0 w-10 h-10">
+          <div className={`absolute top-0 right-0 ${iconSize}`}>
             <svg viewBox="0 0 24 24" className="w-full h-full" style={{ color: '#9333EA' }}>
               {/* Flame/swirling abstract design */}
               <path
@@ -235,11 +257,12 @@ function CharacterCardComponent({
 
           {/* Character name - bold, dark brown */}
           <h3 
-            className="text-xl font-bold mb-1 pr-12" 
+            className={`${titleSize} font-bold mb-1`}
             style={{ 
               fontFamily: 'serif',
               color: '#5C4033', // Dark brown
-              fontWeight: 'bold'
+              fontWeight: 'bold',
+              paddingRight: isCompact ? '1.5rem' : '3rem'
             }}
           >
             {characterName}
@@ -251,7 +274,7 @@ function CharacterCardComponent({
 
           {/* Character type - smaller, lighter brown */}
           <p 
-            className="text-xs" 
+            className={typeSize}
             style={{ 
               color: '#8B6F47', // Lighter brown
               fontStyle: 'italic'
@@ -263,15 +286,18 @@ function CharacterCardComponent({
 
         {/* Central pixel art image in frame - slightly darker beige */}
         <div 
-          className="rounded-lg mb-3 flex justify-center items-center overflow-hidden"
+          className="rounded-lg flex justify-center items-center overflow-hidden"
           style={{ 
             backgroundColor: '#E8E0D6', // Slightly darker beige frame
-            border: '2px solid #D4C4B0',
-            borderRadius: '8px',
+            border: isCompact ? '1.5px solid #D4C4B0' : '2px solid #D4C4B0',
+            borderRadius: isCompact ? '6px' : '8px',
             padding: '0', // Remove padding so image fills the container
-            width: '280px', // Fixed width to match image
-            height: '200px', // Fixed height to match image
-            aspectRatio: '280/200' // Match the actual image aspect ratio (1.4:1)
+            width: imageWidth, // Scaled width
+            height: imageHeight, // Scaled height
+            aspectRatio: '280/200', // Match the actual image aspect ratio (1.4:1)
+            marginBottom: isCompact ? '0.5rem' : '0.75rem',
+            marginLeft: 'auto',
+            marginRight: 'auto'
           }}
         >
           {monsterImageUrl && !imageError ? (
@@ -305,23 +331,23 @@ function CharacterCardComponent({
         </div>
 
         {/* Abilities section */}
-        <div className="mb-3">
-          <div className="flex items-center justify-between mb-1.5">
+        <div style={{ marginBottom: isCompact ? '0.375rem' : '0.75rem' }}>
+          <div className="flex items-center justify-between" style={{ marginBottom: isCompact ? '0.125rem' : '0.375rem' }}>
             <h4 
-              className="text-xs font-semibold" 
+              className={`${abilityHeadingSize} font-semibold`}
               style={{ color: '#8B6F47' }} // Lighter brown for heading
             >
               Abilities
             </h4>
             {isOpponent && (
-              <div className="text-xs italic font-semibold" style={{ color: '#8B6F47' }}>
+              <div className={`${abilityTextSize} italic font-semibold`} style={{ color: '#8B6F47' }}>
                 Auto-playing opponent
               </div>
             )}
           </div>
           <div>
             {playerClass.abilities.length > 0 ? (
-              <div className="flex flex-wrap gap-1">
+              <div className={`flex flex-wrap ${abilityGap} ${abilityLineHeight}`}>
                 {playerClass.abilities.map((ability, idx) => {
                   const isTestHeal = ability.name === 'Test Heal';
                   const testMissButton = testButtons.find(btn => btn.label.includes('Test Miss'));
@@ -332,12 +358,19 @@ function CharacterCardComponent({
                     return (
                       <span key={idx}>
                         <span 
-                          className="text-xs"
+                          className={abilityTextSize}
                           style={{ color: '#5C4033' }} // Dark brown for ability names
                         >
                           {ability.name}
                         </span>
-                        {idx < playerClass.abilities.length - 1 && <span style={{ color: '#5C4033' }}>, </span>}
+                        {idx < playerClass.abilities.length - 1 && (
+                          <span 
+                            className={abilityTextSize}
+                            style={{ color: '#5C4033', marginLeft: isCompact ? '0.125rem' : '0.25rem' }}
+                          >
+                            , 
+                          </span>
+                        )}
                       </span>
                     );
                   }
@@ -348,7 +381,7 @@ function CharacterCardComponent({
                       <button
                         onClick={() => onUseAbility(idx)}
                         disabled={!effectiveIsActive || isDisabled}
-                        className="text-xs hover:underline disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        className={`${abilityTextSize} ${abilityLineHeight} hover:underline disabled:opacity-50 disabled:cursor-not-allowed transition-all`}
                         style={{ 
                           color: '#5C4033',
                           background: 'none',
@@ -360,7 +393,14 @@ function CharacterCardComponent({
                       >
                         {ability.name}
                       </button>
-                      {idx < playerClass.abilities.length - 1 && <span style={{ color: '#5C4033' }}>, </span>}
+                      {idx < playerClass.abilities.length - 1 && (
+                        <span 
+                          className={abilityTextSize}
+                          style={{ color: '#5C4033', marginLeft: isCompact ? '0.125rem' : '0.25rem' }}
+                        >
+                          , 
+                        </span>
+                      )}
                       {isTestHeal && testMissButton && (
                         <button
                           key="test-miss-after-heal"
@@ -385,19 +425,19 @@ function CharacterCardComponent({
                 ))}
               </div>
             ) : (
-              <span className="text-xs italic" style={{ color: '#8B6F47' }}>No abilities</span>
+              <span className={`${abilityTextSize} italic`} style={{ color: '#8B6F47' }}>No abilities</span>
             )}
           </div>
         </div>
 
         {/* Divider with diamond icon */}
-        <div className="flex items-center justify-center mb-3">
+        <div className="flex items-center justify-center" style={{ marginBottom: isCompact ? '0.5rem' : '0.75rem' }}>
           <div className="flex-1 border-t" style={{ borderColor: '#5C4033' }}></div>
           <div 
             className="mx-2"
             style={{
-              width: '8px',
-              height: '8px',
+              width: diamondSize,
+              height: diamondSize,
               backgroundColor: '#5C4033',
               transform: 'rotate(45deg)'
             }}
@@ -409,20 +449,21 @@ function CharacterCardComponent({
         <div className="mt-auto">
           <div className="flex items-center justify-between mb-2">
             {/* AC (Armor Class) - left side */}
-            <div className="flex items-center gap-1.5">
-              <span className="font-bold text-sm" style={{ color: '#5C4033' }}>
+            <div className="flex items-center" style={{ gap: isCompact ? '0.25rem' : '0.375rem' }}>
+              <span className={`font-bold ${statsTextSize}`} style={{ color: '#5C4033' }}>
                 AC: {playerClass.armorClass}
               </span>
             </div>
 
             {/* HP with bar - right side */}
-            <div className="flex items-center gap-1.5 flex-1 justify-end">
+            <div className="flex items-center flex-1 justify-end" style={{ gap: isCompact ? '0.25rem' : '0.375rem' }}>
               <div 
-                className="flex-1 max-w-[140px] rounded-sm overflow-hidden"
+                className="flex-1 rounded-sm overflow-hidden"
                 style={{ 
                   backgroundColor: '#E8E0D6',
-                  height: '12px',
-                  border: '1px solid #D4C4B0'
+                  height: isCompact ? '8px' : '12px',
+                  border: isCompact ? '0.5px solid #D4C4B0' : '1px solid #D4C4B0',
+                  maxWidth: hpBarMaxWidth
                 }}
               >
                 <div
@@ -433,7 +474,7 @@ function CharacterCardComponent({
                   }}
                 />
               </div>
-              <span className="font-bold text-xs ml-1" style={{ color: '#5C4033' }}>
+              <span className={`font-bold ${abilityTextSize}`} style={{ color: '#5C4033', marginLeft: isCompact ? '0.125rem' : '0.25rem' }}>
                 {isDefeated ? 0 : playerClass.hitPoints}
               </span>
             </div>
@@ -444,7 +485,7 @@ function CharacterCardComponent({
             <button
               onClick={onAttack}
               disabled={isOpponent || isDisabled}
-              className="w-full mt-3 py-2 px-4 bg-red-900 hover:bg-red-800 text-white font-bold rounded-lg border-2 border-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`w-full bg-red-900 hover:bg-red-800 text-white font-bold rounded-lg border-2 border-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${isCompact ? 'mt-2 py-1 px-2 text-xs' : 'mt-3 py-2 px-4'}`}
               title={isOpponent ? 'AI-controlled player' : undefined}
             >
               Attack!

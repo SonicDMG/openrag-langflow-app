@@ -639,3 +639,8 @@ body {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
+
+/* Hide scrollbar for webkit browsers */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
