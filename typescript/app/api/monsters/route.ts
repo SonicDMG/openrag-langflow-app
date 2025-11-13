@@ -5,7 +5,7 @@ import { join } from 'path';
 import { pixelize } from '@/app/dnd/server/pixelize';
 import { autoRig } from '@/app/dnd/server/autoRig';
 import { saveMonsterBundle, loadMonsterBundle } from '@/app/dnd/server/storage';
-import { downloadImage } from '@/app/dnd/server/imageGeneration';
+import { downloadImage, ensure16x9AspectRatio } from '@/app/dnd/server/imageGeneration';
 import { removeBackground, ensureTransparentBackground } from '@/app/dnd/server/backgroundRemoval';
 import { MonsterBundle } from '@/app/dnd/utils/rigTypes';
 
@@ -55,6 +55,10 @@ export async function POST(req: NextRequest) {
       try {
         refPng = await downloadImage(imageUrl);
         
+        // Ensure 16:9 aspect ratio for perfect fit (crop if needed)
+        console.log('Ensuring 16:9 aspect ratio...');
+        refPng = await ensure16x9AspectRatio(refPng);
+        
         // Optionally remove background if requested
         if (removeBg) {
           console.log('Removing background from image...');
@@ -79,6 +83,10 @@ export async function POST(req: NextRequest) {
       try {
         const imageUrl = await generateImageViaService(prompt, seed);
         refPng = await downloadImage(imageUrl);
+        
+        // Ensure 16:9 aspect ratio for perfect fit (crop if needed)
+        console.log('Ensuring 16:9 aspect ratio...');
+        refPng = await ensure16x9AspectRatio(refPng);
       } catch (error) {
         console.error('Image generation error:', error);
         return NextResponse.json(

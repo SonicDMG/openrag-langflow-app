@@ -271,17 +271,16 @@ function CharacterCardComponent({
             backgroundColor: '#E8E0D6', // Slightly darker beige frame
             border: '2px solid #D4C4B0',
             borderRadius: '8px',
-            padding: '8px',
-            minHeight: '200px',
-            height: '200px',
-            width: '100%',
-            maxWidth: '280px'
+            padding: '0', // Remove padding so image fills the container
+            width: '280px', // Fixed width to match image
+            height: '200px', // Fixed height to match image
+            aspectRatio: '280/200' // Match the actual image aspect ratio (1.4:1)
           }}
         >
           {monsterImageUrl ? (
             // If monsterImageUrl is provided, try to show it with fallback to placeholder
             imageError ? (
-              <div className="flex flex-col items-center justify-center w-[200px] h-[200px]">
+              <div className="flex flex-col items-center justify-center w-full h-full">
                 <div 
                   className="text-8xl mb-2"
                   style={{ 
@@ -302,8 +301,8 @@ function CharacterCardComponent({
                 style={{
                   imageRendering: 'pixelated' as const,
                   width: '100%',
-                  height: '200px',
-                  objectFit: 'cover',
+                  height: '100%',
+                  objectFit: 'cover', // Cover the container, may crop edges
                   display: 'block'
                 }}
                 onError={() => setImageError(true)}
@@ -311,7 +310,7 @@ function CharacterCardComponent({
             )
           ) : (
             // If no monsterImageUrl, show placeholder with icon
-            <div className="flex flex-col items-center justify-center w-[200px] h-[200px]">
+            <div className="flex flex-col items-center justify-center w-full h-full">
               <div 
                 className="text-8xl mb-2"
                 style={{ 

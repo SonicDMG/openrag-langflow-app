@@ -240,10 +240,11 @@ export async function pixelize(
 
   // 3) Also emit various sizes maintaining aspect ratio or square for other uses
   // Card display version (280x200) - exact size needed
+  // Use 'cover' to fill the entire 280x200 canvas, cropping if necessary
   const png280x200 = await sharp(out)
     .resize(280, 200, { 
       kernel: sharp.kernel.nearest,
-      fit: 'contain', // Maintain aspect ratio, no cropping
+      fit: 'cover', // Fill the entire canvas, cropping edges if needed
       position: 'center',
       background: { r: 0, g: 0, b: 0, alpha: 0 }
     })

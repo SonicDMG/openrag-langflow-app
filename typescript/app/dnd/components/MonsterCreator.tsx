@@ -48,7 +48,7 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
           seed,
           model,
           transparentBackground,
-          aspectRatio: 'wide landscape', // Hint for 280:200 aspect ratio
+          aspectRatio: '16:9', // 16:9 aspect ratio for perfect fit
         }),
       });
 
@@ -157,6 +157,9 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
             className="mt-1 w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100 placeholder-amber-400"
             rows={3}
           />
+          <p className="text-xs text-amber-300 mt-1">
+            Your description will be automatically enhanced with a 32-bit pixel art style template for retro fantasy aesthetics.
+          </p>
         </label>
       </div>
 
