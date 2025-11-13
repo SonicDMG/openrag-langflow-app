@@ -9,7 +9,7 @@ import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../utils/dice
 import { generateCharacterName } from '../utils/names';
 import { createHitVisualEffects, createMissVisualEffects, createHealingVisualEffects, getOpponent, buildDamageDiceArray, type PendingVisualEffect } from '../utils/battle';
 import { DiceRoll } from '../components/DiceRoll';
-import { PlayerStats } from '../components/PlayerStats';
+import { CharacterCard } from '../components/CharacterCard';
 import { ClassSelection } from '../components/ClassSelection';
 import { useAIOpponent } from '../hooks/useAIOpponent';
 
@@ -1033,165 +1033,155 @@ export default function DnDTestPage() {
           </div>
 
           {/* Player Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <PlayerStats
-                playerClass={player1Class}
-                playerId="player1"
-                currentTurn={currentTurn}
-                characterName={player1Name || 'Loading...'}
-                onUseAbility={(index) => {
-                  testUseAbility('player1', index);
-                }}
-                onAttack={() => {
-                  setIsMoveInProgress(true);
-                  testAttackHit('player1');
-                }}
-                isMoveInProgress={isMoveInProgress}
-                shouldShake={shakingPlayer === 'player1'}
-                shouldSparkle={sparklingPlayer === 'player1'}
-                shouldMiss={missingPlayer === 'player1'}
-                shouldHit={hittingPlayer === 'player1'}
-                shouldSurprise={surprisedPlayer === 'player1'}
-                shouldCast={castingPlayer === 'player1'}
-                castTrigger={castTrigger.player1}
-                shakeTrigger={shakeTrigger.player1}
-                sparkleTrigger={sparkleTrigger.player1}
-                missTrigger={missTrigger.player1}
-                hitTrigger={hitTrigger.player1}
-                surpriseTrigger={surpriseTrigger.player1}
-                shakeIntensity={shakeIntensity.player1}
-                sparkleIntensity={sparkleIntensity.player1}
-                isDefeated={defeatedPlayer === 'player1'}
-                isVictor={victorPlayer === 'player1'}
-                confettiTrigger={confettiTrigger}
-                emotion={manualEmotion1 || undefined}
-                onShakeComplete={handlePlayer1ShakeComplete}
-                onSparkleComplete={handlePlayer1SparkleComplete}
-                onMissComplete={handlePlayer1MissComplete}
-                onHitComplete={handlePlayer1HitComplete}
-                onSurpriseComplete={handlePlayer1SurpriseComplete}
-                onCastComplete={handlePlayer1CastComplete}
-                showEmotionControls={true}
-                onEmotionChange={setManualEmotion1}
-                allowAllTurns={!isAIModeActive}
-                testButtons={[
-                  // Add buttons for all abilities
-                  ...player1Class.abilities.map((ability, index) => ({
-                    label: ability.type === 'healing' ? `💚 ${ability.name}` : `⚔️ ${ability.name}`,
-                    onClick: () => testUseAbility('player1', index),
-                    className: ability.type === 'healing' 
-                      ? 'px-3 py-1 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
-                      : 'px-3 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'
-                  })),
-                  // Keep existing test buttons
-                  {
-                    label: '💥 High Damage',
-                    onClick: () => testHighDamage('player1'),
-                    className: 'px-3 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'
-                  },
-                  {
-                    label: '💥 Low Damage',
-                    onClick: () => testLowDamage('player1'),
-                    className: 'px-3 py-1 bg-orange-900 hover:bg-orange-800 text-white text-xs rounded border border-orange-700 transition-all'
-                  },
-                  {
-                    label: '💚 Full Heal',
-                    onClick: () => testFullHeal('player1'),
-                    className: 'px-3 py-1 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
-                  },
-                  {
-                    label: '💚 Low Heal',
-                    onClick: () => testLowHeal('player1'),
-                    className: 'px-3 py-1 bg-emerald-900 hover:bg-emerald-800 text-white text-xs rounded border border-emerald-700 transition-all'
-                  },
-                  {
-                    label: '❌ Test Miss',
-                    onClick: () => testAttackMiss('player1'),
-                    className: 'px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all'
-                  }
-                ]}
-              />
-            </div>
-            <div>
-              <PlayerStats
-                playerClass={player2Class}
-                playerId="player2"
-                currentTurn={currentTurn}
-                characterName={player2Name || 'Loading...'}
-                onUseAbility={(index) => {
-                  if (isAIModeActive) return; // Don't allow manual control in AI mode
-                  testUseAbility('player2', index);
-                }}
-                onAttack={isAIModeActive ? undefined : () => {
-                  setIsMoveInProgress(true);
-                  testAttackHit('player2');
-                }}
-                isOpponent={isAIModeActive}
-                isMoveInProgress={isMoveInProgress}
-                shouldShake={shakingPlayer === 'player2'}
-                shouldSparkle={sparklingPlayer === 'player2'}
-                shouldMiss={missingPlayer === 'player2'}
-                shouldHit={hittingPlayer === 'player2'}
-                shouldSurprise={surprisedPlayer === 'player2'}
-                shouldCast={castingPlayer === 'player2'}
-                castTrigger={castTrigger.player2}
-                shakeTrigger={shakeTrigger.player2}
-                sparkleTrigger={sparkleTrigger.player2}
-                missTrigger={missTrigger.player2}
-                hitTrigger={hitTrigger.player2}
-                surpriseTrigger={surpriseTrigger.player2}
-                isDefeated={defeatedPlayer === 'player2'}
-                isVictor={victorPlayer === 'player2'}
-                confettiTrigger={confettiTrigger}
-                emotion={manualEmotion2 || undefined}
-                onShakeComplete={handlePlayer2ShakeComplete}
-                onSparkleComplete={handlePlayer2SparkleComplete}
-                onMissComplete={handlePlayer2MissComplete}
-                onHitComplete={handlePlayer2HitComplete}
-                onSurpriseComplete={handlePlayer2SurpriseComplete}
-                onCastComplete={handlePlayer2CastComplete}
-                showEmotionControls={true}
-                onEmotionChange={setManualEmotion2}
-                allowAllTurns={!isAIModeActive}
-                testButtons={[
-                  // Add buttons for all abilities
-                  ...player2Class.abilities.map((ability, index) => ({
-                    label: ability.type === 'healing' ? `💚 ${ability.name}` : `⚔️ ${ability.name}`,
-                    onClick: () => testUseAbility('player2', index),
-                    className: ability.type === 'healing' 
-                      ? 'px-3 py-1 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
-                      : 'px-3 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'
-                  })),
-                  // Keep existing test buttons
-                  {
-                    label: '💥 High Damage',
-                    onClick: () => testHighDamage('player2'),
-                    className: 'px-3 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'
-                  },
-                  {
-                    label: '💥 Low Damage',
-                    onClick: () => testLowDamage('player2'),
-                    className: 'px-3 py-1 bg-orange-900 hover:bg-orange-800 text-white text-xs rounded border border-orange-700 transition-all'
-                  },
-                  {
-                    label: '💚 Full Heal',
-                    onClick: () => testFullHeal('player2'),
-                    className: 'px-3 py-1 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
-                  },
-                  {
-                    label: '💚 Low Heal',
-                    onClick: () => testLowHeal('player2'),
-                    className: 'px-3 py-1 bg-emerald-900 hover:bg-emerald-800 text-white text-xs rounded border border-emerald-700 transition-all'
-                  },
-                  {
-                    label: '❌ Test Miss',
-                    onClick: () => testAttackMiss('player2'),
-                    className: 'px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all'
-                  }
-                ]}
-              />
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 justify-items-center">
+            <CharacterCard
+              playerClass={player1Class}
+              characterName={player1Name || 'Loading...'}
+              onUseAbility={(index) => {
+                testUseAbility('player1', index);
+              }}
+              onAttack={() => {
+                setIsMoveInProgress(true);
+                testAttackHit('player1');
+              }}
+              isMoveInProgress={isMoveInProgress}
+              shouldShake={shakingPlayer === 'player1'}
+              shouldSparkle={sparklingPlayer === 'player1'}
+              shouldMiss={missingPlayer === 'player1'}
+              shouldHit={hittingPlayer === 'player1'}
+              shouldSurprise={surprisedPlayer === 'player1'}
+              shouldCast={castingPlayer === 'player1'}
+              castTrigger={castTrigger.player1}
+              shakeTrigger={shakeTrigger.player1}
+              sparkleTrigger={sparkleTrigger.player1}
+              missTrigger={missTrigger.player1}
+              hitTrigger={hitTrigger.player1}
+              surpriseTrigger={surpriseTrigger.player1}
+              shakeIntensity={shakeIntensity.player1}
+              sparkleIntensity={sparkleIntensity.player1}
+              isActive={currentTurn === 'player1'}
+              isDefeated={defeatedPlayer === 'player1'}
+              isVictor={victorPlayer === 'player1'}
+              confettiTrigger={confettiTrigger}
+              onShakeComplete={handlePlayer1ShakeComplete}
+              onSparkleComplete={handlePlayer1SparkleComplete}
+              onMissComplete={handlePlayer1MissComplete}
+              onHitComplete={handlePlayer1HitComplete}
+              onSurpriseComplete={handlePlayer1SurpriseComplete}
+              onCastComplete={handlePlayer1CastComplete}
+              allowAllTurns={!isAIModeActive}
+              testButtons={[
+                // Add buttons for all abilities
+                ...player1Class.abilities.map((ability, index) => ({
+                  label: ability.type === 'healing' ? `💚 ${ability.name}` : `⚔️ ${ability.name}`,
+                  onClick: () => testUseAbility('player1', index),
+                  className: ability.type === 'healing' 
+                    ? 'px-2 py-0.5 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
+                    : 'px-2 py-0.5 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'
+                })),
+                // Keep existing test buttons
+                {
+                  label: '💥 High Damage',
+                  onClick: () => testHighDamage('player1'),
+                  className: 'px-2 py-0.5 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'
+                },
+                {
+                  label: '💥 Low Damage',
+                  onClick: () => testLowDamage('player1'),
+                  className: 'px-2 py-0.5 bg-orange-900 hover:bg-orange-800 text-white text-xs rounded border border-orange-700 transition-all'
+                },
+                {
+                  label: '💚 Full Heal',
+                  onClick: () => testFullHeal('player1'),
+                  className: 'px-2 py-0.5 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
+                },
+                {
+                  label: '💚 Low Heal',
+                  onClick: () => testLowHeal('player1'),
+                  className: 'px-2 py-0.5 bg-emerald-900 hover:bg-emerald-800 text-white text-xs rounded border border-emerald-700 transition-all'
+                },
+                {
+                  label: '❌ Test Miss',
+                  onClick: () => testAttackMiss('player1'),
+                  className: 'px-2 py-0.5 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all'
+                }
+              ]}
+            />
+            <CharacterCard
+              playerClass={player2Class}
+              characterName={player2Name || 'Loading...'}
+              onUseAbility={(index) => {
+                if (isAIModeActive) return; // Don't allow manual control in AI mode
+                testUseAbility('player2', index);
+              }}
+              onAttack={isAIModeActive ? undefined : () => {
+                setIsMoveInProgress(true);
+                testAttackHit('player2');
+              }}
+              isOpponent={isAIModeActive}
+              isMoveInProgress={isMoveInProgress}
+              shouldShake={shakingPlayer === 'player2'}
+              shouldSparkle={sparklingPlayer === 'player2'}
+              shouldMiss={missingPlayer === 'player2'}
+              shouldHit={hittingPlayer === 'player2'}
+              shouldSurprise={surprisedPlayer === 'player2'}
+              shouldCast={castingPlayer === 'player2'}
+              castTrigger={castTrigger.player2}
+              shakeTrigger={shakeTrigger.player2}
+              sparkleTrigger={sparkleTrigger.player2}
+              missTrigger={missTrigger.player2}
+              hitTrigger={hitTrigger.player2}
+              surpriseTrigger={surpriseTrigger.player2}
+              shakeIntensity={shakeIntensity.player2}
+              sparkleIntensity={sparkleIntensity.player2}
+              isActive={currentTurn === 'player2'}
+              isDefeated={defeatedPlayer === 'player2'}
+              isVictor={victorPlayer === 'player2'}
+              confettiTrigger={confettiTrigger}
+              onShakeComplete={handlePlayer2ShakeComplete}
+              onSparkleComplete={handlePlayer2SparkleComplete}
+              onMissComplete={handlePlayer2MissComplete}
+              onHitComplete={handlePlayer2HitComplete}
+              onSurpriseComplete={handlePlayer2SurpriseComplete}
+              onCastComplete={handlePlayer2CastComplete}
+              allowAllTurns={!isAIModeActive}
+              testButtons={[
+                // Add buttons for all abilities
+                ...player2Class.abilities.map((ability, index) => ({
+                  label: ability.type === 'healing' ? `💚 ${ability.name}` : `⚔️ ${ability.name}`,
+                  onClick: () => testUseAbility('player2', index),
+                  className: ability.type === 'healing' 
+                    ? 'px-2 py-0.5 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
+                    : 'px-2 py-0.5 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'
+                })),
+                // Keep existing test buttons
+                {
+                  label: '💥 High Damage',
+                  onClick: () => testHighDamage('player2'),
+                  className: 'px-2 py-0.5 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'
+                },
+                {
+                  label: '💥 Low Damage',
+                  onClick: () => testLowDamage('player2'),
+                  className: 'px-2 py-0.5 bg-orange-900 hover:bg-orange-800 text-white text-xs rounded border border-orange-700 transition-all'
+                },
+                {
+                  label: '💚 Full Heal',
+                  onClick: () => testFullHeal('player2'),
+                  className: 'px-2 py-0.5 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
+                },
+                {
+                  label: '💚 Low Heal',
+                  onClick: () => testLowHeal('player2'),
+                  className: 'px-2 py-0.5 bg-emerald-900 hover:bg-emerald-800 text-white text-xs rounded border border-emerald-700 transition-all'
+                },
+                {
+                  label: '❌ Test Miss',
+                  onClick: () => testAttackMiss('player2'),
+                  className: 'px-2 py-0.5 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all'
+                }
+              ]}
+            />
           </div>
 
           {/* Test Log */}

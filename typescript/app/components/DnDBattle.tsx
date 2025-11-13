@@ -7,7 +7,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 // Types
-import { DnDClass, BattleLog, AttackAbility, CharacterEmotion, Ability } from '../dnd/types';
+import { DnDClass, BattleLog, AttackAbility, Ability } from '../dnd/types';
 
 // Constants
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS, CLASS_COLORS, FALLBACK_ABILITIES, CLASS_ICONS, MONSTER_ICONS, MONSTER_COLORS, selectRandomAbilities, FALLBACK_MONSTER_ABILITIES } from '../dnd/constants';
@@ -34,7 +34,7 @@ import { fetchAvailableClasses, fetchClassStats, extractAbilities, getBattleNarr
 // Components
 import { ClassSelection } from '../dnd/components/ClassSelection';
 import { DiceRoll } from '../dnd/components/DiceRoll';
-import { PlayerStats } from '../dnd/components/PlayerStats';
+import { CharacterCard } from '../dnd/components/CharacterCard';
 
 export default function DnDBattle() {
   const router = useRouter();
@@ -76,8 +76,6 @@ export default function DnDBattle() {
   const [diceRollTrigger, setDiceRollTrigger] = useState(0);
   const [diceRollData, setDiceRollData] = useState<Array<{ diceType: string; result: number }>>([]);
   const [isDiceRolling, setIsDiceRolling] = useState(false);
-  const [manualEmotion1, setManualEmotion1] = useState<CharacterEmotion | null>(null);
-  const [manualEmotion2, setManualEmotion2] = useState<CharacterEmotion | null>(null);
   const [castingPlayer, setCastingPlayer] = useState<'player1' | 'player2' | null>(null);
   const [castTrigger, setCastTrigger] = useState({ player1: 0, player2: 0 });
   const logEndRef = useRef<HTMLDivElement>(null);
@@ -1091,8 +1089,6 @@ export default function DnDBattle() {
     setSurpriseTrigger({ player1: 0, player2: 0 });
     setCastingPlayer(null);
     setCastTrigger({ player1: 0, player2: 0 });
-    setManualEmotion1(null);
-    setManualEmotion2(null);
     setIsOpponentAutoPlaying(false);
     aiOpponentCleanup.cleanup();
   };
@@ -1379,11 +1375,9 @@ export default function DnDBattle() {
 
           {/* Battle Stats */}
           {isBattleActive && player1Class && player2Class && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <PlayerStats
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 justify-items-center">
+              <CharacterCard
                 playerClass={player1Class}
-                playerId="player1"
-                currentTurn={currentTurn}
                 characterName={player1Name || 'Loading...'}
                 onAttack={() => performAttack('player1')}
                 onUseAbility={(idx) => useAbility('player1', idx)}
@@ -1402,10 +1396,10 @@ export default function DnDBattle() {
                 shakeIntensity={shakeIntensity.player1}
                 sparkleIntensity={sparkleIntensity.player1}
                 isMoveInProgress={isMoveInProgress}
+                isActive={currentTurn === 'player1'}
                 isDefeated={defeatedPlayer === 'player1'}
                 isVictor={victorPlayer === 'player1'}
                 confettiTrigger={confettiTrigger}
-                emotion={manualEmotion1 || undefined}
                 onShakeComplete={handleShakeComplete}
                 onSparkleComplete={handleSparkleComplete}
                 onMissComplete={handleMissComplete}
@@ -1413,12 +1407,9 @@ export default function DnDBattle() {
                 onSurpriseComplete={handleSurpriseComplete}
                 onCastComplete={handleCastComplete}
               />
-              <PlayerStats
+              <CharacterCard
                 playerClass={player2Class}
-                playerId="player2"
-                currentTurn={currentTurn}
                 characterName={player2Name || 'Loading...'}
-                onAttack={undefined}
                 onUseAbility={(idx) => useAbility('player2', idx)}
                 shouldShake={shakingPlayer === 'player2'}
                 shouldSparkle={sparklingPlayer === 'player2'}
@@ -1432,11 +1423,13 @@ export default function DnDBattle() {
                 missTrigger={missTrigger.player2}
                 hitTrigger={hitTrigger.player2}
                 surpriseTrigger={surpriseTrigger.player2}
+                shakeIntensity={shakeIntensity.player2}
+                sparkleIntensity={sparkleIntensity.player2}
                 isMoveInProgress={isMoveInProgress}
+                isActive={currentTurn === 'player2'}
                 isDefeated={defeatedPlayer === 'player2'}
                 isVictor={victorPlayer === 'player2'}
                 confettiTrigger={confettiTrigger}
-                emotion={manualEmotion2 || undefined}
                 onShakeComplete={handleShakeComplete}
                 onSparkleComplete={handleSparkleComplete}
                 onMissComplete={handleMissComplete}

@@ -1,4 +1,4 @@
-import { DnDClass, CharacterEmotion } from '../types';
+import { DnDClass } from '../types';
 import { MONSTER_ICONS } from '../constants';
 import { getSpellColorPalette, determineSpellType, getClassSpellConfig } from './spellEffects';
 
@@ -605,114 +605,6 @@ function drawHappyEyebrow(pixel: PixelDrawer, eyebrowX: number, eyebrowY: number
   pixel(eyebrowX + 4, eyebrowY, '#000000');
 }
 
-// Draw facial expression based on emotion (updated for 64x64 grid)
-export function drawFaceExpression(
-  ctx: CanvasRenderingContext2D,
-  pixelSize: number,
-  emotion: CharacterEmotion,
-  isDefeated: boolean
-) {
-  const GRID_SIZE = 64; // Updated grid size
-  const centerX = GRID_SIZE / 2;
-  const pixel: PixelDrawer = (x: number, y: number, color: string) => {
-    ctx.fillStyle = color;
-    ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
-  };
-
-  // Eye positions (base) - updated for 64x64 grid (roughly 2x the 32x32 positions)
-  const leftEyeX = 24;
-  const rightEyeX = 38;
-  const eyeY = 16;
-
-  // Eyebrow positions (above eyes)
-  const leftEyebrowX = 23;
-  const rightEyebrowX = 37;
-  const eyebrowY = 13;
-
-  // Mouth positions
-  const mouthX = 30;
-  const mouthY = 22;
-
-  if (isDefeated || emotion === 'dead') {
-    drawXEye(pixel, leftEyeX, eyeY);
-    drawXEye(pixel, rightEyeX - 2, eyeY);
-    drawDeadMouth(pixel, mouthX, mouthY);
-  } else if (emotion === 'laughing') {
-    drawSquintedEye(pixel, leftEyeX, eyeY);
-    drawSquintedEye(pixel, rightEyeX - 1, eyeY);
-    drawHappyEyebrow(pixel, leftEyebrowX, eyebrowY);
-    drawHappyEyebrow(pixel, rightEyebrowX, eyebrowY);
-    drawLaughMouth(pixel, mouthX, mouthY);
-  } else if (emotion === 'victorious') {
-    drawWideEye(pixel, leftEyeX, eyeY);
-    drawWideEye(pixel, rightEyeX - 1, eyeY);
-    drawHappyEyebrow(pixel, leftEyebrowX, eyebrowY);
-    drawHappyEyebrow(pixel, rightEyebrowX, eyebrowY);
-    drawBigSmile(pixel, mouthX, mouthY, 6);
-  } else if (emotion === 'happy') {
-    drawSimpleEye(pixel, leftEyeX, eyeY);
-    drawSimpleEye(pixel, rightEyeX, eyeY);
-    drawHappyEyebrow(pixel, leftEyebrowX, eyebrowY);
-    drawHappyEyebrow(pixel, rightEyebrowX, eyebrowY);
-    drawSmile(pixel, mouthX, mouthY);
-  } else if (emotion === 'hurt' || emotion === 'sad') {
-    drawSadEye(pixel, leftEyeX, eyeY);
-    drawSadEye(pixel, rightEyeX, eyeY);
-    drawWorriedEyebrow(pixel, leftEyebrowX, eyebrowY);
-    drawWorriedEyebrow(pixel, rightEyebrowX, eyebrowY);
-    drawFrown(pixel, mouthX, mouthY);
-  } else if (emotion === 'rage' || emotion === 'frustrated') {
-    drawAngryEye(pixel, leftEyeX, eyeY);
-    drawAngryEye(pixel, rightEyeX - 1, eyeY);
-    drawAngryEyebrow(pixel, leftEyebrowX, eyebrowY);
-    drawAngryEyebrow(pixel, rightEyebrowX, eyebrowY);
-    drawAngryMouth(pixel, mouthX, mouthY);
-  } else if (emotion === 'worried') {
-    drawWideEye(pixel, leftEyeX, eyeY);
-    drawWideEye(pixel, rightEyeX - 1, eyeY);
-    drawWorriedEyebrow(pixel, leftEyebrowX, eyebrowY);
-    drawWorriedEyebrow(pixel, rightEyebrowX, eyebrowY);
-    drawNeutralMouth(pixel, mouthX, mouthY);
-  } else if (emotion === 'determined') {
-    drawSimpleEye(pixel, leftEyeX, eyeY);
-    drawSimpleEye(pixel, rightEyeX, eyeY);
-    drawNeutralEyebrow(pixel, leftEyebrowX, eyebrowY);
-    drawNeutralEyebrow(pixel, rightEyebrowX, eyebrowY);
-    drawNeutralMouth(pixel, mouthX, mouthY);
-  } else if (emotion === 'excited') {
-    drawVeryWideEye(pixel, leftEyeX, eyeY);
-    drawVeryWideEye(pixel, rightEyeX - 2, eyeY);
-    drawSurprisedEyebrow(pixel, leftEyebrowX, eyebrowY);
-    drawSurprisedEyebrow(pixel, rightEyebrowX, eyebrowY);
-    drawExcitedMouth(pixel, mouthX, mouthY);
-  } else if (emotion === 'triumphant') {
-    drawWideEye(pixel, leftEyeX, eyeY);
-    drawWideEye(pixel, rightEyeX - 2, eyeY);
-    drawHappyEyebrow(pixel, leftEyebrowX, eyebrowY);
-    drawHappyEyebrow(pixel, rightEyebrowX, eyebrowY);
-    drawBigSmile(pixel, mouthX, mouthY, 7);
-  } else if (emotion === 'confident') {
-    drawSimpleEye(pixel, leftEyeX, eyeY);
-    drawSimpleEye(pixel, rightEyeX, eyeY);
-    drawNeutralEyebrow(pixel, leftEyebrowX, eyebrowY);
-    drawNeutralEyebrow(pixel, rightEyebrowX, eyebrowY);
-    drawSmile(pixel, mouthX, mouthY);
-  } else if (emotion === 'surprised') {
-    drawSurprisedEye(pixel, leftEyeX, eyeY);
-    drawSurprisedEye(pixel, rightEyeX - 2, eyeY);
-    drawSurprisedEyebrow(pixel, leftEyebrowX, eyebrowY);
-    drawSurprisedEyebrow(pixel, rightEyebrowX, eyebrowY);
-    drawOpenMouth(pixel, mouthX, mouthY);
-  } else {
-    // Default: neutral eyes
-    drawSimpleEye(pixel, leftEyeX, eyeY);
-    drawSimpleEye(pixel, rightEyeX, eyeY);
-    drawNeutralEyebrow(pixel, leftEyebrowX, eyebrowY);
-    drawNeutralEyebrow(pixel, rightEyebrowX, eyebrowY);
-    drawNeutralMouth(pixel, mouthX, mouthY);
-  }
-}
-
 // Draw pixel art character
 export function drawPixelCharacter(
   ctx: CanvasRenderingContext2D,
@@ -721,8 +613,6 @@ export function drawPixelCharacter(
   colors: ReturnType<typeof getClassColors>,
   hpPercent: number,
   isDefeated: boolean,
-  emotion: CharacterEmotion,
-  animationFrame: number = 0,
   shouldCast: boolean = false,
   isHealing: boolean = false,
   isAttacking: boolean = false
@@ -730,10 +620,6 @@ export function drawPixelCharacter(
   const GRID_SIZE = 64; // Base sprite is now 64x64 for more detail
   const scale = size / GRID_SIZE; // Scale to desired size
   const pixelSize = scale;
-
-  // Calculate animation progress (0 to 1, cycles smoothly)
-  const animationProgress = (animationFrame / 60) * Math.PI * 2;
-  const hasAnimation = animationFrame > 0;
 
   // Helper to draw a pixel
   const pixel = (x: number, y: number, color: string) => {
@@ -877,182 +763,62 @@ export function drawPixelCharacter(
     }
   }
 
-  // Draw facial expression based on emotion
-  drawFaceExpression(ctx, pixelSize, emotion, isDefeated);
-
-  // Body/Torso - more detailed (moves with fighter animation)
-  let torsoOffsetX = 0;
-  let torsoOffsetY = 0;
-  if (hasAnimation && playerClass.name === 'Fighter') {
-    const swordOffsetX = Math.sin(animationProgress * 0.9) * 2.0;
-    const swordOffsetY = Math.sin(animationProgress * 0.9) * -2.5;
-    torsoOffsetX = swordOffsetX * 0.3;
-    torsoOffsetY = swordOffsetY * 0.2;
-  }
-  
+  // Body/Torso - more detailed
   // Cleric-specific: Make torso more visible with lighter color and highlights
   if (playerClass.name === 'Cleric') {
     const clericTorsoColor = '#a0522d'; // Sienna brown - lighter and more visible
     const clericTorsoSecondary = '#8b4513'; // Saddle brown
     const clericTorsoHighlight = '#cd853f'; // Peru - lighter highlight
-    rect(22 + torsoOffsetX, 28 + torsoOffsetY, 20, 24, clericTorsoColor);
+    rect(22, 28, 20, 24, clericTorsoColor);
     // Chest details with highlights
-    rect(28 + torsoOffsetX, 30 + torsoOffsetY, 8, 4, clericTorsoSecondary);
-    rect(26 + torsoOffsetX, 34 + torsoOffsetY, 12, 2, clericTorsoSecondary);
+    rect(28, 30, 8, 4, clericTorsoSecondary);
+    rect(26, 34, 12, 2, clericTorsoSecondary);
     // Add highlights for visibility
-    rect(24 + torsoOffsetX, 30 + torsoOffsetY, 4, 2, clericTorsoHighlight);
-    rect(36 + torsoOffsetX, 30 + torsoOffsetY, 4, 2, clericTorsoHighlight);
-    pixel(30 + torsoOffsetX, 32 + torsoOffsetY, clericTorsoHighlight);
-    pixel(34 + torsoOffsetX, 32 + torsoOffsetY, clericTorsoHighlight);
+    rect(24, 30, 4, 2, clericTorsoHighlight);
+    rect(36, 30, 4, 2, clericTorsoHighlight);
+    pixel(30, 32, clericTorsoHighlight);
+    pixel(34, 32, clericTorsoHighlight);
   } else if (playerClass.name === 'Bard') {
     // Bard: Red flamboyant wardrobe
-    rect(22 + torsoOffsetX, 28 + torsoOffsetY, 20, 24, '#dc2626'); // Red primary
+    rect(22, 28, 20, 24, '#dc2626'); // Red primary
     // Chest details with gold trim
-    rect(28 + torsoOffsetX, 30 + torsoOffsetY, 8, 4, '#991b1b'); // Darker red
-    rect(26 + torsoOffsetX, 34 + torsoOffsetY, 12, 2, '#991b1b');
+    rect(28, 30, 8, 4, '#991b1b'); // Darker red
+    rect(26, 34, 12, 2, '#991b1b');
     // Gold decorative trim
-    pixel(24 + torsoOffsetX, 30 + torsoOffsetY, '#fbbf24'); // Gold trim
-    pixel(40 + torsoOffsetX, 30 + torsoOffsetY, '#fbbf24');
-    pixel(24 + torsoOffsetX, 48 + torsoOffsetY, '#fbbf24');
-    pixel(40 + torsoOffsetX, 48 + torsoOffsetY, '#fbbf24');
+    pixel(24, 30, '#fbbf24'); // Gold trim
+    pixel(40, 30, '#fbbf24');
+    pixel(24, 48, '#fbbf24');
+    pixel(40, 48, '#fbbf24');
   } else {
-    rect(22 + torsoOffsetX, 28 + torsoOffsetY, 20, 24, colors.primary);
+    rect(22, 28, 20, 24, colors.primary);
     // Chest details
-    rect(28 + torsoOffsetX, 30 + torsoOffsetY, 8, 4, colors.secondary);
-    rect(26 + torsoOffsetX, 34 + torsoOffsetY, 12, 2, colors.secondary);
+    rect(28, 30, 8, 4, colors.secondary);
+    rect(26, 34, 12, 2, colors.secondary);
   }
   
-  // Shoulders (always drawn, move with fighter animation)
-  let shoulderLeftOffsetX = 0;
-  let shoulderLeftOffsetY = 0;
-  let shoulderRightOffsetX = 0;
-  let shoulderRightOffsetY = 0;
-  if (hasAnimation && playerClass.name === 'Fighter') {
-    const swordOffsetX = Math.sin(animationProgress * 0.9) * 2.0;
-    const swordOffsetY = Math.sin(animationProgress * 0.9) * -2.5;
-    shoulderLeftOffsetX = -swordOffsetX * 0.3;
-    shoulderLeftOffsetY = swordOffsetY * 0.2;
-    shoulderRightOffsetX = swordOffsetX * 0.4;
-    shoulderRightOffsetY = swordOffsetY * 0.3;
-  }
-  rect(20 + shoulderLeftOffsetX, 28 + shoulderLeftOffsetY, 4, 4, colors.skin);
-  rect(40 + shoulderRightOffsetX, 28 + shoulderRightOffsetY, 4, 4, colors.skin);
+  // Shoulders
+  rect(20, 28, 4, 4, colors.skin);
+  rect(40, 28, 4, 4, colors.skin);
   
-  // Arms - class-specific animations
+  // Arms - static
   if (playerClass.name === 'Bard') {
-    if (hasAnimation) {
-      // Bard: Rocking motion - whole guitar and arms rock back and forth like playing
-      const rockAngle = Math.sin(animationProgress * 1.5) * 0.15; // Rocking angle (radians)
-      const rockOffsetX = Math.sin(animationProgress * 1.5) * 2.0; // Horizontal rocking
-      const rockOffsetY = Math.cos(animationProgress * 1.5) * 1.5; // Vertical rocking
-      // Left arm holding guitar neck at far left side (rocks with guitar)
-      // Note: Right arm (strumming hand) is drawn after guitar in class-specific features section
-      rect(10 + Math.round(rockOffsetX), 24 + Math.round(rockOffsetY), 6, 20, colors.skin);
-    } else {
-      // Static: Left arm holding guitar neck
-      // Note: Right arm (strumming hand) is drawn after guitar in class-specific features section
-      rect(10, 24, 6, 20, colors.skin);
-    }
-  } else if (hasAnimation && playerClass.name === 'Ranger') {
-    // Ranger: Drawing bow - left arm holds bow steady, right arm pulls back
-    const drawProgress = (Math.sin(animationProgress) + 1) / 2; // 0 to 1
-    const pullBack = drawProgress * 4; // Pull back 0-4 pixels (more pronounced)
-    // Left arm holding bow (steady)
-    rect(16, 30, 6, 16, colors.skin);
-    // Right arm pulling back bowstring
-    rect(42 - pullBack, 30, 6, 16, colors.skin);
-  } else if (hasAnimation && playerClass.name === 'Wizard') {
-    // Wizard: Casting motion - hands move in arcane gesture
-    const castOffset = Math.sin(animationProgress * 1.5) * 3.0;
-    const castOffset2 = Math.sin(animationProgress * 1.5 + Math.PI / 2) * 2.5;
-    // Left arm (casting gesture)
-    rect(16, 30 + castOffset, 6, 16, colors.skin);
-    // Right arm (holding staff, slight movement)
-    rect(42, 30 + castOffset2, 6, 16, colors.skin);
-  } else if (hasAnimation && playerClass.name === 'Sorcerer') {
-    // Sorcerer: Magical gesture - hands channeling magic
-    const magicOffset = Math.sin(animationProgress * 2) * 3.0;
-    // Both arms channeling magic
-    rect(16, 30 + magicOffset, 6, 16, colors.skin);
-    rect(42, 30 - magicOffset, 6, 16, colors.skin);
-  } else if (hasAnimation && playerClass.name === 'Monk') {
-    // Monk: Meditative stance - breathing motion
-    const breathOffset = Math.sin(animationProgress * 0.8) * 2.0;
-    rect(16, 30 + breathOffset, 6, 16, colors.skin);
-    rect(42, 30 + breathOffset, 6, 16, colors.skin);
+    // Left arm holding guitar neck
+    // Note: Right arm (strumming hand) is drawn after guitar in class-specific features section
+    rect(10, 24, 6, 20, colors.skin);
   } else if (playerClass.name === 'Cleric') {
-    // Cleric: Holding scepter with both hands in center, raising it high above head
-    // When idle: animate raising and lowering
-    // When attacking/healing: keep scepter at highest position (casting pose)
-    let handRaise: number;
-    if (hasAnimation) {
-      // Idle animation: scepter raises and lowers
-      const raiseProgress = (Math.sin(animationProgress * 0.8) + 1) / 2; // 0 to 1
-      const scepterRaise = raiseProgress * -12; // Negative Y means up (raises from 0 to -12 pixels)
-      handRaise = scepterRaise * 0.8; // Hands move 80% of scepter movement (up to -9.6 pixels)
-    } else {
-      // Not idle (attacking/healing): scepter at highest position (casting)
-      handRaise = -12 * 0.8; // Maximum raise position (-9.6 pixels)
-    }
-    // Both hands positioned in center to hold scepter
+    // Cleric: Holding scepter with both hands in center
     // Left hand (slightly left of center)
-    rect(28, 30 + handRaise, 6, 16, colors.skin);
+    rect(28, 30, 6, 16, colors.skin);
     // Right hand (slightly right of center)
-    rect(30, 30 + handRaise, 6, 16, colors.skin);
-  } else if (hasAnimation && playerClass.name === 'Druid') {
-    // Druid: Nature connection - gentle sway
-    const natureSway = Math.sin(animationProgress * 0.7) * 2.5;
-    rect(16, 30 + natureSway, 6, 16, colors.skin);
-    rect(42, 30 - natureSway, 6, 16, colors.skin);
-  } else if (hasAnimation && playerClass.name === 'Fighter') {
-    // Fighter: Sword arm moves diagonally up and away, with body following the motion
-    const swordOffsetX = Math.sin(animationProgress * 0.9) * 2.0; // Horizontal movement
-    const swordOffsetY = Math.sin(animationProgress * 0.9) * -2.5; // Upward movement (negative Y)
-    // Body parts move together - torso and shoulders follow the sword arm motion
-    const bodyOffsetX = swordOffsetX * 0.3; // Torso moves slightly with arm
-    const bodyOffsetY = swordOffsetY * 0.2; // Torso moves slightly with arm
-    const leftArmOffsetX = -swordOffsetX * 0.4; // Left arm counterbalances
-    const leftArmOffsetY = swordOffsetY * 0.3; // Left arm moves slightly up
-    rect(16 + leftArmOffsetX, 30 + leftArmOffsetY, 6, 16, colors.skin); // Left arm counterbalances
-    rect(42 + swordOffsetX, 30 + swordOffsetY, 6, 16, colors.skin); // Right arm with sword moves diagonally
-  } else if (hasAnimation && playerClass.name === 'Paladin') {
-    // Paladin: Holding weapon with holy readiness
-    const holyReady = Math.sin(animationProgress * 1.0) * 1.8;
-    rect(16, 30 + holyReady, 6, 16, colors.skin);
-    rect(42, 30 + holyReady * 0.6, 6, 16, colors.skin);
+    rect(30, 30, 6, 16, colors.skin);
   } else if (playerClass.name === 'Rogue') {
     // Rogue: Crossed arms in X pattern with daggers
-    if (hasAnimation) {
-      // Animated: quick subtle movements
-      const daggerCheck = Math.sin(animationProgress * 1.8) * 2.0;
-      // Left arm crosses over to right side (X pattern)
-      rect(28, 30 + daggerCheck, 6, 16, colors.skin);
-      // Right arm crosses over to left side (X pattern)
-      rect(30, 30 - daggerCheck * 0.7, 6, 16, colors.skin);
-    } else {
-      // Static: crossed arms in X pattern
-      // Left arm crosses over to right side (X pattern)
-      rect(28, 30, 6, 16, colors.skin);
-      // Right arm crosses over to left side (X pattern)
-      rect(30, 30, 6, 16, colors.skin);
-    }
-  } else if (hasAnimation && playerClass.name === 'Barbarian') {
-    // Barbarian: Aggressive stance - ready to fight
-    const battleReady = Math.sin(animationProgress * 1.1) * 2.2;
-    rect(16, 30 + battleReady, 6, 16, colors.skin);
-    rect(42, 30 + battleReady, 6, 16, colors.skin);
-  } else if (hasAnimation && playerClass.name === 'Warlock') {
-    // Warlock: Channeling dark magic
-    const darkMagic = Math.sin(animationProgress * 1.6) * 2.5;
-    rect(16, 30 + darkMagic, 6, 16, colors.skin);
-    rect(42, 30 - darkMagic, 6, 16, colors.skin);
-  } else if (hasAnimation && playerClass.name === 'Artificer') {
-    // Artificer: Tinkering with tools
-    const tinkerOffset = Math.sin(animationProgress * 1.4) * 2.0;
-    rect(16, 30 + tinkerOffset, 6, 16, colors.skin);
-    rect(42, 30 - tinkerOffset * 0.8, 6, 16, colors.skin);
+    // Left arm crosses over to right side (X pattern)
+    rect(28, 30, 6, 16, colors.skin);
+    // Right arm crosses over to left side (X pattern)
+    rect(30, 30, 6, 16, colors.skin);
   } else {
-    // Default: Static arms (for any unhandled classes)
+    // Default: Static arms
     rect(16, 30, 6, 16, colors.skin);
     rect(42, 30, 6, 16, colors.skin);
   }
@@ -1070,10 +836,7 @@ export function drawPixelCharacter(
 
   // Legs - more detailed (class-specific for Cleric with robe)
   if (playerClass.name === 'Cleric') {
-    // Cleric: Robe swaying in the wind with visible legs underneath
-    const robeSway = hasAnimation ? Math.sin(animationProgress * 0.6) * 3.0 : 0; // More pronounced sway
-    const robeSwayLeft = robeSway * 0.8; // Left side sways less
-    const robeSwayRight = robeSway * 1.2; // Right side sways more
+    // Cleric: Robe with visible legs underneath
     
     // Draw legs first (visible underneath robe) - use much brighter color for visibility
     const legColor = '#f4d03f'; // Bright yellow-gold for high visibility
@@ -1104,13 +867,12 @@ export function drawPixelCharacter(
     const robeEndY = 64;
     const robeHeight = robeEndY - robeStartY;
     
-    // Main robe body - draw as solid sections that sway
+    // Main robe body - draw as solid sections
     // Left side of robe - wider and more visible
     for (let y = robeStartY; y < robeEndY; y++) {
       const progress = (y - robeStartY) / robeHeight; // 0 at top, 1 at bottom
-      const swayAtY = robeSwayLeft * progress; // More sway at bottom
       const width = 10 + Math.floor(progress * 6); // Wider at bottom (10-16 pixels)
-      const xPos = 20 + Math.round(swayAtY);
+      const xPos = 20;
       // Draw solid rectangle for each row
       rect(xPos, y, width, 1, robeColor);
       // Add highlight on left edge for depth
@@ -1122,9 +884,8 @@ export function drawPixelCharacter(
     // Right side of robe
     for (let y = robeStartY; y < robeEndY; y++) {
       const progress = (y - robeStartY) / robeHeight;
-      const swayAtY = robeSwayRight * progress;
       const width = 10 + Math.floor(progress * 6);
-      const xPos = 34 - Math.round(swayAtY);
+      const xPos = 34;
       rect(xPos, y, width, 1, robeColor);
       // Add highlight on right edge
       if (y % 3 === 0) {
@@ -1132,13 +893,12 @@ export function drawPixelCharacter(
       }
     }
     
-    // Center section of robe - connects left and right, sways less
+    // Center section of robe - connects left and right
     // Make this the main visible part
     for (let y = robeStartY; y < robeEndY; y++) {
       const progress = (y - robeStartY) / robeHeight;
-      const swayAtY = robeSway * 0.5 * progress;
       const width = 14 + Math.floor(progress * 4); // 14-18 pixels wide - wider center
-      const xPos = 25 + Math.round(swayAtY);
+      const xPos = 25;
       rect(xPos, y, width, 1, robeColor);
       // Add center highlight
       if (y % 4 === 0) {
@@ -1146,34 +906,27 @@ export function drawPixelCharacter(
       }
     }
     
-    // Robe hem - bottom edge that sways more dramatically (make it very visible)
-    const hemSway = robeSway * 1.5;
+    // Robe hem - bottom edge
     // Left hem - thicker and more visible
-    rect(18 + Math.round(hemSway * 0.8), 62, 12, 2, robeColor);
-    rect(18 + Math.round(hemSway * 0.8), 63, 12, 1, robeSecondary);
+    rect(18, 62, 12, 2, robeColor);
+    rect(18, 63, 12, 1, robeSecondary);
     // Right hem
-    rect(34 + Math.round(hemSway * 1.2), 62, 12, 2, robeColor);
-    rect(34 + Math.round(hemSway * 1.2), 63, 12, 1, robeSecondary);
+    rect(34, 62, 12, 2, robeColor);
+    rect(34, 63, 12, 1, robeSecondary);
     // Center hem
-    rect(26 + Math.round(hemSway * 0.6), 62, 12, 2, robeColor);
-    rect(26 + Math.round(hemSway * 0.6), 63, 12, 1, robeSecondary);
+    rect(26, 62, 12, 2, robeColor);
+    rect(26, 63, 12, 1, robeSecondary);
     
-    // Robe details - vertical folds/seams that move with sway (more visible)
+    // Robe details - vertical folds/seams
     for (let y = robeStartY + 2; y < robeEndY - 2; y += 3) {
-      const progress = (y - robeStartY) / robeHeight;
-      const swayAtY = robeSway * 0.5 * progress;
-      pixel(28 + Math.round(swayAtY), y, robeSecondary);
-      pixel(30 + Math.round(swayAtY), y, robeSecondary);
+      pixel(28, y, robeSecondary);
+      pixel(30, y, robeSecondary);
     }
     for (let y = robeStartY + 3; y < robeEndY - 3; y += 3) {
-      const progress = (y - robeStartY) / robeHeight;
-      const swayAtY = robeSwayRight * progress;
-      pixel(38 + Math.round(swayAtY), y, robeSecondary);
+      pixel(38, y, robeSecondary);
     }
     for (let y = robeStartY + 3; y < robeEndY - 3; y += 3) {
-      const progress = (y - robeStartY) / robeHeight;
-      const swayAtY = robeSwayLeft * progress;
-      pixel(22 + Math.round(swayAtY), y, robeSecondary);
+      pixel(22, y, robeSecondary);
     }
     
     // Robe opening at bottom (shows legs/feet) - wider gap in center
@@ -1195,10 +948,10 @@ export function drawPixelCharacter(
   // Class-specific features - more detailed
   if (playerClass.name === 'Wizard') {
     // Staff - moves with right arm
-    const castOffset2 = hasAnimation ? Math.sin(animationProgress * 1.5 + Math.PI / 2) * 2.5 : 0;
+    const castOffset2 = 0;
     rect(44, 20 + castOffset2, 2, 36, '#8b5cf6');
     // Staff top/crystal (glows when casting)
-    const glowIntensity = hasAnimation ? (Math.sin(animationProgress * 2) + 1) / 2 : 0.5;
+    const glowIntensity = 0.5;
     
     // Determine casting color using centralized utility
     const isCasting = shouldCast;
@@ -1323,8 +1076,8 @@ export function drawPixelCharacter(
       pixel(43, 17 + castOffset2, colors.accent);
       pixel(44, 17 + castOffset2, colors.accent);
       pixel(45, 17 + castOffset2, colors.accent);
-      // Magical glow effect (only during idle animation)
-      if (hasAnimation && glowIntensity > 0.7) {
+      // Magical glow effect
+      if (glowIntensity > 0.7) {
         pixel(43, 16 + castOffset2, '#ffffff');
         pixel(45, 16 + castOffset2, '#ffffff');
       }
@@ -1335,8 +1088,8 @@ export function drawPixelCharacter(
   } else if (playerClass.name === 'Fighter') {
     // Sword - moves with arm (diagonally up and away), longer and at 45-degree angle
     // Calculate offsets to match the arm position exactly
-    const swordOffsetX = hasAnimation ? Math.sin(animationProgress * 0.9) * 2.0 : 0;
-    const swordOffsetY = hasAnimation ? Math.sin(animationProgress * 0.9) * -2.5 : 0;
+    const swordOffsetX = 0;
+    const swordOffsetY = 0;
     
     // Sword base position (hand position) - must match the bottom of the right arm
     // Right arm is at: x=42+swordOffsetX, y=30+swordOffsetY, width=6, height=16
@@ -1401,7 +1154,7 @@ export function drawPixelCharacter(
     pixel(46 + swordOffsetX, 44 + swordOffsetY, '#dc2626');
   } else if (playerClass.name === 'Paladin') {
     // Paladin: Holy sword with glowing effect - moves with arm
-    const holyReady = hasAnimation ? Math.sin(animationProgress * 1.0) * 1.8 : 0;
+    const holyReady = 0;
     const holyOffsetY = holyReady * 0.6;
     // Sword blade
     rect(46, 24 + holyOffsetY, 2, 24, '#cbd5e1');
@@ -1423,8 +1176,8 @@ export function drawPixelCharacter(
     pixel(46, 40 + holyOffsetY, '#ffffff');
   } else if (playerClass.name === 'Rogue') {
     // Crossed daggers in X pattern - moves with crossed arms
-    const daggerCheck = hasAnimation ? Math.sin(animationProgress * 1.8) * 2.0 : 0;
-    const daggerOffset2 = hasAnimation ? daggerCheck * -0.7 : 0;
+    const daggerCheck = 0;
+    const daggerOffset2 = 0;
     // Left dagger (in left hand, crossed to right side, pointing diagonally left/up)
     // Left arm ends at y=46 (30 + 16), hand is at bottom of arm
     const leftHandY = 30 + daggerCheck + 16; // End of left arm
@@ -1444,44 +1197,18 @@ export function drawPixelCharacter(
     pixel(rightHandX + 4, rightHandY - 12, '#fbbf24');
     pixel(rightHandX + 5, rightHandY - 12, '#fbbf24');
   } else if (playerClass.name === 'Ranger') {
-    // Bow - animated based on draw
-    if (hasAnimation) {
-      const drawProgress = (Math.sin(animationProgress) + 1) / 2; // 0 to 1
-      const pullBack = drawProgress * 4; // More pronounced pull back
-      // Bow body (moves slightly as arm pulls)
-      rect(44 - pullBack * 0.3, 30, 4, 2, '#78350f');
-      rect(46 - pullBack * 0.3, 28, 2, 6, '#78350f');
-      // Bowstring (pulled back)
-      pixel(45 - pullBack, 29, '#ffffff');
-      pixel(45 - pullBack, 33, '#ffffff');
-      // Arrow (pulled back with string)
-      rect(48 - pullBack, 30, 1, 4, '#1c1917');
-      pixel(48 - pullBack, 29, '#fbbf24'); // Arrowhead
-    } else {
-      // Static bow
-      rect(44, 30, 4, 2, '#78350f');
-      rect(46, 28, 2, 6, '#78350f');
-      pixel(45, 29, '#ffffff');
-      pixel(45, 33, '#ffffff');
-      rect(48, 30, 1, 4, '#1c1917');
-      pixel(48, 29, '#fbbf24');
-    }
+    // Bow - static
+    rect(44, 30, 4, 2, '#78350f');
+    rect(46, 28, 2, 6, '#78350f');
+    pixel(45, 29, '#ffffff');
+    pixel(45, 33, '#ffffff');
+    rect(48, 30, 1, 4, '#1c1917');
+    pixel(48, 29, '#fbbf24');
   } else if (playerClass.name === 'Cleric') {
     // Large scepter held with both hands in center, raised high above head
-    // When idle: animate raising and lowering
-    // When attacking/healing: keep scepter at highest position (casting pose)
-    let scepterRaise: number;
-    let handRaise: number;
-    if (hasAnimation) {
-      // Idle animation: scepter raises and lowers
-      const raiseProgress = (Math.sin(animationProgress * 0.8) + 1) / 2; // 0 to 1
-      scepterRaise = raiseProgress * -14; // Negative Y means up (raises from 0 to -14 pixels, high above head)
-      handRaise = scepterRaise * 0.8; // Match the hand movement from arm animation
-    } else {
-      // Not idle (attacking/healing): scepter at highest position (casting)
-      scepterRaise = -14; // Maximum raise position
-      handRaise = scepterRaise * 0.8; // Hands at maximum raise position (-11.2 pixels)
-    }
+    // Scepter at highest position (casting)
+    const scepterRaise = -14; // Maximum raise position
+    const handRaise = scepterRaise * 0.8; // Hands at maximum raise position (-11.2 pixels)
     
     // Scepter handle (held at center of body, extends upward)
     // Base of scepter is at hand position (around y=46, which is bottom of arms at y=30+16)
@@ -1509,8 +1236,8 @@ export function drawPixelCharacter(
     // Brilliant white light emanating from top of scepter
     // When idle: pulse the light
     // When attacking/healing: light at maximum intensity (casting) with large radius
-    const isCasting = !hasAnimation; // Casting when not idle
-    const lightIntensity = hasAnimation ? (Math.sin(animationProgress * 2) + 1) / 2 : 1.0;
+    const isCasting = shouldCast; // Casting when shouldCast is true
+    const lightIntensity = 1.0;
     
     // Core bright white light (always visible, larger when casting)
     pixel(scepterX + 1, topY - 6, '#ffffff');
@@ -1609,7 +1336,7 @@ export function drawPixelCharacter(
     // Additional light particles around the top (rotating)
     const particleCount = isCasting ? 12 : 6; // More particles when casting
     for (let i = 0; i < particleCount; i++) {
-      const particleAngle = (i / particleCount) * Math.PI * 2 + (hasAnimation ? animationProgress * 0.3 : 0);
+      const particleAngle = (i / particleCount) * Math.PI * 2;
       const particleDist = isCasting ? (4 + (i % 4) * 2) : (2 + Math.floor(lightIntensity * 3));
       const particleX = Math.round(scepterX + 2 + Math.cos(particleAngle) * particleDist);
       const particleY = Math.round(topY - 6 + Math.sin(particleAngle) * particleDist);
@@ -1634,7 +1361,7 @@ export function drawPixelCharacter(
     }
   } else if (playerClass.name === 'Barbarian') {
     // Axe - moves with arms
-    const battleReady = hasAnimation ? Math.sin(animationProgress * 1.1) * 2.2 : 0;
+    const battleReady = 0;
     // Axe handle
     rect(44, 24 + battleReady, 4, 20, '#1c1917');
     rect(46, 24 + battleReady, 4, 4, colors.accent);
@@ -1647,9 +1374,9 @@ export function drawPixelCharacter(
   } else if (playerClass.name === 'Bard') {
     // Guitar held across body in playing position - lower on body, not covering face
     // Rocking motion for playing animation
-    const rockAngle = hasAnimation ? Math.sin(animationProgress * 1.5) * 0.15 : 0;
-    const rockOffsetX = hasAnimation ? Math.sin(animationProgress * 1.5) * 2.0 : 0;
-    const rockOffsetY = hasAnimation ? Math.cos(animationProgress * 1.5) * 1.5 : 0;
+    const rockAngle = 0;
+    const rockOffsetX = 0;
+    const rockOffsetY = 0;
     
     // Guitar neck (extends from far left side to body) - drawn first so body can overlap
     // Neck extends from left side (x=8) diagonally to body, rocks with animation
@@ -1685,25 +1412,14 @@ export function drawPixelCharacter(
     pixel(bodyX + 24, bodyY + 10, '#fbbf24');
     
     // Strumming hand drawn after guitar so it appears in front
-    // Right hand plucking strings over guitar body (rocks with guitar)
-    if (hasAnimation) {
-      const rockOffsetX = Math.sin(animationProgress * 1.5) * 2.0;
-      const rockOffsetY = Math.cos(animationProgress * 1.5) * 1.5;
-      // Hand positioned over strings, in front of guitar
-      rect(30 + Math.round(rockOffsetX), 34 + Math.round(rockOffsetY), 6, 14, colors.skin);
-      // Fingers plucking strings
-      pixel(32 + Math.round(rockOffsetX), 36 + Math.round(rockOffsetY), colors.skin);
-      pixel(33 + Math.round(rockOffsetX), 37 + Math.round(rockOffsetY), colors.skin);
-      pixel(34 + Math.round(rockOffsetX), 38 + Math.round(rockOffsetY), colors.skin);
-    } else {
-      rect(30, 34, 6, 14, colors.skin);
-      pixel(32, 36, colors.skin);
-      pixel(33, 37, colors.skin);
-      pixel(34, 38, colors.skin);
-    }
+    // Right hand plucking strings over guitar body
+    rect(30, 34, 6, 14, colors.skin);
+    pixel(32, 36, colors.skin);
+    pixel(33, 37, colors.skin);
+    pixel(34, 38, colors.skin);
   } else if (playerClass.name === 'Sorcerer') {
     // Magical orb or wand - moves with arms
-    const magicOffset = hasAnimation ? Math.sin(animationProgress * 2) * 3.0 : 0;
+    const magicOffset = 0;
     const magicOffset2 = -magicOffset; // Opposite direction
     // Left hand orb
     rect(44, 24 + magicOffset, 4, 4, colors.accent);
@@ -1717,7 +1433,7 @@ export function drawPixelCharacter(
     pixel(47, 35 + magicOffset2, colors.accent);
   } else if (playerClass.name === 'Warlock') {
     // Eldritch tome or dark staff - moves with arms
-    const darkMagic = hasAnimation ? Math.sin(animationProgress * 1.6) * 2.5 : 0;
+    const darkMagic = 0;
     const darkMagic2 = -darkMagic; // Opposite direction
     // Left hand tome
     rect(42, 26 + darkMagic, 6, 8, '#1c1917');
@@ -1730,7 +1446,7 @@ export function drawPixelCharacter(
     pixel(48, 34 + darkMagic2, colors.accent);
   } else if (playerClass.name === 'Monk') {
     // Unarmed or simple staff - moves with arms
-    const breathOffset = hasAnimation ? Math.sin(animationProgress * 0.8) * 2.0 : 0;
+    const breathOffset = 0;
     rect(44, 28 + breathOffset, 2, 16, '#78350f');
     // Staff details
     rect(43, 28 + breathOffset, 4, 2, colors.accent);
@@ -1740,7 +1456,7 @@ export function drawPixelCharacter(
     pixel(46, 40 + breathOffset, colors.accent);
   } else if (playerClass.name === 'Druid') {
     // Staff with nature elements - moves with arms
-    const natureSway = hasAnimation ? Math.sin(animationProgress * 0.7) * 2.5 : 0;
+    const natureSway = 0;
     const natureSway2 = -natureSway; // Opposite direction for right arm
     // Staff (held in right hand, moves opposite to left arm)
     rect(44, 20 + natureSway2, 2, 28, '#78350f');
@@ -1755,7 +1471,7 @@ export function drawPixelCharacter(
     pixel(44, 35 + natureSway2, colors.accent);
   } else if (playerClass.name === 'Artificer') {
     // Mechanical tool or crossbow - moves with arms
-    const tinkerOffset = hasAnimation ? Math.sin(animationProgress * 1.4) * 2.0 : 0;
+    const tinkerOffset = 0;
     const tinkerOffset2 = tinkerOffset * -0.8; // Opposite direction for right arm
     // Crossbow (held in right hand)
     rect(42, 28 + tinkerOffset2, 8, 6, colors.secondary);
@@ -1951,7 +1667,7 @@ export function drawPixelCharacter(
     const centerX = baseX + 6;
     const centerY = 34;
     for (let i = 0; i < particleCount; i++) {
-      const angle = (i / particleCount) * Math.PI * 2 + (hasAnimation ? animationProgress * 0.5 : 0);
+      const angle = (i / particleCount) * Math.PI * 2;
       const dist = 5 + (i % 3);
       const particleX = Math.round(centerX + Math.cos(angle) * dist);
       const particleY = Math.round(centerY + Math.sin(angle) * dist);
@@ -2004,8 +1720,6 @@ export function drawMonsterPixelArt(
   colors: ReturnType<typeof getMonsterColors>,
   hpPercent: number,
   isDefeated: boolean,
-  emotion: CharacterEmotion, // Not used for monsters, kept for compatibility
-  animationFrame: number = 0,
   shouldCast: boolean = false,
   isHealing: boolean = false,
   isAttacking: boolean = false
@@ -2139,15 +1853,11 @@ export function drawMonsterPixelArt(
     pixel(27, 47, colors.accent);
   } else if (monsterName === 'Dragon') {
     // Dragon: Actual dragon - quadrupedal, long neck, wings, tail - uses full 64x64 canvas
-    // Calculate animation progress for idle animation (0 to 1, cycles)
-    const animationProgress = (animationFrame / 60) * Math.PI * 2; // 60 frames per cycle
-    const isIdle = !shouldCast && !isDefeated;
-    
-    // Idle animation offsets
-    const headOffsetX = isIdle ? Math.sin(animationProgress * 0.8) * 2 : 0; // Head sways side to side
-    const headOffsetY = isIdle ? Math.sin(animationProgress * 0.6) * 1.5 : 0; // Head bobs slightly
-    const tailOffsetX = isIdle ? Math.sin(animationProgress * 0.7 + Math.PI) * 3 : 0; // Tail sways opposite to head
-    const tailOffsetY = isIdle ? Math.sin(animationProgress * 0.5 + Math.PI) * 2 : 0; // Tail curves
+    // Static offsets (no animation)
+    const headOffsetX = 0;
+    const headOffsetY = 0;
+    const tailOffsetX = 0;
+    const tailOffsetY = 0;
     
     // Head - reptilian, at end of long neck (more detailed) - with idle animation
     const headX = 8 + Math.round(headOffsetX);
@@ -2186,27 +1896,26 @@ export function drawMonsterPixelArt(
     pixel(headX + 1, headY + 5, '#fbbf24'); // Eye shine
     pixel(headX + 13, headY + 5, '#fbbf24');
     
-    // Green glow effect for healing on neck and chest - pulsing effect
+    // Green glow effect for healing on neck and chest
     if (isHealing) {
-      // Calculate pulsing intensity (0.4 to 1.0)
-      const pulse = Math.sin(animationProgress * 6) * 0.3 + 0.7;
-      const pulseIntensity = pulse;
+      // Static glow intensity
+      const pulseIntensity = 0.7;
       
-      // Neck glow - pulsing
-      ctx.fillStyle = `rgba(34, 197, 94, ${0.7 * pulseIntensity})`; // Green with pulsing transparency
+      // Neck glow
+      ctx.fillStyle = `rgba(34, 197, 94, ${0.7 * pulseIntensity})`; // Green
       ctx.fillRect(12 * pixelSize, 16 * pixelSize, 8 * pixelSize, 12 * pixelSize);
       
-      // Chest/body glow - pulsing, covering more of the body
+      // Chest/body glow, covering more of the body
       ctx.fillStyle = `rgba(34, 197, 94, ${0.6 * pulseIntensity})`;
       ctx.fillRect(16 * pixelSize, 28 * pixelSize, 32 * pixelSize, 20 * pixelSize); // Full body width
       
-      // Brighter pulsing core on neck
-      const neckPulse = Math.sin(animationProgress * 8) * 0.2 + 0.8;
+      // Brighter core on neck
+      const neckPulse = 0.8;
       ctx.fillStyle = `rgba(74, 222, 128, ${0.5 * neckPulse})`; // Brighter green
       ctx.fillRect(14 * pixelSize, 18 * pixelSize, 4 * pixelSize, 8 * pixelSize);
       
-      // Brighter pulsing core on chest
-      const chestPulse = Math.sin(animationProgress * 8 + Math.PI / 2) * 0.2 + 0.8;
+      // Brighter core on chest
+      const chestPulse = 0.8;
       ctx.fillStyle = `rgba(74, 222, 128, ${0.4 * chestPulse})`; // Brighter green
       ctx.fillRect(20 * pixelSize, 30 * pixelSize, 24 * pixelSize, 12 * pixelSize);
     }
@@ -2284,8 +1993,8 @@ export function drawMonsterPixelArt(
       // Start from front of mouth (left side of head)
       const fireStartX = headX; // Start from front of mouth
       const fireStartY = headY + 12; // Start from lower part of mouth
-      // Use animation frame for deterministic but dynamic fire effect
-      const fireTime = (animationFrame % 10) / 10; // Cycle every 10 frames
+      // Static fire effect
+      const fireTime = 0;
       // Core fire - bright orange/red, bigger and much longer
       for (let i = 0; i < 50; i++) {
         // Fire goes left (towards opponent) and slightly down
@@ -2306,8 +2015,8 @@ export function drawMonsterPixelArt(
       // Additional fire particles (deterministic based on frame) - more particles, longer range
       for (let i = 0; i < 30; i++) {
         // Use a simple hash function for deterministic "random" values
-        const hash = (i * 7 + animationFrame) % 100;
-        const hash2 = (i * 11 + animationFrame * 3) % 100;
+        const hash = (i * 7) % 100;
+        const hash2 = (i * 11) % 100;
         const particleX = fireStartX - (hash / 100) * 100; // Much longer range, going left
         const particleY = fireStartY + (hash2 / 100) * 50 + ((hash2 / 100) - 0.5) * 20; // More spread down
         const particleBrightness = 150 + (hash % 50);
@@ -3547,15 +3256,11 @@ export function drawMonsterPixelArt(
     rect(32, 52, 8, 12, colors.primary);
   } else if (monsterName === 'White Dragon') {
     // White Dragon: Ice dragon - same form as regular dragon but white/blue - uses full 64x64 canvas (2x detail)
-    // Calculate animation progress for idle animation (0 to 1, cycles)
-    const animationProgress = (animationFrame / 60) * Math.PI * 2; // 60 frames per cycle
-    const isIdle = !shouldCast && !isDefeated;
-    
-    // Idle animation offsets
-    const headOffsetX = isIdle ? Math.sin(animationProgress * 0.8) * 2 : 0; // Head sways side to side
-    const headOffsetY = isIdle ? Math.sin(animationProgress * 0.6) * 1.5 : 0; // Head bobs slightly
-    const tailOffsetX = isIdle ? Math.sin(animationProgress * 0.7 + Math.PI) * 3 : 0; // Tail sways opposite to head
-    const tailOffsetY = isIdle ? Math.sin(animationProgress * 0.5 + Math.PI) * 2 : 0; // Tail curves
+    // Static offsets (no animation)
+    const headOffsetX = 0;
+    const headOffsetY = 0;
+    const tailOffsetX = 0;
+    const tailOffsetY = 0;
     
     // Head - reptilian, at end of long neck (more detailed) - with idle animation
     const headX = 8 + Math.round(headOffsetX);
@@ -3594,27 +3299,26 @@ export function drawMonsterPixelArt(
     pixel(headX + 1, headY + 5, '#fbbf24'); // Eye shine
     pixel(headX + 13, headY + 5, '#fbbf24');
     
-    // Green glow effect for healing on neck and chest - pulsing effect
+    // Green glow effect for healing on neck and chest
     if (isHealing) {
-      // Calculate pulsing intensity (0.4 to 1.0)
-      const pulse = Math.sin(animationProgress * 6) * 0.3 + 0.7;
-      const pulseIntensity = pulse;
+      // Static glow intensity
+      const pulseIntensity = 0.7;
       
-      // Neck glow - pulsing
-      ctx.fillStyle = `rgba(34, 197, 94, ${0.7 * pulseIntensity})`; // Green with pulsing transparency
+      // Neck glow
+      ctx.fillStyle = `rgba(34, 197, 94, ${0.7 * pulseIntensity})`; // Green
       ctx.fillRect(12 * pixelSize, 16 * pixelSize, 8 * pixelSize, 12 * pixelSize);
       
-      // Chest/body glow - pulsing, covering more of the body
+      // Chest/body glow, covering more of the body
       ctx.fillStyle = `rgba(34, 197, 94, ${0.6 * pulseIntensity})`;
       ctx.fillRect(16 * pixelSize, 28 * pixelSize, 32 * pixelSize, 20 * pixelSize); // Full body width
       
-      // Brighter pulsing core on neck
-      const neckPulse = Math.sin(animationProgress * 8) * 0.2 + 0.8;
+      // Brighter core on neck
+      const neckPulse = 0.8;
       ctx.fillStyle = `rgba(74, 222, 128, ${0.5 * neckPulse})`; // Brighter green
       ctx.fillRect(14 * pixelSize, 18 * pixelSize, 4 * pixelSize, 8 * pixelSize);
       
-      // Brighter pulsing core on chest
-      const chestPulse = Math.sin(animationProgress * 8 + Math.PI / 2) * 0.2 + 0.8;
+      // Brighter core on chest
+      const chestPulse = 0.8;
       ctx.fillStyle = `rgba(74, 222, 128, ${0.4 * chestPulse})`; // Brighter green
       ctx.fillRect(20 * pixelSize, 30 * pixelSize, 24 * pixelSize, 12 * pixelSize);
     }
@@ -3692,8 +3396,8 @@ export function drawMonsterPixelArt(
       // Start from front of mouth (left side of head)
       const iceStartX = headX; // Start from front of mouth
       const iceStartY = headY + 12; // Start from lower part of mouth
-      // Use animation frame for deterministic but dynamic ice effect
-      const iceTime = (animationFrame % 10) / 10; // Cycle every 10 frames
+      // Static ice effect
+      const iceTime = 0;
       // Core ice - bright blue/white, bigger and much longer
       for (let i = 0; i < 50; i++) {
         // Ice goes left (towards opponent) and slightly down
@@ -3714,8 +3418,8 @@ export function drawMonsterPixelArt(
       // Additional ice particles (deterministic based on frame) - more particles, longer range
       for (let i = 0; i < 30; i++) {
         // Use a simple hash function for deterministic "random" values
-        const hash = (i * 7 + animationFrame) % 100;
-        const hash2 = (i * 11 + animationFrame * 3) % 100;
+        const hash = (i * 7) % 100;
+        const hash2 = (i * 11) % 100;
         const particleX = iceStartX - (hash / 100) * 100; // Much longer range, going left
         const particleY = iceStartY + (hash2 / 100) * 50 + ((hash2 / 100) - 0.5) * 20; // More spread down
         const particleBrightness = 200 + (hash % 30);

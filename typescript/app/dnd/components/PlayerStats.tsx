@@ -1,11 +1,10 @@
 'use client';
 
 import { useRef, useEffect, memo } from 'react';
-import { DnDClass, CharacterEmotion } from '../types';
+import { DnDClass } from '../types';
 import { PixelCharacter } from './PixelCharacter';
 import { Sparkles } from './Sparkles';
 import { Confetti } from './Confetti';
-import { EmotionTestControls } from './EmotionTestControls';
 import { applyAnimationClass } from '../utils/animations';
 
 // PlayerStats component to eliminate duplicate rendering code
@@ -34,16 +33,12 @@ interface PlayerStatsProps {
   isDefeated: boolean;
   isVictor: boolean;
   confettiTrigger: number;
-  emotion?: CharacterEmotion; // Optional manual emotion override
   onShakeComplete: () => void;
   onSparkleComplete: () => void;
   onMissComplete: () => void;
   onHitComplete: () => void;
   onSurpriseComplete: () => void;
   onCastComplete: () => void;
-  // Optional emotion test controls (for test page)
-  showEmotionControls?: boolean;
-  onEmotionChange?: (emotion: CharacterEmotion | null) => void;
   // Optional additional test buttons (for test page)
   testButtons?: Array<{ label: string; onClick: () => void; className?: string }>;
   // If true, this is an opponent (AI-controlled) and buttons should be hidden
@@ -77,15 +72,12 @@ function PlayerStatsComponent({
   isDefeated,
   isVictor,
   confettiTrigger,
-  emotion,
   onShakeComplete,
   onSparkleComplete,
   onMissComplete,
   onHitComplete,
   onSurpriseComplete,
   onCastComplete,
-  showEmotionControls = false,
-  onEmotionChange,
   testButtons = [],
   isOpponent = false,
   allowAllTurns = false // When true, buttons are enabled regardless of turn (for test mode)
@@ -99,7 +91,6 @@ function PlayerStatsComponent({
 
   // Apply shake animation
   // NOTE: Shake animation should still play even when surprise is active (for visual feedback)
-  // The emotion logic will handle showing surprised instead of hurt
   useEffect(() => {
     if (animationRef.current && shouldShake) {
       // Always set the intensity - use provided intensity or default to 1 for minimum shake
@@ -127,12 +118,11 @@ function PlayerStatsComponent({
   }, [shouldShake, shakeTrigger, shakeIntensity, playerClass.maxHitPoints, onShakeComplete]);
 
   // Apply sparkle animation (timeout-based)
-  // Keep the sparkle effect active for longer to ensure the happy emotion persists
   useEffect(() => {
     if (shouldSparkle && sparkleTrigger > 0) {
       const timer = setTimeout(() => {
         onSparkleComplete();
-      }, 1500); // Extended from 800ms to 1500ms to match sparkle animation + emotion display
+      }, 1500); // Extended from 800ms to 1500ms
       return () => clearTimeout(timer);
     }
   }, [shouldSparkle, sparkleTrigger, onSparkleComplete]);
@@ -150,12 +140,12 @@ function PlayerStatsComponent({
     return cleanup;
   }, [shouldMiss, missTrigger, onMissComplete]);
 
-  // Apply hit animation (timeout-based - show triumphant expression)
+  // Apply hit animation (timeout-based)
   useEffect(() => {
     if (shouldHit && hitTrigger > 0) {
       const timer = setTimeout(() => {
         onHitComplete();
-      }, 1000); // Show triumphant expression for 1 second
+      }, 1000);
       return () => clearTimeout(timer);
     }
   }, [shouldHit, hitTrigger, onHitComplete]);
@@ -214,7 +204,6 @@ function PlayerStatsComponent({
           shouldMiss={shouldMiss}
           shouldHit={shouldHit}
           shouldCast={shouldCast}
-          emotion={emotion}
         />
       </div>
       
@@ -339,17 +328,6 @@ function PlayerStatsComponent({
         {isOpponent && (
           <div className="mt-2 text-center">
             <div className="text-amber-300 text-sm italic">🤖 Auto-playing opponent</div>
-          </div>
-        )}
-        
-        {/* Emotion Test Controls (only shown when enabled) */}
-        {showEmotionControls && onEmotionChange && (
-          <div className="mt-4 pt-4 border-t border-amber-800">
-            <EmotionTestControls
-              characterName={characterName}
-              currentEmotion={emotion || null}
-              onEmotionChange={onEmotionChange}
-            />
           </div>
         )}
       </div>
