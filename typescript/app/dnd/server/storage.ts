@@ -32,12 +32,6 @@ export async function saveMonsterBundle(bundle: MonsterBundle): Promise<string> 
   await fs.writeFile(join(monsterDir, '256.png'), bundle.images.png256);
   await fs.writeFile(join(monsterDir, '512.png'), bundle.images.png512);
 
-  // Save part images if provided
-  if (bundle.images.partsPngs) {
-    for (const [partName, buffer] of Object.entries(bundle.images.partsPngs)) {
-      await fs.writeFile(join(monsterDir, `${partName}.png`), buffer);
-    }
-  }
 
   // Save metadata
   const metadata = {
@@ -103,20 +97,6 @@ export async function loadMonsterBundle(monsterId: string): Promise<MonsterBundl
       await fs.writeFile(join(monsterDir, '280x200.png'), png280x200);
     }
 
-    // Load part images if they exist
-    const partsPngs: Record<string, Buffer> = {};
-    try {
-      const files = await fs.readdir(monsterDir);
-      for (const file of files) {
-        if (file.endsWith('.png') && !['128.png', '200.png', '280x200.png', '256.png', '512.png'].includes(file)) {
-          const partName = file.replace('.png', '');
-          partsPngs[partName] = await fs.readFile(join(monsterDir, file));
-        }
-      }
-    } catch (error) {
-      // Parts may not exist, that's okay
-    }
-
     return {
       monsterId: metadata.monsterId,
       klass: metadata.klass,
@@ -131,7 +111,6 @@ export async function loadMonsterBundle(monsterId: string): Promise<MonsterBundl
         png280x200,
         png256,
         png512,
-        partsPngs: Object.keys(partsPngs).length > 0 ? partsPngs : undefined,
       },
     };
   } catch (error) {

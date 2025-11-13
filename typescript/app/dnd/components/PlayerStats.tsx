@@ -2,7 +2,6 @@
 
 import { useRef, useEffect, memo } from 'react';
 import { DnDClass } from '../types';
-import { PixelCharacter } from './PixelCharacter';
 import { Sparkles } from './Sparkles';
 import { Confetti } from './Confetti';
 import { applyAnimationClass } from '../utils/animations';
@@ -190,22 +189,6 @@ function PlayerStatsComponent({
           count={sparkleIntensity > 0 ? Math.max(1, Math.ceil(sparkleIntensity * 0.6)) : 12}
         />
       )}
-      
-      {/* Pixel Art Character */}
-      <div className="mb-4 flex justify-center">
-        <PixelCharacter 
-          playerClass={playerClass} 
-          size={128}
-          isActive={isActive}
-          isDefeated={isDefeated}
-          isVictor={isVictor}
-          shouldShake={shouldShake}
-          shouldSparkle={shouldSparkle}
-          shouldMiss={shouldMiss}
-          shouldHit={shouldHit}
-          shouldCast={shouldCast}
-        />
-      </div>
       
       <div className="text-center mb-2">
         <h3 className="text-2xl font-bold mb-1 text-amber-100" style={{ fontFamily: 'serif' }}>

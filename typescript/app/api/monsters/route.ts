@@ -3,7 +3,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { pixelize } from '@/app/dnd/server/pixelize';
-import { autoRig } from '@/app/dnd/server/autoRig';
 import { saveMonsterBundle, loadMonsterBundle } from '@/app/dnd/server/storage';
 import { downloadImage, ensure16x9AspectRatio } from '@/app/dnd/server/imageGeneration';
 import { removeBackground, ensureTransparentBackground } from '@/app/dnd/server/backgroundRemoval';
@@ -99,24 +98,29 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2) Pixelize (280x200 for card display, 256 for rigging)
+    // 2) Pixelize (280x200 for card display, 256 for reference)
           const { png128, png200, png280x200, png256, png512, palette } = await pixelize(refPng, {
             base: 256,
             colors: 32, // Increased from 16 to 32 for better color detail
           });
 
-    // 3) Auto-rig (returns rig.json + per-part PNGs)
-    const { rig, partsPngs } = await autoRig(png256);
-
-    // Add metadata to rig (including animation config if provided)
-    rig.meta = {
-      ...rig.meta,
-      monsterId,
-      class: klass,
-      seed,
-      animationConfig: animationConfig || undefined,
-      // Override weaponPart from animationConfig if provided
-      weaponPart: animationConfig?.weaponPart || rig.meta?.weaponPart,
+    // 3) Create minimal rig metadata (no part extraction needed)
+    const rig = {
+      meta: {
+        imageW: 256,
+        imageH: 256,
+        monsterId,
+        class: klass,
+        seed,
+        animationConfig: animationConfig || undefined,
+        weaponPart: animationConfig?.weaponPart || undefined,
+      },
+      bones: [],
+      slots: [],
+      parts: {},
+      expressions: {
+        neutral: {},
+      },
     };
 
     // 4) Persist & return id
@@ -141,7 +145,6 @@ export async function POST(req: NextRequest) {
         png280x200,
         png256,
         png512,
-        partsPngs,
       },
     };
 

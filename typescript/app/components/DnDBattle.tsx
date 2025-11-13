@@ -162,6 +162,68 @@ export default function DnDBattle() {
     }
   }, []);
 
+  // Helper to find associated monster for a class/monster type
+  const findAssociatedMonster = useCallback((className: string): (DnDClass & { monsterId: string; imageUrl: string }) | null => {
+    // Find the most recently created monster associated with this class/monster type
+    const associated = createdMonsters
+      .filter(m => m.name === className)
+      .sort((a, b) => {
+        // Sort by monsterId (UUIDs) - most recent first (assuming newer UUIDs are later in sort)
+        return b.monsterId.localeCompare(a.monsterId);
+      });
+    return associated.length > 0 ? associated[0] : null;
+  }, [createdMonsters]);
+
+  // Update monster IDs when createdMonsters loads or changes, if players already have classes selected
+  useEffect(() => {
+    if (player1Class && !player1MonsterId) {
+      const associatedMonster = findAssociatedMonster(player1Class.name);
+      if (associatedMonster) {
+        setPlayer1MonsterId(associatedMonster.monsterId);
+      }
+    }
+    if (player2Class && !player2MonsterId) {
+      const associatedMonster = findAssociatedMonster(player2Class.name);
+      if (associatedMonster) {
+        setPlayer2MonsterId(associatedMonster.monsterId);
+      }
+    }
+  }, [createdMonsters, player1Class, player2Class, player1MonsterId, player2MonsterId, findAssociatedMonster]);
+
+  // Helper to set a player's class and automatically find associated monster
+  const setPlayerClassWithMonster = useCallback((
+    player: 'player1' | 'player2',
+    dndClass: DnDClass & { monsterId?: string; imageUrl?: string },
+    name?: string
+  ) => {
+    const setName = player === 'player1' ? setPlayer1Name : setPlayer2Name;
+    const setClass = player === 'player1' ? setPlayer1Class : setPlayer2Class;
+    const setMonsterId = player === 'player1' ? setPlayer1MonsterId : setPlayer2MonsterId;
+    
+    setClass(dndClass);
+    
+    // Set name if provided, otherwise generate it
+    if (name) {
+      setName(name);
+    } else {
+      const isMonster = MONSTER_ICONS[dndClass.name] !== undefined;
+      setName(isMonster ? dndClass.name : generateCharacterName(dndClass.name));
+    }
+    
+    // Check if this entity already has a monsterId (explicitly selected created monster)
+    if (dndClass.monsterId) {
+      setMonsterId(dndClass.monsterId);
+    } else {
+      // Otherwise, check if there's an associated monster for this class/monster type
+      const associatedMonster = findAssociatedMonster(dndClass.name);
+      if (associatedMonster) {
+        setMonsterId(associatedMonster.monsterId);
+      } else {
+        setMonsterId(null);
+      }
+    }
+  }, [findAssociatedMonster]);
+
   // Helper function to trigger dice roll animation (supports multiple dice at once)
   // visualEffects and callbacks are queued to be applied after this dice roll completes
   const triggerDiceRoll = useCallback((
@@ -689,17 +751,19 @@ export default function DnDBattle() {
       };
       
       setPlayer1Class(p1);
-      setPlayer2Class(p2);
+      // Use helper to set player2 class with automatic monster association
+      setPlayerClassWithMonster('player2', p2);
       
-      // Ensure names are set
+      // Ensure names are set for player1
       // For monsters, use the monster type name directly; for classes, generate a name
       if (!player1Name) {
         const isP1Monster = MONSTER_ICONS[p1.name] !== undefined;
         setPlayer1Name(isP1Monster ? p1.name : generateCharacterName(p1.name));
-      }
-      if (!player2Name) {
-        const isP2Monster = MONSTER_ICONS[p2.name] !== undefined;
-        setPlayer2Name(isP2Monster ? p2.name : generateCharacterName(p2.name));
+        // Also check for associated monster for player1
+        const associatedMonster = findAssociatedMonster(p1.name);
+        if (associatedMonster) {
+          setPlayer1MonsterId(associatedMonster.monsterId);
+        }
       }
       
       const isP1Monster = MONSTER_ICONS[p1.name] !== undefined;
@@ -1069,43 +1133,30 @@ export default function DnDBattle() {
   // Wrapper function to generate name when player selects their class
   // Also auto-selects a random opponent based on opponentType
   const handlePlayer1Select = useCallback((dndClass: DnDClass & { monsterId?: string; imageUrl?: string }) => {
-    setPlayer1Class(dndClass);
-    setPlayer1Name(generateCharacterName(dndClass.name));
-    // Store monsterId if this is a created monster
-    if ('monsterId' in dndClass && dndClass.monsterId) {
-      setPlayer1MonsterId(dndClass.monsterId);
-    } else {
-      setPlayer1MonsterId(null);
-    }
+    setPlayerClassWithMonster('player1', dndClass);
     
     // Auto-select a random opponent based on opponentType
     if (opponentType === 'monster') {
       const availableOpponents = availableMonsters;
       if (availableOpponents.length > 0) {
         const randomOpponent = availableOpponents[Math.floor(Math.random() * availableOpponents.length)];
-        setPlayer2Class(randomOpponent);
-        setPlayer2Name(randomOpponent.name); // Monsters use their type name directly
-        setPlayer2MonsterId(null);
+        setPlayerClassWithMonster('player2', randomOpponent, randomOpponent.name);
       }
     } else {
       // Auto-select a random opponent that's different from the player's class
       const availableOpponents = availableClasses.filter(cls => cls.name !== dndClass.name);
       if (availableOpponents.length > 0) {
         const randomOpponent = availableOpponents[Math.floor(Math.random() * availableOpponents.length)];
-        setPlayer2Class(randomOpponent);
-        setPlayer2Name(generateCharacterName(randomOpponent.name));
-        setPlayer2MonsterId(null);
+        setPlayerClassWithMonster('player2', randomOpponent);
       } else {
         // Fallback: if no other classes available, use a fallback class
         const fallbackOpponent = availableClasses[0];
         if (fallbackOpponent) {
-          setPlayer2Class(fallbackOpponent);
-          setPlayer2Name(generateCharacterName(fallbackOpponent.name));
-          setPlayer2MonsterId(null);
+          setPlayerClassWithMonster('player2', fallbackOpponent);
         }
       }
     }
-  }, [availableClasses, availableMonsters, opponentType]);
+  }, [availableClasses, availableMonsters, opponentType, setPlayerClassWithMonster]);
 
   // Use AI opponent hook
   const aiOpponentCleanup = useAIOpponent({
@@ -1241,59 +1292,12 @@ export default function DnDBattle() {
               ) : (
                 <>
               <div className="grid grid-cols-1 gap-4">
-                {/* Created Monsters Section */}
-                {createdMonsters.length > 0 && (
-                  <div className="bg-purple-900/30 border-2 border-purple-700 rounded-lg p-4">
-                    <h3 className="text-lg font-semibold mb-3 text-amber-200">Your Created Monsters</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-                      {createdMonsters.map((monster) => {
-                        const icon = MONSTER_ICONS[monster.name] || CLASS_ICONS[monster.name] || '👹';
-                        return (
-                          <button
-                            key={monster.monsterId}
-                            onClick={() => handlePlayer1Select(monster)}
-                            className={`py-2 px-3 rounded-lg border-2 transition-all flex flex-col items-center gap-1 ${
-                              player1MonsterId === monster.monsterId
-                                ? 'border-purple-400 bg-purple-800 shadow-lg scale-105'
-                                : 'border-purple-700 bg-purple-900/50 hover:bg-purple-800 hover:border-purple-600'
-                            }`}
-                          >
-                            {monster.imageUrl ? (
-                              <img
-                                src={monster.imageUrl}
-                                alt={monster.name}
-                                className="w-12 h-12 object-contain"
-                                style={{ imageRendering: 'pixelated' as const }}
-                                onError={(e) => {
-                                  // Fallback to icon if image fails
-                                  const target = e.target as HTMLImageElement;
-                                  target.style.display = 'none';
-                                  const iconSpan = target.nextElementSibling as HTMLSpanElement;
-                                  if (iconSpan) iconSpan.style.display = 'block';
-                                }}
-                              />
-                            ) : null}
-                            <span 
-                              className={`text-2xl leading-none ${monster.imageUrl ? 'hidden' : ''}`}
-                              style={{ 
-                                imageRendering: 'pixelated' as const,
-                                filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.3))'
-                              }}
-                            >
-                              {icon}
-                            </span>
-                            <div className="font-bold text-xs text-amber-100 text-center">{monster.name}</div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
                 <ClassSelection
                   title="Choose Your Character"
                   availableClasses={availableClasses}
                   selectedClass={player1Class}
                   onSelect={handlePlayer1Select}
+                  createdMonsters={createdMonsters}
                 />
                 <div className="bg-amber-800/50 border-2 border-amber-700 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
@@ -1305,6 +1309,7 @@ export default function DnDBattle() {
                           setPlayer2Class(null);
                           setPlayer2Name('');
                           setPlayer2MonsterId(null);
+                          // Note: We don't use setPlayerClassWithMonster here since we're clearing the selection
                         }}
                         className={`px-3 py-1 text-xs rounded border transition-all ${
                           opponentType === 'class'
@@ -1321,6 +1326,7 @@ export default function DnDBattle() {
                         setPlayer2Class(null);
                         setPlayer2Name('');
                         setPlayer2MonsterId(null);
+                        // Note: We don't use setPlayerClassWithMonster here since we're clearing the selection
                       }}
                         className={`px-3 py-1 text-xs rounded border transition-all ${
                           opponentType === 'monster'
@@ -1334,11 +1340,20 @@ export default function DnDBattle() {
                   </div>
                   {player2Class && (
                     <div className="flex items-center gap-3 mb-3">
-                      <span className="text-3xl" style={{ imageRendering: 'pixelated' as const }}>
-                        {opponentType === 'monster' 
-                          ? (MONSTER_ICONS[player2Class.name] || '👹')
-                          : (CLASS_ICONS[player2Class.name] || '⚔️')}
-                      </span>
+                      {(() => {
+                        const associatedMonster = findAssociatedMonster(player2Class.name);
+                        const imageUrl = associatedMonster 
+                          ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
+                          : '/cdn/placeholder.png';
+                        return (
+                          <img
+                            src={imageUrl}
+                            alt={player2Class.name}
+                            className="w-12 h-12 object-cover rounded"
+                            style={{ imageRendering: 'pixelated' as const }}
+                          />
+                        );
+                      })()}
                       <div>
                         <div className="font-bold text-amber-100">{player2Name || player2Class.name}</div>
                         <div className="text-sm text-amber-300 italic">{player2Class.name}</div>
@@ -1347,87 +1362,34 @@ export default function DnDBattle() {
                   )}
                   {opponentType === 'monster' ? (
                     <>
-                      {/* Created Monsters for Opponent */}
-                      {createdMonsters.length > 0 && (
-                        <div className="mt-3 mb-4">
-                          <h3 className="text-lg font-semibold mb-3 text-amber-200">Your Created Monsters</h3>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-                            {createdMonsters.map((monster) => {
-                              const icon = MONSTER_ICONS[monster.name] || CLASS_ICONS[monster.name] || '👹';
-                              return (
-                                <button
-                                  key={monster.monsterId}
-                                  onClick={() => {
-                                    setPlayer2Class(monster);
-                                    setPlayer2Name(monster.name);
-                                    setPlayer2MonsterId(monster.monsterId);
-                                  }}
-                                  className={`py-2 px-3 rounded-lg border-2 transition-all flex flex-col items-center gap-1 ${
-                                    player2MonsterId === monster.monsterId
-                                      ? 'border-purple-400 bg-purple-800 shadow-lg scale-105'
-                                      : 'border-purple-700 bg-purple-900/50 hover:bg-purple-800 hover:border-purple-600'
-                                  }`}
-                                >
-                                  {monster.imageUrl ? (
-                                    <img
-                                      src={monster.imageUrl}
-                                      alt={monster.name}
-                                      className="w-12 h-12 object-contain"
-                                      style={{ imageRendering: 'pixelated' as const }}
-                                      onError={(e) => {
-                                        const target = e.target as HTMLImageElement;
-                                        target.style.display = 'none';
-                                        const iconSpan = target.nextElementSibling as HTMLSpanElement;
-                                        if (iconSpan) iconSpan.style.display = 'block';
-                                      }}
-                                    />
-                                  ) : null}
-                                  <span 
-                                    className={`text-2xl leading-none ${monster.imageUrl ? 'hidden' : ''}`}
-                                    style={{ 
-                                      imageRendering: 'pixelated' as const,
-                                      filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.3))'
-                                    }}
-                                  >
-                                    {icon}
-                                  </span>
-                                  <div className="font-bold text-xs text-amber-100 text-center">{monster.name}</div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
                       {/* Standard Monsters */}
                       {availableMonsters.length > 0 ? (
                         <div className="mt-3">
                           <h3 className="text-lg font-semibold mb-3 text-amber-200">Select Monster Opponent</h3>
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-2 mb-3">
                             {availableMonsters.slice(monsterPage * monstersPerPage, (monsterPage + 1) * monstersPerPage).map((monster) => {
-                              const icon = MONSTER_ICONS[monster.name] || '👹';
+                              const associatedMonster = findAssociatedMonster(monster.name);
+                              const imageUrl = associatedMonster 
+                                ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
+                                : '/cdn/placeholder.png';
                               return (
                                 <button
                                   key={monster.name}
                                   onClick={() => {
-                                    setPlayer2Class(monster);
-                                    setPlayer2Name(monster.name); // Monsters use their type name directly
-                                    setPlayer2MonsterId(null);
+                                    setPlayerClassWithMonster('player2', monster, monster.name);
                                   }}
                                   className={`py-2 px-3 rounded-lg border-2 transition-all flex flex-col items-center gap-1 ${
-                                    player2Class?.name === monster.name && !player2MonsterId
+                                    player2Class?.name === monster.name
                                       ? 'border-amber-400 bg-amber-800 shadow-lg scale-105'
                                       : 'border-amber-700 bg-amber-900/50 hover:bg-amber-800 hover:border-amber-600'
                                   }`}
                                 >
-                                  <span 
-                                    className="text-2xl leading-none"
-                                    style={{ 
-                                      imageRendering: 'pixelated' as const,
-                                      filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.3))'
-                                    }}
-                                  >
-                                    {icon}
-                                  </span>
+                                  <img
+                                    src={imageUrl}
+                                    alt={monster.name}
+                                    className="w-12 h-12 object-cover rounded"
+                                    style={{ imageRendering: 'pixelated' as const }}
+                                  />
                                   <div className="font-bold text-xs text-amber-100 text-center">{monster.name}</div>
                                 </button>
                               );
@@ -1467,10 +1429,9 @@ export default function DnDBattle() {
                         availableClasses={availableClasses}
                         selectedClass={player2Class}
                         onSelect={(cls) => {
-                          setPlayer2Class(cls);
-                          setPlayer2Name(generateCharacterName(cls.name));
-                          setPlayer2MonsterId(null);
+                          setPlayerClassWithMonster('player2', cls);
                         }}
+                        createdMonsters={createdMonsters}
                       />
                     </div>
                   )}

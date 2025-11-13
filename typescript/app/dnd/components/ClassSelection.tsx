@@ -1,26 +1,39 @@
 'use client';
 
 import { DnDClass } from '../types';
-import { CLASS_ICONS, MONSTER_ICONS } from '../constants';
 
 interface ClassSelectionProps {
   title: string;
   availableClasses: DnDClass[];
   selectedClass: DnDClass | null;
   onSelect: (dndClass: DnDClass) => void;
+  createdMonsters?: Array<DnDClass & { monsterId: string; imageUrl: string }>;
 }
 
-export function ClassSelection({ title, availableClasses, selectedClass, onSelect }: ClassSelectionProps) {
+export function ClassSelection({ title, availableClasses, selectedClass, onSelect, createdMonsters = [] }: ClassSelectionProps) {
+  const placeholderImageUrl = '/cdn/placeholder.png';
+  
+  // Helper to find associated monster for a class
+  const findAssociatedMonster = (className: string): (DnDClass & { monsterId: string; imageUrl: string }) | null => {
+    const associated = createdMonsters
+      .filter(m => m.name === className)
+      .sort((a, b) => {
+        // Sort by monsterId (UUIDs) - most recent first
+        return b.monsterId.localeCompare(a.monsterId);
+      });
+    return associated.length > 0 ? associated[0] : null;
+  };
+  
   return (
     <div>
       <h3 className="text-lg font-semibold mb-3 text-amber-200">{title}</h3>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-2">
         {availableClasses.map((dndClass) => {
-          // Check if it's a monster or class based on icon mapping
-          const isMonster = MONSTER_ICONS[dndClass.name] !== undefined;
-          const icon = isMonster 
-            ? (MONSTER_ICONS[dndClass.name] || '👹')
-            : (CLASS_ICONS[dndClass.name] || '⚔️');
+          const associatedMonster = findAssociatedMonster(dndClass.name);
+          const imageUrl = associatedMonster 
+            ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
+            : placeholderImageUrl;
+          
           return (
           <button
             key={dndClass.name}
@@ -31,15 +44,12 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
                 : 'border-amber-700 bg-amber-900/50 hover:bg-amber-800 hover:border-amber-600'
             }`}
           >
-              <span 
-                className="text-2xl leading-none"
-                style={{ 
-                  imageRendering: 'pixelated' as const,
-                  filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.3))'
-                }}
-              >
-                {icon}
-              </span>
+              <img
+                src={imageUrl}
+                alt={dndClass.name}
+                className="w-12 h-12 object-cover rounded"
+                style={{ imageRendering: 'pixelated' as const }}
+              />
               <div className="font-bold text-xs text-amber-100 text-center">{dndClass.name}</div>
           </button>
           );

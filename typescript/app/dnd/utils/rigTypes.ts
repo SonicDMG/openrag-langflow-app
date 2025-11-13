@@ -109,7 +109,6 @@ export interface MonsterBundle {
     png280x200: Buffer; // Wider version for card display
     png256: Buffer;
     png512: Buffer;
-    partsPngs?: Record<string, Buffer>;
   };
 }
 

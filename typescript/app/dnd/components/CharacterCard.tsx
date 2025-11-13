@@ -5,7 +5,6 @@ import { DnDClass } from '../types';
 import { Sparkles } from './Sparkles';
 import { Confetti } from './Confetti';
 import { applyAnimationClass } from '../utils/animations';
-import { MONSTER_ICONS, CLASS_ICONS } from '../constants';
 
 // CharacterCard component - Unified card design for all pages
 interface CharacterCardProps {
@@ -90,11 +89,8 @@ function CharacterCardComponent({
   const isDisabled = (effectiveIsActive && isMoveInProgress) || isDefeated;
   const [imageError, setImageError] = useState(false);
   
-  // Check if this is a monster or class
-  const isMonster = MONSTER_ICONS[playerClass.name] !== undefined;
-  const icon = isMonster 
-    ? (MONSTER_ICONS[playerClass.name] || '👹')
-    : (CLASS_ICONS[playerClass.name] || '⚔️');
+  // Placeholder image URL for cards without associated monsters
+  const placeholderImageUrl = '/cdn/placeholder.png';
 
   // Apply shake animation
   useEffect(() => {
@@ -277,53 +273,33 @@ function CharacterCardComponent({
             aspectRatio: '280/200' // Match the actual image aspect ratio (1.4:1)
           }}
         >
-          {monsterImageUrl ? (
-            // If monsterImageUrl is provided, try to show it with fallback to placeholder
-            imageError ? (
-              <div className="flex flex-col items-center justify-center w-full h-full">
-                <div 
-                  className="text-8xl mb-2"
-                  style={{ 
-                    imageRendering: 'pixelated' as const,
-                    filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
-                  }}
-                >
-                  {icon}
-                </div>
-                <div className="text-xs text-center px-2" style={{ color: '#8B6F47' }}>
-                  {playerClass.name}
-                </div>
-              </div>
-            ) : (
-              <img
-                src={monsterImageUrl}
-                alt={characterName}
-                style={{
-                  imageRendering: 'pixelated' as const,
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover', // Cover the container, may crop edges
-                  display: 'block'
-                }}
-                onError={() => setImageError(true)}
-              />
-            )
+          {monsterImageUrl && !imageError ? (
+            // If monsterImageUrl is provided and no error, show the monster image
+            <img
+              src={monsterImageUrl}
+              alt={characterName}
+              style={{
+                imageRendering: 'pixelated' as const,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover', // Cover the container, may crop edges
+                display: 'block'
+              }}
+              onError={() => setImageError(true)}
+            />
           ) : (
-            // If no monsterImageUrl, show placeholder with icon
-            <div className="flex flex-col items-center justify-center w-full h-full">
-              <div 
-                className="text-8xl mb-2"
-                style={{ 
-                  imageRendering: 'pixelated' as const,
-                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
-                }}
-              >
-                {icon}
-              </div>
-              <div className="text-xs text-center px-2" style={{ color: '#8B6F47' }}>
-                {playerClass.name}
-              </div>
-            </div>
+            // If no monsterImageUrl or image error, show placeholder image
+            <img
+              src={placeholderImageUrl}
+              alt="Placeholder"
+              style={{
+                imageRendering: 'pixelated' as const,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                display: 'block'
+              }}
+            />
           )}
         </div>
 
@@ -424,17 +400,15 @@ function CharacterCardComponent({
         {/* Stats section */}
         <div className="mt-auto">
           <div className="flex items-center justify-between mb-2">
-            {/* AC (Armor Class) with shield icon - left side */}
+            {/* AC (Armor Class) - left side */}
             <div className="flex items-center gap-1.5">
-              <span className="text-base" style={{ color: '#16A34A' }}>🛡️</span>
               <span className="font-bold text-sm" style={{ color: '#5C4033' }}>
-                {playerClass.armorClass}
+                AC: {playerClass.armorClass}
               </span>
             </div>
 
-            {/* HP with heart icon and bar - right side */}
+            {/* HP with bar - right side */}
             <div className="flex items-center gap-1.5 flex-1 justify-end">
-              <span className="text-base" style={{ color: '#DC2626' }}>❤️</span>
               <div 
                 className="flex-1 max-w-[140px] rounded-sm overflow-hidden"
                 style={{ 
@@ -464,54 +438,18 @@ function CharacterCardComponent({
               disabled={isDisabled}
               className="w-full mt-3 py-2 px-4 bg-red-900 hover:bg-red-800 text-white font-bold rounded-lg border-2 border-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Attack! ⚔️
+              Attack!
             </button>
           )}
 
           {/* Opponent indicator */}
           {isOpponent && (
             <div className="mt-2 text-center">
-              <div className="text-xs italic" style={{ color: '#8B6F47' }}>🤖 Auto-playing opponent</div>
+              <div className="text-xs italic" style={{ color: '#8B6F47' }}>Auto-playing opponent</div>
             </div>
           )}
         </div>
 
-        {/* Bottom icon (bat/winged creature) - dark brown, partially overlapping bottom border */}
-        <div 
-          className="absolute left-1/2 transform -translate-x-1/2"
-          style={{ 
-            bottom: '-10px', // Partially overlapping bottom border
-            zIndex: 10
-          }}
-        >
-          <svg viewBox="0 0 24 24" className="w-10 h-10" style={{ color: '#5C4033' }}>
-            {/* Bat/winged creature - stylized design */}
-            <path
-              fill="currentColor"
-              d="M12 2c-1.5 0-3 .5-4 1.5C6.5 4.5 5.5 6 5.5 8c0 2 1 3.5 2.5 4.5C9 13.5 10.5 14 12 14c1.5 0 3-.5 4-1.5 1.5-1 2.5-2.5 2.5-4.5 0-2-1-3.5-2.5-4.5C15 2.5 13.5 2 12 2z"
-            />
-            {/* Left wing */}
-            <path
-              fill="currentColor"
-              d="M6 10c0-1 .5-2 1.5-2.5C8.5 7 9.5 7.5 10 8.5c.5 1 .5 2 0 3-.5 1-1.5 1.5-2.5 1.5-1 0-2-.5-2.5-1.5C4.5 11 4.5 10 6 10z"
-              opacity="0.8"
-            />
-            {/* Right wing */}
-            <path
-              fill="currentColor"
-              d="M18 10c0-1-.5-2-1.5-2.5C15.5 7 14.5 7.5 14 8.5c-.5 1-.5 2 0 3 .5 1 1.5 1.5 2.5 1.5 1 0 2-.5 2.5-1.5C19.5 11 19.5 10 18 10z"
-              opacity="0.8"
-            />
-            {/* Body/head */}
-            <ellipse
-              cx="12"
-              cy="10"
-              rx="2"
-              ry="3"
-              fill="currentColor"
-            />
-          </svg>
-        </div>
       </div>
     </div>
   );

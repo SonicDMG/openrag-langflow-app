@@ -28,6 +28,14 @@ export default function DnDTestPage() {
   const [monsterPage, setMonsterPage] = useState(0);
   const monstersPerPage = 12;
   
+  // Monster IDs for displaying monster images
+  const [player1MonsterId, setPlayer1MonsterId] = useState<string | null>(null);
+  const [player2MonsterId, setPlayer2MonsterId] = useState<string | null>(null);
+  
+  // Created monsters (with IDs and images)
+  const [createdMonsters, setCreatedMonsters] = useState<Array<DnDClass & { monsterId: string; imageUrl: string }>>([]);
+  const [isLoadingCreatedMonsters, setIsLoadingCreatedMonsters] = useState(false);
+  
   // Test player setup - preserve actual abilities from classes
   const [player1Class, setPlayer1Class] = useState<DnDClass>(() => ({
     ...FALLBACK_CLASSES[0],
@@ -41,31 +49,74 @@ export default function DnDTestPage() {
     abilities: FALLBACK_CLASSES[1].abilities || [],
   }));
   
-  // Helper to create a test class/monster preserving actual abilities
-  const createTestEntity = useCallback((entity: DnDClass): DnDClass => {
+  // Helper to create a test class/monster preserving actual abilities and monster metadata
+  const createTestEntity = useCallback((entity: DnDClass & { monsterId?: string; imageUrl?: string }): DnDClass & { monsterId?: string; imageUrl?: string } => {
     return {
       ...entity,
       hitPoints: entity.maxHitPoints,
       // Preserve actual abilities from the entity, or use empty array if none
       abilities: entity.abilities && entity.abilities.length > 0 ? entity.abilities : [],
+      // Preserve monsterId and imageUrl if they exist
+      ...(entity.monsterId && { monsterId: entity.monsterId }),
+      ...(entity.imageUrl && { imageUrl: entity.imageUrl }),
     };
   }, []);
   
+  // Helper to find associated monster for a class/monster type
+  const findAssociatedMonster = useCallback((className: string): (DnDClass & { monsterId: string; imageUrl: string }) | null => {
+    // Find the most recently created monster associated with this class/monster type
+    const associated = createdMonsters
+      .filter(m => m.name === className)
+      .sort((a, b) => {
+        // Sort by monsterId (UUIDs) - most recent first (assuming newer UUIDs are later in sort)
+        return b.monsterId.localeCompare(a.monsterId);
+      });
+    return associated.length > 0 ? associated[0] : null;
+  }, [createdMonsters]);
+
   // Handle player 1 selection
-  const handlePlayer1Select = useCallback((entity: DnDClass) => {
-    setPlayer1Class(createTestEntity(entity));
+  const handlePlayer1Select = useCallback((entity: DnDClass & { monsterId?: string; imageUrl?: string }) => {
+    const testEntity = createTestEntity(entity);
+    setPlayer1Class(testEntity);
     // For monsters, use the monster type name directly; for classes, generate a name
     const isMonster = MONSTER_ICONS[entity.name] !== undefined;
     setPlayer1Name(isMonster ? entity.name : generateCharacterName(entity.name));
-  }, [createTestEntity]);
+    
+    // Check if this entity already has a monsterId (explicitly selected created monster)
+    if (testEntity.monsterId) {
+      setPlayer1MonsterId(testEntity.monsterId);
+    } else {
+      // Otherwise, check if there's an associated monster for this class/monster type
+      const associatedMonster = findAssociatedMonster(entity.name);
+      if (associatedMonster) {
+        setPlayer1MonsterId(associatedMonster.monsterId);
+      } else {
+        setPlayer1MonsterId(null);
+      }
+    }
+  }, [createTestEntity, findAssociatedMonster]);
   
   // Handle player 2 selection
-  const handlePlayer2Select = useCallback((entity: DnDClass) => {
-    setPlayer2Class(createTestEntity(entity));
+  const handlePlayer2Select = useCallback((entity: DnDClass & { monsterId?: string; imageUrl?: string }) => {
+    const testEntity = createTestEntity(entity);
+    setPlayer2Class(testEntity);
     // For monsters, use the monster type name directly; for classes, generate a name
     const isMonster = MONSTER_ICONS[entity.name] !== undefined;
     setPlayer2Name(isMonster ? entity.name : generateCharacterName(entity.name));
-  }, [createTestEntity]);
+    
+    // Check if this entity already has a monsterId (explicitly selected created monster)
+    if (testEntity.monsterId) {
+      setPlayer2MonsterId(testEntity.monsterId);
+    } else {
+      // Otherwise, check if there's an associated monster for this class/monster type
+      const associatedMonster = findAssociatedMonster(entity.name);
+      if (associatedMonster) {
+        setPlayer2MonsterId(associatedMonster.monsterId);
+      } else {
+        setPlayer2MonsterId(null);
+      }
+    }
+  }, [createTestEntity, findAssociatedMonster]);
   
   // Initialize names as null to prevent hydration mismatch
   // Names will be generated on the client side only
@@ -111,6 +162,65 @@ export default function DnDTestPage() {
   const [isOpponentAutoPlaying, setIsOpponentAutoPlaying] = useState(false);
   const [isMoveInProgress, setIsMoveInProgress] = useState(false);
   const diceQueueRef = useRef<Array<Array<{ diceType: string; result: number }>>>([]);
+  
+  // Load created monsters on mount
+  useEffect(() => {
+    const loadCreatedMonsters = async () => {
+      setIsLoadingCreatedMonsters(true);
+      try {
+        const response = await fetch('/api/monsters');
+        if (response.ok) {
+          const data = await response.json();
+          // Convert created monsters to DnDClass format
+          const convertedMonsters = data.monsters.map((m: any) => {
+            // Find matching class/monster from fallbacks to get stats and abilities
+            const fallbackClass = FALLBACK_CLASSES.find(c => c.name === m.klass);
+            const fallbackMonster = FALLBACK_MONSTERS.find(m2 => m2.name === m.klass);
+            const fallback = fallbackClass || fallbackMonster;
+            
+            // Construct imageUrl from monsterId if not provided
+            const imageUrl = m.imageUrl || `/cdn/monsters/${m.monsterId}/280x200.png`;
+            
+            return {
+              name: m.klass,
+              hitPoints: m.stats?.hitPoints || fallback?.hitPoints || 30,
+              maxHitPoints: m.stats?.maxHitPoints || m.stats?.hitPoints || fallback?.maxHitPoints || 30,
+              armorClass: m.stats?.armorClass || fallback?.armorClass || 14,
+              attackBonus: m.stats?.attackBonus || fallback?.attackBonus || 4,
+              damageDie: m.stats?.damageDie || fallback?.damageDie || 'd8',
+              abilities: fallback?.abilities || [],
+              description: m.stats?.description || fallback?.description || `A ${m.klass} created in the monster creator.`,
+              color: fallback?.color || 'bg-slate-900',
+              monsterId: m.monsterId,
+              imageUrl: imageUrl.replace('/256.png', '/280x200.png').replace('/200.png', '/280x200.png'),
+            } as DnDClass & { monsterId: string; imageUrl: string };
+          });
+          setCreatedMonsters(convertedMonsters);
+        }
+      } catch (error) {
+        console.error('Failed to load created monsters:', error);
+      } finally {
+        setIsLoadingCreatedMonsters(false);
+      }
+    };
+    loadCreatedMonsters();
+  }, []);
+
+  // Update monster IDs when createdMonsters loads or changes, if players already have classes selected
+  useEffect(() => {
+    if (player1Class && !player1MonsterId) {
+      const associatedMonster = findAssociatedMonster(player1Class.name);
+      if (associatedMonster) {
+        setPlayer1MonsterId(associatedMonster.monsterId);
+      }
+    }
+    if (player2Class && !player2MonsterId) {
+      const associatedMonster = findAssociatedMonster(player2Class.name);
+      if (associatedMonster) {
+        setPlayer2MonsterId(associatedMonster.monsterId);
+      }
+    }
+  }, [createdMonsters, player1Class, player2Class, player1MonsterId, player2MonsterId, findAssociatedMonster]);
   
   // Queue for visual effects that should trigger after dice roll completes
   // (PendingVisualEffect type imported from battle utils)
@@ -788,6 +898,7 @@ export default function DnDTestPage() {
     setCurrentTurn('player1');
     setIsMoveInProgress(false);
     setIsOpponentAutoPlaying(false);
+    // Note: We don't reset monster IDs here - they should persist with the selected character
     aiOpponentCleanup.cleanup();
     addLog('system', '🔄 Test reset');
   };
@@ -927,6 +1038,7 @@ export default function DnDTestPage() {
                   availableClasses={FALLBACK_CLASSES}
                   selectedClass={player1Class}
                   onSelect={handlePlayer1Select}
+                  createdMonsters={createdMonsters}
                 />
               </div>
 
@@ -975,32 +1087,34 @@ export default function DnDTestPage() {
                     availableClasses={FALLBACK_CLASSES}
                     selectedClass={player2Class}
                     onSelect={handlePlayer2Select}
+                    createdMonsters={createdMonsters}
                   />
                 ) : (
                   <div>
                     <h3 className="text-lg font-semibold mb-3 text-amber-200">Select Monster</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-2 mb-3">
                       {FALLBACK_MONSTERS.slice(monsterPage * monstersPerPage, (monsterPage + 1) * monstersPerPage).map((monster) => {
-                        const icon = MONSTER_ICONS[monster.name] || '👹';
+                        const isSelected = player2Class?.name === monster.name;
+                        const associatedMonster = findAssociatedMonster(monster.name);
+                        const imageUrl = associatedMonster 
+                          ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
+                          : '/cdn/placeholder.png';
                         return (
                           <button
                             key={monster.name}
                             onClick={() => handlePlayer2Select(createTestEntity(monster))}
                             className={`py-2 px-3 rounded-lg border-2 transition-all flex flex-col items-center gap-1 ${
-                              player2Class?.name === monster.name
+                              isSelected
                                 ? 'border-amber-400 bg-amber-800 shadow-lg scale-105'
                                 : 'border-amber-700 bg-amber-900/50 hover:bg-amber-800 hover:border-amber-600'
                             }`}
                           >
-                            <span 
-                              className="text-2xl leading-none"
-                              style={{ 
-                                imageRendering: 'pixelated' as const,
-                                filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.3))'
-                              }}
-                            >
-                              {icon}
-                            </span>
+                            <img
+                              src={imageUrl}
+                              alt={monster.name}
+                              className="w-12 h-12 object-cover rounded"
+                              style={{ imageRendering: 'pixelated' as const }}
+                            />
                             <div className="font-bold text-xs text-amber-100 text-center">{monster.name}</div>
                           </button>
                         );
@@ -1037,6 +1151,7 @@ export default function DnDTestPage() {
             <CharacterCard
               playerClass={player1Class}
               characterName={player1Name || 'Loading...'}
+              monsterImageUrl={player1MonsterId ? `/cdn/monsters/${player1MonsterId}/280x200.png` : undefined}
               onUseAbility={(index) => {
                 testUseAbility('player1', index);
               }}
@@ -1110,6 +1225,7 @@ export default function DnDTestPage() {
             <CharacterCard
               playerClass={player2Class}
               characterName={player2Name || 'Loading...'}
+              monsterImageUrl={player2MonsterId ? `/cdn/monsters/${player2MonsterId}/280x200.png` : undefined}
               onUseAbility={(index) => {
                 if (isAIModeActive) return; // Don't allow manual control in AI mode
                 testUseAbility('player2', index);
