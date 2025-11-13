@@ -1148,156 +1148,210 @@ export default function DnDTestPage() {
 
           {/* Player Stats */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 justify-items-center">
-            <CharacterCard
-              playerClass={player1Class}
-              characterName={player1Name || 'Loading...'}
-              monsterImageUrl={player1MonsterId ? `/cdn/monsters/${player1MonsterId}/280x200.png` : undefined}
-              onUseAbility={(index) => {
-                testUseAbility('player1', index);
-              }}
-              onAttack={() => {
-                setIsMoveInProgress(true);
-                testAttackHit('player1');
-              }}
-              isMoveInProgress={isMoveInProgress}
-              shouldShake={shakingPlayer === 'player1'}
-              shouldSparkle={sparklingPlayer === 'player1'}
-              shouldMiss={missingPlayer === 'player1'}
-              shouldHit={hittingPlayer === 'player1'}
-              shouldSurprise={surprisedPlayer === 'player1'}
-              shouldCast={castingPlayer === 'player1'}
-              castTrigger={castTrigger.player1}
-              shakeTrigger={shakeTrigger.player1}
-              sparkleTrigger={sparkleTrigger.player1}
-              missTrigger={missTrigger.player1}
-              hitTrigger={hitTrigger.player1}
-              surpriseTrigger={surpriseTrigger.player1}
-              shakeIntensity={shakeIntensity.player1}
-              sparkleIntensity={sparkleIntensity.player1}
-              isActive={currentTurn === 'player1'}
-              isDefeated={defeatedPlayer === 'player1'}
-              isVictor={victorPlayer === 'player1'}
-              confettiTrigger={confettiTrigger}
-              onShakeComplete={handlePlayer1ShakeComplete}
-              onSparkleComplete={handlePlayer1SparkleComplete}
-              onMissComplete={handlePlayer1MissComplete}
-              onHitComplete={handlePlayer1HitComplete}
-              onSurpriseComplete={handlePlayer1SurpriseComplete}
-              onCastComplete={handlePlayer1CastComplete}
-              allowAllTurns={!isAIModeActive}
-              testButtons={[
-                // Add buttons for all abilities
-                ...player1Class.abilities.map((ability, index) => ({
-                  label: ability.type === 'healing' ? `💚 ${ability.name}` : `⚔️ ${ability.name}`,
-                  onClick: () => testUseAbility('player1', index),
-                  className: ability.type === 'healing' 
-                    ? 'px-2 py-0.5 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
-                    : 'px-2 py-0.5 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'
-                })),
-                // Keep existing test buttons
-                {
-                  label: '💥 High Damage',
-                  onClick: () => testHighDamage('player1'),
-                  className: 'px-2 py-0.5 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'
-                },
-                {
-                  label: '💥 Low Damage',
-                  onClick: () => testLowDamage('player1'),
-                  className: 'px-2 py-0.5 bg-orange-900 hover:bg-orange-800 text-white text-xs rounded border border-orange-700 transition-all'
-                },
-                {
-                  label: '💚 Full Heal',
-                  onClick: () => testFullHeal('player1'),
-                  className: 'px-2 py-0.5 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
-                },
-                {
-                  label: '💚 Low Heal',
-                  onClick: () => testLowHeal('player1'),
-                  className: 'px-2 py-0.5 bg-emerald-900 hover:bg-emerald-800 text-white text-xs rounded border border-emerald-700 transition-all'
-                },
-                {
-                  label: '❌ Test Miss',
-                  onClick: () => testAttackMiss('player1'),
-                  className: 'px-2 py-0.5 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all'
-                }
-              ]}
-            />
-            <CharacterCard
-              playerClass={player2Class}
-              characterName={player2Name || 'Loading...'}
-              monsterImageUrl={player2MonsterId ? `/cdn/monsters/${player2MonsterId}/280x200.png` : undefined}
-              onUseAbility={(index) => {
-                if (isAIModeActive) return; // Don't allow manual control in AI mode
-                testUseAbility('player2', index);
-              }}
-              onAttack={isAIModeActive ? undefined : () => {
-                setIsMoveInProgress(true);
-                testAttackHit('player2');
-              }}
-              isOpponent={isAIModeActive}
-              isMoveInProgress={isMoveInProgress}
-              shouldShake={shakingPlayer === 'player2'}
-              shouldSparkle={sparklingPlayer === 'player2'}
-              shouldMiss={missingPlayer === 'player2'}
-              shouldHit={hittingPlayer === 'player2'}
-              shouldSurprise={surprisedPlayer === 'player2'}
-              shouldCast={castingPlayer === 'player2'}
-              castTrigger={castTrigger.player2}
-              shakeTrigger={shakeTrigger.player2}
-              sparkleTrigger={sparkleTrigger.player2}
-              missTrigger={missTrigger.player2}
-              hitTrigger={hitTrigger.player2}
-              surpriseTrigger={surpriseTrigger.player2}
-              shakeIntensity={shakeIntensity.player2}
-              sparkleIntensity={sparkleIntensity.player2}
-              isActive={currentTurn === 'player2'}
-              isDefeated={defeatedPlayer === 'player2'}
-              isVictor={victorPlayer === 'player2'}
-              confettiTrigger={confettiTrigger}
-              onShakeComplete={handlePlayer2ShakeComplete}
-              onSparkleComplete={handlePlayer2SparkleComplete}
-              onMissComplete={handlePlayer2MissComplete}
-              onHitComplete={handlePlayer2HitComplete}
-              onSurpriseComplete={handlePlayer2SurpriseComplete}
-              onCastComplete={handlePlayer2CastComplete}
-              allowAllTurns={!isAIModeActive}
-              testButtons={[
-                // Add buttons for all abilities
-                ...player2Class.abilities.map((ability, index) => ({
-                  label: ability.type === 'healing' ? `💚 ${ability.name}` : `⚔️ ${ability.name}`,
-                  onClick: () => testUseAbility('player2', index),
-                  className: ability.type === 'healing' 
-                    ? 'px-2 py-0.5 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
-                    : 'px-2 py-0.5 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'
-                })),
-                // Keep existing test buttons
-                {
-                  label: '💥 High Damage',
-                  onClick: () => testHighDamage('player2'),
-                  className: 'px-2 py-0.5 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'
-                },
-                {
-                  label: '💥 Low Damage',
-                  onClick: () => testLowDamage('player2'),
-                  className: 'px-2 py-0.5 bg-orange-900 hover:bg-orange-800 text-white text-xs rounded border border-orange-700 transition-all'
-                },
-                {
-                  label: '💚 Full Heal',
-                  onClick: () => testFullHeal('player2'),
-                  className: 'px-2 py-0.5 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
-                },
-                {
-                  label: '💚 Low Heal',
-                  onClick: () => testLowHeal('player2'),
-                  className: 'px-2 py-0.5 bg-emerald-900 hover:bg-emerald-800 text-white text-xs rounded border border-emerald-700 transition-all'
-                },
-                {
-                  label: '❌ Test Miss',
-                  onClick: () => testAttackMiss('player2'),
-                  className: 'px-2 py-0.5 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all'
-                }
-              ]}
-            />
+            <div className="space-y-3">
+              <CharacterCard
+                playerClass={player1Class}
+                characterName={player1Name || 'Loading...'}
+                monsterImageUrl={player1MonsterId ? `/cdn/monsters/${player1MonsterId}/280x200.png` : undefined}
+                onUseAbility={(index) => {
+                  testUseAbility('player1', index);
+                }}
+                onAttack={() => {
+                  setIsMoveInProgress(true);
+                  testAttackHit('player1');
+                }}
+                isMoveInProgress={isMoveInProgress}
+                shouldShake={shakingPlayer === 'player1'}
+                shouldSparkle={sparklingPlayer === 'player1'}
+                shouldMiss={missingPlayer === 'player1'}
+                shouldHit={hittingPlayer === 'player1'}
+                shouldSurprise={surprisedPlayer === 'player1'}
+                shouldCast={castingPlayer === 'player1'}
+                castTrigger={castTrigger.player1}
+                shakeTrigger={shakeTrigger.player1}
+                sparkleTrigger={sparkleTrigger.player1}
+                missTrigger={missTrigger.player1}
+                hitTrigger={hitTrigger.player1}
+                surpriseTrigger={surpriseTrigger.player1}
+                shakeIntensity={shakeIntensity.player1}
+                sparkleIntensity={sparkleIntensity.player1}
+                isActive={currentTurn === 'player1'}
+                isDefeated={defeatedPlayer === 'player1'}
+                isVictor={victorPlayer === 'player1'}
+                confettiTrigger={confettiTrigger}
+                onShakeComplete={handlePlayer1ShakeComplete}
+                onSparkleComplete={handlePlayer1SparkleComplete}
+                onMissComplete={handlePlayer1MissComplete}
+                onHitComplete={handlePlayer1HitComplete}
+                onSurpriseComplete={handlePlayer1SurpriseComplete}
+                onCastComplete={handlePlayer1CastComplete}
+                allowAllTurns={!isAIModeActive}
+              />
+              {/* Test buttons for Player 1 */}
+              <div 
+                className="flex flex-wrap gap-2"
+                style={{ width: '100%', maxWidth: '320px' }}
+              >
+                {/* Ability buttons */}
+                {player1Class.abilities.map((ability, index) => (
+                  <button
+                    key={`p1-ability-${index}`}
+                    onClick={() => testUseAbility('player1', index)}
+                    className={ability.type === 'healing' 
+                      ? 'px-2 py-1 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
+                      : 'px-2 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'}
+                  >
+                    {ability.type === 'healing' ? `💚 ${ability.name}` : `⚔️ ${ability.name}`}
+                  </button>
+                ))}
+                {/* Test buttons */}
+                <button
+                  onClick={() => testHighDamage('player1')}
+                  className="px-2 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all"
+                >
+                  💥 High Damage
+                </button>
+                <button
+                  onClick={() => testLowDamage('player1')}
+                  className="px-2 py-1 bg-orange-900 hover:bg-orange-800 text-white text-xs rounded border border-orange-700 transition-all"
+                >
+                  💥 Low Damage
+                </button>
+                <button
+                  onClick={() => testFullHeal('player1')}
+                  className="px-2 py-1 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all"
+                >
+                  💚 Full Heal
+                </button>
+                <button
+                  onClick={() => testLowHeal('player1')}
+                  className="px-2 py-1 bg-emerald-900 hover:bg-emerald-800 text-white text-xs rounded border border-emerald-700 transition-all"
+                >
+                  💚 Low Heal
+                </button>
+                <button
+                  onClick={() => testAttackMiss('player1')}
+                  className="px-2 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all"
+                >
+                  ❌ Test Miss
+                </button>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <CharacterCard
+                playerClass={player2Class}
+                characterName={player2Name || 'Loading...'}
+                monsterImageUrl={player2MonsterId ? `/cdn/monsters/${player2MonsterId}/280x200.png` : undefined}
+                onUseAbility={(index) => {
+                  if (isAIModeActive) return; // Don't allow manual control in AI mode
+                  testUseAbility('player2', index);
+                }}
+                onAttack={() => {
+                  setIsMoveInProgress(true);
+                  testAttackHit('player2');
+                }}
+                isOpponent={isAIModeActive}
+                isMoveInProgress={isMoveInProgress}
+                shouldShake={shakingPlayer === 'player2'}
+                shouldSparkle={sparklingPlayer === 'player2'}
+                shouldMiss={missingPlayer === 'player2'}
+                shouldHit={hittingPlayer === 'player2'}
+                shouldSurprise={surprisedPlayer === 'player2'}
+                shouldCast={castingPlayer === 'player2'}
+                castTrigger={castTrigger.player2}
+                shakeTrigger={shakeTrigger.player2}
+                sparkleTrigger={sparkleTrigger.player2}
+                missTrigger={missTrigger.player2}
+                hitTrigger={hitTrigger.player2}
+                surpriseTrigger={surpriseTrigger.player2}
+                shakeIntensity={shakeIntensity.player2}
+                sparkleIntensity={sparkleIntensity.player2}
+                isActive={currentTurn === 'player2'}
+                isDefeated={defeatedPlayer === 'player2'}
+                isVictor={victorPlayer === 'player2'}
+                confettiTrigger={confettiTrigger}
+                onShakeComplete={handlePlayer2ShakeComplete}
+                onSparkleComplete={handlePlayer2SparkleComplete}
+                onMissComplete={handlePlayer2MissComplete}
+                onHitComplete={handlePlayer2HitComplete}
+                onSurpriseComplete={handlePlayer2SurpriseComplete}
+                onCastComplete={handlePlayer2CastComplete}
+                allowAllTurns={!isAIModeActive}
+              />
+              {/* Test buttons for Player 2 */}
+              <div 
+                className="flex flex-wrap gap-2"
+                style={{ width: '100%', maxWidth: '320px' }}
+              >
+                {/* Ability buttons */}
+                {player2Class.abilities.map((ability, index) => (
+                  <button
+                    key={`p2-ability-${index}`}
+                    onClick={() => {
+                      if (isAIModeActive) return;
+                      testUseAbility('player2', index);
+                    }}
+                    disabled={isAIModeActive}
+                    className={`${ability.type === 'healing' 
+                      ? 'px-2 py-1 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
+                      : 'px-2 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'} ${isAIModeActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {ability.type === 'healing' ? `💚 ${ability.name}` : `⚔️ ${ability.name}`}
+                  </button>
+                ))}
+                {/* Test buttons */}
+                <button
+                  onClick={() => {
+                    if (isAIModeActive) return;
+                    testHighDamage('player2');
+                  }}
+                  disabled={isAIModeActive}
+                  className={`px-2 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all ${isAIModeActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  💥 High Damage
+                </button>
+                <button
+                  onClick={() => {
+                    if (isAIModeActive) return;
+                    testLowDamage('player2');
+                  }}
+                  disabled={isAIModeActive}
+                  className={`px-2 py-1 bg-orange-900 hover:bg-orange-800 text-white text-xs rounded border border-orange-700 transition-all ${isAIModeActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  💥 Low Damage
+                </button>
+                <button
+                  onClick={() => {
+                    if (isAIModeActive) return;
+                    testFullHeal('player2');
+                  }}
+                  disabled={isAIModeActive}
+                  className={`px-2 py-1 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all ${isAIModeActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  💚 Full Heal
+                </button>
+                <button
+                  onClick={() => {
+                    if (isAIModeActive) return;
+                    testLowHeal('player2');
+                  }}
+                  disabled={isAIModeActive}
+                  className={`px-2 py-1 bg-emerald-900 hover:bg-emerald-800 text-white text-xs rounded border border-emerald-700 transition-all ${isAIModeActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  💚 Low Heal
+                </button>
+                <button
+                  onClick={() => {
+                    if (isAIModeActive) return;
+                    testAttackMiss('player2');
+                  }}
+                  disabled={isAIModeActive}
+                  className={`px-2 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all ${isAIModeActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  ❌ Test Miss
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Test Log */}

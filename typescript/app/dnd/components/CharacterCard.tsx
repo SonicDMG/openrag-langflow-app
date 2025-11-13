@@ -246,6 +246,7 @@ function CharacterCardComponent({
             {isActive && ' ⚡'}
             {isDefeated && ' 💀'}
             {isVictor && ' 🏆'}
+            {isOpponent && ' 🤖'}
           </h3>
 
           {/* Character type - smaller, lighter brown */}
@@ -305,12 +306,19 @@ function CharacterCardComponent({
 
         {/* Abilities section */}
         <div className="mb-3">
-          <h4 
-            className="text-xs font-semibold mb-1.5" 
-            style={{ color: '#8B6F47' }} // Lighter brown for heading
-          >
-            Abilities
-          </h4>
+          <div className="flex items-center justify-between mb-1.5">
+            <h4 
+              className="text-xs font-semibold" 
+              style={{ color: '#8B6F47' }} // Lighter brown for heading
+            >
+              Abilities
+            </h4>
+            {isOpponent && (
+              <div className="text-xs italic font-semibold" style={{ color: '#8B6F47' }}>
+                Auto-playing opponent
+              </div>
+            )}
+          </div>
           <div>
             {playerClass.abilities.length > 0 ? (
               <div className="flex flex-wrap gap-1">
@@ -431,22 +439,16 @@ function CharacterCardComponent({
             </div>
           </div>
 
-          {/* Attack button (if provided and not opponent) */}
-          {!isOpponent && effectiveIsActive && onAttack && (
+          {/* Attack button (show for all players, but disabled for AI opponents) */}
+          {onAttack && (
             <button
               onClick={onAttack}
-              disabled={isDisabled}
+              disabled={isOpponent || isDisabled}
               className="w-full mt-3 py-2 px-4 bg-red-900 hover:bg-red-800 text-white font-bold rounded-lg border-2 border-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              title={isOpponent ? 'AI-controlled player' : undefined}
             >
               Attack!
             </button>
-          )}
-
-          {/* Opponent indicator */}
-          {isOpponent && (
-            <div className="mt-2 text-center">
-              <div className="text-xs italic" style={{ color: '#8B6F47' }}>Auto-playing opponent</div>
-            </div>
           )}
         </div>
 

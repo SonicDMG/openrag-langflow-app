@@ -1534,6 +1534,7 @@ export default function DnDBattle() {
                 playerClass={player2Class}
                 characterName={player2Name || 'Loading...'}
                 monsterImageUrl={player2MonsterId ? `/cdn/monsters/${player2MonsterId}/280x200.png` : undefined}
+                onAttack={() => performAttack('player2')}
                 onUseAbility={(idx) => useAbility('player2', idx)}
                 shouldShake={shakingPlayer === 'player2'}
                 shouldSparkle={sparklingPlayer === 'player2'}
