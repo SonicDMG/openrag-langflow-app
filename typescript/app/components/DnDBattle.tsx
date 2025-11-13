@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { flushSync } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
@@ -10,7 +10,7 @@ import remarkGfm from 'remark-gfm';
 import { DnDClass, BattleLog, AttackAbility, Ability } from '../dnd/types';
 
 // Constants
-import { FALLBACK_CLASSES, FALLBACK_MONSTERS, CLASS_COLORS, FALLBACK_ABILITIES, CLASS_ICONS, MONSTER_ICONS, MONSTER_COLORS, selectRandomAbilities, FALLBACK_MONSTER_ABILITIES } from '../dnd/constants';
+import { FALLBACK_CLASSES, FALLBACK_MONSTERS, CLASS_COLORS, FALLBACK_ABILITIES, MONSTER_ICONS, MONSTER_COLORS, selectRandomAbilities, FALLBACK_MONSTER_ABILITIES } from '../dnd/constants';
 
 // Utilities
 import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../dnd/utils/dice';
@@ -502,7 +502,7 @@ export default function DnDBattle() {
     };
   }, [generateAndLogNarrative, switchTurn]);
 
-  // Memoized callback functions for PlayerStats to prevent unnecessary re-renders
+  // Memoized callback functions for animation completion to prevent unnecessary re-renders
   const handleShakeComplete = useCallback(() => {
     setShakingPlayer(null);
   }, []);

@@ -83,7 +83,7 @@ app/dnd/
 │   ├── RigPlayer.tsx       # Runtime rig renderer
 │   └── MonsterCreator.tsx # Monster creation UI
 └── utils/
-    └── rigTypes.ts         # Type definitions
+    └── monsterTypes.ts     # Type definitions
 ```
 
 ## Storage Format

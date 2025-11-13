@@ -903,7 +903,7 @@ export default function DnDTestPage() {
     addLog('system', '🔄 Test reset');
   };
 
-  // Memoized callback functions for PlayerStats to prevent unnecessary re-renders
+  // Memoized callback functions for animation completion to prevent unnecessary re-renders
   const handlePlayer1ShakeComplete = useCallback(() => {
     setShakingPlayer(null);
   }, []);

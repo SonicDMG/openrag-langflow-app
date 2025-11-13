@@ -3,29 +3,18 @@ import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { pixelize } from '@/app/dnd/server/pixelize';
-import { saveMonsterBundle, loadMonsterBundle } from '@/app/dnd/server/storage';
+import { saveMonsterBundle } from '@/app/dnd/server/storage';
 import { downloadImage, ensure16x9AspectRatio } from '@/app/dnd/server/imageGeneration';
 import { removeBackground, ensureTransparentBackground } from '@/app/dnd/server/backgroundRemoval';
-import { MonsterBundle } from '@/app/dnd/utils/rigTypes';
+import { MonsterBundle } from '@/app/dnd/utils/monsterTypes';
 
 const MONSTERS_DIR = join(process.cwd(), 'public', 'cdn', 'monsters');
 
-// Note: This function will be called with MCP tool access
-// For now, we'll use a placeholder that the actual implementation will replace
-async function generateReferenceImageWithEverArt(
-  prompt: string,
-  seed: number,
-  model: string = '5000'
-): Promise<Buffer> {
-  // This should use the MCP tool mcp_everart_generate_image
-  // Since we can't directly call MCP tools from server code,
-  // we'll need to make an HTTP request to a service that has MCP access,
-  // or we can implement this differently.
-  // For now, throw an error to indicate this needs to be implemented
-  throw new Error(
-    'Image generation needs to be implemented with MCP tool access. ' +
-    'Consider creating a separate service endpoint or using the MCP tool directly in the route handler.'
-  );
+// Helper function to format error responses consistently
+function formatErrorResponse(error: unknown): { error: string } {
+  return {
+    error: error instanceof Error ? error.message : 'Internal server error',
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -156,12 +145,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error('Monster creation error:', error);
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : 'Internal server error',
-      },
-      { status: 500 }
-    );
+    return NextResponse.json(formatErrorResponse(error), { status: 500 });
   }
 }
 
@@ -250,12 +234,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ monsters: validMonsters });
   } catch (error) {
     console.error('Error listing monsters:', error);
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : 'Internal server error',
-      },
-      { status: 500 }
-    );
+    return NextResponse.json(formatErrorResponse(error), { status: 500 });
   }
 }
 
@@ -305,12 +284,7 @@ export async function PATCH(req: NextRequest) {
     });
   } catch (error) {
     console.error('Error updating monster association:', error);
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : 'Internal server error',
-      },
-      { status: 500 }
-    );
+    return NextResponse.json(formatErrorResponse(error), { status: 500 });
   }
 }
 
@@ -385,12 +359,7 @@ export async function DELETE(req: NextRequest) {
     });
   } catch (error) {
     console.error('Error deleting monster:', error);
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : 'Internal server error',
-      },
-      { status: 500 }
-    );
+    return NextResponse.json(formatErrorResponse(error), { status: 500 });
   }
 }
 

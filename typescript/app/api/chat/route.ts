@@ -6,6 +6,13 @@ import { resolve } from 'path';
 // Load environment variables from the root .env file
 config({ path: resolve(process.cwd(), '..', '.env') });
 
+// Helper function to format error responses consistently
+function formatErrorResponse(error: unknown): { error: string } {
+  return {
+    error: error instanceof Error ? error.message : 'Internal server error',
+  };
+}
+
 const langflowServerUrl = process.env.LANGFLOW_SERVER_URL;
 const langflowApiKey = process.env.LANGFLOW_API_KEY;
 const modelId = '1098eea1-6649-4e1d-aed1-b77249fb8dd0';
@@ -163,9 +170,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Chat API error:', error);
     return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : 'Internal server error',
-      }),
+      JSON.stringify(formatErrorResponse(error)),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }

@@ -6,6 +6,13 @@ import EverArt from 'everart';
 // Load environment variables from the root .env file
 config({ path: resolve(process.cwd(), '..', '.env') });
 
+// Helper function to format error responses consistently
+function formatErrorResponse(error: unknown): { error: string } {
+  return {
+    error: error instanceof Error ? error.message : 'Internal server error',
+  };
+}
+
 /**
  * Builds the base pixel art prompt template with user's description
  */
@@ -158,12 +165,7 @@ export async function POST(req: NextRequest) {
     }
   } catch (error) {
     console.error('Image generation error:', error);
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : 'Internal server error',
-      },
-      { status: 500 }
-    );
+    return NextResponse.json(formatErrorResponse(error), { status: 500 });
   }
 }
 

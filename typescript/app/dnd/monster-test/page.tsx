@@ -316,24 +316,27 @@ export default function MonsterTestPage() {
     try {
       // Example: Create a monster with a test image URL
       // In a real scenario, you'd generate this with EverArt first
+      const klass = 'TestMonster';
+      const requestBody = {
+        klass,
+        prompt: 'A test monster for API testing',
+        seed: Math.floor(Math.random() * 1000000),
+        imageUrl: '', // Leave empty to test error handling, or provide a URL
+        stats: {
+          hitPoints: 25,
+          maxHitPoints: 25,
+          armorClass: 12,
+          attackBonus: 3,
+          damageDie: 'd6',
+        },
+      };
+
       const response = await fetch('/api/monsters', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          klass: 'TestMonster',
-          prompt: 'A test monster for API testing',
-          seed: Math.floor(Math.random() * 1000000),
-          imageUrl: '', // Leave empty to test error handling, or provide a URL
-          stats: {
-            hitPoints: 25,
-            maxHitPoints: 25,
-            armorClass: 12,
-            attackBonus: 3,
-            damageDie: 'd6',
-          },
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
@@ -342,7 +345,8 @@ export default function MonsterTestPage() {
         throw new Error(data.error || 'Failed to create monster');
       }
 
-      handleMonsterCreated(data.monsterId);
+      const imageUrl = `/cdn/monsters/${data.monsterId}/280x200.png`;
+      handleMonsterCreated(data.monsterId, klass, imageUrl);
       alert(`Monster created successfully! ID: ${data.monsterId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
