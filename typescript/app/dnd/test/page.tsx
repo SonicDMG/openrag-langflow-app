@@ -1220,6 +1220,7 @@ export default function DnDTestPage() {
                                 playerClass={{ ...monster, hitPoints: monster.maxHitPoints }}
                                 characterName={monster.name}
                                 monsterImageUrl={monsterImageUrl}
+                                monsterCutOutImageUrl={associatedMonster ? `/cdn/monsters/${associatedMonster.monsterId}/280x200-cutout.png` : undefined}
                                 size="compact"
                                 cardIndex={index}
                                 totalCards={FALLBACK_MONSTERS.length + customMonsters.length}
@@ -1270,6 +1271,7 @@ export default function DnDTestPage() {
                 playerClass={player1Class}
                 characterName={player1Name || 'Loading...'}
                 monsterImageUrl={player1MonsterId ? `/cdn/monsters/${player1MonsterId}/280x200.png` : undefined}
+                monsterCutOutImageUrl={player1MonsterId ? `/cdn/monsters/${player1MonsterId}/280x200-cutout.png` : undefined}
                 onAttack={() => {
                   setIsMoveInProgress(true);
                   testAttackHit('player1');
@@ -1353,6 +1355,7 @@ export default function DnDTestPage() {
                 playerClass={player2Class}
                 characterName={player2Name || 'Loading...'}
                 monsterImageUrl={player2MonsterId ? `/cdn/monsters/${player2MonsterId}/280x200.png` : undefined}
+                monsterCutOutImageUrl={player2MonsterId ? `/cdn/monsters/${player2MonsterId}/280x200-cutout.png` : undefined}
                 onAttack={() => {
                   if (isAIModeActive) return; // Don't allow manual control in AI mode
                   setIsMoveInProgress(true);

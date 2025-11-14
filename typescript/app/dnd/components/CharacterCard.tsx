@@ -179,6 +179,8 @@ function CharacterCardComponent({
   totalCards,
 }: CharacterCardProps) {
   const animationRef = useRef<HTMLDivElement>(null);
+  const characterImageRef = useRef<HTMLDivElement>(null);
+  const cutOutCharacterRef = useRef<HTMLImageElement>(null);
   const effectiveIsActive = allowAllTurns ? !isDefeated : isActive;
   const isDisabled = (effectiveIsActive && isMoveInProgress) || isDefeated;
   const [imageError, setImageError] = useState(false);
@@ -188,17 +190,21 @@ function CharacterCardComponent({
   const placeholderImageUrl = '/cdn/placeholder.png';
 
   // Apply shake animation
+  // If there's an animated character (cut-out image), shake only the cut-out character, not the background
   useEffect(() => {
-    if (animationRef.current && shouldShake) {
+    const hasAnimatedCharacter = monsterCutOutImageUrl && !cutOutImageError;
+    const targetRef = hasAnimatedCharacter ? cutOutCharacterRef : animationRef;
+    
+    if (targetRef.current && shouldShake) {
       const intensity = shakeIntensity > 0 ? shakeIntensity : 1;
       const maxHP = playerClass.maxHitPoints;
       const intensityPercent = Math.min(intensity / maxHP, 1.0);
       const scale = 0.15 + (Math.sqrt(intensityPercent) * 1.85);
-      animationRef.current.style.setProperty('--shake-intensity', scale.toString());
+      targetRef.current.style.setProperty('--shake-intensity', scale.toString());
     }
     
     const cleanup = applyAnimationClass(
-      animationRef.current,
+      targetRef.current,
       shouldShake,
       shakeTrigger,
       'shake',
@@ -206,7 +212,7 @@ function CharacterCardComponent({
       onShakeComplete || (() => {})
     );
     return cleanup;
-  }, [shouldShake, shakeTrigger, shakeIntensity, playerClass.maxHitPoints, onShakeComplete]);
+  }, [shouldShake, shakeTrigger, shakeIntensity, playerClass.maxHitPoints, onShakeComplete, monsterCutOutImageUrl, cutOutImageError]);
 
   // Apply sparkle animation
   useEffect(() => {
@@ -475,6 +481,7 @@ function CharacterCardComponent({
 
         {/* Central pixel art image in frame - slightly darker beige */}
         <div 
+          ref={characterImageRef}
           className="rounded-lg flex justify-center items-center overflow-hidden mx-auto relative"
           style={{ 
             backgroundColor: '#E8E0D6', // Slightly darker beige frame
@@ -508,6 +515,7 @@ function CharacterCardComponent({
               {/* Cut-out character layer with animation (if available) */}
               {monsterCutOutImageUrl && !cutOutImageError && (
                 <img
+                  ref={cutOutCharacterRef}
                   src={monsterCutOutImageUrl}
                   alt={`${characterName} (cut-out)`}
                   className="character-cutout"
