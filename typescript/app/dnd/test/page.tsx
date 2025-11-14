@@ -35,6 +35,11 @@ export default function DnDTestPage() {
   const [createdMonsters, setCreatedMonsters] = useState<Array<DnDClass & { monsterId: string; imageUrl: string }>>([]);
   const [isLoadingCreatedMonsters, setIsLoadingCreatedMonsters] = useState(false);
   
+  // Custom heroes and monsters from database
+  const [customHeroes, setCustomHeroes] = useState<DnDClass[]>([]);
+  const [customMonsters, setCustomMonsters] = useState<DnDClass[]>([]);
+  const [isLoadingCustom, setIsLoadingCustom] = useState(true);
+  
   // Test player setup - preserve actual abilities from classes
   const [player1Class, setPlayer1Class] = useState<DnDClass>(() => ({
     ...FALLBACK_CLASSES[0],
@@ -162,6 +167,42 @@ export default function DnDTestPage() {
   const [isMoveInProgress, setIsMoveInProgress] = useState(false);
   const diceQueueRef = useRef<Array<Array<{ diceType: string; result: number }>>>([]);
   
+  // Load custom heroes and monsters from database
+  useEffect(() => {
+    const loadCustomCharacters = async () => {
+      setIsLoadingCustom(true);
+      try {
+        // Load custom heroes
+        const heroesResponse = await fetch('/api/heroes');
+        if (heroesResponse.ok) {
+          const heroesData = await heroesResponse.json();
+          // Filter to only show custom heroes (those not from fallbacks)
+          const custom = (heroesData.heroes || []).filter((h: DnDClass) => 
+            !FALLBACK_CLASSES.some(fc => fc.name === h.name)
+          );
+          setCustomHeroes(custom);
+        }
+
+        // Load custom monsters
+        const monstersResponse = await fetch('/api/monsters-db');
+        if (monstersResponse.ok) {
+          const monstersData = await monstersResponse.json();
+          // Filter to only show custom monsters (those not from fallbacks)
+          const custom = (monstersData.monsters || []).filter((m: DnDClass) => 
+            !FALLBACK_MONSTERS.some(fm => fm.name === m.name)
+          );
+          setCustomMonsters(custom);
+        }
+      } catch (error) {
+        console.error('Failed to load custom characters:', error);
+      } finally {
+        setIsLoadingCustom(false);
+      }
+    };
+
+    loadCustomCharacters();
+  }, []);
+
   // Load created monsters on mount
   useEffect(() => {
     const loadCreatedMonsters = async () => {
@@ -177,19 +218,27 @@ export default function DnDTestPage() {
             const fallbackMonster = FALLBACK_MONSTERS.find(m2 => m2.name === m.klass);
             const fallback = fallbackClass || fallbackMonster;
             
+            // Also check custom heroes/monsters
+            const customHero = customHeroes.find(h => h.name === m.klass);
+            const customMonster = customMonsters.find(m2 => m2.name === m.klass);
+            const custom = customHero || customMonster;
+            
+            // Prefer custom over fallback
+            const character = custom || fallback;
+            
             // Construct imageUrl from monsterId if not provided
             const imageUrl = m.imageUrl || `/cdn/monsters/${m.monsterId}/280x200.png`;
             
             return {
               name: m.klass,
-              hitPoints: m.stats?.hitPoints || fallback?.hitPoints || 30,
-              maxHitPoints: m.stats?.maxHitPoints || m.stats?.hitPoints || fallback?.maxHitPoints || 30,
-              armorClass: m.stats?.armorClass || fallback?.armorClass || 14,
-              attackBonus: m.stats?.attackBonus || fallback?.attackBonus || 4,
-              damageDie: m.stats?.damageDie || fallback?.damageDie || 'd8',
-              abilities: fallback?.abilities || [],
-              description: m.stats?.description || fallback?.description || `A ${m.klass} created in the monster creator.`,
-              color: fallback?.color || 'bg-slate-900',
+              hitPoints: m.stats?.hitPoints || character?.hitPoints || 30,
+              maxHitPoints: m.stats?.maxHitPoints || m.stats?.hitPoints || character?.maxHitPoints || 30,
+              armorClass: m.stats?.armorClass || character?.armorClass || 14,
+              attackBonus: m.stats?.attackBonus || character?.attackBonus || 4,
+              damageDie: m.stats?.damageDie || character?.damageDie || 'd8',
+              abilities: character?.abilities || [],
+              description: m.stats?.description || character?.description || `A ${m.klass} created in the monster creator.`,
+              color: character?.color || 'bg-slate-900',
               monsterId: m.monsterId,
               imageUrl: imageUrl.replace('/256.png', '/280x200.png').replace('/200.png', '/280x200.png'),
             } as DnDClass & { monsterId: string; imageUrl: string };
@@ -203,7 +252,7 @@ export default function DnDTestPage() {
       }
     };
     loadCreatedMonsters();
-  }, []);
+  }, [customHeroes, customMonsters]);
 
   // Update monster IDs when createdMonsters loads or changes, if players already have classes selected
   useEffect(() => {
@@ -1066,7 +1115,7 @@ export default function DnDTestPage() {
                 <h3 className="text-lg font-semibold mb-3 text-amber-200">Player 1 (Class)</h3>
                 <ClassSelection
                   title="Select Class"
-                  availableClasses={FALLBACK_CLASSES}
+                  availableClasses={[...FALLBACK_CLASSES, ...customHeroes]}
                   selectedClass={player1Class}
                   onSelect={handlePlayer1Select}
                   createdMonsters={createdMonsters}
@@ -1113,7 +1162,7 @@ export default function DnDTestPage() {
                 {player2Type === 'class' ? (
                   <ClassSelection
                     title="Select Class"
-                    availableClasses={FALLBACK_CLASSES}
+                    availableClasses={[...FALLBACK_CLASSES, ...customHeroes]}
                     selectedClass={player2Class}
                     onSelect={handlePlayer2Select}
                     createdMonsters={createdMonsters}
@@ -1146,7 +1195,7 @@ export default function DnDTestPage() {
                           msOverflowStyle: 'none',
                         }}
                       >
-                        {FALLBACK_MONSTERS.map((monster, index) => {
+                        {[...FALLBACK_MONSTERS, ...customMonsters].map((monster, index) => {
                           const isSelected = player2Class?.name === monster.name;
                           const associatedMonster = findAssociatedMonster(monster.name);
                           const monsterImageUrl = associatedMonster 
@@ -1173,7 +1222,7 @@ export default function DnDTestPage() {
                                 monsterImageUrl={monsterImageUrl}
                                 size="compact"
                                 cardIndex={index}
-                                totalCards={FALLBACK_MONSTERS.length}
+                                totalCards={FALLBACK_MONSTERS.length + customMonsters.length}
                               />
                             </div>
                           );

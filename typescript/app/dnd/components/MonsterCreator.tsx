@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS, getRandomRace } from '../constants';
+import { DnDClass } from '../types';
+import { SearchableSelect } from './SearchableSelect';
 
 interface MonsterCreatorProps {
   onMonsterCreated?: (monsterId: string, klass: string, imageUrl: string) => void;
@@ -37,25 +39,70 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
   const [transparentBackground, setTransparentBackground] = useState(true);
   const [removeBg, setRemoveBg] = useState(false);
 
+  const [customHeroes, setCustomHeroes] = useState<DnDClass[]>([]);
+  const [customMonsters, setCustomMonsters] = useState<DnDClass[]>([]);
+
+  // Load custom heroes and monsters from database
+  useEffect(() => {
+    const loadCustomCharacters = async () => {
+      try {
+        // Load custom heroes
+        const heroesResponse = await fetch('/api/heroes');
+        if (heroesResponse.ok) {
+          const heroesData = await heroesResponse.json();
+          const custom = (heroesData.heroes || []).filter((h: DnDClass) => 
+            !FALLBACK_CLASSES.some(fc => fc.name === h.name)
+          );
+          setCustomHeroes(custom);
+        }
+
+        // Load custom monsters
+        const monstersResponse = await fetch('/api/monsters-db');
+        if (monstersResponse.ok) {
+          const monstersData = await monstersResponse.json();
+          const custom = (monstersData.monsters || []).filter((m: DnDClass) => 
+            !FALLBACK_MONSTERS.some(fm => fm.name === m.name)
+          );
+          setCustomMonsters(custom);
+        }
+      } catch (error) {
+        console.error('Failed to load custom characters:', error);
+      }
+    };
+
+    loadCustomCharacters();
+  }, []);
+
   // Combine all available classes and monsters for dropdown
   const allOptions = [
-    ...FALLBACK_CLASSES.map(c => ({ name: c.name, type: 'class' as const })),
-    ...FALLBACK_MONSTERS.map(m => ({ name: m.name, type: 'monster' as const }))
-  ].sort((a, b) => a.name.localeCompare(b.name));
+    ...FALLBACK_CLASSES.map(c => ({ name: c.name, type: 'class' as const, isCustom: false })),
+    ...FALLBACK_MONSTERS.map(m => ({ name: m.name, type: 'monster' as const, isCustom: false })),
+    ...customHeroes.map(c => ({ name: c.name, type: 'class' as const, isCustom: true })),
+    ...customMonsters.map(m => ({ name: m.name, type: 'monster' as const, isCustom: true }))
+  ].sort((a, b) => {
+    // Sort: fallback first, then custom, then alphabetically
+    if (a.isCustom !== b.isCustom) {
+      return a.isCustom ? 1 : -1;
+    }
+    return a.name.localeCompare(b.name);
+  });
 
   // Check if the selected klass is a class (not a monster)
   const isClass = useMemo(() => {
     if (!klass) return false;
-    return FALLBACK_CLASSES.some(c => c.name === klass);
-  }, [klass]);
+    return FALLBACK_CLASSES.some(c => c.name === klass) || customHeroes.some(c => c.name === klass);
+  }, [klass, customHeroes]);
 
   // Get the selected class/monster description
   const selectedDescription = useMemo(() => {
     if (!klass) return '';
     const fallbackClass = FALLBACK_CLASSES.find(c => c.name === klass);
     const fallbackMonster = FALLBACK_MONSTERS.find(m => m.name === klass);
-    return fallbackClass?.description || fallbackMonster?.description || '';
-  }, [klass]);
+    const customHero = customHeroes.find(c => c.name === klass);
+    const customMonster = customMonsters.find(m => m.name === klass);
+    // Prefer custom over fallback
+    return customHero?.description || customMonster?.description || fallbackClass?.description || fallbackMonster?.description || '';
+  }, [klass, customHeroes, customMonsters]);
 
   // When klass changes, populate the description field with the class/monster name and description
   // For classes, also include a randomly selected race
@@ -194,27 +241,17 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
 
   return (
     <div className="border border-amber-700 rounded p-4 space-y-4 max-w-2xl bg-amber-900/30">
-      <h2 className="text-xl font-bold text-amber-100">Create New Monster</h2>
+      <h2 className="text-xl font-bold text-amber-100">Create Character Image</h2>
       
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-amber-100">
-          Class/Type
-          <select
-            value={klass}
-            onChange={(e) => setKlass(e.target.value)}
-            className="mt-1 w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100"
-          >
-            <option value="">Select a class or monster...</option>
-            {allOptions.map((option) => (
-              <option key={option.name} value={option.name}>
-                {option.name} ({option.type === 'class' ? 'Class' : 'Monster'})
-              </option>
-            ))}
-          </select>
-        </label>
-        <p className="text-xs text-amber-300">
-          Select from available D&D classes and monsters. This links your created monster to its playing card stats.
-        </p>
+        <SearchableSelect
+          options={allOptions}
+          value={klass}
+          onChange={setKlass}
+          placeholder="Select a class or monster..."
+          label="Class/Type"
+          helpText="Select from available D&D classes and monsters. This links your created monster to its playing card stats."
+        />
       </div>
 
       <div className="space-y-2">
@@ -383,7 +420,7 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
           undefined
         }
       >
-        {isCreating ? 'Creating...' : 'Create Monster'}
+        {isCreating ? 'Creating...' : 'Create Image'}
       </button>
       {(!klass || !fullPrompt || !imageUrl) && !isCreating && (
         <p className="text-xs text-amber-300 text-center">
