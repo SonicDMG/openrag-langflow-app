@@ -23,11 +23,61 @@ export default function LoadDataPage() {
   const [isLoadingMonsters, setIsLoadingMonsters] = useState(false);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const logEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const processedItemsRef = useRef<DnDClass[]>([]);
 
   // Auto-scroll to bottom of log
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logEntries]);
+
+  // Warn user if they try to navigate away during an operation
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isLoadingClasses || isLoadingMonsters) {
+        e.preventDefault();
+        e.returnValue = 'A data loading operation is in progress. Are you sure you want to leave?';
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isLoadingClasses, isLoadingMonsters]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Cancel any ongoing operations
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      // Save any processed items before unmounting (both classes and monsters use same ref)
+      if (processedItemsRef.current.length > 0) {
+        try {
+          // Try to determine if these are classes or monsters by checking if loading state
+          // Since we can't know for sure, save to both (they'll be merged properly on next load)
+          const existingClasses = JSON.parse(localStorage.getItem('dnd_loaded_classes') || '[]');
+          const existingMonsters = JSON.parse(localStorage.getItem('dnd_loaded_monsters') || '[]');
+          const mergedClasses = new Map<string, DnDClass>();
+          const mergedMonsters = new Map<string, DnDClass>();
+          existingClasses.forEach((c: DnDClass) => mergedClasses.set(c.name, c));
+          existingMonsters.forEach((m: DnDClass) => mergedMonsters.set(m.name, m));
+          processedItemsRef.current.forEach(item => {
+            mergedClasses.set(item.name, item);
+            mergedMonsters.set(item.name, item);
+          });
+          localStorage.setItem('dnd_loaded_classes', JSON.stringify(Array.from(mergedClasses.values())));
+          localStorage.setItem('dnd_loaded_monsters', JSON.stringify(Array.from(mergedMonsters.values())));
+          console.log(`Saved ${processedItemsRef.current.length} items to localStorage before unmount`);
+        } catch (error) {
+          console.error('Failed to save items before unmount:', error);
+        }
+      }
+    };
+  }, []);
 
   const addLog = (type: LogEntry['type'], message: string, itemName?: string, status?: LogEntry['status']) => {
     const entry: LogEntry = {
@@ -52,6 +102,8 @@ export default function LoadDataPage() {
   const loadClassesFromOpenRAG = async () => {
     setIsLoadingClasses(true);
     setLogEntries([]);
+    processedItemsRef.current = [];
+    abortControllerRef.current = new AbortController();
     addLog('system', `🚀 Starting to load classes from OpenRAG (context: ${classSearchContext || 'default'})...`);
     
     try {
@@ -78,6 +130,12 @@ export default function LoadDataPage() {
 
       // Process classes one by one to show live updates
       for (const className of classNames) {
+        // Check if operation was aborted
+        if (abortControllerRef.current?.signal.aborted) {
+          addLog('system', '⚠️ Operation cancelled');
+          break;
+        }
+
         addLog('item', `Loading ${className}...`, className, 'loading');
         
         try {
@@ -86,7 +144,7 @@ export default function LoadDataPage() {
           // Fetch abilities
           let abilities: Ability[] = [];
           try {
-            abilities = await extractAbilities(className);
+            abilities = await extractAbilities(className, classSearchContext || undefined);
             if (abilities.length > 0) {
               updateLogEntry(className, 'loading', `Loading ${className}... (abilities loaded)`);
             }
@@ -102,13 +160,15 @@ export default function LoadDataPage() {
               abilities: abilities.length > 0 ? abilities : fallback.abilities,
             };
             loadedClasses.push(updatedClass);
+            processedItemsRef.current.push(updatedClass); // Track for incremental save
             updateLogEntry(className, 'success', `✅ ${className} - Updated with ${abilities.length} abilities`);
             successCount++;
           } else {
             // Fetch stats for new class
             const { stats } = await fetchClassStats(
               className,
-              (type, msg) => addLog('system', msg)
+              (type, msg) => addLog('system', msg),
+              classSearchContext || undefined
             );
             
             if (stats) {
@@ -124,6 +184,7 @@ export default function LoadDataPage() {
                 color: CLASS_COLORS[className] || 'bg-slate-900',
               };
               loadedClasses.push(newClass);
+              processedItemsRef.current.push(newClass); // Track for incremental save
               updateLogEntry(className, 'success', `✅ ${className} - Loaded (HP: ${stats.hitPoints}, AC: ${stats.armorClass}, ${abilities.length} abilities)`);
               successCount++;
             } else {
@@ -132,6 +193,9 @@ export default function LoadDataPage() {
             }
           }
         } catch (error) {
+          if (abortControllerRef.current?.signal.aborted) {
+            break;
+          }
           updateLogEntry(className, 'failed', `❌ ${className} - Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
           failedCount++;
         }
@@ -188,6 +252,8 @@ export default function LoadDataPage() {
   const loadMonstersFromOpenRAG = async () => {
     setIsLoadingMonsters(true);
     setLogEntries([]);
+    processedItemsRef.current = [];
+    abortControllerRef.current = new AbortController();
     addLog('system', `🚀 Starting to load monsters from OpenRAG (context: ${monsterSearchContext || 'default'})...`);
     
     try {
@@ -214,6 +280,12 @@ export default function LoadDataPage() {
 
       // Process monsters one by one to show live updates
       for (const monsterName of monsterNames) {
+        // Check if operation was aborted
+        if (abortControllerRef.current?.signal.aborted) {
+          addLog('system', '⚠️ Operation cancelled');
+          break;
+        }
+
         addLog('item', `Loading ${monsterName}...`, monsterName, 'loading');
         
         try {
@@ -222,7 +294,7 @@ export default function LoadDataPage() {
           // Fetch abilities
           let abilities: Ability[] = [];
           try {
-            abilities = await extractMonsterAbilities(monsterName);
+            abilities = await extractMonsterAbilities(monsterName, monsterSearchContext || undefined);
             if (abilities.length > 0) {
               updateLogEntry(monsterName, 'loading', `Loading ${monsterName}... (abilities loaded)`);
             }
@@ -237,14 +309,16 @@ export default function LoadDataPage() {
               ...fallback,
               abilities: abilities.length > 0 ? abilities : fallback.abilities,
             };
-            loadedMonsters.push(updatedMonster);
-            updateLogEntry(monsterName, 'success', `✅ ${monsterName} - Updated with ${abilities.length} abilities`);
-            successCount++;
+              loadedMonsters.push(updatedMonster);
+              processedItemsRef.current.push(updatedMonster); // Track for incremental save
+              updateLogEntry(monsterName, 'success', `✅ ${monsterName} - Updated with ${abilities.length} abilities`);
+              successCount++;
           } else {
             // Fetch stats for new monster
             const { stats } = await fetchMonsterStats(
               monsterName,
-              (type, msg) => addLog('system', msg)
+              (type, msg) => addLog('system', msg),
+              monsterSearchContext || undefined
             );
             
             if (stats) {
@@ -260,6 +334,7 @@ export default function LoadDataPage() {
                 color: MONSTER_COLORS[monsterName] || 'bg-slate-900',
               };
               loadedMonsters.push(newMonster);
+              processedItemsRef.current.push(newMonster); // Track for incremental save
               updateLogEntry(monsterName, 'success', `✅ ${monsterName} - Loaded (HP: ${stats.hitPoints}, AC: ${stats.armorClass}, ${abilities.length} abilities)`);
               successCount++;
             } else {
@@ -268,6 +343,9 @@ export default function LoadDataPage() {
             }
           }
         } catch (error) {
+          if (abortControllerRef.current?.signal.aborted) {
+            break;
+          }
           updateLogEntry(monsterName, 'failed', `❌ ${monsterName} - Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
           failedCount++;
         }

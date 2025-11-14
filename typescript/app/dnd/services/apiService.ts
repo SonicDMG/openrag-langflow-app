@@ -9,7 +9,7 @@ export async function fetchAvailableClasses(
 ): Promise<{ classNames: string[]; response: string }> {
   try {
     const query = searchContext 
-      ? `Based on your knowledge base, what character classes are available in ${searchContext}? If you don't have specific information about ${searchContext} classes, please provide any character classes or character types that might be related. Return only a JSON array of class names, like ["Fighter", "Wizard", "Rogue", ...]. Do not include any other text, just the JSON array.`
+      ? `Based on your knowledge base, what character classes are available in ${searchContext}? Return only a JSON array of class names, like ["Fighter", "Wizard", "Rogue", ...]. Do not include any other text, just the JSON array.`
       : `List all available D&D 5th edition character classes. Return only a JSON array of class names, like ["Fighter", "Wizard", "Rogue", ...]. Do not include any other text, just the JSON array.`;
     
     addLog('system', `🔍 Querying OpenRAG for available classes${searchContext ? ` (${searchContext})` : ' (D&D)'}...`);
@@ -98,10 +98,12 @@ export async function fetchAvailableClasses(
 // Fetch class stats from OpenRAG
 export async function fetchClassStats(
   className: string,
-  addLog: (type: 'system' | 'narrative', message: string) => void
+  addLog: (type: 'system' | 'narrative', message: string) => void,
+  searchContext?: string
 ): Promise<{ stats: Partial<DnDClass> | null; response: string }> {
   try {
-    const query = `For the D&D 5th edition ${className} class, provide the following information in JSON format:
+    const contextLabel = searchContext || 'D&D';
+    const query = `For the ${contextLabel} ${className} class, provide the following information in JSON format:
 {
   "hitPoints": number (typical starting HP at level 1-3, around 20-35),
   "armorClass": number (typical AC, between 12-18),
@@ -208,10 +210,11 @@ Return ONLY valid JSON, no other text. Use typical values for a level 1-3 charac
 
 // Extract structured abilities directly from the knowledge base
 // Uses AI to return attack and healing abilities in a well-defined JSON structure
-export async function extractAbilities(className: string): Promise<Ability[]> {
+export async function extractAbilities(className: string, searchContext?: string): Promise<Ability[]> {
   try {
     // Ask the AI to return ALL available abilities for this class
-    const extractionPrompt = `You are a D&D expert. From the D&D knowledge base, find information about the ${className} class and return ALL available attack and healing abilities.
+    const contextLabel = searchContext || 'D&D';
+    const extractionPrompt = `You are a ${contextLabel} expert. From the ${contextLabel} knowledge base, find information about the ${className} class and return ALL available attack and healing abilities.
 
 Return your response as a JSON object with this exact structure:
 {
@@ -405,7 +408,7 @@ export async function fetchAvailableMonsters(
 ): Promise<{ monsterNames: string[]; response: string }> {
   try {
     const query = searchContext
-      ? `Based on your knowledge base, what monsters or creatures are available in ${searchContext}? If you don't have specific information about ${searchContext} monsters, please provide any monsters or creatures that might be related. Return only a JSON array of monster names, like ["Goblin", "Orc", "Dragon", "Troll", ...]. Do not include any other text, just the JSON array.`
+      ? `Based on your knowledge base, what monsters or creatures are available in ${searchContext}? Return only a JSON array of monster names, like ["Goblin", "Orc", "Dragon", "Troll", ...]. Do not include any other text, just the JSON array.`
       : `What are the available DnD monsters? Return only a JSON array of monster names, like ["Goblin", "Orc", "Dragon", "Troll", ...]. Do not include any other text, just the JSON array.`;
     
     addLog('system', `🔍 Querying OpenRAG for available monsters${searchContext ? ` (${searchContext})` : ' (D&D)'}...`);
@@ -484,10 +487,12 @@ export async function fetchAvailableMonsters(
 // Fetch monster stats from OpenRAG
 export async function fetchMonsterStats(
   monsterName: string,
-  addLog: (type: 'system' | 'narrative', message: string) => void
+  addLog: (type: 'system' | 'narrative', message: string) => void,
+  searchContext?: string
 ): Promise<{ stats: Partial<DnDClass> | null; response: string }> {
   try {
-    const query = `For the DnD ${monsterName} monster, provide the following information in JSON format:
+    const contextLabel = searchContext || 'D&D';
+    const query = `For the ${contextLabel} ${monsterName} monster, provide the following information in JSON format:
 {
   "hitPoints": number (typical HP for this monster, appropriate for a challenging encounter),
   "armorClass": number (typical AC, between 10-20),
@@ -593,10 +598,11 @@ Return ONLY valid JSON, no other text. Use typical values for a challenging but 
 }
 
 // Extract structured abilities for monsters directly from the knowledge base
-export async function extractMonsterAbilities(monsterName: string): Promise<Ability[]> {
+export async function extractMonsterAbilities(monsterName: string, searchContext?: string): Promise<Ability[]> {
   try {
     // Ask the AI to return ALL available abilities for this monster
-    const extractionPrompt = `You are a D&D expert. From the D&D knowledge base, find information about the ${monsterName} monster and return ALL available attack and healing abilities.
+    const contextLabel = searchContext || 'D&D';
+    const extractionPrompt = `You are a ${contextLabel} expert. From the ${contextLabel} knowledge base, find information about the ${monsterName} monster and return ALL available attack and healing abilities.
 
 Return your response as a JSON object with this exact structure:
 {
