@@ -1639,6 +1639,7 @@ export default function DnDBattle() {
           )}
 
           {/* Battle Log */}
+          {isBattleActive && (
           <div 
             className="bg-white p-6 shadow-lg overflow-y-auto -mx-4 sm:-mx-6 border-t-4 border-l-4 border-r-4" 
             style={{ 
@@ -1724,6 +1725,7 @@ export default function DnDBattle() {
               )}
             </div>
           </div>
+          )}
 
         </div>
       </div>

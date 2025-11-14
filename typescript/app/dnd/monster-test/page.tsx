@@ -357,33 +357,56 @@ export default function MonsterTestPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-950 via-amber-900 to-amber-950 text-amber-50">
+    <div className="min-h-screen" style={{ backgroundColor: '#D1C9BA' }}>
       {/* Header */}
-      <div className="border-b-4 border-amber-800 px-4 sm:px-6 py-4 bg-amber-900/50 backdrop-blur-sm">
+      <div className="px-4 sm:px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-amber-100 mb-2" style={{ fontFamily: 'serif', textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>
-              🎨 Monster Creator
+          {/* Home Button */}
+          <button
+            onClick={() => router.push('/')}
+            className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            <span className="font-semibold">Home</span>
+          </button>
+
+          {/* Center Title with Dragon Emblem */}
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold" style={{ fontFamily: 'serif', color: '#5C4033' }}>
+              Monster
             </h1>
-            <p className="text-sm text-amber-200 italic">
-              Create and test pixel art monsters with dynamic animations
-            </p>
+            {/* Red Dragon/Phoenix Emblem */}
+            <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M12 2C8 2 5 5 5 9c0 2 1 4 3 5-1 1-2 3-2 5 0 3 2 5 5 5 1 0 2 0 3-1 1 1 2 1 3 1 3 0 5-2 5-5 0-2-1-4-2-5 2-1 3-3 3-5 0-4-3-7-7-7z"
+                fill="#DC2626"
+              />
+              <path
+                d="M12 4c-2 0-4 1-4 3 0 1 1 2 2 2 1 0 2-1 2-2 0-1 1-1 2-1 1 0 2 0 2 1 0 1 1 2 2 2 1 0 2-1 2-2 0-2-2-3-4-3z"
+                fill="#EF4444"
+              />
+              <path
+                d="M10 8c-1 0-2 1-2 2 0 1 1 2 2 2 1 0 2-1 2-2 0-1-1-2-2-2zm4 0c-1 0-2 1-2 2 0 1 1 2 2 2 1 0 2-1 2-2 0-1-1-2-2-2z"
+                fill="#991B1B"
+              />
+            </svg>
+            <h1 className="text-3xl font-bold" style={{ fontFamily: 'serif', color: '#5C4033' }}>
+              Test
+            </h1>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={testApiDirectly}
-              disabled={isLoading}
-              className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
-            >
-              {isLoading ? 'Testing...' : 'Test API Directly'}
-            </button>
-            <button
-              onClick={() => router.push('/dnd')}
-              className="px-4 py-2 bg-amber-800 hover:bg-amber-700 text-amber-100 font-semibold rounded-lg border-2 border-amber-700 transition-all"
-            >
-              ← Back to Battle
-            </button>
-          </div>
+
+          {/* Back Button */}
+          <button
+            onClick={() => router.push('/dnd')}
+            className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span className="font-semibold">Back</span>
+          </button>
         </div>
       </div>
 
