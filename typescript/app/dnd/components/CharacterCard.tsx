@@ -216,10 +216,44 @@ function CharacterCardComponent({
         aspectRatio: '3/4', // Portrait orientation: 3 wide by 4 tall
         padding: framePadding, // Dark frame padding
         boxShadow: isActive 
-          ? '0 0 20px rgba(251, 191, 36, 0.5)' 
-          : 'none'
+          ? '0 0 20px rgba(251, 191, 36, 0.5), 0 8px 16px rgba(0, 0, 0, 0.4), 0 4px 8px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
+          : '0 8px 16px rgba(0, 0, 0, 0.4), 0 4px 8px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+        // Paper texture effect for outer frame
+        backgroundImage: `
+          radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.02) 0%, transparent 50%),
+          radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.02) 0%, transparent 50%),
+          repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 0, 0, 0.1) 2px, rgba(0, 0, 0, 0.1) 4px),
+          repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0, 0, 0, 0.1) 2px, rgba(0, 0, 0, 0.1) 4px)
+        `,
+        backgroundSize: '100% 100%, 100% 100%, 4px 4px, 4px 4px',
+        position: 'relative'
       }}
     >
+      {/* Texture overlay for outer frame */}
+      <div 
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          borderRadius: borderRadius,
+          background: `
+            repeating-linear-gradient(
+              0deg,
+              rgba(0, 0, 0, 0.03) 0px,
+              transparent 1px,
+              transparent 2px,
+              rgba(0, 0, 0, 0.03) 3px
+            ),
+            repeating-linear-gradient(
+              90deg,
+              rgba(0, 0, 0, 0.03) 0px,
+              transparent 1px,
+              transparent 2px,
+              rgba(0, 0, 0, 0.03) 3px
+            )
+          `,
+          opacity: 0.6,
+          mixBlendMode: 'overlay'
+        }}
+      />
       {/* Inner card with rounded corners */}
       <div 
         className="relative overflow-hidden"
@@ -227,9 +261,49 @@ function CharacterCardComponent({
           backgroundColor: '#F2ECDE', // Light beige background
           borderRadius: innerBorderRadius,
           flex: 1,
-          minHeight: 0 // Allow flex to shrink
+          minHeight: 0, // Allow flex to shrink
+          // Paper texture effect for inner card
+          backgroundImage: `
+            radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.3) 0%, transparent 50%),
+            radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.2) 0%, transparent 50%),
+            radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.02) 0%, transparent 50%),
+            repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(0, 0, 0, 0.03) 1px, rgba(0, 0, 0, 0.03) 2px),
+            repeating-linear-gradient(90deg, transparent, transparent 1px, rgba(0, 0, 0, 0.03) 1px, rgba(0, 0, 0, 0.03) 2px)
+          `,
+          backgroundSize: '100% 100%, 100% 100%, 100% 100%, 3px 3px, 3px 3px',
+          // Subtle embossed effect
+          boxShadow: `
+            inset 0 1px 2px rgba(255, 255, 255, 0.5),
+            inset 0 -1px 2px rgba(0, 0, 0, 0.1),
+            0 2px 4px rgba(0, 0, 0, 0.15)
+          `
         }}
       >
+        {/* Paper grain texture overlay */}
+        <div 
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            borderRadius: innerBorderRadius,
+            background: `
+              repeating-linear-gradient(
+                0deg,
+                rgba(139, 111, 71, 0.02) 0px,
+                transparent 0.5px,
+                transparent 1px,
+                rgba(139, 111, 71, 0.02) 1.5px
+              ),
+              repeating-linear-gradient(
+                90deg,
+                rgba(139, 111, 71, 0.02) 0px,
+                transparent 0.5px,
+                transparent 1px,
+                rgba(139, 111, 71, 0.02) 1.5px
+              )
+            `,
+            opacity: 0.8,
+            mixBlendMode: 'multiply'
+          }}
+        />
         {/* Defeated overlay */}
         {isDefeated && (
           <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none bg-black/30">
@@ -252,7 +326,7 @@ function CharacterCardComponent({
         )}
 
         {/* Card Content */}
-        <div className="h-full flex flex-col" style={{ padding: padding }}>
+        <div className="h-full flex flex-col relative z-10" style={{ padding: padding }}>
         {/* Header with name, type, and symbol */}
         <div className="relative" style={{ marginBottom: isCompact ? '0.5rem' : '0.75rem' }}>
           {/* Purple abstract symbol in top right - flame/swirling design */}
@@ -307,7 +381,7 @@ function CharacterCardComponent({
 
         {/* Central pixel art image in frame - slightly darker beige */}
         <div 
-          className="rounded-lg flex justify-center items-center overflow-hidden"
+          className="rounded-lg flex justify-center items-center overflow-hidden mx-auto"
           style={{ 
             backgroundColor: '#E8E0D6', // Slightly darker beige frame
             border: isCompact ? '1.5px solid #D4C4B0' : '2px solid #D4C4B0',
@@ -316,9 +390,7 @@ function CharacterCardComponent({
             width: imageWidth, // Scaled width
             height: imageHeight, // Scaled height
             aspectRatio: '280/200', // Match the actual image aspect ratio (1.4:1)
-            marginBottom: isCompact ? '0.5rem' : '0.75rem',
-            marginLeft: 'auto',
-            marginRight: 'auto'
+            marginBottom: isCompact ? '0.5rem' : '0.75rem'
           }}
         >
           {monsterImageUrl && !imageError ? (
@@ -501,7 +573,7 @@ function CharacterCardComponent({
 
         {/* Stats section */}
         <div className="mt-auto">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between">
             {/* AC (Armor Class) - left side */}
             <div className="flex items-center" style={{ gap: '0' }}>
               {/* Green shield icon */}
@@ -546,12 +618,12 @@ function CharacterCardComponent({
                 <div
                   className="h-full transition-all"
                   style={{ 
-                    backgroundColor: '#DC2626', // Red
+                    backgroundColor: '#A66D28', // Brown
                     width: `${isDefeated ? 0 : (playerClass.hitPoints / playerClass.maxHitPoints) * 100}%` 
                   }}
                 />
               </div>
-              <span className={`font-bold ${abilityTextSize}`} style={{ color: '#5C4033', marginLeft: isCompact ? '0.125rem' : '0.25rem' }}>
+              <span className={`font-bold ${statsTextSize}`} style={{ color: '#5C4033', marginLeft: isCompact ? '0.125rem' : '0.25rem' }}>
                 {isDefeated ? 0 : playerClass.hitPoints} / {playerClass.maxHitPoints}
               </span>
             </div>
@@ -563,7 +635,7 @@ function CharacterCardComponent({
 
       {/* Footer text in dark frame area */}
       <div 
-        className="flex items-center justify-between"
+        className="relative flex items-center justify-between"
         style={{ 
           marginTop: isCompact ? '4px' : '6px',
           paddingTop: '0',
@@ -596,13 +668,15 @@ function CharacterCardComponent({
           </span>
         )}
 
-        {/* Small symbol in center bottom */}
+        {/* Small symbol in center bottom - absolutely centered */}
         <div 
+          className="absolute"
           style={{
+            left: '50%',
+            transform: 'translateX(-50%) rotate(45deg)',
             width: isCompact ? '8px' : '10px',
             height: isCompact ? '8px' : '10px',
             backgroundColor: '#F2ECDE',
-            transform: 'rotate(45deg)',
             opacity: 0.6
           }}
         ></div>
