@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { DnDClass, BattleLog, CharacterEmotion, Ability, AttackAbility } from '../types';
-import { FALLBACK_CLASSES, FALLBACK_MONSTERS, MONSTER_ICONS, CLASS_ICONS } from '../constants';
+import { FALLBACK_CLASSES, FALLBACK_MONSTERS, isMonster } from '../constants';
 import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../utils/dice';
 import { generateCharacterName } from '../utils/names';
 import { createHitVisualEffects, createMissVisualEffects, createHealingVisualEffects, getOpponent, buildDamageDiceArray, type PendingVisualEffect } from '../utils/battle';
@@ -78,8 +78,8 @@ export default function DnDTestPage() {
     const testEntity = createTestEntity(entity);
     setPlayer1Class(testEntity);
     // For monsters, use the monster type name directly; for classes, generate a name
-    const isMonster = MONSTER_ICONS[entity.name] !== undefined;
-    setPlayer1Name(isMonster ? entity.name : generateCharacterName(entity.name));
+    const entityIsMonster = isMonster(entity.name);
+    setPlayer1Name(entityIsMonster ? entity.name : generateCharacterName(entity.name));
     
     // Check if this entity already has a monsterId (explicitly selected created monster)
     if (testEntity.monsterId) {
@@ -100,8 +100,8 @@ export default function DnDTestPage() {
     const testEntity = createTestEntity(entity);
     setPlayer2Class(testEntity);
     // For monsters, use the monster type name directly; for classes, generate a name
-    const isMonster = MONSTER_ICONS[entity.name] !== undefined;
-    setPlayer2Name(isMonster ? entity.name : generateCharacterName(entity.name));
+    const entityIsMonster = isMonster(entity.name);
+    setPlayer2Name(entityIsMonster ? entity.name : generateCharacterName(entity.name));
     
     // Check if this entity already has a monsterId (explicitly selected created monster)
     if (testEntity.monsterId) {
@@ -124,8 +124,8 @@ export default function DnDTestPage() {
   
   // Generate names only on client side to avoid hydration mismatch
   useEffect(() => {
-    const isP1Monster = MONSTER_ICONS[player1Class.name] !== undefined;
-    const isP2Monster = MONSTER_ICONS[player2Class.name] !== undefined;
+    const isP1Monster = isMonster(player1Class.name);
+    const isP2Monster = isMonster(player2Class.name);
     setPlayer1Name(isP1Monster ? player1Class.name : generateCharacterName(player1Class.name));
     setPlayer2Name(isP2Monster ? player2Class.name : generateCharacterName(player2Class.name));
   }, [player1Class.name, player2Class.name]);

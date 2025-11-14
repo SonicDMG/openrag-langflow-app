@@ -10,7 +10,7 @@ import remarkGfm from 'remark-gfm';
 import { DnDClass, BattleLog, AttackAbility, Ability } from '../dnd/types';
 
 // Constants
-import { FALLBACK_CLASSES, FALLBACK_MONSTERS, CLASS_COLORS, FALLBACK_ABILITIES, MONSTER_ICONS, MONSTER_COLORS, selectRandomAbilities, FALLBACK_MONSTER_ABILITIES } from '../dnd/constants';
+import { FALLBACK_CLASSES, FALLBACK_MONSTERS, CLASS_COLORS, FALLBACK_ABILITIES, MONSTER_COLORS, selectRandomAbilities, FALLBACK_MONSTER_ABILITIES, isMonster } from '../dnd/constants';
 
 // Utilities
 import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../dnd/utils/dice';
@@ -199,8 +199,8 @@ export default function DnDBattle() {
     if (name) {
       setName(name);
     } else {
-      const isMonster = MONSTER_ICONS[dndClass.name] !== undefined;
-      setName(isMonster ? dndClass.name : generateCharacterName(dndClass.name));
+      const isMonsterCheck = isMonster(dndClass.name);
+      setName(isMonsterCheck ? dndClass.name : generateCharacterName(dndClass.name));
     }
     
     // Check if this entity already has a monsterId (explicitly selected created monster)
@@ -716,8 +716,8 @@ export default function DnDBattle() {
     try {
       // Use default abilities from the class/monster and randomly select 5 for this battle
       // This avoids loading from OpenRAG on every battle start
-      const p1IsMonster = MONSTER_ICONS[player1Class.name] !== undefined;
-      const p2IsMonster = MONSTER_ICONS[player2Class.name] !== undefined;
+      const p1IsMonster = isMonster(player1Class.name);
+      const p2IsMonster = isMonster(player2Class.name);
       const p1AvailableAbilities = player1Class.abilities || (p1IsMonster ? FALLBACK_MONSTER_ABILITIES[player1Class.name] : FALLBACK_ABILITIES[player1Class.name]) || [];
       const p2AvailableAbilities = player2Class.abilities || (p2IsMonster ? FALLBACK_MONSTER_ABILITIES[player2Class.name] : FALLBACK_ABILITIES[player2Class.name]) || [];
       
@@ -750,7 +750,7 @@ export default function DnDBattle() {
       // Ensure names are set for player1
       // For monsters, use the monster type name directly; for classes, generate a name
       if (!player1Name) {
-        const isP1Monster = MONSTER_ICONS[p1.name] !== undefined;
+        const isP1Monster = isMonster(p1.name);
         setPlayer1Name(isP1Monster ? p1.name : generateCharacterName(p1.name));
         // Also check for associated monster for player1
         const associatedMonster = findAssociatedMonster(p1.name);
@@ -759,8 +759,8 @@ export default function DnDBattle() {
         }
       }
       
-      const isP1Monster = MONSTER_ICONS[p1.name] !== undefined;
-      const isP2Monster = MONSTER_ICONS[p2.name] !== undefined;
+      const isP1Monster = isMonster(p1.name);
+      const isP2Monster = isMonster(p2.name);
       const finalP1Name = player1Name || (isP1Monster ? p1.name : generateCharacterName(p1.name));
       const finalP2Name = player2Name || (isP2Monster ? p2.name : generateCharacterName(p2.name));
       
@@ -789,7 +789,7 @@ export default function DnDBattle() {
     }
   };
 
-  const performAttack = async (attacker: 'player1' | 'player2') => {
+  const performAttack = async (attacker: 'player1' | 'player2', attackType?: 'melee' | 'ranged') => {
     if (!isBattleActive || !player1Class || !player2Class || isMoveInProgress) return;
 
     setIsMoveInProgress(true);
@@ -798,13 +798,24 @@ export default function DnDBattle() {
     const attackerDetails = classDetails[attackerClass.name] || '';
     const defenderDetails = classDetails[defenderClass.name] || '';
 
+    // Determine which damage die to use based on attack type
+    let damageDie: string;
+    if (attackType === 'melee' && attackerClass.meleeDamageDie) {
+      damageDie = attackerClass.meleeDamageDie;
+    } else if (attackType === 'ranged' && attackerClass.rangedDamageDie) {
+      damageDie = attackerClass.rangedDamageDie;
+    } else {
+      // Fallback to default damageDie
+      damageDie = attackerClass.damageDie;
+    }
+
     // Roll attack
     const { d20Roll, attackRoll } = calculateAttackRoll(attackerClass);
     logAttackRoll(attackerClass, d20Roll, attackRoll, defenderClass.armorClass);
 
     if (attackRoll >= defenderClass.armorClass) {
       // Hit! Show both attack roll and damage dice
-      const damage = rollDice(attackerClass.damageDie);
+      const damage = rollDice(damageDie);
       const defender = getOpponent(attacker);
       
       const newHP = Math.max(0, defenderClass.hitPoints - damage);
@@ -812,10 +823,13 @@ export default function DnDBattle() {
       // Create visual effects using helper function (includes cast effect for wizards)
       const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass);
       
+      const attackTypeLabel = attackType === 'melee' ? 'melee' : attackType === 'ranged' ? 'ranged' : '';
+      const attackDescription = attackTypeLabel ? `${attackTypeLabel} attack` : 'attack';
+      
       triggerDiceRoll(
         [
           { diceType: 'd20', result: d20Roll },
-          { diceType: attackerClass.damageDie, result: damage }
+          { diceType: damageDie, result: damage }
         ],
         visualEffects,
         [
@@ -828,8 +842,8 @@ export default function DnDBattle() {
             attackerDetails,
             defenderDetails,
             newHP <= 0
-              ? `${attackerClass.name} attacks ${defenderClass.name} and deals ${damage} damage. ${defenderClass.name} is defeated with 0 HP remaining.`
-              : `${attackerClass.name} attacks ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack hits! ${defenderClass.name} takes ${damage} damage and is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
+              ? `${attackerClass.name} ${attackDescription}s ${defenderClass.name} and deals ${damage} damage. ${defenderClass.name} is defeated with 0 HP remaining.`
+              : `${attackerClass.name} ${attackDescription}s ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack hits! ${defenderClass.name} takes ${damage} damage and is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
             defender,
             attacker
           )
@@ -837,6 +851,9 @@ export default function DnDBattle() {
       );
     } else {
       // Miss - show the attack roll dice
+      const attackTypeLabel = attackType === 'melee' ? 'melee' : attackType === 'ranged' ? 'ranged' : '';
+      const attackDescription = attackTypeLabel ? `${attackTypeLabel} attack` : 'attack';
+      
       triggerDiceRoll(
         [{ diceType: 'd20', result: d20Roll }],
         createMissVisualEffects(attacker, attackerClass),
@@ -846,7 +863,7 @@ export default function DnDBattle() {
             defenderClass,
             attackerDetails,
             defenderDetails,
-            `${attackerClass.name} attacks ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack misses! ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
+            `${attackerClass.name} ${attackDescription}s ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack misses! ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
             attacker
           )
         ]

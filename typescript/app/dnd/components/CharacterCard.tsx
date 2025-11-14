@@ -9,22 +9,29 @@ import { applyAnimationClass } from '../utils/animations';
 /**
  * Builds a tooltip string for a basic attack that includes dice information
  */
-function buildAttackTooltip(damageDie: string): string {
+function buildAttackTooltip(damageDie: string, attackType?: 'melee' | 'ranged'): string {
   const parts: string[] = [];
   
-  // Add description
-  parts.push('Basic melee or ranged attack');
+  // Add description based on attack type
+  if (attackType === 'melee') {
+    parts.push('Basic melee weapon attack');
+  } else if (attackType === 'ranged') {
+    parts.push('Basic ranged weapon attack');
+  } else {
+    parts.push('Basic melee or ranged attack');
+  }
   
-  // Add dice information
-  const diceInfo: string[] = ['d20']; // Attack roll is always d20
+  // Add dice information with labels
+  const diceInfo: string[] = [];
+  diceInfo.push('d20 (attack roll)'); // Attack roll is always d20
   if (damageDie) {
     // Ensure damageDie has the "1" prefix if it's just "dX"
     const formattedDie = damageDie.startsWith('d') ? `1${damageDie}` : damageDie;
-    diceInfo.push(formattedDie);
+    diceInfo.push(`${formattedDie} (damage)`);
   }
   
   if (diceInfo.length > 0) {
-    parts.push(`Dice: ${diceInfo.join(' ')}`);
+    parts.push(`Dice: ${diceInfo.join(', ')}`);
   }
   
   return parts.join('\n');
@@ -114,7 +121,7 @@ interface CharacterCardProps {
   onSurpriseComplete?: () => void;
   onCastComplete?: () => void;
   // Action buttons (optional - for battle/test pages)
-  onAttack?: () => void;
+  onAttack?: (attackType?: 'melee' | 'ranged') => void;
   onUseAbility?: (index: number) => void;
   isMoveInProgress?: boolean;
   isOpponent?: boolean;
@@ -516,37 +523,123 @@ function CharacterCardComponent({
             )}
           </div>
           <div className="flex flex-wrap" style={{ gap: isCompact ? '2px' : '2px', alignItems: 'flex-start' }}>
-            {/* Basic Attack button - always available */}
-            {onAttack && (
-              <button
-                onClick={onAttack}
-                disabled={isOpponent || isDisabled}
-                className="disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-opacity-80"
-                style={{ 
-                  color: '#000000',
-                  backgroundColor: '#D1C9BA',
-                  border: '1px solid #D4C4B0',
-                  borderRadius: '6px',
-                  padding: abilityButtonPadding,
-                  cursor: (isOpponent || isDisabled) ? 'not-allowed' : 'pointer',
-                  whiteSpace: 'nowrap',
-                  fontFamily: 'serif',
-                  fontWeight: 'bold',
-                  fontSize: isCompact ? '8px' : '10px',
-                  lineHeight: '1.2',
-                  minHeight: 'auto',
-                  boxSizing: 'border-box',
-                  margin: 0,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  verticalAlign: 'top'
-                }}
-                title={buildAttackTooltip(playerClass.damageDie)}
-              >
-                Attack
-              </button>
-            )}
+            {/* Basic Attack button(s) - show separate Melee/Ranged if both are available */}
+            {onAttack && (() => {
+              const hasMelee = !!playerClass.meleeDamageDie;
+              const hasRanged = !!playerClass.rangedDamageDie;
+              const showSeparate = hasMelee && hasRanged;
+              
+              if (showSeparate) {
+                // Show separate Melee and Ranged buttons
+                return (
+                  <>
+                    <button
+                      onClick={() => onAttack('melee')}
+                      disabled={isOpponent || isDisabled}
+                      className="disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-opacity-80"
+                      style={{ 
+                        color: '#000000',
+                        backgroundColor: '#D1C9BA',
+                        border: '1px solid #D4C4B0',
+                        borderRadius: '6px',
+                        padding: abilityButtonPadding,
+                        cursor: (isOpponent || isDisabled) ? 'not-allowed' : 'pointer',
+                        whiteSpace: 'nowrap',
+                        fontFamily: 'serif',
+                        fontWeight: 'bold',
+                        fontSize: isCompact ? '8px' : '10px',
+                        lineHeight: '1.2',
+                        minHeight: 'auto',
+                        boxSizing: 'border-box',
+                        margin: 0,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        verticalAlign: 'top'
+                      }}
+                      title={buildAttackTooltip(playerClass.meleeDamageDie!, 'melee')}
+                    >
+                      Melee
+                    </button>
+                    <button
+                      onClick={() => onAttack('ranged')}
+                      disabled={isOpponent || isDisabled}
+                      className="disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-opacity-80"
+                      style={{ 
+                        color: '#000000',
+                        backgroundColor: '#D1C9BA',
+                        border: '1px solid #D4C4B0',
+                        borderRadius: '6px',
+                        padding: abilityButtonPadding,
+                        cursor: (isOpponent || isDisabled) ? 'not-allowed' : 'pointer',
+                        whiteSpace: 'nowrap',
+                        fontFamily: 'serif',
+                        fontWeight: 'bold',
+                        fontSize: isCompact ? '8px' : '10px',
+                        lineHeight: '1.2',
+                        minHeight: 'auto',
+                        boxSizing: 'border-box',
+                        margin: 0,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        verticalAlign: 'top'
+                      }}
+                      title={buildAttackTooltip(playerClass.rangedDamageDie!, 'ranged')}
+                    >
+                      Ranged
+                    </button>
+                  </>
+                );
+              } else {
+                // Show single Attack button (fallback to damageDie)
+                // Determine attack type and damage die
+                let damageDie: string;
+                let attackType: 'melee' | 'ranged' | undefined;
+                
+                if (hasMelee) {
+                  damageDie = playerClass.meleeDamageDie!;
+                  attackType = 'melee';
+                } else if (hasRanged) {
+                  damageDie = playerClass.rangedDamageDie!;
+                  attackType = 'ranged';
+                } else {
+                  damageDie = playerClass.damageDie;
+                  attackType = undefined; // Generic attack
+                }
+                
+                return (
+                  <button
+                    onClick={() => onAttack()}
+                    disabled={isOpponent || isDisabled}
+                    className="disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-opacity-80"
+                    style={{ 
+                      color: '#000000',
+                      backgroundColor: '#D1C9BA',
+                      border: '1px solid #D4C4B0',
+                      borderRadius: '6px',
+                      padding: abilityButtonPadding,
+                      cursor: (isOpponent || isDisabled) ? 'not-allowed' : 'pointer',
+                      whiteSpace: 'nowrap',
+                      fontFamily: 'serif',
+                      fontWeight: 'bold',
+                      fontSize: isCompact ? '8px' : '10px',
+                      lineHeight: '1.2',
+                      minHeight: 'auto',
+                      boxSizing: 'border-box',
+                      margin: 0,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      verticalAlign: 'top'
+                    }}
+                    title={buildAttackTooltip(damageDie, attackType)}
+                  >
+                    Attack
+                  </button>
+                );
+              }
+            })()}
             {/* Ability buttons */}
             {playerClass.abilities.length > 0 && playerClass.abilities.map((ability, idx) => {
               const isTestHeal = ability.name === 'Test Heal';

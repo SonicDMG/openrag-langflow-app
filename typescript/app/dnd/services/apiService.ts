@@ -1,5 +1,5 @@
 import { DnDClass, Ability } from '../types';
-import { CLASS_COLORS, CLASS_ICONS, FALLBACK_ABILITIES, MONSTER_ICONS, FALLBACK_MONSTER_ABILITIES } from '../constants';
+import { CLASS_COLORS, FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, getPlayerClassNames, isMonster } from '../constants';
 import { extractJsonFromResponse, parseSSEResponse } from '../utils/api';
 
 // Fetch all available D&D classes from OpenRAG
@@ -63,7 +63,7 @@ export async function fetchAvailableClasses(
     } catch {
       // If parsing fails, try to extract class names from text
       const classNames: string[] = [];
-      const commonClasses = Object.keys(CLASS_ICONS);
+      const commonClasses = getPlayerClassNames();
       for (const className of commonClasses) {
         if (content.toLowerCase().includes(className.toLowerCase())) {
           classNames.push(className);
@@ -632,8 +632,8 @@ export async function getBattleNarrative(
     }
 
     // Determine if participants are classes or monsters (heuristic: check if name is in monster icons)
-    const attackerIsMonster = MONSTER_ICONS[attackerClass.name] !== undefined;
-    const defenderIsMonster = MONSTER_ICONS[defenderClass.name] !== undefined;
+    const attackerIsMonster = isMonster(attackerClass.name);
+    const defenderIsMonster = isMonster(defenderClass.name);
     const attackerType = attackerIsMonster ? 'monster' : 'class';
     const defenderType = defenderIsMonster ? 'monster' : 'class';
 

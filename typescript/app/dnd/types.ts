@@ -25,7 +25,9 @@ export interface DnDClass {
   maxHitPoints: number;
   armorClass: number;
   attackBonus: number;
-  damageDie: string;
+  damageDie: string; // Default/fallback damage die (used if meleeDamageDie/rangedDamageDie not specified)
+  meleeDamageDie?: string; // Optional melee weapon damage die (e.g., "d8", "d10")
+  rangedDamageDie?: string; // Optional ranged weapon damage die (e.g., "d6", "d8")
   abilities: Ability[];
   description: string;
   color: string;
