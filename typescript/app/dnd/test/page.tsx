@@ -1258,19 +1258,6 @@ export default function DnDTestPage() {
                 className="flex flex-wrap gap-2"
                 style={{ width: '100%', maxWidth: '320px' }}
               >
-                {/* Ability buttons */}
-                {player1Class.abilities.map((ability, index) => (
-                  <button
-                    key={`p1-ability-${index}`}
-                    onClick={() => testUseAbility('player1', index)}
-                    className={ability.type === 'healing' 
-                      ? 'px-2 py-1 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
-                      : 'px-2 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'}
-                  >
-                    {ability.type === 'healing' ? `💚 ${ability.name}` : `⚔️ ${ability.name}`}
-                  </button>
-                ))}
-                {/* Test buttons */}
                 <button
                   onClick={() => testHighDamage('player1')}
                   className="px-2 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all"
@@ -1357,23 +1344,6 @@ export default function DnDTestPage() {
                 className="flex flex-wrap gap-2"
                 style={{ width: '100%', maxWidth: '320px' }}
               >
-                {/* Ability buttons */}
-                {player2Class.abilities.map((ability, index) => (
-                  <button
-                    key={`p2-ability-${index}`}
-                    onClick={() => {
-                      if (isAIModeActive) return;
-                      testUseAbility('player2', index);
-                    }}
-                    disabled={isAIModeActive}
-                    className={`${ability.type === 'healing' 
-                      ? 'px-2 py-1 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
-                      : 'px-2 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'} ${isAIModeActive ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    {ability.type === 'healing' ? `💚 ${ability.name}` : `⚔️ ${ability.name}`}
-                  </button>
-                ))}
-                {/* Test buttons */}
                 <button
                   onClick={() => {
                     if (isAIModeActive) return;
