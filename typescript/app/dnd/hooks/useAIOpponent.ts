@@ -105,26 +105,51 @@ export function useAIOpponent(options: UseAIOpponentOptions) {
           } else if (callbacks.onHeal) {
             // Fallback to onHeal if available (for test mode)
             callbacks.onHeal();
+          } else if (attackAbilities.length > 0) {
+            // Fallback to random attack ability if no heal available
+            const randomAttackIndex = Math.floor(Math.random() * attackAbilities.length);
+            const attackAbility = attackAbilities[randomAttackIndex];
+            const attackAbilityIndex = opponentClass.abilities.indexOf(attackAbility);
+            if (attackAbilityIndex >= 0) {
+              callbacks.onUseAbility(attackAbilityIndex);
+            } else {
+              callbacks.onAttack();
+            }
           } else {
-            // Fallback to attack if no heal callback
+            // Fallback to basic attack if no abilities available
             callbacks.onAttack();
           }
-        } else if (attackAbilities.length > 0 && Math.random() < 0.4) {
-          // 40% chance to use an attack ability if available
-          const randomAttackIndex = Math.floor(Math.random() * attackAbilities.length);
-          const attackAbility = attackAbilities[randomAttackIndex];
-          const attackAbilityIndex = opponentClass.abilities.indexOf(attackAbility);
-          
-          debugLog?.(`[AIOpponent] AI using attack ability: ${attackAbility.name}`);
-          
-          if (attackAbilityIndex >= 0) {
-            callbacks.onUseAbility(attackAbilityIndex);
+        } else if (attackAbilities.length > 0) {
+          // Use a random attack ability (70% chance) or basic attack (30% chance)
+          if (Math.random() < 0.7) {
+            const randomAttackIndex = Math.floor(Math.random() * attackAbilities.length);
+            const attackAbility = attackAbilities[randomAttackIndex];
+            const attackAbilityIndex = opponentClass.abilities.indexOf(attackAbility);
+            
+            debugLog?.(`[AIOpponent] AI using attack ability: ${attackAbility.name}`);
+            
+            if (attackAbilityIndex >= 0) {
+              callbacks.onUseAbility(attackAbilityIndex);
+            } else {
+              callbacks.onAttack();
+            }
+          } else {
+            debugLog?.('[AIOpponent] AI using basic attack');
+            callbacks.onAttack();
+          }
+        } else if (healingAbilities.length > 0) {
+          // Fallback to healing if no attack abilities available
+          const randomHealIndex = Math.floor(Math.random() * healingAbilities.length);
+          const healAbility = healingAbilities[randomHealIndex];
+          const healAbilityIndex = opponentClass.abilities.indexOf(healAbility);
+          if (healAbilityIndex >= 0) {
+            callbacks.onUseAbility(healAbilityIndex);
           } else {
             callbacks.onAttack();
           }
         } else {
-          // Use basic attack (most common)
-          debugLog?.('[AIOpponent] AI using basic attack');
+          // No abilities available, use basic attack
+          debugLog?.('[AIOpponent] AI using basic attack (no abilities available)');
           callbacks.onAttack();
         }
         

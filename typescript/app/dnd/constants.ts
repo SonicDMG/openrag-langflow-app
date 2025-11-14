@@ -2,7 +2,8 @@ import { DnDClass, Ability } from './types';
 
 /**
  * Randomly selects up to 5 abilities from available abilities, ensuring a mix of attack and healing abilities.
- * Prioritizes having at least 1 of each type if available, then fills remaining slots randomly.
+ * Prioritizes having at least 1 attack and 1 healing (if healing is available), then fills remaining slots randomly.
+ * Guarantees at least one healing ability if healing abilities exist in the available pool.
  */
 export function selectRandomAbilities(availableAbilities: Ability[]): Ability[] {
   if (availableAbilities.length === 0) {
@@ -15,22 +16,73 @@ export function selectRandomAbilities(availableAbilities: Ability[]): Ability[] 
 
   const selected: Ability[] = [];
   
-  // Ensure we have at least 1 attack and 1 healing if available
+  // Ensure we have at least 1 attack if available
   if (attackAbilities.length > 0 && selected.length < 5) {
     const randomAttack = attackAbilities[Math.floor(Math.random() * attackAbilities.length)];
     selected.push(randomAttack);
   }
   
-  if (healingAbilities.length > 0 && selected.length < 5) {
-    const randomHealing = healingAbilities[Math.floor(Math.random() * healingAbilities.length)];
-    selected.push(randomHealing);
+  // Ensure we have at least 1 healing if healing abilities are available (for classes that support it)
+  // This is guaranteed - if healing abilities exist, we will include at least one
+  if (healingAbilities.length > 0) {
+    // Check if we already have a healing ability
+    const hasHealing = selected.some(a => a.type === 'healing');
+    
+    if (!hasHealing) {
+      // If we don't have a healing ability yet, add one
+      if (selected.length < 5) {
+        // If we have room, just add it
+        const randomHealing = healingAbilities[Math.floor(Math.random() * healingAbilities.length)];
+        selected.push(randomHealing);
+      } else {
+        // If we're at capacity, replace a random non-attack ability with a healing ability
+        // First, try to find a non-essential ability to replace
+        const nonEssentialIndices = selected
+          .map((a, idx) => ({ ability: a, index: idx }))
+          .filter(({ ability }) => ability.type !== 'attack')
+          .map(({ index }) => index);
+        
+        if (nonEssentialIndices.length > 0) {
+          // Replace a random non-attack ability
+          const replaceIndex = nonEssentialIndices[Math.floor(Math.random() * nonEssentialIndices.length)];
+          const randomHealing = healingAbilities[Math.floor(Math.random() * healingAbilities.length)];
+          selected[replaceIndex] = randomHealing;
+        } else {
+          // If all are attacks, replace the last one (we already have at least one attack)
+          const randomHealing = healingAbilities[Math.floor(Math.random() * healingAbilities.length)];
+          selected[selected.length - 1] = randomHealing;
+        }
+      }
+    }
   }
 
-  // Fill remaining slots randomly from all available abilities
+  // Fill remaining slots randomly from all available abilities (up to 5 total)
   const remaining = availableAbilities.filter(a => !selected.includes(a));
   while (selected.length < 5 && remaining.length > 0) {
     const randomIndex = Math.floor(Math.random() * remaining.length);
     selected.push(remaining.splice(randomIndex, 1)[0]);
+  }
+
+  // Final guarantee: if healing abilities exist in the pool, ensure at least one is in the final selection
+  if (healingAbilities.length > 0) {
+    const hasHealing = selected.some(a => a.type === 'healing');
+    if (!hasHealing) {
+      // Replace a random non-attack ability with a healing ability
+      const nonEssentialIndices = selected
+        .map((a, idx) => ({ ability: a, index: idx }))
+        .filter(({ ability }) => ability.type !== 'attack')
+        .map(({ index }) => index);
+      
+      if (nonEssentialIndices.length > 0) {
+        const replaceIndex = nonEssentialIndices[Math.floor(Math.random() * nonEssentialIndices.length)];
+        const randomHealing = healingAbilities[Math.floor(Math.random() * healingAbilities.length)];
+        selected[replaceIndex] = randomHealing;
+      } else if (selected.length > 1) {
+        // If all are attacks and we have more than 1, replace the last one
+        const randomHealing = healingAbilities[Math.floor(Math.random() * healingAbilities.length)];
+        selected[selected.length - 1] = randomHealing;
+      }
+    }
   }
 
   return selected;
@@ -70,6 +122,12 @@ export const FALLBACK_ABILITIES: Record<string, Ability[]> = {
       attackRoll: false,
       description: 'A bright streak flashes from your pointing finger and explodes.',
     },
+    {
+      name: 'Arcane Recovery',
+      type: 'healing',
+      healingDice: '1d8+2',
+      description: 'Channel arcane energy to restore your vitality and recover hit points.',
+    },
   ],
   'Rogue': [
     {
@@ -86,6 +144,12 @@ export const FALLBACK_ABILITIES: Record<string, Ability[]> = {
       damageDice: '1d6',
       attackRoll: true,
       description: 'Use your quick reflexes to strike and reposition.',
+    },
+    {
+      name: 'Quick Recovery',
+      type: 'healing',
+      healingDice: '1d6+2',
+      description: 'Use your quick wits and agility to patch up wounds and recover.',
     },
   ],
   'Cleric': [
@@ -123,6 +187,12 @@ export const FALLBACK_ABILITIES: Record<string, Ability[]> = {
       damageDice: '2d6',
       attackRoll: true,
       description: 'Channel your rage into a devastating blow.',
+    },
+    {
+      name: 'Primal Resilience',
+      type: 'healing',
+      healingDice: '1d10+2',
+      description: 'Tap into your primal strength to recover from wounds through sheer toughness.',
     },
   ],
   'Ranger': [
@@ -187,6 +257,12 @@ export const FALLBACK_ABILITIES: Record<string, Ability[]> = {
       attackRoll: true,
       description: 'Hurl a mote of fire at a creature or object.',
     },
+    {
+      name: 'Vampiric Touch',
+      type: 'healing',
+      healingDice: '1d8+2',
+      description: 'Channel life force to heal yourself through magical means.',
+    },
   ],
   'Warlock': [
     {
@@ -205,6 +281,12 @@ export const FALLBACK_ABILITIES: Record<string, Ability[]> = {
       bonusDamageDice: '1d6',
       description: 'Place a curse on a creature that deals extra damage.',
     },
+    {
+      name: 'Dark Pact Recovery',
+      type: 'healing',
+      healingDice: '1d8+2',
+      description: 'Draw upon your patron\'s power to restore your vitality.',
+    },
   ],
   'Monk': [
     {
@@ -221,6 +303,12 @@ export const FALLBACK_ABILITIES: Record<string, Ability[]> = {
       damageDice: '1d6',
       attackRoll: true,
       description: 'Strike with focused ki to stun your opponent.',
+    },
+    {
+      name: 'Ki Restoration',
+      type: 'healing',
+      healingDice: '1d8+2',
+      description: 'Channel your ki energy to restore your body and recover hit points.',
     },
   ],
   'Druid': [

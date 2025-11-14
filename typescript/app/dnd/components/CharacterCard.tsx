@@ -180,58 +180,74 @@ function CharacterCardComponent({
   const isCompact = size === 'compact';
   const maxWidth = isCompact ? '192px' : '320px'; // 320 * 0.6 = 192
   const padding = isCompact ? '0.75rem' : '1rem'; // p-3 vs p-4
-  const imageWidth = isCompact ? '168px' : '280px'; // 280 * 0.6 = 168
-  const imageHeight = isCompact ? '120px' : '200px'; // 200 * 0.6 = 120
+  // For compact cards, make image larger since abilities section is hidden
+  const imageWidth = isCompact ? '180px' : '280px'; // Larger for compact since no abilities shown
+  const imageHeight = isCompact ? '130px' : '200px'; // Larger for compact since no abilities shown
   const borderWidth = isCompact ? '2px' : '3px';
   const borderRadius = isCompact ? '8px' : '12px';
   const iconSize = isCompact ? 'w-6 h-6' : 'w-10 h-10';
   const titleSize = isCompact ? 'text-base' : 'text-xl';
   const typeSize = isCompact ? 'text-[10px]' : 'text-xs';
   const abilityHeadingSize = isCompact ? 'text-[9px]' : 'text-xs';
-  const abilityTextSize = isCompact ? 'text-[9px]' : 'text-xs';
+  const abilityTextSize = isCompact ? 'text-[8px]' : 'text-[10px]';
+  const abilityButtonPadding = isCompact ? '1px 4px' : '2px 6px';
   const statsTextSize = isCompact ? 'text-[10px]' : 'text-sm';
   const abilityGap = isCompact ? 'gap-0' : 'gap-1';
   const abilityLineHeight = isCompact ? 'leading-tight' : 'leading-normal';
   const hpBarMaxWidth = isCompact ? '84px' : '140px'; // 140 * 0.6 = 84
   const diamondSize = isCompact ? '6px' : '8px';
+  const framePadding = isCompact ? '6px' : '10px'; // Padding for the dark frame
+  const innerBorderRadius = isCompact ? '8px' : '12px'; // Rounded corners for inner card
 
   return (
     <div 
       ref={animationRef}
-      className="relative overflow-hidden"
+      className="relative flex flex-col"
       style={{ 
-        backgroundColor: '#F2ECDE', // Light beige background
-        border: `${borderWidth} solid #5C4033`, // Dark brown border
+        backgroundColor: '#1a1a1a', // Dark black frame background
         borderRadius: borderRadius,
         width: '100%',
         maxWidth: maxWidth, // Constrain width to maintain portrait aspect
         aspectRatio: '3/4', // Portrait orientation: 3 wide by 4 tall
-        ...(isActive ? { boxShadow: '0 0 20px rgba(251, 191, 36, 0.5)' } : {})
+        padding: framePadding, // Dark frame padding
+        boxShadow: isActive 
+          ? '0 0 20px rgba(251, 191, 36, 0.5)' 
+          : 'none'
       }}
     >
-      {/* Defeated overlay */}
-      {isDefeated && (
-        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none bg-black/30">
-          <div className={`${isCompact ? 'text-5xl' : 'text-8xl'} text-red-900 drop-shadow-2xl`} style={{ filter: 'drop-shadow(0 0 10px rgba(0,0,0,0.8))' }}>
-            ☠️
+      {/* Inner card with rounded corners */}
+      <div 
+        className="relative overflow-hidden"
+        style={{ 
+          backgroundColor: '#F2ECDE', // Light beige background
+          borderRadius: innerBorderRadius,
+          flex: 1,
+          minHeight: 0 // Allow flex to shrink
+        }}
+      >
+        {/* Defeated overlay */}
+        {isDefeated && (
+          <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none bg-black/30">
+            <div className={`${isCompact ? 'text-5xl' : 'text-8xl'} text-red-900 drop-shadow-2xl`} style={{ filter: 'drop-shadow(0 0 10px rgba(0,0,0,0.8))' }}>
+              ☠️
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Confetti for victor */}
-      {isVictor && <Confetti key={confettiTrigger} trigger={confettiTrigger} />}
+        {/* Confetti for victor */}
+        {isVictor && <Confetti key={confettiTrigger} trigger={confettiTrigger} />}
 
-      {/* Sparkles effect */}
-      {shouldSparkle && (
-        <Sparkles 
-          key={sparkleTrigger} 
-          trigger={sparkleTrigger} 
-          count={sparkleIntensity > 0 ? Math.max(1, Math.ceil(sparkleIntensity * 0.6)) : 12}
-        />
-      )}
+        {/* Sparkles effect */}
+        {shouldSparkle && (
+          <Sparkles 
+            key={sparkleTrigger} 
+            trigger={sparkleTrigger} 
+            count={sparkleIntensity > 0 ? Math.max(1, Math.ceil(sparkleIntensity * 0.6)) : 12}
+          />
+        )}
 
-      {/* Card Content */}
-      <div className="h-full flex flex-col" style={{ padding: padding }}>
+        {/* Card Content */}
+        <div className="h-full flex flex-col" style={{ padding: padding }}>
         {/* Header with name, type, and symbol */}
         <div className="relative" style={{ marginBottom: isCompact ? '0.5rem' : '0.75rem' }}>
           {/* Purple abstract symbol in top right - flame/swirling design */}
@@ -330,7 +346,8 @@ function CharacterCardComponent({
           )}
         </div>
 
-        {/* Abilities section */}
+        {/* Abilities section - hidden for compact cards since abilities are randomly generated on battle start */}
+        {!isCompact && (
         <div style={{ marginBottom: isCompact ? '0.375rem' : '0.75rem' }}>
           <div className="flex items-center justify-between" style={{ marginBottom: isCompact ? '0.125rem' : '0.375rem' }}>
             <h4 
@@ -345,90 +362,122 @@ function CharacterCardComponent({
               </div>
             )}
           </div>
-          <div>
-            {playerClass.abilities.length > 0 ? (
-              <div className={`flex flex-wrap ${abilityGap} ${abilityLineHeight}`}>
-                {playerClass.abilities.map((ability, idx) => {
-                  const isTestHeal = ability.name === 'Test Heal';
-                  const testMissButton = testButtons.find(btn => btn.label.includes('Test Miss'));
-                  
-                  // Show abilities as comma-separated list (matching image design)
-                  // But keep interactive functionality for battle/test pages
-                  if (isOpponent || !onUseAbility) {
-                    return (
-                      <span key={idx}>
-                        <span 
-                          className={abilityTextSize}
-                          style={{ color: '#5C4033' }} // Dark brown for ability names
-                        >
-                          {ability.name}
-                        </span>
-                        {idx < playerClass.abilities.length - 1 && (
-                          <span 
-                            className={abilityTextSize}
-                            style={{ color: '#5C4033', marginLeft: isCompact ? '0.125rem' : '0.25rem' }}
-                          >
-                            , 
-                          </span>
-                        )}
-                      </span>
-                    );
-                  }
-                  
-                  // For interactive mode, show as clickable but styled like text
-                  return (
-                    <span key={idx}>
-                      <button
-                        onClick={() => onUseAbility(idx)}
-                        disabled={!effectiveIsActive || isDisabled}
-                        className={`${abilityTextSize} ${abilityLineHeight} hover:underline disabled:opacity-50 disabled:cursor-not-allowed transition-all`}
-                        style={{ 
-                          color: '#5C4033',
-                          background: 'none',
-                          border: 'none',
-                          padding: 0,
-                          cursor: (!effectiveIsActive || isDisabled) ? 'not-allowed' : 'pointer'
-                        }}
-                        title={ability.description || undefined}
-                      >
-                        {ability.name}
-                      </button>
-                      {idx < playerClass.abilities.length - 1 && (
-                        <span 
-                          className={abilityTextSize}
-                          style={{ color: '#5C4033', marginLeft: isCompact ? '0.125rem' : '0.25rem' }}
-                        >
-                          , 
-                        </span>
-                      )}
-                      {isTestHeal && testMissButton && (
-                        <button
-                          key="test-miss-after-heal"
-                          onClick={testMissButton.onClick}
-                          className={testMissButton.className || "ml-2 px-2 py-0.5 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all"}
-                        >
-                          {testMissButton.label}
-                        </button>
-                      )}
-                    </span>
-                  );
-                })}
-                {/* Render remaining test buttons (excluding Test Miss since it's already rendered) */}
-                {!isOpponent && testButtons.filter(btn => !btn.label.includes('Test Miss')).map((testButton, idx) => (
-                  <button
-                    key={`test-${idx}`}
-                    onClick={testButton.onClick}
-                    className={testButton.className || "ml-2 px-2 py-0.5 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all"}
-                  >
-                    {testButton.label}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <span className={`${abilityTextSize} italic`} style={{ color: '#8B6F47' }}>No abilities</span>
+          <div className="flex flex-wrap" style={{ gap: isCompact ? '2px' : '2px', alignItems: 'flex-start' }}>
+            {/* Basic Attack button - always available */}
+            {onAttack && (
+              <button
+                onClick={onAttack}
+                disabled={isOpponent || isDisabled}
+                className="disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-opacity-80"
+                style={{ 
+                  color: '#000000',
+                  backgroundColor: '#D1C9BA',
+                  border: '1px solid #D4C4B0',
+                  borderRadius: '6px',
+                  padding: abilityButtonPadding,
+                  cursor: (isOpponent || isDisabled) ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap',
+                  fontFamily: 'serif',
+                  fontWeight: 'bold',
+                  fontSize: isCompact ? '8px' : '10px',
+                  lineHeight: '1.2',
+                  minHeight: 'auto',
+                  boxSizing: 'border-box',
+                  margin: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  verticalAlign: 'top'
+                }}
+                title="Basic weapon attack"
+              >
+                Attack
+              </button>
             )}
+            {/* Ability buttons */}
+            {playerClass.abilities.length > 0 && playerClass.abilities.map((ability, idx) => {
+              const isTestHeal = ability.name === 'Test Heal';
+              const testMissButton = testButtons.find(btn => btn.label.includes('Test Miss'));
+              
+              // For non-interactive mode (opponents or preview), show as disabled buttons
+              if (isOpponent || !onUseAbility) {
+                return (
+                  <button
+                    key={idx}
+                    disabled
+                    className="opacity-75 cursor-default"
+                    style={{ 
+                      color: '#000000',
+                      backgroundColor: '#D1C9BA',
+                      border: '1px solid #D4C4B0',
+                      borderRadius: '6px',
+                      padding: abilityButtonPadding,
+                      whiteSpace: 'nowrap',
+                      fontFamily: 'serif',
+                      fontWeight: 'bold',
+                      fontSize: isCompact ? '8px' : '10px',
+                      lineHeight: '1.2',
+                      minHeight: 'auto',
+                      boxSizing: 'border-box',
+                      margin: 0,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      verticalAlign: 'middle'
+                    }}
+                    title={ability.description || undefined}
+                  >
+                    {ability.name}
+                  </button>
+                );
+              }
+              
+              // For interactive mode, show as clickable buttons
+              return (
+                <button
+                  key={idx}
+                  onClick={() => onUseAbility(idx)}
+                  disabled={!effectiveIsActive || isDisabled}
+                  className="disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-opacity-80"
+                  style={{ 
+                    color: '#000000',
+                    backgroundColor: '#D1C9BA',
+                    border: '1px solid #D4C4B0',
+                    borderRadius: '6px',
+                    padding: abilityButtonPadding,
+                    cursor: (!effectiveIsActive || isDisabled) ? 'not-allowed' : 'pointer',
+                    whiteSpace: 'nowrap',
+                    fontFamily: 'serif',
+                    fontWeight: 'bold',
+                    fontSize: isCompact ? '8px' : '10px',
+                    lineHeight: '1.2',
+                    minHeight: 'auto',
+                    boxSizing: 'border-box',
+                    margin: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    verticalAlign: 'top'
+                  }}
+                  title={ability.description || undefined}
+                  >
+                    {ability.name}
+                  </button>
+              );
+            })}
+            {/* Render remaining test buttons (excluding Test Miss since it's already rendered) */}
+            {!isOpponent && testButtons.filter(btn => !btn.label.includes('Test Miss')).map((testButton, idx) => (
+              <button
+                key={`test-${idx}`}
+                onClick={testButton.onClick}
+                className={testButton.className || "ml-2 px-2 py-0.5 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all"}
+              >
+                {testButton.label}
+              </button>
+            ))}
           </div>
         </div>
+        )}
 
         {/* Divider with diamond icon */}
         <div className="flex items-center justify-center" style={{ marginBottom: isCompact ? '0.5rem' : '0.75rem' }}>
@@ -449,14 +498,37 @@ function CharacterCardComponent({
         <div className="mt-auto">
           <div className="flex items-center justify-between mb-2">
             {/* AC (Armor Class) - left side */}
-            <div className="flex items-center" style={{ gap: isCompact ? '0.25rem' : '0.375rem' }}>
+            <div className="flex items-center" style={{ gap: '0' }}>
+              {/* Green shield icon */}
+              <div className={isCompact ? 'w-4 h-4' : 'w-5 h-5'} style={{ flexShrink: 0 }}>
+                <svg viewBox="0 0 24 24" className="w-full h-full">
+                  <path
+                    fill="#22c55e"
+                    d="M12 2L4 5v6c0 5.55 3.84 10.74 8 12 4.16-1.26 8-6.45 8-12V5l-8-3z"
+                  />
+                  <path
+                    fill="#16a34a"
+                    d="M12 2L4 5v6c0 5.55 3.84 10.74 8 12 4.16-1.26 8-6.45 8-12V5l-8-3z"
+                    opacity="0.8"
+                  />
+                </svg>
+              </div>
               <span className={`font-bold ${statsTextSize}`} style={{ color: '#5C4033' }}>
-                AC: {playerClass.armorClass}
+                {playerClass.armorClass}
               </span>
             </div>
 
             {/* HP with bar - right side */}
-            <div className="flex items-center flex-1 justify-end" style={{ gap: isCompact ? '0.25rem' : '0.375rem' }}>
+            <div className="flex items-center flex-1 justify-end" style={{ gap: '0' }}>
+              {/* Heart icon */}
+              <div className={isCompact ? 'w-4 h-4' : 'w-5 h-5'} style={{ flexShrink: 0 }}>
+                <svg viewBox="0 0 24 24" className="w-full h-full">
+                  <path
+                    fill="#dc2626"
+                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                  />
+                </svg>
+              </div>
               <div 
                 className="flex-1 rounded-sm overflow-hidden"
                 style={{ 
@@ -475,24 +547,59 @@ function CharacterCardComponent({
                 />
               </div>
               <span className={`font-bold ${abilityTextSize}`} style={{ color: '#5C4033', marginLeft: isCompact ? '0.125rem' : '0.25rem' }}>
-                {isDefeated ? 0 : playerClass.hitPoints}
+                {isDefeated ? 0 : playerClass.hitPoints} / {playerClass.maxHitPoints}
               </span>
             </div>
           </div>
-
-          {/* Attack button (show for all players, but disabled for AI opponents) */}
-          {onAttack && (
-            <button
-              onClick={onAttack}
-              disabled={isOpponent || isDisabled}
-              className={`w-full bg-red-900 hover:bg-red-800 text-white font-bold rounded-lg border-2 border-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${isCompact ? 'mt-2 py-1 px-2 text-xs' : 'mt-3 py-2 px-4'}`}
-              title={isOpponent ? 'AI-controlled player' : undefined}
-            >
-              Attack!
-            </button>
-          )}
         </div>
 
+        </div>
+      </div>
+
+      {/* Footer text in dark frame area */}
+      <div 
+        className="flex items-center justify-between"
+        style={{ 
+          marginTop: isCompact ? '4px' : '6px',
+          paddingTop: '0',
+          paddingBottom: '0',
+          height: isCompact ? '16px' : '20px'
+        }}
+      >
+        {/* Card number in bottom left */}
+        <span 
+          className={isCompact ? 'text-[8px]' : 'text-[10px]'}
+          style={{ 
+            color: '#F2ECDE', // Light beige text on dark frame
+            fontFamily: 'serif',
+            fontWeight: 'bold'
+          }}
+        >
+          1/12
+        </span>
+
+        {/* Small symbol in center bottom */}
+        <div 
+          style={{
+            width: isCompact ? '8px' : '10px',
+            height: isCompact ? '8px' : '10px',
+            backgroundColor: '#F2ECDE',
+            transform: 'rotate(45deg)',
+            opacity: 0.6
+          }}
+        ></div>
+
+        {/* "2025 OpenRAG" in bottom right */}
+        <span 
+          className={isCompact ? 'text-[8px]' : 'text-[10px]'}
+          style={{ 
+            color: '#F2ECDE', // Light beige text on dark frame
+            fontFamily: 'serif',
+            fontWeight: 'bold'
+          }}
+        >
+          2025 OpenRAG
+        </span>
       </div>
     </div>
   );

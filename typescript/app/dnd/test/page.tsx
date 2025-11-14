@@ -1219,12 +1219,12 @@ export default function DnDTestPage() {
                 playerClass={player1Class}
                 characterName={player1Name || 'Loading...'}
                 monsterImageUrl={player1MonsterId ? `/cdn/monsters/${player1MonsterId}/280x200.png` : undefined}
-                onUseAbility={(index) => {
-                  testUseAbility('player1', index);
-                }}
                 onAttack={() => {
                   setIsMoveInProgress(true);
                   testAttackHit('player1');
+                }}
+                onUseAbility={(index) => {
+                  testUseAbility('player1', index);
                 }}
                 isMoveInProgress={isMoveInProgress}
                 shouldShake={shakingPlayer === 'player1'}
@@ -1315,13 +1315,14 @@ export default function DnDTestPage() {
                 playerClass={player2Class}
                 characterName={player2Name || 'Loading...'}
                 monsterImageUrl={player2MonsterId ? `/cdn/monsters/${player2MonsterId}/280x200.png` : undefined}
+                onAttack={() => {
+                  if (isAIModeActive) return; // Don't allow manual control in AI mode
+                  setIsMoveInProgress(true);
+                  testAttackHit('player2');
+                }}
                 onUseAbility={(index) => {
                   if (isAIModeActive) return; // Don't allow manual control in AI mode
                   testUseAbility('player2', index);
-                }}
-                onAttack={() => {
-                  setIsMoveInProgress(true);
-                  testAttackHit('player2');
                 }}
                 isOpponent={isAIModeActive}
                 isMoveInProgress={isMoveInProgress}
