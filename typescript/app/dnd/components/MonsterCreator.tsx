@@ -11,15 +11,22 @@ interface MonsterCreatorProps {
 
 /**
  * Builds the base pixel art prompt template with user's description
+ * @param userPrompt - The user's character description
+ * @param transparentBackground - If true, removes background references from prompt
  */
-function buildBasePrompt(userPrompt: string = ''): string {
-  const backgroundScene = 'a medieval high-fantasy setting';
+function buildBasePrompt(userPrompt: string = '', transparentBackground: boolean = false): string {
   const paletteDescription = 'warm earth tones with vibrant accents';
   
   // Use the user's prompt/description
   const description = userPrompt.trim() || 'a fantasy character';
   
-  // Build the full pixel art prompt without creature references or aspect ratio
+  if (transparentBackground) {
+    // For transparent background, focus on isolated character only - no background references
+    return `32-bit pixel art with clearly visible chunky pixel clusters, crisp sprite outlines, dithered shading, low-resolution retro fantasy aesthetic. ${description}, isolated character sprite, no background scene, no environment, no setting. Rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, no modern objects or technology. Centered composition, transparent background. --style raw`;
+  }
+  
+  // Original prompt with background (for reference, though we now always use transparent)
+  const backgroundScene = 'a medieval high-fantasy setting';
   return `32-bit pixel art with clearly visible chunky pixel clusters, crisp sprite outlines, dithered shading, low-resolution retro fantasy aesthetic. ${description}, depicted in a distinctly medieval high-fantasy world. Placed in ${backgroundScene}, rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, no modern objects or technology. Cinematic composition. --style raw`;
 }
 
@@ -34,10 +41,6 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [model, setModel] = useState('5000');
-  
-  // Background removal options
-  const [transparentBackground, setTransparentBackground] = useState(true);
-  const [removeBg, setRemoveBg] = useState(false);
 
   const [customHeroes, setCustomHeroes] = useState<DnDClass[]>([]);
   const [customMonsters, setCustomMonsters] = useState<DnDClass[]>([]);
@@ -128,9 +131,10 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
   }, [klass, selectedDescription, isClass]); // Update when klass changes
 
   // Update full prompt when userPrompt changes
+  // Always use transparent background version since we generate characters without backgrounds
   useEffect(() => {
     if (userPrompt.trim()) {
-      const basePrompt = buildBasePrompt(userPrompt);
+      const basePrompt = buildBasePrompt(userPrompt, true); // true = transparent background
       setFullPrompt(basePrompt);
     } else {
       setFullPrompt('');
@@ -148,23 +152,36 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
 
     try {
       // Use the full editable prompt for image generation
-      let finalPrompt = fullPrompt;
+      // Generate character with transparent background (no background scene)
+      // Rebuild prompt without background references if it's a template prompt
+      let characterPrompt = fullPrompt;
       
-      // Add transparent background request if needed
-      if (transparentBackground && !finalPrompt.includes('transparent')) {
-        finalPrompt = finalPrompt + ', transparent background';
+      // If it's a template prompt (contains background references), rebuild it for transparent background
+      if (fullPrompt.includes('depicted in a distinctly medieval high-fantasy world') || 
+          fullPrompt.includes('Placed in a medieval high-fantasy setting')) {
+        // Extract the character description from the existing prompt
+        // Try to extract the description part (between the style description and "depicted")
+        const match = fullPrompt.match(/retro fantasy aesthetic\.\s*(.+?)(?:,\s*depicted|$)/i);
+        const description = match ? match[1].trim() : userPrompt || 'a fantasy character';
+        characterPrompt = buildBasePrompt(description, true); // true = transparent background
+      } else {
+        // Custom prompt - just ensure transparent background is requested
+        if (!characterPrompt.toLowerCase().includes('transparent') && 
+            !characterPrompt.toLowerCase().includes('no background')) {
+          characterPrompt = characterPrompt + ', transparent background, isolated character, no background scene, no environment';
+        }
       }
-
+      
       const response = await fetch('/api/generate-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          prompt: finalPrompt,
+          prompt: characterPrompt,
           seed,
           model,
-          transparentBackground: false, // Already added to prompt if needed
+          transparentBackground: true, // Generate character with transparent background
           aspectRatio: '16:9', // 16:9 aspect ratio for perfect fit
         }),
       });
@@ -217,7 +234,6 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
             attackBonus: 4,
             damageDie: 'd8',
           },
-          removeBg,
         }),
       });
 
@@ -240,7 +256,7 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
   };
 
   return (
-    <div className="border border-amber-700 rounded p-4 space-y-4 max-w-2xl bg-amber-900/30">
+    <div className="border border-amber-700 rounded p-4 space-y-4 w-full bg-amber-900/30">
       <h2 className="text-xl font-bold text-amber-100">Create Character Image</h2>
       
       <div className="space-y-2">
@@ -303,41 +319,6 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
             <option value="8000">Recraft-Vector (Vector Art)</option>
           </select>
         </label>
-      </div>
-
-      {/* Background Options */}
-      <div className="space-y-2 border-t border-amber-700 pt-4">
-        <h3 className="text-sm font-semibold text-amber-100">Background Options</h3>
-        
-        <label className="flex items-center space-x-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={transparentBackground}
-            onChange={(e) => setTransparentBackground(e.target.checked)}
-            className="w-4 h-4"
-          />
-          <span className="text-sm text-amber-200">
-            Request transparent background in prompt
-          </span>
-        </label>
-        <p className="text-xs text-amber-300 ml-6">
-          Adds "transparent background" to the image generation prompt
-        </p>
-        
-        <label className="flex items-center space-x-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={removeBg}
-            onChange={(e) => setRemoveBg(e.target.checked)}
-            className="w-4 h-4"
-          />
-          <span className="text-sm text-amber-200">
-            Remove background (post-processing)
-          </span>
-        </label>
-        <p className="text-xs text-amber-300 ml-6">
-          Automatically removes background from generated/downloaded images using edge detection
-        </p>
       </div>
 
       <div className="space-y-2">

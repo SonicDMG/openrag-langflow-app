@@ -728,3 +728,26 @@ body {
   will-change: transform, opacity;
   opacity: 0;
 }
+
+/* Character cut-out animation - subtle breathing/floating effect to give life */
+@keyframes character-cutout-breathe {
+  0%, 100% {
+    transform: translateY(0) translateX(0) scale(1);
+  }
+  25% {
+    transform: translateY(-1px) translateX(0.5px) scale(1.005);
+  }
+  50% {
+    transform: translateY(-0.5px) translateX(0) scale(1);
+  }
+  75% {
+    transform: translateY(-1px) translateX(-0.5px) scale(1.005);
+  }
+}
+
+.character-cutout {
+  animation: character-cutout-breathe 3s ease-in-out infinite;
+  transform-origin: center center;
+  will-change: transform;
+  pointer-events: none;
+}

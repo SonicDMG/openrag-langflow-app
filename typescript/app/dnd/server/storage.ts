@@ -32,6 +32,24 @@ export async function saveMonsterBundle(bundle: MonsterBundle): Promise<string> 
   await fs.writeFile(join(monsterDir, '256.png'), bundle.images.png256);
   await fs.writeFile(join(monsterDir, '512.png'), bundle.images.png512);
 
+  // Save cut-out images if they exist
+  if (bundle.cutOutImages) {
+    await fs.writeFile(join(monsterDir, '128-cutout.png'), bundle.cutOutImages.png128);
+    await fs.writeFile(join(monsterDir, '200-cutout.png'), bundle.cutOutImages.png200);
+    await fs.writeFile(join(monsterDir, '280x200-cutout.png'), bundle.cutOutImages.png280x200);
+    await fs.writeFile(join(monsterDir, '256-cutout.png'), bundle.cutOutImages.png256);
+    await fs.writeFile(join(monsterDir, '512-cutout.png'), bundle.cutOutImages.png512);
+  }
+
+  // Save background-only images if they exist
+  if (bundle.backgroundOnlyImages) {
+    await fs.writeFile(join(monsterDir, '128-background.png'), bundle.backgroundOnlyImages.png128);
+    await fs.writeFile(join(monsterDir, '200-background.png'), bundle.backgroundOnlyImages.png200);
+    await fs.writeFile(join(monsterDir, '280x200-background.png'), bundle.backgroundOnlyImages.png280x200);
+    await fs.writeFile(join(monsterDir, '256-background.png'), bundle.backgroundOnlyImages.png256);
+    await fs.writeFile(join(monsterDir, '512-background.png'), bundle.backgroundOnlyImages.png512);
+  }
+
 
   // Save metadata
   const metadata = {
@@ -97,6 +115,48 @@ export async function loadMonsterBundle(monsterId: string): Promise<MonsterBundl
       await fs.writeFile(join(monsterDir, '280x200.png'), png280x200);
     }
 
+    // Load cut-out images if they exist (optional for backward compatibility)
+    let cutOutImages: MonsterBundle['cutOutImages'] | undefined;
+    try {
+      const png128CutOut = await fs.readFile(join(monsterDir, '128-cutout.png'));
+      const png200CutOut = await fs.readFile(join(monsterDir, '200-cutout.png'));
+      const png280x200CutOut = await fs.readFile(join(monsterDir, '280x200-cutout.png'));
+      const png256CutOut = await fs.readFile(join(monsterDir, '256-cutout.png'));
+      const png512CutOut = await fs.readFile(join(monsterDir, '512-cutout.png'));
+      
+      cutOutImages = {
+        png128: png128CutOut,
+        png200: png200CutOut,
+        png280x200: png280x200CutOut,
+        png256: png256CutOut,
+        png512: png512CutOut,
+      };
+    } catch {
+      // Cut-out images don't exist (backward compatibility)
+      cutOutImages = undefined;
+    }
+
+    // Load background-only images if they exist (optional for backward compatibility)
+    let backgroundOnlyImages: MonsterBundle['backgroundOnlyImages'] | undefined;
+    try {
+      const png128Bg = await fs.readFile(join(monsterDir, '128-background.png'));
+      const png200Bg = await fs.readFile(join(monsterDir, '200-background.png'));
+      const png280x200Bg = await fs.readFile(join(monsterDir, '280x200-background.png'));
+      const png256Bg = await fs.readFile(join(monsterDir, '256-background.png'));
+      const png512Bg = await fs.readFile(join(monsterDir, '512-background.png'));
+      
+      backgroundOnlyImages = {
+        png128: png128Bg,
+        png200: png200Bg,
+        png280x200: png280x200Bg,
+        png256: png256Bg,
+        png512: png512Bg,
+      };
+    } catch {
+      // Background-only images don't exist (backward compatibility)
+      backgroundOnlyImages = undefined;
+    }
+
     return {
       monsterId: metadata.monsterId,
       klass: metadata.klass,
@@ -112,6 +172,8 @@ export async function loadMonsterBundle(monsterId: string): Promise<MonsterBundl
         png256,
         png512,
       },
+      cutOutImages,
+      backgroundOnlyImages,
     };
   } catch (error) {
     console.error(`Failed to load monster bundle ${monsterId}:`, error);

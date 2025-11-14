@@ -44,6 +44,11 @@ export default function MonsterCreatorPage() {
   const [customHeroes, setCustomHeroes] = useState<DnDClass[]>([]);
   const [customMonsters, setCustomMonsters] = useState<DnDClass[]>([]);
   const [isLoadingCustom, setIsLoadingCustom] = useState(true);
+  const [allCreatedMonsters, setAllCreatedMonsters] = useState<Array<{ monsterId: string; klass: string; imageUrl: string; prompt?: string }>>([]);
+  const [isLoadingMonsters, setIsLoadingMonsters] = useState(false);
+  const [selectedMonsterForAssociation, setSelectedMonsterForAssociation] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Load custom heroes and monsters from database
   useEffect(() => {
@@ -80,6 +85,32 @@ export default function MonsterCreatorPage() {
 
     loadCustomCharacters();
   }, []);
+
+  // Load all created monsters
+  const loadAllMonsters = useCallback(async () => {
+    setIsLoadingMonsters(true);
+    try {
+      const response = await fetch('/api/monsters');
+      if (response.ok) {
+        const data = await response.json();
+        const monsters = (data.monsters || []).map((m: any) => ({
+          monsterId: m.monsterId,
+          klass: m.klass || 'Unassociated',
+          imageUrl: m.imageUrl || `/cdn/monsters/${m.monsterId}/280x200.png`,
+          prompt: m.prompt,
+        }));
+        setAllCreatedMonsters(monsters);
+      }
+    } catch (error) {
+      console.error('Failed to load created monsters:', error);
+    } finally {
+      setIsLoadingMonsters(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAllMonsters();
+  }, [createdMonsterData?.monsterId, loadAllMonsters]); // Reload when a new monster is created
 
   // Combine all available classes and monsters for dropdown
   const allOptions = [
@@ -184,8 +215,11 @@ export default function MonsterCreatorPage() {
     setSaveError(null);
   }, []);
 
-  const handleSaveAssociation = async () => {
-    if (!createdMonsterData || !selectedKlass) {
+  const handleSaveAssociation = async (monsterId?: string, klass?: string) => {
+    const targetMonsterId = monsterId || createdMonsterData?.monsterId;
+    const targetKlass = klass || selectedKlass;
+    
+    if (!targetMonsterId || !targetKlass) {
       setSaveError('Please select a class/monster type to associate');
       return;
     }
@@ -202,8 +236,8 @@ export default function MonsterCreatorPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          monsterId: createdMonsterData.monsterId,
-          klass: selectedKlass,
+          monsterId: targetMonsterId,
+          klass: targetKlass,
         }),
       });
 
@@ -214,10 +248,22 @@ export default function MonsterCreatorPage() {
 
       // Update local state
       setSaveSuccess(true);
-      setCreatedMonsterData({
-        ...createdMonsterData,
-        klass: selectedKlass,
-      });
+      
+      // Reload monsters from API to ensure we have the latest associations
+      await loadAllMonsters();
+      
+      if (targetMonsterId === createdMonsterData?.monsterId) {
+        // Update the current monster
+        setCreatedMonsterData({
+          ...createdMonsterData,
+          klass: targetKlass,
+        });
+      }
+      
+      // Clear selection if it was from the list
+      if (monsterId) {
+        setSelectedMonsterForAssociation(null);
+      }
       
       // Show success message
       setTimeout(() => {
@@ -227,6 +273,86 @@ export default function MonsterCreatorPage() {
       setSaveError(err instanceof Error ? err.message : 'Failed to save association');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDeleteMonster = async (monsterId: string) => {
+    if (!confirm('Are you sure you want to delete this monster? This action cannot be undone.')) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const response = await fetch('/api/monsters', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ monsterId }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete monster');
+      }
+
+      // Remove from list
+      setAllCreatedMonsters(prev => prev.filter(m => m.monsterId !== monsterId));
+      
+      // If it was the currently created monster, clear it
+      if (createdMonsterData?.monsterId === monsterId) {
+        setCreatedMonsterData(null);
+        setSelectedKlass('');
+      }
+      
+      // Clear selection if it was selected for association
+      if (selectedMonsterForAssociation === monsterId) {
+        setSelectedMonsterForAssociation(null);
+      }
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete monster');
+      setTimeout(() => setDeleteError(null), 5000);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (!confirm(`Are you sure you want to delete ALL ${allCreatedMonsters.length} monsters? This action cannot be undone.`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const response = await fetch('/api/monsters', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ deleteAll: true }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete all monsters');
+      }
+
+      const data = await response.json();
+      setAllCreatedMonsters([]);
+      setCreatedMonsterData(null);
+      setSelectedKlass('');
+      setSelectedMonsterForAssociation(null);
+      
+      alert(`Successfully deleted ${data.deletedCount} monster(s)`);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete all monsters');
+      setTimeout(() => setDeleteError(null), 5000);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -274,13 +400,13 @@ export default function MonsterCreatorPage() {
       <div className="container mx-auto p-8 space-y-8">
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div>
+          <div className="w-full">
             <MonsterCreator onMonsterCreated={handleMonsterCreated} />
           </div>
 
           {createdMonsterData && previewMonsterClass ? (
-            <div className="space-y-4">
-              <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl">
+            <div className="space-y-4 w-full">
+              <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl w-full">
                 <h2 className="text-2xl font-bold mb-4 text-amber-100" style={{ fontFamily: 'serif' }}>
                   Image Preview & Association
                   {saveSuccess && (
@@ -323,12 +449,134 @@ export default function MonsterCreatorPage() {
                   )}
                 </div>
 
+                {/* Image Version Comparison */}
+                {createdMonsterData.monsterId && (
+                  <div className="mb-6 space-y-3">
+                    <h3 className="text-lg font-semibold text-amber-100" style={{ fontFamily: 'serif' }}>
+                      Image Versions
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Background Only Version */}
+                      <div className="bg-amber-800/50 border-2 border-amber-700 rounded-lg p-4">
+                        <h4 className="text-sm font-semibold text-amber-200 mb-2">Background Only</h4>
+                        <div 
+                          className="rounded-lg overflow-hidden mx-auto flex items-center justify-center"
+                          style={{ 
+                            backgroundColor: '#E8E0D6',
+                            border: '2px solid #D4C4B0',
+                            width: '100%',
+                            maxWidth: '280px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <img
+                            src={createdMonsterData.monsterId ? `/cdn/monsters/${createdMonsterData.monsterId}/280x200-background.png` : createdMonsterData.imageUrl}
+                            alt="Background only"
+                            style={{
+                              imageRendering: 'pixelated' as const,
+                              maxWidth: '100%',
+                              height: 'auto',
+                              display: 'block',
+                            }}
+                            onError={(e) => {
+                              console.warn('Background-only image not found');
+                            }}
+                          />
+                        </div>
+                        <p className="text-xs text-amber-300 mt-2 text-center">
+                          New background scene (no character)
+                        </p>
+                      </div>
+
+                      {/* Composite Version */}
+                      <div className="bg-amber-800/50 border-2 border-amber-700 rounded-lg p-4">
+                        <h4 className="text-sm font-semibold text-amber-200 mb-2">Composite Version</h4>
+                        <div 
+                          className="rounded-lg overflow-hidden mx-auto flex items-center justify-center"
+                          style={{ 
+                            backgroundColor: '#E8E0D6',
+                            border: '2px solid #D4C4B0',
+                            width: '100%',
+                            maxWidth: '280px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <img
+                            src={createdMonsterData.imageUrl}
+                            alt="Composite version"
+                            style={{
+                              imageRendering: 'pixelated' as const,
+                              maxWidth: '100%',
+                              height: 'auto',
+                              display: 'block',
+                            }}
+                          />
+                        </div>
+                        <p className="text-xs text-amber-300 mt-2 text-center">
+                          Background with character composited on top
+                        </p>
+                      </div>
+
+                      {/* Cut-out Version */}
+                      <div className="bg-amber-800/50 border-2 border-amber-700 rounded-lg p-4">
+                        <h4 className="text-sm font-semibold text-amber-200 mb-2">Cut-out Version</h4>
+                        <div 
+                          className="rounded-lg overflow-hidden mx-auto relative flex items-center justify-center"
+                          style={{ 
+                            backgroundColor: '#E8E0D6',
+                            border: '2px solid #D4C4B0',
+                            width: '100%',
+                            maxWidth: '280px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            // Checkerboard pattern to show transparency
+                            backgroundImage: `
+                              linear-gradient(45deg, #ccc 25%, transparent 25%),
+                              linear-gradient(-45deg, #ccc 25%, transparent 25%),
+                              linear-gradient(45deg, transparent 75%, #ccc 75%),
+                              linear-gradient(-45deg, transparent 75%, #ccc 75%)
+                            `,
+                            backgroundSize: '20px 20px',
+                            backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
+                          }}
+                        >
+                          <img
+                            src={`/cdn/monsters/${createdMonsterData.monsterId}/280x200-cutout.png`}
+                            alt="Cut-out version"
+                            className="character-cutout"
+                            style={{
+                              imageRendering: 'pixelated' as const,
+                              maxWidth: '100%',
+                              height: 'auto',
+                              display: 'block',
+                              position: 'relative',
+                              zIndex: 1,
+                            }}
+                            onError={(e) => {
+                              console.warn('Cut-out image not found:', `/cdn/monsters/${createdMonsterData.monsterId}/280x200-cutout.png`);
+                            }}
+                          />
+                        </div>
+                        <p className="text-xs text-amber-300 mt-2 text-center">
+                          Character with transparent background (checkerboard shows transparency)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Character Card Preview */}
                 <div className="flex justify-center">
                   <CharacterCard
                     playerClass={previewMonsterClass}
                     characterName={selectedKlass || createdMonsterData.klass || 'Monster'}
                     monsterImageUrl={createdMonsterData.imageUrl}
+                    monsterCutOutImageUrl={createdMonsterData.monsterId ? `/cdn/monsters/${createdMonsterData.monsterId}/280x200-cutout.png` : undefined}
                     shouldShake={shouldShake}
                     shouldSparkle={shouldSparkle}
                     shouldMiss={shouldMiss}
@@ -384,6 +632,127 @@ export default function MonsterCreatorPage() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* All Created Monsters Section */}
+        <div className="mt-8 w-full">
+          <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-amber-100" style={{ fontFamily: 'serif' }}>
+                All Generated Monsters
+              </h2>
+              {allCreatedMonsters.length > 0 && (
+                <button
+                  onClick={handleDeleteAll}
+                  disabled={isDeleting}
+                  className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all border-2 border-red-600"
+                >
+                  {isDeleting ? '⏳ Deleting...' : '🗑️ Delete All'}
+                </button>
+              )}
+            </div>
+            
+            {deleteError && (
+              <div className="mb-4 p-3 bg-red-900/50 border border-red-600 text-red-100 rounded text-sm">
+                {deleteError}
+              </div>
+            )}
+            
+            {isLoadingMonsters ? (
+              <div className="text-amber-200 text-center py-8">Loading monsters...</div>
+            ) : allCreatedMonsters.length === 0 ? (
+              <div className="text-amber-300 text-center py-8">
+                No monsters created yet. Generate a monster using the form above!
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {allCreatedMonsters.map((monster) => (
+                    <div
+                      key={monster.monsterId}
+                      className={`bg-amber-800/50 border-2 rounded-lg p-4 transition-all relative ${
+                        selectedMonsterForAssociation === monster.monsterId
+                          ? 'border-green-500 shadow-lg'
+                          : 'border-amber-700 hover:border-amber-600'
+                      }`}
+                    >
+                      {/* Delete button (X) in top right corner */}
+                      <button
+                        onClick={() => handleDeleteMonster(monster.monsterId)}
+                        disabled={isDeleting}
+                        className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center bg-red-700 hover:bg-red-600 text-white rounded-full text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all z-10"
+                        title="Delete this monster"
+                      >
+                        ×
+                      </button>
+                      
+                      <div className="flex items-start gap-3">
+                        <img
+                          src={monster.imageUrl}
+                          alt={monster.klass}
+                          className="w-20 h-20 object-cover rounded border-2 border-amber-600"
+                          style={{ imageRendering: 'pixelated' as const }}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = '/placeholder.png';
+                          }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-amber-100 mb-1 truncate">
+                            {monster.klass}
+                          </div>
+                          <div className="text-xs text-amber-300 mb-2 truncate">
+                            ID: {monster.monsterId.substring(0, 8)}...
+                          </div>
+                          
+                          {selectedMonsterForAssociation === monster.monsterId ? (
+                            <div className="space-y-2">
+                              <SearchableSelect
+                                options={allOptions}
+                                value={selectedKlass}
+                                onChange={setSelectedKlass}
+                                placeholder="Select a class or monster..."
+                                disabled={isLoadingCustom || isSaving}
+                                label=""
+                                helpText=""
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleSaveAssociation(monster.monsterId, selectedKlass)}
+                                  disabled={isSaving || !selectedKlass}
+                                  className="flex-1 px-3 py-1.5 bg-green-700 hover:bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                >
+                                  {isSaving ? 'Saving...' : 'Save'}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedMonsterForAssociation(null);
+                                    setSelectedKlass(monster.klass);
+                                  }}
+                                  className="px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white rounded text-sm font-semibold transition-all"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setSelectedMonsterForAssociation(monster.monsterId);
+                                setSelectedKlass(monster.klass);
+                              }}
+                              className="w-full px-3 py-1.5 bg-blue-700 hover:bg-blue-600 text-white rounded text-sm font-semibold transition-all"
+                            >
+                              Associate with Class
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

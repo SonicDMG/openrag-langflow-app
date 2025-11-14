@@ -1,11 +1,14 @@
-// Image generation service using EverArt MCP tool
-// Note: This will be called from the API route which has access to MCP tools
+// Image generation service using EverArt SDK
 import sharp from 'sharp';
+import EverArt from 'everart';
 
 export interface ImageGenerationOptions {
   prompt: string;
   seed?: number;
   model?: string;
+  imageCount?: number;
+  width?: number;
+  height?: number;
 }
 
 export interface GeneratedImage {
@@ -14,16 +17,60 @@ export interface GeneratedImage {
 }
 
 /**
- * Generate a reference image using EverArt
- * This function should be called from the API route where MCP tools are available
- * For now, we'll return a placeholder structure that the API route will implement
+ * Generate an image using EverArt SDK
+ * Returns both the URL and the downloaded buffer
  */
 export async function generateReferenceImage(
   options: ImageGenerationOptions
 ): Promise<GeneratedImage> {
-  // This will be implemented in the API route using the MCP tool
-  // The API route has access to mcp_everart_generate_image
-  throw new Error('This function should be called from the API route with MCP access');
+  const apiKey = process.env.EVERART_API_KEY;
+  if (!apiKey) {
+    throw new Error('EverArt API key not configured. Please set EVERART_API_KEY environment variable.');
+  }
+
+  const {
+    prompt,
+    model = '5000',
+    imageCount = 1,
+    width = 1024,
+    height = 576, // 16:9 aspect ratio
+  } = options;
+
+  const everartClient = new EverArt(apiKey);
+  
+  const baseParams = {
+    imageCount,
+    width,
+    height,
+  };
+
+  // Create generation using SDK
+  const generations = await everartClient.v1.generations.create(
+    model,
+    prompt,
+    'txt2img',
+    baseParams
+  );
+
+  if (!generations || generations.length === 0) {
+    throw new Error('No generations returned from EverArt API');
+  }
+
+  // Poll for the result
+  const result = await everartClient.v1.generations.fetchWithPolling(generations[0].id);
+  const imageUrl = result.image_url;
+
+  if (!imageUrl) {
+    throw new Error('Image generation completed but no image URL was returned');
+  }
+
+  // Download the image
+  const buffer = await downloadImage(imageUrl);
+
+  return {
+    url: imageUrl,
+    buffer,
+  };
 }
 
 /**

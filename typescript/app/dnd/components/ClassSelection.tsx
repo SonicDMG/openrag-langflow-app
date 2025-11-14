@@ -20,7 +20,13 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
     const associated = createdMonsters
       .filter(m => m.name === className)
       .sort((a, b) => {
-        // Sort by monsterId (UUIDs) - most recent first
+        // Sort by lastAssociatedAt (most recently associated first), then by createdAt (newest first)
+        const aTime = (a as any).lastAssociatedAt || (a as any).createdAt || '';
+        const bTime = (b as any).lastAssociatedAt || (b as any).createdAt || '';
+        if (aTime && bTime) {
+          return new Date(bTime).getTime() - new Date(aTime).getTime();
+        }
+        // Fallback to UUID sort if no timestamps
         return b.monsterId.localeCompare(a.monsterId);
       });
     return associated.length > 0 ? associated[0] : null;
@@ -67,6 +73,9 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
             const monsterImageUrl = associatedMonster 
               ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
               : undefined;
+            const monsterCutOutImageUrl = associatedMonster 
+              ? `/cdn/monsters/${associatedMonster.monsterId}/280x200-cutout.png`
+              : undefined;
             
             const isSelected = selectedClass?.name === dndClass.name;
             
@@ -88,6 +97,7 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
                   playerClass={{ ...dndClass, hitPoints: dndClass.maxHitPoints }}
                   characterName={dndClass.name}
                   monsterImageUrl={monsterImageUrl}
+                  monsterCutOutImageUrl={monsterCutOutImageUrl}
                   size="compact"
                   cardIndex={index}
                   totalCards={availableClasses.length}

@@ -130,6 +130,8 @@ interface CharacterCardProps {
   testButtons?: Array<{ label: string; onClick: () => void; className?: string }>;
   // Monster image URL (optional - for monster creator preview)
   monsterImageUrl?: string;
+  // Cut-out monster image URL (optional - for animated layered display)
+  monsterCutOutImageUrl?: string;
   // Size variant - 'normal' for battle cards, 'compact' for selection
   size?: 'normal' | 'compact';
   // Card position and total count (for card numbering)
@@ -171,6 +173,7 @@ function CharacterCardComponent({
   allowAllTurns = false,
   testButtons = [],
   monsterImageUrl,
+  monsterCutOutImageUrl,
   size = 'normal',
   cardIndex,
   totalCards,
@@ -179,6 +182,7 @@ function CharacterCardComponent({
   const effectiveIsActive = allowAllTurns ? !isDefeated : isActive;
   const isDisabled = (effectiveIsActive && isMoveInProgress) || isDefeated;
   const [imageError, setImageError] = useState(false);
+  const [cutOutImageError, setCutOutImageError] = useState(false);
   
   // Placeholder image URL for cards without associated monsters
   const placeholderImageUrl = '/cdn/placeholder.png';
@@ -263,6 +267,13 @@ function CharacterCardComponent({
       setImageError(false);
     }
   }, [monsterImageUrl]);
+
+  // Reset cut-out image error when monsterCutOutImageUrl changes
+  useEffect(() => {
+    if (monsterCutOutImageUrl) {
+      setCutOutImageError(false);
+    }
+  }, [monsterCutOutImageUrl]);
 
   // Size scaling - compact is 60% of normal
   const isCompact = size === 'compact';
@@ -464,7 +475,7 @@ function CharacterCardComponent({
 
         {/* Central pixel art image in frame - slightly darker beige */}
         <div 
-          className="rounded-lg flex justify-center items-center overflow-hidden mx-auto"
+          className="rounded-lg flex justify-center items-center overflow-hidden mx-auto relative"
           style={{ 
             backgroundColor: '#E8E0D6', // Slightly darker beige frame
             border: isCompact ? '1.5px solid #D4C4B0' : '2px solid #D4C4B0',
@@ -477,19 +488,47 @@ function CharacterCardComponent({
           }}
         >
           {monsterImageUrl && !imageError ? (
-            // If monsterImageUrl is provided and no error, show the monster image
-            <img
-              src={monsterImageUrl}
-              alt={characterName}
-              style={{
-                imageRendering: 'pixelated' as const,
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover', // Cover the container, may crop edges
-                display: 'block'
-              }}
-              onError={() => setImageError(true)}
-            />
+            <>
+              {/* Background image layer */}
+              <img
+                src={monsterImageUrl}
+                alt={characterName}
+                style={{
+                  imageRendering: 'pixelated' as const,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: 'block',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                }}
+                onError={() => setImageError(true)}
+              />
+              {/* Cut-out character layer with animation (if available) */}
+              {monsterCutOutImageUrl && !cutOutImageError && (
+                <img
+                  src={monsterCutOutImageUrl}
+                  alt={`${characterName} (cut-out)`}
+                  className="character-cutout"
+                  style={{
+                    imageRendering: 'pixelated' as const,
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    display: 'block',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    zIndex: 1,
+                  }}
+                  onError={(e) => {
+                    console.warn('Cut-out image failed to load:', monsterCutOutImageUrl);
+                    setCutOutImageError(true);
+                  }}
+                />
+              )}
+            </>
           ) : (
             // If no monsterImageUrl or image error, show placeholder image
             <img

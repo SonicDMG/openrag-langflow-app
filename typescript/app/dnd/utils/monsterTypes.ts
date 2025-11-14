@@ -47,4 +47,18 @@ export interface MonsterBundle {
     png256: Buffer;
     png512: Buffer;
   };
+  cutOutImages?: {
+    png128: Buffer;
+    png200: Buffer;
+    png280x200: Buffer; // Wider version for card display
+    png256: Buffer;
+    png512: Buffer;
+  };
+  backgroundOnlyImages?: {
+    png128: Buffer;
+    png200: Buffer;
+    png280x200: Buffer; // Wider version for card display
+    png256: Buffer;
+    png512: Buffer;
+  };
 }

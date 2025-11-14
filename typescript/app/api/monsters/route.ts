@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from 'fs';
 import { join } from 'path';
+import sharp from 'sharp';
 import { pixelize } from '@/app/dnd/server/pixelize';
 import { saveMonsterBundle } from '@/app/dnd/server/storage';
-import { downloadImage, ensure16x9AspectRatio } from '@/app/dnd/server/imageGeneration';
+import { generateReferenceImage, downloadImage, ensure16x9AspectRatio } from '@/app/dnd/server/imageGeneration';
 import { removeBackground, ensureTransparentBackground } from '@/app/dnd/server/backgroundRemoval';
 import { MonsterBundle } from '@/app/dnd/utils/monsterTypes';
 
@@ -19,7 +20,7 @@ function formatErrorResponse(error: unknown): { error: string } {
 
 export async function POST(req: NextRequest) {
   try {
-    const { klass, prompt, seed = Math.floor(Math.random() * 1000000), stats, imageUrl, animationConfig, removeBg = false } = await req.json();
+    const { klass, prompt, seed = Math.floor(Math.random() * 1000000), stats, imageUrl, animationConfig } = await req.json();
 
     if (!klass || !prompt) {
       return NextResponse.json(
@@ -31,50 +32,59 @@ export async function POST(req: NextRequest) {
     // Generate monster ID
     const monsterId = uuidv4();
 
-    // 1) Generate a reference image using EverArt
-    // Option 1: Call the image generation API endpoint
-    // Option 2: Accept imageUrl in request body (if generated client-side)
-    // Option 3: Use a direct EverArt API call
-    
-    let refPng: Buffer;
+    // 1) Get the character image (should already be transparent background from preview generation)
+    let refPngCutOut: Buffer;
     
     if (imageUrl) {
-      // Use provided image URL
+      // Use provided image URL (should be character with transparent background)
       try {
-        refPng = await downloadImage(imageUrl);
+        // Check if it's a data URL (base64) or regular URL
+        if (imageUrl.startsWith('data:image/')) {
+          // Extract base64 data from data URL
+          const base64Data = imageUrl.split(',')[1];
+          refPngCutOut = Buffer.from(base64Data, 'base64');
+          console.log('Using provided data URL image (already processed with transparent background)');
+        } else {
+          // Regular URL - download it
+          refPngCutOut = await downloadImage(imageUrl);
+          // If it came from generate-image with transparentBackground=true, it should already be processed
+          // But if it's a direct URL, we may need to remove background
+          // For now, assume it's already processed if it came from our generate-image endpoint
+        }
         
         // Ensure 16:9 aspect ratio for perfect fit (crop if needed)
-        console.log('Ensuring 16:9 aspect ratio...');
-        refPng = await ensure16x9AspectRatio(refPng);
+        console.log('Ensuring 16:9 aspect ratio for character...');
+        refPngCutOut = await ensure16x9AspectRatio(refPngCutOut);
         
-        // Optionally remove background if requested
-        if (removeBg) {
-          console.log('Removing background from image...');
-          refPng = await removeBackground(refPng, {
-            threshold: 30,
-            useEdgeDetection: true,
-            preserveAntiAliasing: true,
-          });
-        } else {
-          // Ensure image has alpha channel even if we're not removing background
-          refPng = await ensureTransparentBackground(refPng);
-        }
+        // Ensure it has alpha channel (should already be transparent, but verify)
+        refPngCutOut = await ensureTransparentBackground(refPngCutOut);
       } catch (error) {
-        console.error('Failed to download provided image:', error);
+        console.error('Failed to process provided image:', error);
         return NextResponse.json(
-          { error: 'Failed to download provided image URL' },
+          { error: 'Failed to process provided image URL' },
           { status: 400 }
         );
       }
     } else {
-      // Try to generate image via service
+      // Generate character with transparent background if no imageUrl provided
       try {
-        const imageUrl = await generateImageViaService(prompt, seed);
-        refPng = await downloadImage(imageUrl);
+        console.log('Generating character with transparent background...');
+        let characterPrompt = prompt;
+        // Ensure transparent background is requested
+        if (!characterPrompt.toLowerCase().includes('transparent')) {
+          characterPrompt = characterPrompt + ', transparent background, isolated character, no background scene';
+        }
         
-        // Ensure 16:9 aspect ratio for perfect fit (crop if needed)
-        console.log('Ensuring 16:9 aspect ratio...');
-        refPng = await ensure16x9AspectRatio(refPng);
+        const characterImage = await generateReferenceImage({
+          prompt: characterPrompt,
+          model: '5000',
+          imageCount: 1,
+          width: 1024,
+          height: 576, // 16:9 aspect ratio
+        });
+        
+        refPngCutOut = await ensure16x9AspectRatio(characterImage.buffer);
+        refPngCutOut = await ensureTransparentBackground(refPngCutOut);
       } catch (error) {
         console.error('Image generation error:', error);
         return NextResponse.json(
@@ -87,13 +97,106 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2) Pixelize (280x200 for card display, 256 for reference)
-          const { png128, png200, png280x200, png256, png512, palette } = await pixelize(refPng, {
-            base: 256,
-            colors: 32, // Increased from 16 to 32 for better color detail
-          });
+    // 2) Generate a new atmospheric background and composite character on top
+    console.log('Generating new background scene...');
+    const backgroundPrompt = `32-bit pixel art with clearly visible chunky pixel clusters, crisp sprite outlines, dithered shading, low-resolution retro fantasy aesthetic. An atmospheric medieval high-fantasy background scene with ancient ruins, mystical lighting, and dramatic atmosphere. EMPTY scene with ABSOLUTELY NO characters, NO creatures, NO people, NO beings, NO figures, NO entities, NO living things - ONLY the environment, architecture, landscape, ruins, lighting, and atmosphere. Completely empty of any characters or creatures. Warm earth tones with vibrant magical accents. Retro SNES/Genesis style, cinematic composition, 16:9 aspect ratio. --ar 16:9 --style raw`;
+    
+    let newBackgroundPng: Buffer;
+    try {
+      // Generate background using the utility function
+      const backgroundImage = await generateReferenceImage({
+        prompt: backgroundPrompt,
+        model: '5000',
+        imageCount: 1,
+        width: 1024,
+        height: 576, // 16:9 aspect ratio
+      });
+      
+      newBackgroundPng = await ensure16x9AspectRatio(backgroundImage.buffer);
+    } catch (error) {
+      console.warn('Failed to generate new background, using original:', error);
+      // Fallback: use original image as background
+      newBackgroundPng = Buffer.from(refPng);
+    }
 
-    // 3) Create minimal rig metadata (no part extraction needed)
+    // Composite the cut-out character on top of the new background
+    console.log('Compositing character on new background...');
+    const metadata = await sharp(newBackgroundPng).metadata();
+    const cutOutMetadata = await sharp(refPngCutOut).metadata();
+    
+    if (!metadata.width || !metadata.height || !cutOutMetadata.width || !cutOutMetadata.height) {
+      throw new Error('Unable to read image dimensions for compositing');
+    }
+
+    // Scale down the character to fit better (80% of background height, maintaining aspect ratio)
+    // This prevents heads from being cut off due to 16:9 cropping
+    const scaleFactor = Math.min(
+      0.8, // Max 80% of background height
+      (metadata.height * 0.8) / cutOutMetadata.height // Scale to fit 80% of background height
+    );
+    
+    const scaledWidth = Math.floor(cutOutMetadata.width * scaleFactor);
+    const scaledHeight = Math.floor(cutOutMetadata.height * scaleFactor);
+    
+    console.log(`Scaling character from ${cutOutMetadata.width}x${cutOutMetadata.height} to ${scaledWidth}x${scaledHeight} (${(scaleFactor * 100).toFixed(1)}%)`);
+    
+    // Resize the character cut-out
+    const scaledCutOut = await sharp(refPngCutOut)
+      .resize(scaledWidth, scaledHeight, {
+        fit: 'inside',
+        kernel: sharp.kernel.lanczos3,
+      })
+      .png()
+      .toBuffer();
+
+    // Center the character on the background with some vertical offset (character appears to be "in front")
+    const compositeX = Math.floor((metadata.width - scaledWidth) / 2);
+    const compositeY = Math.floor((metadata.height - scaledHeight) / 2) - 10; // Slight upward offset for depth
+    
+    const refPngWithNewBg = await sharp(newBackgroundPng)
+      .composite([
+        {
+          input: scaledCutOut,
+          left: Math.max(0, compositeX),
+          top: Math.max(0, compositeY),
+        }
+      ])
+      .png()
+      .toBuffer();
+
+    // 3) Pixelize all versions
+    console.log('Pixelizing background-only version...');
+    const { 
+      png128: png128BgOnly, 
+      png200: png200BgOnly, 
+      png280x200: png280x200BgOnly, 
+      png256: png256BgOnly, 
+      png512: png512BgOnly,
+      palette 
+    } = await pixelize(newBackgroundPng, {
+      base: 256,
+      colors: 32,
+    });
+
+    console.log('Pixelizing composite version (new background + character)...');
+    const { png128, png200, png280x200, png256, png512 } = await pixelize(refPngWithNewBg, {
+      base: 256,
+      colors: 32, // Increased from 16 to 32 for better color detail
+    });
+
+    console.log('Pixelizing cut-out version...');
+    const { 
+      png128: png128CutOut, 
+      png200: png200CutOut, 
+      png280x200: png280x200CutOut, 
+      png256: png256CutOut, 
+      png512: png512CutOut 
+    } = await pixelize(refPngCutOut, {
+      base: 256,
+      colors: 32,
+    });
+
+    // 5) Create minimal rig metadata (no part extraction needed)
     const rig = {
       meta: {
         imageW: 256,
@@ -112,7 +215,7 @@ export async function POST(req: NextRequest) {
       },
     };
 
-    // 4) Persist & return id
+    // 6) Persist & return id
     const bundle: MonsterBundle = {
       monsterId,
       klass,
@@ -134,6 +237,20 @@ export async function POST(req: NextRequest) {
         png280x200,
         png256,
         png512,
+      },
+      cutOutImages: {
+        png128: png128CutOut,
+        png200: png200CutOut,
+        png280x200: png280x200CutOut,
+        png256: png256CutOut,
+        png512: png512CutOut,
+      },
+      backgroundOnlyImages: {
+        png128: png128BgOnly,
+        png200: png200BgOnly,
+        png280x200: png280x200BgOnly,
+        png256: png256BgOnly,
+        png512: png512BgOnly,
       },
     };
 
@@ -217,6 +334,7 @@ export async function GET(req: NextRequest) {
             seed: metadata.seed,
             stats: metadata.stats,
             createdAt: metadata.createdAt || new Date().toISOString(),
+            lastAssociatedAt: metadata.lastAssociatedAt, // Include last association time
             imageUrl: `/cdn/monsters/${dir.name}/280x200.png`,
           };
         } catch (error) {
@@ -270,6 +388,7 @@ export async function PATCH(req: NextRequest) {
     const updatedMetadata = {
       ...existingMetadata,
       klass,
+      lastAssociatedAt: new Date().toISOString(), // Track when association was last updated
       ...(stats && { stats: { ...existingMetadata.stats, ...stats } }),
     };
 

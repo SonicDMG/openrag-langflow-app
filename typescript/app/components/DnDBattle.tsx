@@ -196,7 +196,8 @@ export default function DnDBattle() {
               color: fallback?.color || 'bg-slate-900',
               monsterId: m.monsterId,
               imageUrl: m.imageUrl?.replace('/256.png', '/280x200.png').replace('/200.png', '/280x200.png') || m.imageUrl,
-            } as DnDClass & { monsterId: string; imageUrl: string };
+              lastAssociatedAt: m.lastAssociatedAt, // Preserve last association time
+            } as DnDClass & { monsterId: string; imageUrl: string; lastAssociatedAt?: string };
           });
           setCreatedMonsters(convertedMonsters);
         }
@@ -225,11 +226,17 @@ export default function DnDBattle() {
 
   // Helper to find associated monster for a class/monster type
   const findAssociatedMonster = useCallback((className: string): (DnDClass & { monsterId: string; imageUrl: string }) | null => {
-    // Find the most recently created monster associated with this class/monster type
+    // Find the most recently associated monster for this class/monster type
     const associated = createdMonsters
       .filter(m => m.name === className)
       .sort((a, b) => {
-        // Sort by monsterId (UUIDs) - most recent first (assuming newer UUIDs are later in sort)
+        // Sort by lastAssociatedAt (most recently associated first), then by createdAt (newest first)
+        const aTime = (a as any).lastAssociatedAt || (a as any).createdAt || '';
+        const bTime = (b as any).lastAssociatedAt || (b as any).createdAt || '';
+        if (aTime && bTime) {
+          return new Date(bTime).getTime() - new Date(aTime).getTime();
+        }
+        // Fallback to UUID sort if no timestamps
         return b.monsterId.localeCompare(a.monsterId);
       });
     return associated.length > 0 ? associated[0] : null;
@@ -1389,6 +1396,9 @@ export default function DnDBattle() {
                                 const monsterImageUrl = associatedMonster 
                                   ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
                                   : undefined;
+                                const monsterCutOutImageUrl = associatedMonster 
+                                  ? `/cdn/monsters/${associatedMonster.monsterId}/280x200-cutout.png`
+                                  : undefined;
                                 
                                 const isSelected = player2Class?.name === monster.name;
                                 
@@ -1412,6 +1422,7 @@ export default function DnDBattle() {
                                       playerClass={{ ...monster, hitPoints: monster.maxHitPoints }}
                                       characterName={monster.name}
                                       monsterImageUrl={monsterImageUrl}
+                                      monsterCutOutImageUrl={monsterCutOutImageUrl}
                                       size="compact"
                                       cardIndex={index}
                                       totalCards={availableMonsters.length}
@@ -1501,6 +1512,7 @@ export default function DnDBattle() {
                   playerClass={player1Class}
                   characterName={player1Name || 'Loading...'}
                   monsterImageUrl={player1MonsterId ? `/cdn/monsters/${player1MonsterId}/280x200.png` : undefined}
+                  monsterCutOutImageUrl={player1MonsterId ? `/cdn/monsters/${player1MonsterId}/280x200-cutout.png` : undefined}
                   onAttack={() => performAttack('player1')}
                   onUseAbility={(idx) => useAbility('player1', idx)}
                   shouldShake={shakingPlayer === 'player1'}
@@ -1542,6 +1554,7 @@ export default function DnDBattle() {
                   playerClass={player2Class}
                   characterName={player2Name || 'Loading...'}
                   monsterImageUrl={player2MonsterId ? `/cdn/monsters/${player2MonsterId}/280x200.png` : undefined}
+                  monsterCutOutImageUrl={player2MonsterId ? `/cdn/monsters/${player2MonsterId}/280x200-cutout.png` : undefined}
                   onAttack={() => performAttack('player2')}
                   onUseAbility={(idx) => useAbility('player2', idx)}
                   shouldShake={shakingPlayer === 'player2'}

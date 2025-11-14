@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { config } from 'dotenv';
 import { resolve } from 'path';
 import EverArt from 'everart';
+import { downloadImage } from '@/app/dnd/server/imageGeneration';
+import { removeBackground } from '@/app/dnd/server/backgroundRemoval';
 
 // Load environment variables from the root .env file
 config({ path: resolve(process.cwd(), '..', '.env') });
@@ -15,18 +17,37 @@ function formatErrorResponse(error: unknown): { error: string } {
 
 /**
  * Builds the base pixel art prompt template with user's description
+ * @param userPrompt - The user's character description
+ * @param transparentBackground - If true, removes background references from prompt
  */
-function buildPixelArtPrompt(userPrompt: string): string {
+function buildPixelArtPrompt(userPrompt: string, transparentBackground: boolean = false): string {
   // Default values for template placeholders
   const creature = 'creature';
   const uniqueFeature = userPrompt.trim() || 'distinctive fantasy appearance';
-  const backgroundScene = 'a medieval high-fantasy setting';
   const paletteDescription = 'warm earth tones with vibrant accents';
   
   // Try to extract creature type from user prompt (simple heuristic)
   // Look for common creature/class words at the start
   const promptLower = userPrompt.toLowerCase().trim();
   const creatureMatch = promptLower.match(/^(?:a |an |the )?([a-z]+)/);
+  
+  if (transparentBackground) {
+    // For transparent background, focus on isolated character only - no background references
+    if (creatureMatch) {
+      const firstWord = creatureMatch[1];
+      // Common creature/class types
+      const creatureTypes = ['wizard', 'warrior', 'rogue', 'cleric', 'ranger', 'dragon', 'goblin', 'orc', 'troll', 'demon', 'angel', 'knight', 'mage', 'sorcerer', 'monk', 'bard', 'paladin', 'barbarian', 'druid', 'warlock'];
+      if (creatureTypes.includes(firstWord)) {
+        const remainingPrompt = userPrompt.substring(userPrompt.toLowerCase().indexOf(firstWord) + firstWord.length).trim();
+        return `32-bit pixel art with clearly visible chunky pixel clusters, crisp sprite outlines, dithered shading, low-resolution retro fantasy aesthetic. A ${firstWord}${remainingPrompt ? ` with ${remainingPrompt}` : ''}, isolated character sprite, no background scene, no environment, no setting. Rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, no modern objects or technology. Centered composition, transparent background, 16:9 aspect ratio. --ar 16:9 --style raw`;
+      }
+    }
+    // Fallback for transparent background
+    return `32-bit pixel art with clearly visible chunky pixel clusters, crisp sprite outlines, dithered shading, low-resolution retro fantasy aesthetic. A ${creature} with ${uniqueFeature}, isolated character sprite, no background scene, no environment, no setting. Rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, no modern objects or technology. Centered composition, transparent background, 16:9 aspect ratio. --ar 16:9 --style raw`;
+  }
+  
+  // Original prompts with background (for reference)
+  const backgroundScene = 'a medieval high-fantasy setting';
   if (creatureMatch) {
     const firstWord = creatureMatch[1];
     // Common creature/class types
@@ -68,22 +89,30 @@ export async function POST(req: NextRequest) {
                         prompt.includes('retro fantasy aesthetic');
     
     // Build the base pixel art prompt using the template
-    // If it's already a full prompt, use it directly; otherwise build it
-    let enhancedPrompt = isFullPrompt ? prompt : buildPixelArtPrompt(prompt);
-    
-    // Add transparent background request if needed
-    // Only add if not already present and transparentBackground is true
-    if (transparentBackground && !enhancedPrompt.toLowerCase().includes('transparent')) {
-      // Add transparent background request to prompt
-      // Try multiple phrasings to increase chances of success
-      const bgPhrases = [
-        ', transparent background',
-        ', no background',
-        ', alpha channel',
-        ', isolated on transparent background',
-      ];
-      // Use the first phrase (most common)
-      enhancedPrompt = enhancedPrompt + bgPhrases[0];
+    // If it's already a full prompt, check if it needs background removal
+    let enhancedPrompt: string;
+    if (isFullPrompt) {
+      // If it's a full prompt, check if it contains background references
+      // If transparentBackground is true and prompt has background references, rebuild it
+      if (transparentBackground && 
+          (prompt.includes('depicted in a distinctly medieval high-fantasy world') || 
+           prompt.includes('placed in') || 
+           prompt.includes('Placed in'))) {
+        // Extract character description from the existing prompt
+        const match = prompt.match(/retro fantasy aesthetic\.\s*(.+?)(?:,\s*depicted|,\s*Placed|$)/i);
+        const description = match ? match[1].trim() : prompt;
+        enhancedPrompt = buildPixelArtPrompt(description, true); // true = transparent background
+      } else {
+        // Use prompt as-is, but ensure transparent background is mentioned if needed
+        enhancedPrompt = prompt;
+        if (transparentBackground && !enhancedPrompt.toLowerCase().includes('transparent') && 
+            !enhancedPrompt.toLowerCase().includes('no background')) {
+          enhancedPrompt = enhancedPrompt + ', transparent background, isolated character, no background scene, no environment';
+        }
+      }
+    } else {
+      // Build new prompt with transparent background if requested
+      enhancedPrompt = buildPixelArtPrompt(prompt, transparentBackground);
     }
     
     // Note: aspect ratio is already specified in the template (16:9)
@@ -156,8 +185,30 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      // If transparent background was requested, process the image to remove background
+      let finalImageUrl = imageUrl;
+      if (transparentBackground) {
+        try {
+          console.log('Removing background from generated image...');
+          const imageBuffer = await downloadImage(imageUrl);
+          const processedBuffer = await removeBackground(imageBuffer, {
+            threshold: 30,
+            useEdgeDetection: true,
+            preserveAntiAliasing: true,
+          });
+          
+          // Convert to base64 data URL for immediate use
+          const base64 = processedBuffer.toString('base64');
+          finalImageUrl = `data:image/png;base64,${base64}`;
+          console.log('Background removed successfully, returning as data URL');
+        } catch (error) {
+          console.warn('Failed to remove background, using original image:', error);
+          // Continue with original imageUrl if background removal fails
+        }
+      }
+
       return NextResponse.json({
-        imageUrl,
+        imageUrl: finalImageUrl,
         model,
         seed,
       });
