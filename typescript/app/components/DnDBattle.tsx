@@ -1454,7 +1454,7 @@ export default function DnDBattle() {
                                 msOverflowStyle: 'none',
                               }}
                             >
-                              {availableMonsters.map((monster) => {
+                              {availableMonsters.map((monster, index) => {
                                 const associatedMonster = findAssociatedMonster(monster.name);
                                 const monsterImageUrl = associatedMonster 
                                   ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
@@ -1483,6 +1483,8 @@ export default function DnDBattle() {
                                       characterName={monster.name}
                                       monsterImageUrl={monsterImageUrl}
                                       size="compact"
+                                      cardIndex={index}
+                                      totalCards={availableMonsters.length}
                                     />
                                   </div>
                                 );

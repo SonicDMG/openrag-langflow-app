@@ -62,7 +62,7 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
             msOverflowStyle: 'none',
           }}
         >
-          {availableClasses.map((dndClass) => {
+          {availableClasses.map((dndClass, index) => {
             const associatedMonster = findAssociatedMonster(dndClass.name);
             const monsterImageUrl = associatedMonster 
               ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
@@ -89,6 +89,8 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
                   characterName={dndClass.name}
                   monsterImageUrl={monsterImageUrl}
                   size="compact"
+                  cardIndex={index}
+                  totalCards={availableClasses.length}
                 />
               </div>
             );

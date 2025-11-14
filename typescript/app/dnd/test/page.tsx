@@ -1146,7 +1146,7 @@ export default function DnDTestPage() {
                           msOverflowStyle: 'none',
                         }}
                       >
-                        {FALLBACK_MONSTERS.map((monster) => {
+                        {FALLBACK_MONSTERS.map((monster, index) => {
                           const isSelected = player2Class?.name === monster.name;
                           const associatedMonster = findAssociatedMonster(monster.name);
                           const monsterImageUrl = associatedMonster 
@@ -1172,6 +1172,8 @@ export default function DnDTestPage() {
                                 characterName={monster.name}
                                 monsterImageUrl={monsterImageUrl}
                                 size="compact"
+                                cardIndex={index}
+                                totalCards={FALLBACK_MONSTERS.length}
                               />
                             </div>
                           );

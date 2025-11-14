@@ -49,6 +49,9 @@ interface CharacterCardProps {
   monsterImageUrl?: string;
   // Size variant - 'normal' for battle cards, 'compact' for selection
   size?: 'normal' | 'compact';
+  // Card position and total count (for card numbering)
+  cardIndex?: number;
+  totalCards?: number;
 }
 
 function CharacterCardComponent({
@@ -86,6 +89,8 @@ function CharacterCardComponent({
   testButtons = [],
   monsterImageUrl,
   size = 'normal',
+  cardIndex,
+  totalCards,
 }: CharacterCardProps) {
   const animationRef = useRef<HTMLDivElement>(null);
   const effectiveIsActive = allowAllTurns ? !isDefeated : isActive;
@@ -567,16 +572,29 @@ function CharacterCardComponent({
         }}
       >
         {/* Card number in bottom left */}
-        <span 
-          className={isCompact ? 'text-[8px]' : 'text-[10px]'}
-          style={{ 
-            color: '#F2ECDE', // Light beige text on dark frame
-            fontFamily: 'serif',
-            fontWeight: 'bold'
-          }}
-        >
-          1/12
-        </span>
+        {cardIndex !== undefined && totalCards !== undefined ? (
+          <span 
+            className={isCompact ? 'text-[8px]' : 'text-[10px]'}
+            style={{ 
+              color: '#F2ECDE', // Light beige text on dark frame
+              fontFamily: 'serif',
+              fontWeight: 'bold'
+            }}
+          >
+            {cardIndex + 1}/{totalCards}
+          </span>
+        ) : (
+          <span 
+            className={isCompact ? 'text-[8px]' : 'text-[10px]'}
+            style={{ 
+              color: '#F2ECDE', // Light beige text on dark frame
+              fontFamily: 'serif',
+              fontWeight: 'bold'
+            }}
+          >
+            1/12
+          </span>
+        )}
 
         {/* Small symbol in center bottom */}
         <div 
