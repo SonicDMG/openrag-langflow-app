@@ -29,7 +29,7 @@ import {
 import { useAIOpponent } from '../dnd/hooks/useAIOpponent';
 
 // Services
-import { fetchAvailableClasses, fetchClassStats, extractAbilities, getBattleNarrative, fetchAvailableMonsters, fetchMonsterStats, extractMonsterAbilities } from '../dnd/services/apiService';
+import { getBattleNarrative } from '../dnd/services/apiService';
 
 // Components
 import { ClassSelection } from '../dnd/components/ClassSelection';
@@ -101,8 +101,76 @@ export default function DnDBattle() {
   const battleLogRef = useRef<HTMLDivElement>(null);
 
 
-  // Load created monsters on mount
+  // Load data from Astra DB, localStorage, and created monsters on mount
   useEffect(() => {
+    // Load classes from Astra DB (with fallback to localStorage)
+    const loadClasses = async () => {
+      try {
+        // Try Astra DB first
+        const response = await fetch('/api/heroes');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.heroes && data.heroes.length > 0) {
+            setAvailableClasses(data.heroes);
+            setClassesLoaded(true);
+            console.log(`Loaded ${data.heroes.length} classes from Astra DB`);
+            return;
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to load classes from Astra DB, trying localStorage:', error);
+      }
+
+      // Fallback to localStorage
+      try {
+        const savedClasses = localStorage.getItem('dnd_loaded_classes');
+        if (savedClasses) {
+          const parsedClasses = JSON.parse(savedClasses) as DnDClass[];
+          setAvailableClasses(parsedClasses);
+          setClassesLoaded(true);
+          console.log(`Loaded ${parsedClasses.length} classes from localStorage`);
+        }
+      } catch (error) {
+        console.error('Failed to load classes from localStorage:', error);
+      }
+    };
+
+    // Load monsters from Astra DB (with fallback to localStorage)
+    const loadMonsters = async () => {
+      try {
+        // Try Astra DB first
+        const response = await fetch('/api/monsters-db');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.monsters && data.monsters.length > 0) {
+            setAvailableMonsters(data.monsters);
+            setMonstersLoaded(true);
+            console.log(`Loaded ${data.monsters.length} monsters from Astra DB`);
+            return;
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to load monsters from Astra DB, trying localStorage:', error);
+      }
+
+      // Fallback to localStorage
+      try {
+        const savedMonsters = localStorage.getItem('dnd_loaded_monsters');
+        if (savedMonsters) {
+          const parsedMonsters = JSON.parse(savedMonsters) as DnDClass[];
+          setAvailableMonsters(parsedMonsters);
+          setMonstersLoaded(true);
+          console.log(`Loaded ${parsedMonsters.length} monsters from localStorage`);
+        }
+      } catch (error) {
+        console.error('Failed to load monsters from localStorage:', error);
+      }
+    };
+
+    loadClasses();
+    loadMonsters();
+
+    // Load created monsters from API
     const loadCreatedMonsters = async () => {
       setIsLoadingCreatedMonsters(true);
       try {
@@ -520,185 +588,7 @@ export default function DnDBattle() {
     setCastingPlayer(null);
   }, []);
 
-  // Load all classes from OpenRAG (called manually via button)
-  const loadClassesFromOpenRAG = async () => {
-    setIsLoadingClasses(true);
-    addLog('system', '🚀 Starting to load classes from OpenRAG...');
-    try {
-      const { classNames } = await fetchAvailableClasses(addLog);
-      
-      if (classNames.length === 0) {
-        console.warn('No classes found, using fallback classes');
-        addLog('system', '⚠️ No classes found in response, using fallback classes');
-        setAvailableClasses(FALLBACK_CLASSES);
-        setClassesLoaded(true);
-        setIsLoadingClasses(false);
-        return;
-      }
-
-      addLog('system', `✅ Found ${classNames.length} classes: ${classNames.join(', ')}`);
-      addLog('system', `📋 Fetching stats and abilities for ${classNames.length} classes...`);
-
-      // Create a map of fallback classes for quick lookup
-      const fallbackClassMap = new Map(FALLBACK_CLASSES.map(c => [c.name, c]));
-      
-      // Fetch stats and abilities for each class, using fallback as default
-      const classPromises = classNames.map(async (className) => {
-        const fallback = fallbackClassMap.get(className);
-        
-        // Fetch abilities from OpenRAG for this class
-        let abilities: Ability[] = [];
-        try {
-          abilities = await extractAbilities(className);
-        } catch (error) {
-          console.warn(`Failed to load abilities for ${className}, using fallback:`, error);
-          abilities = fallback?.abilities || FALLBACK_ABILITIES[className] || [];
-        }
-        
-        // If we have a fallback, use it as base but update with OpenRAG abilities if loaded
-        if (fallback) {
-          return {
-            ...fallback,
-            abilities: abilities.length > 0 ? abilities : fallback.abilities,
-          };
-        }
-        
-        // Only query OpenRAG for classes not in our fallback list
-        const { stats } = await fetchClassStats(className, addLog);
-        if (stats) {
-          return {
-            name: className,
-            hitPoints: stats.hitPoints || 25,
-            maxHitPoints: stats.maxHitPoints || stats.hitPoints || 25,
-            armorClass: stats.armorClass || 14,
-            attackBonus: stats.attackBonus || 4,
-            damageDie: stats.damageDie || 'd8',
-            abilities: abilities,
-            description: stats.description || `A ${className} character.`,
-            color: CLASS_COLORS[className] || 'bg-slate-900',
-          } as DnDClass;
-        }
-        return null;
-      });
-
-      const loadedClasses = (await Promise.all(classPromises)).filter((cls): cls is DnDClass => cls !== null);
-      
-      // Merge with fallback classes to ensure all known classes are available
-      const allClasses = new Map<string, DnDClass>();
-      FALLBACK_CLASSES.forEach(c => allClasses.set(c.name, c));
-      loadedClasses.forEach(c => allClasses.set(c.name, c));
-      
-      const finalClasses = Array.from(allClasses.values());
-      
-      if (finalClasses.length > 0) {
-        setAvailableClasses(finalClasses);
-        addLog('system', `✅ Successfully loaded ${finalClasses.length} classes (${loadedClasses.length} from OpenRAG, ${FALLBACK_CLASSES.length} from defaults)`);
-        console.log(`Loaded ${finalClasses.length} classes:`, finalClasses.map(c => c.name).join(', '));
-      } else {
-        console.warn('No classes could be loaded, using fallback classes');
-        addLog('system', '⚠️ No classes could be loaded, using fallback classes');
-        setAvailableClasses(FALLBACK_CLASSES);
-      }
-      setClassesLoaded(true);
-    } catch (error) {
-      console.error('Error loading classes:', error);
-      addLog('system', `❌ Error loading classes: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      setAvailableClasses(FALLBACK_CLASSES);
-      setClassesLoaded(true);
-    } finally {
-      setIsLoadingClasses(false);
-    }
-  };
-
-  // Load all monsters from OpenRAG (called manually via button)
-  const loadMonstersFromOpenRAG = async () => {
-    setIsLoadingMonsters(true);
-    addLog('system', '🚀 Starting to load monsters from OpenRAG...');
-    try {
-      const { monsterNames } = await fetchAvailableMonsters(addLog);
-      
-      if (monsterNames.length === 0) {
-        console.warn('No monsters found, using fallback monsters');
-        addLog('system', '⚠️ No monsters found in response, using fallback monsters');
-        setAvailableMonsters(FALLBACK_MONSTERS);
-        setMonstersLoaded(true);
-        setIsLoadingMonsters(false);
-        return;
-      }
-
-      addLog('system', `✅ Found ${monsterNames.length} monsters: ${monsterNames.join(', ')}`);
-      addLog('system', `📋 Fetching stats and abilities for ${monsterNames.length} monsters...`);
-
-      // Create a map of fallback monsters for quick lookup
-      const fallbackMonsterMap = new Map(FALLBACK_MONSTERS.map(m => [m.name, m]));
-      
-      // Fetch stats and abilities for each monster, using fallback as default
-      const monsterPromises = monsterNames.map(async (monsterName) => {
-        const fallback = fallbackMonsterMap.get(monsterName);
-        
-        // Fetch abilities from OpenRAG for this monster
-        let abilities: Ability[] = [];
-        try {
-          abilities = await extractMonsterAbilities(monsterName);
-        } catch (error) {
-          console.warn(`Failed to load abilities for ${monsterName}, using fallback:`, error);
-          abilities = fallback?.abilities || FALLBACK_MONSTER_ABILITIES[monsterName] || [];
-        }
-        
-        // If we have a fallback, use it as base but update with OpenRAG abilities if loaded
-        if (fallback) {
-          return {
-            ...fallback,
-            abilities: abilities.length > 0 ? abilities : fallback.abilities,
-          };
-        }
-        
-        // Only query OpenRAG for monsters not in our fallback list
-        const { stats } = await fetchMonsterStats(monsterName, addLog);
-        if (stats) {
-          return {
-            name: monsterName,
-            hitPoints: stats.hitPoints || 30,
-            maxHitPoints: stats.maxHitPoints || stats.hitPoints || 30,
-            armorClass: stats.armorClass || 14,
-            attackBonus: stats.attackBonus || 4,
-            damageDie: stats.damageDie || 'd8',
-            abilities: abilities,
-            description: stats.description || `A ${monsterName} monster.`,
-            color: MONSTER_COLORS[monsterName] || 'bg-slate-900',
-          } as DnDClass;
-        }
-        return null;
-      });
-
-      const loadedMonsters = (await Promise.all(monsterPromises)).filter((monster): monster is DnDClass => monster !== null);
-      
-      // Merge with fallback monsters to ensure all known monsters are available
-      const allMonsters = new Map<string, DnDClass>();
-      FALLBACK_MONSTERS.forEach(m => allMonsters.set(m.name, m));
-      loadedMonsters.forEach(m => allMonsters.set(m.name, m));
-      
-      const finalMonsters = Array.from(allMonsters.values());
-      
-      if (finalMonsters.length > 0) {
-        setAvailableMonsters(finalMonsters);
-        addLog('system', `✅ Successfully loaded ${finalMonsters.length} monsters (${loadedMonsters.length} from OpenRAG, ${FALLBACK_MONSTERS.length} from defaults)`);
-        console.log(`Loaded ${finalMonsters.length} monsters:`, finalMonsters.map(m => m.name).join(', '));
-      } else {
-        console.warn('No monsters could be loaded, using fallback monsters');
-        addLog('system', '⚠️ No monsters could be loaded, using fallback monsters');
-        setAvailableMonsters(FALLBACK_MONSTERS);
-      }
-      setMonstersLoaded(true);
-    } catch (error) {
-      console.error('Error loading monsters:', error);
-      addLog('system', `❌ Error loading monsters: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      setAvailableMonsters(FALLBACK_MONSTERS);
-      setMonstersLoaded(true);
-    } finally {
-      setIsLoadingMonsters(false);
-    }
-  };
+  // Note: Load functionality has been moved to /dnd/load-data page
 
   const startBattle = async () => {
     if (!player1Class || !player2Class) {
@@ -1336,41 +1226,19 @@ export default function DnDBattle() {
               {(!classesLoaded && !isLoadingClasses) || (!monstersLoaded && !isLoadingMonsters) ? (
                 <div className="text-center py-8 mb-4">
                   <div className="text-amber-200 mb-4">
-                    Click the buttons below to load D&D classes and monsters from OpenRAG.
+                    Load classes and monsters from OpenRAG to get started.
                     <br />
-                    <span className="text-sm text-amber-300">You can also use the fallback classes shown below.</span>
+                    <span className="text-sm text-amber-300">You can specify a search context (e.g., "D&D", "Pokemon") to filter results.</span>
                   </div>
-                  <div className="flex gap-4 justify-center flex-wrap">
-                    <button
-                      onClick={loadClassesFromOpenRAG}
-                      disabled={isLoadingClasses}
-                      className="px-6 py-3 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-lg border-2 border-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
-                    >
-                      {isLoadingClasses ? 'Loading...' : 'Load Classes from OpenRAG'}
-                    </button>
-                    <button
-                      onClick={loadMonstersFromOpenRAG}
-                      disabled={isLoadingMonsters}
-                      className="px-6 py-3 bg-red-900 hover:bg-red-800 text-white font-bold rounded-lg border-2 border-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
-                    >
-                      {isLoadingMonsters ? 'Loading...' : 'Load Monsters from OpenRAG'}
-                    </button>
-                  </div>
+                  <a
+                    href="/dnd/load-data"
+                    className="inline-block px-6 py-3 bg-purple-900 hover:bg-purple-800 text-white font-bold rounded-lg border-2 border-purple-700 transition-all shadow-lg"
+                  >
+                    Go to Data Loader →
+                  </a>
                 </div>
               ) : null}
-              {(isLoadingClasses || isLoadingMonsters) ? (
-                <div className="text-center py-8">
-                  <div className="text-amber-200 mb-4">
-                    {isLoadingClasses && 'Loading available D&D classes from OpenRAG...'}
-                    {isLoadingMonsters && 'Loading available D&D monsters from OpenRAG...'}
-                  </div>
-                  <div className="waiting-indicator">
-                    <span className="waiting-dot"></span>
-                    <span className="waiting-dot"></span>
-                    <span className="waiting-dot"></span>
-                  </div>
-                </div>
-              ) : (
+              {!isLoadingClasses && !isLoadingMonsters && (
                 <>
               <div className="grid grid-cols-1 gap-4">
                 <ClassSelection
@@ -1547,25 +1415,13 @@ export default function DnDBattle() {
               </div>
 
                   {(classesLoaded || monstersLoaded) && (
-                    <div className="mt-4 text-center flex gap-2 justify-center flex-wrap">
-                      {classesLoaded && (
-                        <button
-                          onClick={loadClassesFromOpenRAG}
-                          disabled={isLoadingClasses}
-                          className="px-4 py-2 bg-amber-800 hover:bg-amber-700 text-amber-100 text-sm font-semibold rounded-lg border-2 border-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                        >
-                          {isLoadingClasses ? 'Refreshing...' : '🔄 Refresh Classes'}
-                        </button>
-                      )}
-                      {monstersLoaded && (
-                        <button
-                          onClick={loadMonstersFromOpenRAG}
-                          disabled={isLoadingMonsters}
-                          className="px-4 py-2 bg-red-800 hover:bg-red-700 text-amber-100 text-sm font-semibold rounded-lg border-2 border-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                        >
-                          {isLoadingMonsters ? 'Refreshing...' : '🔄 Refresh Monsters'}
-                        </button>
-                      )}
+                    <div className="mt-4 text-center">
+                      <a
+                        href="/dnd/load-data"
+                        className="inline-block px-4 py-2 bg-amber-800 hover:bg-amber-700 text-amber-100 text-sm font-semibold rounded-lg border-2 border-amber-700 transition-all"
+                      >
+                        🔄 Reload Data from OpenRAG
+                      </a>
                     </div>
                   )}
 

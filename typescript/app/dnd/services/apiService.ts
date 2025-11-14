@@ -4,12 +4,15 @@ import { extractJsonFromResponse, parseSSEResponse } from '../utils/api';
 
 // Fetch all available D&D classes from OpenRAG
 export async function fetchAvailableClasses(
-  addLog: (type: 'system' | 'narrative', message: string) => void
+  addLog: (type: 'system' | 'narrative', message: string) => void,
+  searchContext?: string
 ): Promise<{ classNames: string[]; response: string }> {
   try {
-    const query = `List all available D&D 5th edition character classes. Return only a JSON array of class names, like ["Fighter", "Wizard", "Rogue", ...]. Do not include any other text, just the JSON array.`;
+    const query = searchContext 
+      ? `Based on your knowledge base, what character classes are available in ${searchContext}? If you don't have specific information about ${searchContext} classes, please provide any character classes or character types that might be related. Return only a JSON array of class names, like ["Fighter", "Wizard", "Rogue", ...]. Do not include any other text, just the JSON array.`
+      : `List all available D&D 5th edition character classes. Return only a JSON array of class names, like ["Fighter", "Wizard", "Rogue", ...]. Do not include any other text, just the JSON array.`;
     
-    addLog('system', '🔍 Querying OpenRAG for available D&D classes...');
+    addLog('system', `🔍 Querying OpenRAG for available classes${searchContext ? ` (${searchContext})` : ' (D&D)'}...`);
     
     const response = await fetch('/api/chat', {
       method: 'POST',
@@ -35,6 +38,15 @@ export async function fetchAvailableClasses(
     
     // Log the agent response
     addLog('narrative', `**OpenRAG Response (Class List):**\n\n${content}`);
+    
+    // Check if OpenRAG returned "no sources found" error
+    if (content.toLowerCase().includes('no relevant supporting sources') || 
+        content.toLowerCase().includes('no sources found') ||
+        content.toLowerCase().includes('no relevant information')) {
+      addLog('system', `⚠️ OpenRAG found no sources for "${searchContext || 'D&D'}" classes. This might mean the knowledge base doesn't contain data for this context.`);
+      console.warn('OpenRAG returned no sources found:', content.substring(0, 200));
+      return { classNames: [], response: content };
+    }
     
     // Try to extract JSON array from response
     let jsonString = content.trim();
@@ -249,18 +261,38 @@ Important rules:
 
     const { content: accumulatedResponse } = await parseSSEResponse(reader);
 
+    // Check if response indicates no data found
+    if (accumulatedResponse.toLowerCase().includes('no relevant supporting sources') || 
+        accumulatedResponse.toLowerCase().includes('no sources found') ||
+        accumulatedResponse.toLowerCase().includes('no relevant information') ||
+        accumulatedResponse.trim().length === 0) {
+      console.warn(`No data found for ${className} abilities in knowledge base`);
+      return FALLBACK_ABILITIES[className] || [];
+    }
+
     // Extract JSON from response using utility function
-    const abilitiesJsonString = extractJsonFromResponse(
+    let abilitiesJsonString = extractJsonFromResponse(
       accumulatedResponse,
       ['abilities'] // required field
     );
     
     if (!abilitiesJsonString) {
+      // Check if response only contains search_query objects (no actual data)
+      if (accumulatedResponse.includes('"search_query"') && !accumulatedResponse.includes('"abilities"')) {
+        console.warn(`Only search queries found for ${className}, no abilities data`);
+        return FALLBACK_ABILITIES[className] || [];
+      }
       console.error('No JSON object with "abilities" field found. Full response:', accumulatedResponse.substring(0, 200) + '...');
       console.warn(`Using fallback abilities for ${className}`);
       return FALLBACK_ABILITIES[className] || [];
     }
     
+    // Fix common JSON malformation: quoted JSON objects in arrays
+    // e.g., [{"name":"A"},"{"name":"B"}"] should be [{"name":"A"},{"name":"B"}]
+    abilitiesJsonString = abilitiesJsonString.replace(/,\s*"(\{[^"]*"[^"]*"[^}]*\})"\s*/g, ',$1');
+    abilitiesJsonString = abilitiesJsonString.replace(/\[\s*"(\{[^"]*"[^"]*"[^}]*\})"\s*/g, '[$1');
+    abilitiesJsonString = abilitiesJsonString.replace(/"(\{[^"]*"[^"]*"[^}]*\})"/g, '$1');
+    abilitiesJsonString = abilitiesJsonString.replace(/,(\s*[}\]])/g, '$1');
 
     try {
       const parsed = JSON.parse(abilitiesJsonString);
@@ -306,6 +338,56 @@ Important rules:
       console.error('Error parsing JSON from AI response:', parseError);
       console.error('Extracted JSON string was:', abilitiesJsonString);
       console.error('Full response was:', accumulatedResponse.substring(0, 200) + '...');
+      
+      // Try to extract abilities manually using regex as a last resort
+      try {
+        const abilities: Ability[] = [];
+        
+        // Try to find ability objects in the malformed JSON
+        const abilityPattern = /\{"name"\s*:\s*"([^"]+)",\s*"type"\s*:\s*"([^"]+)",\s*"damageDice"\s*:\s*"([^"]+)"/g;
+        let match;
+        while ((match = abilityPattern.exec(abilitiesJsonString)) !== null) {
+          const name = match[1];
+          const type = match[2];
+          const damageDice = match[3];
+          
+          if (type === 'attack' && name && damageDice) {
+            // Try to extract attackRoll and description
+            const attackRollMatch = abilitiesJsonString.substring(match.index).match(/"attackRoll"\s*:\s*(true|false)/);
+            const descriptionMatch = abilitiesJsonString.substring(match.index).match(/"description"\s*:\s*"([^"]*)"/);
+            
+            abilities.push({
+              name,
+              type: 'attack',
+              damageDice,
+              attackRoll: attackRollMatch ? attackRollMatch[1] === 'true' : true,
+              attacks: 1,
+              description: descriptionMatch ? descriptionMatch[1] : '',
+            } as Ability);
+          } else if (type === 'healing' && name) {
+            // Try to extract healingDice
+            const healingDiceMatch = abilitiesJsonString.substring(match.index).match(/"healingDice"\s*:\s*"([^"]+)"/);
+            const descriptionMatch = abilitiesJsonString.substring(match.index).match(/"description"\s*:\s*"([^"]*)"/);
+            
+            if (healingDiceMatch) {
+              abilities.push({
+                name,
+                type: 'healing',
+                healingDice: healingDiceMatch[1],
+                description: descriptionMatch ? descriptionMatch[1] : '',
+              } as Ability);
+            }
+          }
+        }
+        
+        if (abilities.length > 0) {
+          console.warn(`Extracted ${abilities.length} abilities using regex fallback for ${className}`);
+          return abilities;
+        }
+      } catch (regexError) {
+        console.error('Regex extraction also failed:', regexError);
+      }
+      
       console.warn(`Using fallback abilities for ${className}`);
       return FALLBACK_ABILITIES[className] || [];
     }
@@ -318,12 +400,15 @@ Important rules:
 
 // Fetch all available D&D monsters from OpenRAG
 export async function fetchAvailableMonsters(
-  addLog: (type: 'system' | 'narrative', message: string) => void
+  addLog: (type: 'system' | 'narrative', message: string) => void,
+  searchContext?: string
 ): Promise<{ monsterNames: string[]; response: string }> {
   try {
-    const query = `What are the available DnD monsters? Return only a JSON array of monster names, like ["Goblin", "Orc", "Dragon", "Troll", ...]. Do not include any other text, just the JSON array.`;
+    const query = searchContext
+      ? `Based on your knowledge base, what monsters or creatures are available in ${searchContext}? If you don't have specific information about ${searchContext} monsters, please provide any monsters or creatures that might be related. Return only a JSON array of monster names, like ["Goblin", "Orc", "Dragon", "Troll", ...]. Do not include any other text, just the JSON array.`
+      : `What are the available DnD monsters? Return only a JSON array of monster names, like ["Goblin", "Orc", "Dragon", "Troll", ...]. Do not include any other text, just the JSON array.`;
     
-    addLog('system', '🔍 Querying OpenRAG for available D&D monsters...');
+    addLog('system', `🔍 Querying OpenRAG for available monsters${searchContext ? ` (${searchContext})` : ' (D&D)'}...`);
     
     const response = await fetch('/api/chat', {
       method: 'POST',
@@ -349,6 +434,15 @@ export async function fetchAvailableMonsters(
     
     // Log the agent response
     addLog('narrative', `**OpenRAG Response (Monster List):**\n\n${content}`);
+    
+    // Check if OpenRAG returned "no sources found" error
+    if (content.toLowerCase().includes('no relevant supporting sources') || 
+        content.toLowerCase().includes('no sources found') ||
+        content.toLowerCase().includes('no relevant information')) {
+      addLog('system', `⚠️ OpenRAG found no sources for "${searchContext || 'D&D'}" monsters. This might mean the knowledge base doesn't contain data for this context.`);
+      console.warn('OpenRAG returned no sources found:', content.substring(0, 200));
+      return { monsterNames: [], response: content };
+    }
     
     // Try to extract JSON array from response
     let jsonString = content.trim();
@@ -552,18 +646,38 @@ Important rules:
 
     const { content: accumulatedResponse } = await parseSSEResponse(reader);
 
+    // Check if response indicates no data found
+    if (accumulatedResponse.toLowerCase().includes('no relevant supporting sources') || 
+        accumulatedResponse.toLowerCase().includes('no sources found') ||
+        accumulatedResponse.toLowerCase().includes('no relevant information') ||
+        accumulatedResponse.trim().length === 0) {
+      console.warn(`No data found for ${monsterName} abilities in knowledge base`);
+      return FALLBACK_MONSTER_ABILITIES[monsterName] || [];
+    }
+
     // Extract JSON from response using utility function
-    const abilitiesJsonString = extractJsonFromResponse(
+    let abilitiesJsonString = extractJsonFromResponse(
       accumulatedResponse,
       ['abilities'] // required field
     );
     
     if (!abilitiesJsonString) {
+      // Check if response only contains search_query objects (no actual data)
+      if (accumulatedResponse.includes('"search_query"') && !accumulatedResponse.includes('"abilities"')) {
+        console.warn(`Only search queries found for ${monsterName}, no abilities data`);
+        return FALLBACK_MONSTER_ABILITIES[monsterName] || [];
+      }
       console.error('No JSON object with "abilities" field found. Full response:', accumulatedResponse.substring(0, 200) + '...');
       console.warn(`Using fallback abilities for ${monsterName}`);
       return FALLBACK_MONSTER_ABILITIES[monsterName] || [];
     }
     
+    // Fix common JSON malformation: quoted JSON objects in arrays
+    // e.g., [{"name":"A"},"{"name":"B"}"] should be [{"name":"A"},{"name":"B"}]
+    abilitiesJsonString = abilitiesJsonString.replace(/,\s*"(\{[^"]*"[^"]*"[^}]*\})"\s*/g, ',$1');
+    abilitiesJsonString = abilitiesJsonString.replace(/\[\s*"(\{[^"]*"[^"]*"[^}]*\})"\s*/g, '[$1');
+    abilitiesJsonString = abilitiesJsonString.replace(/"(\{[^"]*"[^"]*"[^}]*\})"/g, '$1');
+    abilitiesJsonString = abilitiesJsonString.replace(/,(\s*[}\]])/g, '$1');
 
     try {
       const parsed = JSON.parse(abilitiesJsonString);
@@ -606,6 +720,43 @@ Important rules:
       console.error('Error parsing JSON from AI response:', parseError);
       console.error('Extracted JSON string was:', abilitiesJsonString);
       console.error('Full response was:', accumulatedResponse.substring(0, 200) + '...');
+      
+      // Try to extract abilities manually using regex as a last resort
+      try {
+        const abilities: Ability[] = [];
+        
+        // Try to find ability objects in the malformed JSON
+        const abilityPattern = /\{"name"\s*:\s*"([^"]+)",\s*"type"\s*:\s*"([^"]+)",\s*"damageDice"\s*:\s*"([^"]+)"/g;
+        let match;
+        while ((match = abilityPattern.exec(abilitiesJsonString)) !== null) {
+          const name = match[1];
+          const type = match[2];
+          const damageDice = match[3];
+          
+          if (type === 'attack' && name && damageDice) {
+            // Try to extract attackRoll and description
+            const attackRollMatch = abilitiesJsonString.substring(match.index).match(/"attackRoll"\s*:\s*(true|false)/);
+            const descriptionMatch = abilitiesJsonString.substring(match.index).match(/"description"\s*:\s*"([^"]*)"/);
+            
+            abilities.push({
+              name,
+              type: 'attack',
+              damageDice,
+              attackRoll: attackRollMatch ? attackRollMatch[1] === 'true' : true,
+              attacks: 1,
+              description: descriptionMatch ? descriptionMatch[1] : '',
+            } as Ability);
+          }
+        }
+        
+        if (abilities.length > 0) {
+          console.warn(`Extracted ${abilities.length} abilities using regex fallback for ${monsterName}`);
+          return abilities;
+        }
+      } catch (regexError) {
+        console.error('Regex extraction also failed:', regexError);
+      }
+      
       console.warn(`Using fallback abilities for ${monsterName}`);
       return FALLBACK_MONSTER_ABILITIES[monsterName] || [];
     }
