@@ -61,11 +61,19 @@ export async function POST(req: NextRequest) {
       );
     }
     
+    // Check if the prompt already contains the pixel art template keywords
+    // If so, it's likely a full prompt from the MonsterCreator component
+    const isFullPrompt = prompt.includes('32-bit pixel art') || 
+                        prompt.includes('chunky pixel clusters') || 
+                        prompt.includes('retro fantasy aesthetic');
+    
     // Build the base pixel art prompt using the template
-    let enhancedPrompt = buildPixelArtPrompt(prompt);
+    // If it's already a full prompt, use it directly; otherwise build it
+    let enhancedPrompt = isFullPrompt ? prompt : buildPixelArtPrompt(prompt);
     
     // Add transparent background request if needed
-    if (transparentBackground) {
+    // Only add if not already present and transparentBackground is true
+    if (transparentBackground && !enhancedPrompt.toLowerCase().includes('transparent')) {
       // Add transparent background request to prompt
       // Try multiple phrasings to increase chances of success
       const bgPhrases = [

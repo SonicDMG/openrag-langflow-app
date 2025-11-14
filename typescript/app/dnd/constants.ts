@@ -858,40 +858,58 @@ export const MONSTER_COLORS: Record<string, string> = {
   'Blob of Annihilation': 'bg-gray-900',
 };
 
-// Animation configuration constants - shared across components
-// Parts that can be affected by wind animation
-export const WIND_PARTS = [
-  { value: 'hair', label: 'Hair' },
-  { value: 'hatTip', label: 'Hat Tip' },
-  { value: 'beard', label: 'Beard' },
-  { value: 'cape', label: 'Cape' },
-  { value: 'robeL', label: 'Robe Left' },
-  { value: 'robeR', label: 'Robe Right' },
-  { value: 'sleeveL', label: 'Sleeve Left' },
-  { value: 'sleeveR', label: 'Sleeve Right' },
-  { value: 'wingL', label: 'Wing Left' },
-  { value: 'wingR', label: 'Wing Right' },
-  { value: 'tail', label: 'Tail' },
-] as const;
+// D&D Player Character Races (heroes/adventurers)
+// These are races that can be player characters and heroes in D&D
+// Includes standard hero races (Human, Elf, Dwarf, etc.) and "sometimes heroes" 
+// (Half-Orc, Tiefling, Drow, Yuan-ti) that can be heroes depending on campaign/setting
+export const DND_PLAYER_RACES: Array<{ name: string; description: string }> = [
+  { name: 'Human', description: 'A versatile and adaptable race, humans are the most common people in the world.' },
+  { name: 'Elf', description: 'A graceful and long-lived race with pointed ears, known for their connection to magic and nature.' },
+  { name: 'High Elf', description: 'A sophisticated elf with a natural talent for magic and keen intellect.' },
+  { name: 'Wood Elf', description: 'A reclusive elf who lives in forests, known for stealth and survival skills.' },
+  { name: 'Dark Elf (Drow)', description: 'A dark-skinned elf from the Underdark, often associated with magic and darkness.' },
+  { name: 'Dwarf', description: 'A stout and hardy race known for their craftsmanship and love of stone and metal.' },
+  { name: 'Mountain Dwarf', description: 'A tough dwarf from the mountains, known for strength and resilience.' },
+  { name: 'Hill Dwarf', description: 'A wise dwarf from the hills, known for their toughness and connection to the earth.' },
+  { name: 'Halfling', description: 'A small and cheerful race known for their luck and love of comfort.' },
+  { name: 'Lightfoot Halfling', description: 'A nimble halfling known for stealth and the ability to hide easily.' },
+  { name: 'Stout Halfling', description: 'A hardy halfling with resistance to poison and a strong constitution.' },
+  { name: 'Dragonborn', description: 'A draconic race with scales and a breath weapon, descended from dragons.' },
+  { name: 'Gnome', description: 'A small and curious race known for their inventiveness and magical nature.' },
+  { name: 'Forest Gnome', description: 'A gnome with a natural ability to communicate with small animals and cast minor illusions.' },
+  { name: 'Rock Gnome', description: 'A gnome with a talent for tinkering and creating mechanical devices.' },
+  { name: 'Half-Elf', description: 'A person with both human and elven heritage, combining the best of both races.' },
+  { name: 'Half-Orc', description: 'A person with both human and orc heritage, known for strength and ferocity.' },
+  { name: 'Tiefling', description: 'A person with infernal heritage, often with horns, a tail, and resistance to fire.' },
+  { name: 'Aasimar', description: 'A person with celestial heritage, touched by divine power and often with a radiant appearance.' },
+  { name: 'Genasi', description: 'A person with elemental heritage, manifesting traits of air, earth, fire, or water.' },
+  { name: 'Air Genasi', description: 'A genasi with air elemental heritage, able to levitate and control winds.' },
+  { name: 'Earth Genasi', description: 'A genasi with earth elemental heritage, able to move through earth and stone.' },
+  { name: 'Fire Genasi', description: 'A genasi with fire elemental heritage, resistant to fire and able to create flames.' },
+  { name: 'Water Genasi', description: 'A genasi with water elemental heritage, able to breathe underwater and control water.' },
+  { name: 'Goliath', description: 'A large and powerful race of mountain-dwelling people, known for their strength and endurance.' },
+  { name: 'Firbolg', description: 'A gentle giant race with a deep connection to nature and the ability to become invisible.' },
+  { name: 'Kenku', description: 'A bird-like race that can perfectly mimic sounds and voices they have heard.' },
+  { name: 'Lizardfolk', description: 'A reptilian race with natural armor and the ability to hold their breath for long periods.' },
+  { name: 'Tabaxi', description: 'A cat-like race known for their curiosity, agility, and climbing abilities.' },
+  { name: 'Triton', description: 'An aquatic race from the depths of the ocean, able to breathe underwater and communicate with sea creatures.' },
+  { name: 'Yuan-ti', description: 'A serpentine race with resistance to magic and the ability to cast spells.' },
+  { name: 'Aarakocra', description: 'A bird-like race with wings, able to fly and known for their connection to the element of air.' },
+  { name: 'Tortle', description: 'A turtle-like race with a natural shell for protection and a connection to water.' },
+  { name: 'Changeling', description: 'A shapeshifting race able to alter their appearance at will.' },
+  { name: 'Kalashtar', description: 'A race with a connection to the plane of dreams, able to communicate telepathically.' },
+  { name: 'Shifter', description: 'A race with lycanthropic heritage, able to partially transform into a beast.' },
+  { name: 'Warforged', description: 'A constructed race of living machines, created for war but now seeking their own purpose.' },
+  { name: 'Githyanki', description: 'A psionic race from the Astral Plane, known for their martial prowess and red dragon mounts.' },
+  { name: 'Githzerai', description: 'A psionic race from Limbo, known for their mental discipline and monastic traditions.' },
+];
 
-// Default wind parts array (for fallback/default configurations)
-export const DEFAULT_WIND_PARTS = ['hatTip', 'beard', 'hair', 'sleeveL', 'sleeveR', 'cape', 'robeL', 'robeR'];
+// Note: Goblins, Orcs, Kobolds, Bugbears, and Hobgoblins are typically monster races
+// and are already included in FALLBACK_MONSTERS. They are not included here as player races.
 
-// Weapon/spell source parts - where spell effects should originate from
-export const WEAPON_PARTS = [
-  { value: 'staffTip', label: 'Staff Tip' },
-  { value: 'swordTip', label: 'Sword Tip' },
-  { value: 'wandTip', label: 'Wand Tip' },
-  { value: 'hand', label: 'Hand' },
-  { value: 'wingL', label: 'Wing Left' },
-  { value: 'wingR', label: 'Wing Right' },
-  { value: 'tail', label: 'Tail' },
-  { value: 'mouth', label: 'Mouth (Breath Weapon)' },
-] as const;
-
-// Default weapon parts array (for fallback/default configurations)
-export const DEFAULT_WEAPON_PARTS = ['staffTip', 'swordTip', 'wandTip', 'hand', 'wingL', 'wingR', 'tail', 'mouth'];
-
-// Basic weapon parts (for auto-rigging detection)
-export const BASIC_WEAPON_PARTS = ['staffTip', 'swordTip', 'wandTip', 'hand'];
-
+/**
+ * Randomly selects a D&D player character race (for heroes/adventurers)
+ */
+export function getRandomRace(): { name: string; description: string } {
+  return DND_PLAYER_RACES[Math.floor(Math.random() * DND_PLAYER_RACES.length)];
+}
