@@ -81,7 +81,6 @@ export default function DnDBattle() {
   const [isDiceRolling, setIsDiceRolling] = useState(false);
   const [castingPlayer, setCastingPlayer] = useState<'player1' | 'player2' | null>(null);
   const [castTrigger, setCastTrigger] = useState({ player1: 0, player2: 0 });
-  const logEndRef = useRef<HTMLDivElement>(null);
   
   // Queue for visual effects that should trigger after dice roll completes
   // (Type imported from battle utils)
@@ -99,13 +98,6 @@ export default function DnDBattle() {
   const currentVisualEffectsRef = useRef<PendingVisualEffect[]>([]);
   const currentCallbacksRef = useRef<PostDiceRollCallback[]>([]);
 
-  const scrollToBottom = () => {
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [battleLog]);
 
   // Load created monsters on mount
   useEffect(() => {
@@ -1199,7 +1191,7 @@ export default function DnDBattle() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-950 via-amber-900 to-amber-950 text-amber-50">
+    <div className="min-h-screen" style={{ backgroundColor: '#D1C9BA' }}>
       {/* Dice Roll Animation */}
       {diceRollData.length > 0 && (
         <DiceRoll
@@ -1211,27 +1203,59 @@ export default function DnDBattle() {
       )}
       
       {/* Header */}
-      <div className="border-b-4 border-amber-800 px-4 sm:px-6 py-4 bg-amber-900/50 backdrop-blur-sm">
+      <div className="px-4 sm:px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-amber-100 mb-2" style={{ fontFamily: 'serif', textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>
-              ⚔️ D&D Battle Arena ⚔️
-            </h1>
-            <p className="text-sm text-amber-200 italic">
-              Choose your character and battle against an AI opponent
-            </p>
-          </div>
+          {/* Home Button */}
           <button
             onClick={() => router.push('/')}
-            className="px-4 py-2 bg-amber-800 hover:bg-amber-700 text-amber-100 font-semibold rounded-lg border-2 border-amber-700 transition-all"
+            className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors"
           >
-            ← Back to Chat
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            <span className="font-semibold">Home</span>
+          </button>
+
+          {/* Center Title with Dragon Emblem */}
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold" style={{ fontFamily: 'serif', color: '#5C4033' }}>
+              Battle
+            </h1>
+            {/* Red Dragon/Phoenix Emblem */}
+            <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M12 2C8 2 5 5 5 9c0 2 1 4 3 5-1 1-2 3-2 5 0 3 2 5 5 5 1 0 2 0 3-1 1 1 2 1 3 1 3 0 5-2 5-5 0-2-1-4-2-5 2-1 3-3 3-5 0-4-3-7-7-7z"
+                fill="#DC2626"
+              />
+              <path
+                d="M12 4c-2 0-4 1-4 3 0 1 1 2 2 2 1 0 2-1 2-2 0-1 1-1 2-1 1 0 2 0 2 1 0 1 1 2 2 2 1 0 2-1 2-2 0-2-2-3-4-3z"
+                fill="#EF4444"
+              />
+              <path
+                d="M10 8c-1 0-2 1-2 2 0 1 1 2 2 2 1 0 2-1 2-2 0-1-1-2-2-2zm4 0c-1 0-2 1-2 2 0 1 1 2 2 2 1 0 2-1 2-2 0-1-1-2-2-2z"
+                fill="#991B1B"
+              />
+            </svg>
+            <h1 className="text-3xl font-bold" style={{ fontFamily: 'serif', color: '#5C4033' }}>
+              Arena
+            </h1>
+          </div>
+
+          {/* Reset Button */}
+          <button
+            onClick={resetBattle}
+            className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span className="font-semibold">Reset</span>
           </button>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        <div className="space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-0">
+        <div className="space-y-6 overflow-visible">
           {/* Character Selection */}
           {!isBattleActive && (
             <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl">
@@ -1521,118 +1545,159 @@ export default function DnDBattle() {
 
           {/* Battle Stats */}
           {isBattleActive && player1Class && player2Class && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 justify-items-center">
-              <CharacterCard
-                playerClass={player1Class}
-                characterName={player1Name || 'Loading...'}
-                monsterImageUrl={player1MonsterId ? `/cdn/monsters/${player1MonsterId}/280x200.png` : undefined}
-                onAttack={() => performAttack('player1')}
-                onUseAbility={(idx) => useAbility('player1', idx)}
-                shouldShake={shakingPlayer === 'player1'}
-                shouldSparkle={sparklingPlayer === 'player1'}
-                shouldMiss={missingPlayer === 'player1'}
-                shouldHit={hittingPlayer === 'player1'}
-                shouldSurprise={surprisedPlayer === 'player1'}
-                shouldCast={castingPlayer === 'player1'}
-                castTrigger={castTrigger.player1}
-                shakeTrigger={shakeTrigger.player1}
-                sparkleTrigger={sparkleTrigger.player1}
-                missTrigger={missTrigger.player1}
-                hitTrigger={hitTrigger.player1}
-                surpriseTrigger={surpriseTrigger.player1}
-                shakeIntensity={shakeIntensity.player1}
-                sparkleIntensity={sparkleIntensity.player1}
-                isMoveInProgress={isMoveInProgress}
-                isActive={currentTurn === 'player1'}
-                isDefeated={defeatedPlayer === 'player1'}
-                isVictor={victorPlayer === 'player1'}
-                confettiTrigger={confettiTrigger}
-                onShakeComplete={handleShakeComplete}
-                onSparkleComplete={handleSparkleComplete}
-                onMissComplete={handleMissComplete}
-                onHitComplete={handleHitComplete}
-                onSurpriseComplete={handleSurpriseComplete}
-                onCastComplete={handleCastComplete}
+            <div className="relative flex items-center justify-center gap-4 md:gap-8 py-12 -mx-4 sm:-mx-6 overflow-visible">
+              {/* Darker band background */}
+              <div 
+                className="absolute rounded-lg"
+                style={{ 
+                  backgroundColor: '#BDB6A8',
+                  top: '20%',
+                  bottom: '20%',
+                  left: '-60px',
+                  right: '-60px',
+                  width: 'calc(100% + 120px)',
+                }}
               />
-              <CharacterCard
-                playerClass={player2Class}
-                characterName={player2Name || 'Loading...'}
-                monsterImageUrl={player2MonsterId ? `/cdn/monsters/${player2MonsterId}/280x200.png` : undefined}
-                onAttack={() => performAttack('player2')}
-                onUseAbility={(idx) => useAbility('player2', idx)}
-                shouldShake={shakingPlayer === 'player2'}
-                shouldSparkle={sparklingPlayer === 'player2'}
-                shouldMiss={missingPlayer === 'player2'}
-                shouldHit={hittingPlayer === 'player2'}
-                shouldSurprise={surprisedPlayer === 'player2'}
-                shouldCast={castingPlayer === 'player2'}
-                castTrigger={castTrigger.player2}
-                shakeTrigger={shakeTrigger.player2}
-                sparkleTrigger={sparkleTrigger.player2}
-                missTrigger={missTrigger.player2}
-                hitTrigger={hitTrigger.player2}
-                surpriseTrigger={surpriseTrigger.player2}
-                shakeIntensity={shakeIntensity.player2}
-                sparkleIntensity={sparkleIntensity.player2}
-                isMoveInProgress={isMoveInProgress}
-                isActive={currentTurn === 'player2'}
-                isDefeated={defeatedPlayer === 'player2'}
-                isVictor={victorPlayer === 'player2'}
-                confettiTrigger={confettiTrigger}
-                onShakeComplete={handleShakeComplete}
-                onSparkleComplete={handleSparkleComplete}
-                onMissComplete={handleMissComplete}
-                onHitComplete={handleHitComplete}
-                onSurpriseComplete={handleSurpriseComplete}
-                onCastComplete={handleCastComplete}
-                isOpponent={true}
-              />
+              {/* Left Card - Rotated counter-clockwise (outward) */}
+              <div className="relative z-10" style={{ transform: 'rotate(-5deg)' }}>
+                <CharacterCard
+                  playerClass={player1Class}
+                  characterName={player1Name || 'Loading...'}
+                  monsterImageUrl={player1MonsterId ? `/cdn/monsters/${player1MonsterId}/280x200.png` : undefined}
+                  onAttack={() => performAttack('player1')}
+                  onUseAbility={(idx) => useAbility('player1', idx)}
+                  shouldShake={shakingPlayer === 'player1'}
+                  shouldSparkle={sparklingPlayer === 'player1'}
+                  shouldMiss={missingPlayer === 'player1'}
+                  shouldHit={hittingPlayer === 'player1'}
+                  shouldSurprise={surprisedPlayer === 'player1'}
+                  shouldCast={castingPlayer === 'player1'}
+                  castTrigger={castTrigger.player1}
+                  shakeTrigger={shakeTrigger.player1}
+                  sparkleTrigger={sparkleTrigger.player1}
+                  missTrigger={missTrigger.player1}
+                  hitTrigger={hitTrigger.player1}
+                  surpriseTrigger={surpriseTrigger.player1}
+                  shakeIntensity={shakeIntensity.player1}
+                  sparkleIntensity={sparkleIntensity.player1}
+                  isMoveInProgress={isMoveInProgress}
+                  isActive={currentTurn === 'player1'}
+                  isDefeated={defeatedPlayer === 'player1'}
+                  isVictor={victorPlayer === 'player1'}
+                  confettiTrigger={confettiTrigger}
+                  onShakeComplete={handleShakeComplete}
+                  onSparkleComplete={handleSparkleComplete}
+                  onMissComplete={handleMissComplete}
+                  onHitComplete={handleHitComplete}
+                  onSurpriseComplete={handleSurpriseComplete}
+                  onCastComplete={handleCastComplete}
+                />
+              </div>
+              {/* VS Graphic */}
+              <div className="relative z-10 flex-shrink-0">
+                <span className="text-5xl md:text-6xl font-bold" style={{ color: '#E0D9C9', fontFamily: 'serif' }}>
+                  VS
+                </span>
+              </div>
+              {/* Right Card - Rotated clockwise (outward) */}
+              <div className="relative z-10" style={{ transform: 'rotate(5deg)' }}>
+                <CharacterCard
+                  playerClass={player2Class}
+                  characterName={player2Name || 'Loading...'}
+                  monsterImageUrl={player2MonsterId ? `/cdn/monsters/${player2MonsterId}/280x200.png` : undefined}
+                  onAttack={() => performAttack('player2')}
+                  onUseAbility={(idx) => useAbility('player2', idx)}
+                  shouldShake={shakingPlayer === 'player2'}
+                  shouldSparkle={sparklingPlayer === 'player2'}
+                  shouldMiss={missingPlayer === 'player2'}
+                  shouldHit={hittingPlayer === 'player2'}
+                  shouldSurprise={surprisedPlayer === 'player2'}
+                  shouldCast={castingPlayer === 'player2'}
+                  castTrigger={castTrigger.player2}
+                  shakeTrigger={shakeTrigger.player2}
+                  sparkleTrigger={sparkleTrigger.player2}
+                  missTrigger={missTrigger.player2}
+                  hitTrigger={hitTrigger.player2}
+                  surpriseTrigger={surpriseTrigger.player2}
+                  shakeIntensity={shakeIntensity.player2}
+                  sparkleIntensity={sparkleIntensity.player2}
+                  isMoveInProgress={isMoveInProgress}
+                  isActive={currentTurn === 'player2'}
+                  isDefeated={defeatedPlayer === 'player2'}
+                  isVictor={victorPlayer === 'player2'}
+                  confettiTrigger={confettiTrigger}
+                  onShakeComplete={handleShakeComplete}
+                  onSparkleComplete={handleSparkleComplete}
+                  onMissComplete={handleMissComplete}
+                  onHitComplete={handleHitComplete}
+                  onSurpriseComplete={handleSurpriseComplete}
+                  onCastComplete={handleCastComplete}
+                  isOpponent={true}
+                />
+              </div>
             </div>
           )}
 
           {/* Battle Log */}
-          <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl max-h-96 overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4 text-amber-100" style={{ fontFamily: 'serif' }}>
-              Battle Log 📜
+          <div 
+            className="bg-white p-6 shadow-lg overflow-y-auto -mx-4 sm:-mx-6 border-t-4 border-l-4 border-r-4" 
+            style={{ 
+              borderColor: '#5C4033',
+              borderTopLeftRadius: '0.5rem',
+              borderTopRightRadius: '0.5rem',
+              borderBottomLeftRadius: '0',
+              borderBottomRightRadius: '0',
+              marginBottom: '-1.5rem',
+              marginLeft: '-1rem',
+              marginRight: '-1rem',
+              minHeight: 'calc(100vh - 500px)',
+              paddingBottom: '2rem',
+            }}
+          >
+            <h2 className="text-xl font-bold mb-4" style={{ fontFamily: 'serif', color: '#5C4033' }}>
+              Battle Log
             </h2>
             <div className="space-y-2 text-sm">
               {battleLog.length === 0 && (
-                <div className="text-amber-400 italic">The battle log is empty...</div>
+                <div className="text-gray-500 italic">The battle log is empty...</div>
               )}
-              {battleLog.map((log, idx) => (
+              {[...battleLog].reverse().map((log, idx) => (
                 <div
                   key={idx}
                   className={`p-2 rounded ${
-                    log.type === 'attack' ? 'bg-red-900/30 text-red-200 font-mono' :
-                    log.type === 'ability' ? 'bg-purple-900/30 text-purple-200 font-mono' :
-                    log.type === 'roll' ? 'bg-blue-900/30 text-blue-200 font-mono' :
-                    log.type === 'narrative' ? 'bg-amber-800/50 text-amber-100' :
-                    'bg-amber-950/50 text-amber-300 font-mono'
+                    log.type === 'attack' ? 'bg-red-50 text-red-800 font-mono' :
+                    log.type === 'ability' ? 'bg-purple-50 text-purple-800 font-mono' :
+                    log.type === 'roll' ? 'text-red-600' :
+                    log.type === 'narrative' ? 'text-gray-800' :
+                    'bg-gray-50 text-gray-700 font-mono'
                   }`}
                 >
                   {log.type === 'narrative' ? (
-                    <div className="prose prose-invert prose-amber max-w-none text-sm">
+                    <div className="prose max-w-none text-sm" style={{ fontFamily: 'serif' }}>
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
-                          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                          strong: ({ children }) => <strong className="font-bold text-amber-50">{children}</strong>,
+                          p: ({ children }) => <p className="mb-2 last:mb-0" style={{ color: '#5C4033' }}>{children}</p>,
+                          strong: ({ children }) => <strong className="font-bold" style={{ color: '#5C4033' }}>{children}</strong>,
                           em: ({ children }) => <em className="italic">{children}</em>,
-                          h1: ({ children }) => <h1 className="text-lg font-bold mb-2 text-amber-50">{children}</h1>,
-                          h2: ({ children }) => <h2 className="text-base font-bold mb-2 text-amber-50">{children}</h2>,
-                          h3: ({ children }) => <h3 className="text-sm font-bold mb-1 text-amber-50">{children}</h3>,
+                          h1: ({ children }) => <h1 className="text-lg mb-2" style={{ color: '#5C4033', fontWeight: 900 }}>{children}</h1>,
+                          h2: ({ children }) => <h2 className="text-base mb-2" style={{ color: '#5C4033', fontWeight: 900 }}>{children}</h2>,
+                          h3: ({ children }) => <h3 className="text-sm mb-1" style={{ color: '#5C4033', fontWeight: 900 }}>{children}</h3>,
+                          h4: ({ children }) => <h4 className="text-sm mb-1" style={{ color: '#5C4033', fontWeight: 900 }}>{children}</h4>,
+                          h5: ({ children }) => <h5 className="text-sm mb-1" style={{ color: '#5C4033', fontWeight: 900 }}>{children}</h5>,
+                          h6: ({ children }) => <h6 className="text-sm mb-1" style={{ color: '#5C4033', fontWeight: 900 }}>{children}</h6>,
                           ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
                           ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
                           li: ({ children }) => <li className="ml-2">{children}</li>,
-                          code: ({ children }) => <code className="bg-amber-900/50 px-1 rounded text-xs font-mono">{children}</code>,
-                          blockquote: ({ children }) => <blockquote className="border-l-4 border-amber-600 pl-2 italic">{children}</blockquote>,
+                          code: ({ children }) => <code className="bg-gray-100 px-1 rounded text-xs font-mono">{children}</code>,
+                          blockquote: ({ children }) => <blockquote className="border-l-4 border-gray-300 pl-2 italic">{children}</blockquote>,
                         }}
                       >
                         {log.message}
                       </ReactMarkdown>
                     </div>
                   ) : (
-                    <span>
+                    <span style={log.type === 'roll' ? { color: '#DC2626', fontFamily: 'serif' } : {}}>
                       {log.message}
                       {log.type === 'system' && 
                        log.message === 'Loading class abilities from knowledge base...' && 
@@ -1648,7 +1713,7 @@ export default function DnDBattle() {
                 </div>
               ))}
               {isWaitingForAgent && (
-                <div className="p-2 rounded bg-amber-800/50 text-amber-100">
+                <div className="p-2 rounded bg-gray-100 text-gray-700">
                   <span className="waiting-indicator">
                     Waiting for agent response
                     <span className="waiting-dot"></span>
@@ -1657,18 +1722,9 @@ export default function DnDBattle() {
                   </span>
                 </div>
               )}
-              <div ref={logEndRef} />
             </div>
           </div>
 
-          {isBattleActive && (
-            <button
-              onClick={resetBattle}
-              className="w-full py-2 px-4 bg-amber-800 hover:bg-amber-700 text-amber-100 font-bold rounded-lg border-2 border-amber-700 transition-all"
-            >
-              Reset Battle
-            </button>
-          )}
         </div>
       </div>
     </div>

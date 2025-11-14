@@ -200,7 +200,7 @@ function CharacterCardComponent({
       ref={animationRef}
       className="relative overflow-hidden"
       style={{ 
-        backgroundColor: '#F5F1E8', // Light beige background
+        backgroundColor: '#F2ECDE', // Light beige background
         border: `${borderWidth} solid #5C4033`, // Dark brown border
         borderRadius: borderRadius,
         width: '100%',
