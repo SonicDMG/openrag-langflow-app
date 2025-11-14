@@ -644,3 +644,87 @@ body {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Battle drop animation - cards drop from the sky and slam down */
+@keyframes battle-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-100vh) scale(0.5) rotate(-8deg);
+  }
+  10% {
+    opacity: 0.3;
+    transform: translateY(-80vh) scale(0.55) rotate(-6deg);
+  }
+  30% {
+    opacity: 0.6;
+    transform: translateY(-50vh) scale(0.7) rotate(-3deg);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateY(-20vh) scale(0.9) rotate(1deg);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(5vh) scale(1.1) rotate(3deg);
+  }
+  80% {
+    transform: translateY(-2vh) scale(0.95) rotate(-1deg);
+  }
+  88% {
+    transform: translateY(1vh) scale(1.02) rotate(0.5deg);
+  }
+  94% {
+    transform: translateY(-0.5vh) scale(0.99) rotate(-0.2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+}
+
+.battle-drop {
+  animation: battle-drop 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  transform-origin: center center;
+  will-change: transform, opacity;
+}
+
+/* Battle log drop animation - drops from the sky with delay for staggered effect */
+@keyframes battle-log-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-100vh) scale(0.6);
+  }
+  15% {
+    opacity: 0.2;
+    transform: translateY(-70vh) scale(0.65);
+  }
+  35% {
+    opacity: 0.5;
+    transform: translateY(-40vh) scale(0.75);
+  }
+  55% {
+    opacity: 0.7;
+    transform: translateY(-15vh) scale(0.9);
+  }
+  75% {
+    opacity: 1;
+    transform: translateY(3vh) scale(1.05);
+  }
+  85% {
+    transform: translateY(-1vh) scale(0.97);
+  }
+  92% {
+    transform: translateY(0.5vh) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.battle-log-drop {
+  animation: battle-log-drop 0.9s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.25s forwards;
+  transform-origin: top center;
+  will-change: transform, opacity;
+  opacity: 0;
+}

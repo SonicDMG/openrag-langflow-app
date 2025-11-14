@@ -97,6 +97,8 @@ export default function DnDBattle() {
   const diceQueueRef = useRef<QueuedDiceRoll[]>([]);
   const currentVisualEffectsRef = useRef<PendingVisualEffect[]>([]);
   const currentCallbacksRef = useRef<PostDiceRollCallback[]>([]);
+  const battleCardsRef = useRef<HTMLDivElement>(null);
+  const battleLogRef = useRef<HTMLDivElement>(null);
 
 
   // Load created monsters on mount
@@ -1149,6 +1151,45 @@ export default function DnDBattle() {
     }
   }, [availableClasses, availableMonsters, opponentType, setPlayerClassWithMonster]);
 
+  // Function to trigger drop animation manually (for testing)
+  const triggerDropAnimation = useCallback(() => {
+    const triggerAnimation = () => {
+      if (battleCardsRef.current && battleLogRef.current) {
+        // Remove any existing animation classes first
+        battleCardsRef.current.classList.remove('battle-drop');
+        battleLogRef.current.classList.remove('battle-log-drop');
+        
+        // Force reflow to restart animation
+        void battleCardsRef.current.offsetWidth;
+        void battleLogRef.current.offsetWidth;
+        
+        // Apply animation classes
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (battleCardsRef.current) {
+              battleCardsRef.current.classList.add('battle-drop');
+            }
+            if (battleLogRef.current) {
+              battleLogRef.current.classList.add('battle-log-drop');
+            }
+          });
+        });
+      } else {
+        // If elements aren't ready yet, try again on next frame
+        requestAnimationFrame(triggerAnimation);
+      }
+    };
+    
+    // Start the animation trigger
+    requestAnimationFrame(triggerAnimation);
+  }, []);
+
+  // Trigger drop animation when battle starts
+  useEffect(() => {
+    if (!isBattleActive) return;
+    triggerDropAnimation();
+  }, [isBattleActive, triggerDropAnimation]);
+
   // Use AI opponent hook
   const aiOpponentCleanup = useAIOpponent({
     isActive: isBattleActive,
@@ -1545,7 +1586,7 @@ export default function DnDBattle() {
 
           {/* Battle Stats */}
           {isBattleActive && player1Class && player2Class && (
-            <div className="relative flex items-center justify-center gap-4 md:gap-8 py-12 -mx-4 sm:-mx-6 overflow-visible">
+            <div ref={battleCardsRef} className="relative flex items-center justify-center gap-4 md:gap-8 py-12 -mx-4 sm:-mx-6 overflow-visible">
               {/* Darker band background */}
               <div 
                 className="absolute rounded-lg"
@@ -1641,6 +1682,7 @@ export default function DnDBattle() {
           {/* Battle Log */}
           {isBattleActive && (
           <div 
+            ref={battleLogRef}
             className="bg-white p-6 shadow-lg overflow-y-auto -mx-4 sm:-mx-6 border-t-4 border-l-4 border-r-4" 
             style={{ 
               borderColor: '#5C4033',
@@ -1655,9 +1697,18 @@ export default function DnDBattle() {
               paddingBottom: '2rem',
             }}
           >
-            <h2 className="text-xl font-bold mb-4" style={{ fontFamily: 'serif', color: '#5C4033' }}>
-              Battle Log
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold" style={{ fontFamily: 'serif', color: '#5C4033' }}>
+                Battle Log
+              </h2>
+              <button
+                onClick={triggerDropAnimation}
+                className="px-3 py-1.5 bg-purple-900 hover:bg-purple-800 text-white text-sm font-semibold rounded-lg border-2 border-purple-700 transition-all shadow-md"
+                title="Test the drop and slam animation"
+              >
+                🎬 Test Drop & Slam
+              </button>
+            </div>
             <div className="space-y-2 text-sm">
               {battleLog.length === 0 && (
                 <div className="text-gray-500 italic">The battle log is empty...</div>
