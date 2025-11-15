@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { DnDClass, Ability, AttackAbility, HealingAbility } from '../types';
 import { CharacterCard } from '../components/CharacterCard';
@@ -23,7 +23,7 @@ interface CharacterFormData {
   color: string;
 }
 
-export default function CharacterCreatorPage() {
+function CharacterCreatorPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get('id');
@@ -653,3 +653,14 @@ function AbilityEditor({ ability, index, onUpdate, onRemove }: AbilityEditorProp
   );
 }
 
+export default function CharacterCreatorPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#D1C9BA' }}>
+        <div className="text-xl text-gray-700">Loading...</div>
+      </div>
+    }>
+      <CharacterCreatorPageContent />
+    </Suspense>
+  );
+}

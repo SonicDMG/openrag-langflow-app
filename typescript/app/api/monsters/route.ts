@@ -114,9 +114,18 @@ export async function POST(req: NextRequest) {
       
       newBackgroundPng = await ensure16x9AspectRatio(backgroundImage.buffer);
     } catch (error) {
-      console.warn('Failed to generate new background, using original:', error);
-      // Fallback: use original image as background
-      newBackgroundPng = Buffer.from(refPng);
+      console.warn('Failed to generate new background, creating fallback:', error);
+      // Fallback: create a simple solid color background
+      newBackgroundPng = await sharp({
+        create: {
+          width: 1024,
+          height: 576,
+          channels: 3,
+          background: { r: 45, g: 35, b: 28 } // Dark brown/amber background
+        }
+      })
+      .png()
+      .toBuffer();
     }
 
     // Composite the cut-out character on top of the new background
