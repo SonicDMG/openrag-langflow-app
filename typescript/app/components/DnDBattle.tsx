@@ -100,6 +100,19 @@ export default function DnDBattle() {
   const battleCardsRef = useRef<HTMLDivElement>(null);
   const battleLogRef = useRef<HTMLDivElement>(null);
 
+  // Queue for narrative events to batch them per round
+  type QueuedNarrativeEvent = {
+    eventDescription: string;
+    attackerClass: DnDClass;
+    defenderClass: DnDClass;
+    attackerDetails: string;
+    defenderDetails: string;
+  };
+  const narrativeQueueRef = useRef<QueuedNarrativeEvent[]>([]);
+  const previousTurnRef = useRef<'player1' | 'player2' | null>(null);
+  const currentPlayer1ClassRef = useRef<DnDClass | null>(null);
+  const currentPlayer2ClassRef = useRef<DnDClass | null>(null);
+
 
   // Load data from Astra DB, localStorage, and created monsters on mount
   useEffect(() => {
@@ -257,6 +270,12 @@ export default function DnDBattle() {
       }
     }
   }, [createdMonsters, player1Class, player2Class, player1MonsterId, player2MonsterId, findAssociatedMonster]);
+
+  // Keep refs in sync with current player classes for narrative processing
+  useEffect(() => {
+    currentPlayer1ClassRef.current = player1Class;
+    currentPlayer2ClassRef.current = player2Class;
+  }, [player1Class, player2Class]);
 
   // Helper to set a player's class and automatically find associated monster
   const setPlayerClassWithMonster = useCallback((
@@ -450,15 +469,78 @@ export default function DnDBattle() {
     }
   }, [battleResponseId, addLog]);
 
+  // Helper function to process queued narrative events (batched per round)
+  const processNarrativeQueue = useCallback(async (
+    currentPlayer1Class: DnDClass | null,
+    currentPlayer2Class: DnDClass | null
+  ) => {
+    if (narrativeQueueRef.current.length === 0) {
+      return;
+    }
+
+    const events = narrativeQueueRef.current;
+    narrativeQueueRef.current = []; // Clear the queue
+
+    // Combine all events into a single description
+    const combinedDescription = events.map(e => e.eventDescription).join(' ');
+
+    // Use current player classes from state (they have the most up-to-date HP)
+    // Fall back to last event's classes if current classes aren't available
+    const lastEvent = events[events.length - 1];
+    
+    // Determine which classes to use - prefer current state, fall back to last event
+    let attackerClass = lastEvent.attackerClass;
+    let defenderClass = lastEvent.defenderClass;
+    
+    if (currentPlayer1Class && currentPlayer2Class) {
+      // Use current classes from state (they have up-to-date HP)
+      // The narrative is about the round, so we'll use player1 and player2 as they are now
+      attackerClass = currentPlayer1Class;
+      defenderClass = currentPlayer2Class;
+    }
+    
+    setIsWaitingForAgent(true);
+    try {
+      const { narrative, responseId } = await getBattleNarrative(
+        combinedDescription,
+        attackerClass,
+        defenderClass,
+        lastEvent.attackerDetails,
+        lastEvent.defenderDetails,
+        battleResponseId
+      );
+      setBattleResponseId(responseId);
+      addLog('narrative', narrative);
+    } finally {
+      setIsWaitingForAgent(false);
+    }
+  }, [battleResponseId, addLog]);
+
   // Helper function to switch turns
-  const switchTurn = useCallback((currentAttacker: 'player1' | 'player2') => {
+  const switchTurn = useCallback(async (currentAttacker: 'player1' | 'player2') => {
     const nextPlayer = currentAttacker === 'player1' ? 'player2' : 'player1';
     // Don't switch to a defeated player - battle is over
     if (defeatedPlayer === nextPlayer) {
       return;
     }
+
+    // Check if we've completed a full round (player2 just moved → switching to player1)
+    // This means both players have made their moves in this round
+    const isFullRoundComplete = currentAttacker === 'player2' && nextPlayer === 'player1';
+    
+    // Update the previous turn reference
+    previousTurnRef.current = currentAttacker;
+    
+    // If a full round is complete and we have queued events, process them
+    if (isFullRoundComplete && narrativeQueueRef.current.length > 0) {
+      await processNarrativeQueue(
+        currentPlayer1ClassRef.current,
+        currentPlayer2ClassRef.current
+      );
+    }
+    
     setCurrentTurn(nextPlayer);
-  }, [defeatedPlayer]);
+  }, [defeatedPlayer, processNarrativeQueue]);
 
   // Helper function to handle victory condition
   // Note: HP update should happen via callback, not directly here
@@ -503,6 +585,7 @@ export default function DnDBattle() {
   ) => {
     return async () => {
       if (newHP <= 0) {
+        // Victory conditions should still call immediately (battle ends)
         await handleVictory(
           attackerClass,
           defenderClass,
@@ -513,18 +596,20 @@ export default function DnDBattle() {
           defender
         );
       } else {
-        await generateAndLogNarrative(
-          eventDescription,
-          attackerClass,
-          { ...defenderClass, hitPoints: newHP },
+        // Queue the narrative event instead of calling immediately
+        // It will be processed when the full round completes
+        narrativeQueueRef.current.push({
+          eventDescription: eventDescription,
+          attackerClass: attackerClass,
+          defenderClass: { ...defenderClass, hitPoints: newHP },
           attackerDetails,
           defenderDetails
-        );
+        });
       }
-      switchTurn(attacker);
+      await switchTurn(attacker);
       setIsMoveInProgress(false);
     };
-  }, [handleVictory, generateAndLogNarrative, switchTurn]);
+  }, [handleVictory, switchTurn]);
 
   // Factory function to create post-miss callback (handles narrative, turn switching)
   const createPostMissCallback = useCallback((
@@ -536,17 +621,19 @@ export default function DnDBattle() {
     attacker: 'player1' | 'player2'
   ) => {
     return async () => {
-      await generateAndLogNarrative(
-        eventDescription,
-        attackerClass,
-        defenderClass,
+      // Queue the narrative event instead of calling immediately
+      // It will be processed when the full round completes
+      narrativeQueueRef.current.push({
+        eventDescription: eventDescription,
+        attackerClass: attackerClass,
+        defenderClass: defenderClass,
         attackerDetails,
         defenderDetails
-      );
-      switchTurn(attacker);
+      });
+      await switchTurn(attacker);
       setIsMoveInProgress(false);
     };
-  }, [generateAndLogNarrative, switchTurn]);
+  }, [switchTurn]);
 
   // Factory function to create post-healing callback (handles narrative, turn switching)
   const createPostHealingCallback = useCallback((
@@ -558,17 +645,19 @@ export default function DnDBattle() {
     attacker: 'player1' | 'player2'
   ) => {
     return async () => {
-      await generateAndLogNarrative(
-        eventDescription,
-        attackerClass,
-        defenderClass,
+      // Queue the narrative event instead of calling immediately
+      // It will be processed when the full round completes
+      narrativeQueueRef.current.push({
+        eventDescription: eventDescription,
+        attackerClass: attackerClass,
+        defenderClass: defenderClass,
         attackerDetails,
         defenderDetails
-      );
-      switchTurn(attacker);
+      });
+      await switchTurn(attacker);
       setIsMoveInProgress(false);
     };
-  }, [generateAndLogNarrative, switchTurn]);
+  }, [switchTurn]);
 
   // Memoized callback functions for animation completion to prevent unnecessary re-renders
   const handleShakeComplete = useCallback(() => {
@@ -664,6 +753,10 @@ export default function DnDBattle() {
       setIsBattleActive(true);
       setBattleLog([]);
       setCurrentTurn('player1');
+      
+      // Initialize turn tracking for round detection
+      previousTurnRef.current = null;
+      narrativeQueueRef.current = [];
       
       // Initialize battle conversation with opening narrative
       setIsWaitingForAgent(true);
@@ -1142,6 +1235,9 @@ export default function DnDBattle() {
     setCastingPlayer(null);
     setCastTrigger({ player1: 0, player2: 0 });
     setIsOpponentAutoPlaying(false);
+    // Clear narrative queue and turn tracking
+    narrativeQueueRef.current = [];
+    previousTurnRef.current = null;
     aiOpponentCleanup.cleanup();
   };
 
