@@ -129,4 +129,68 @@ export async function ensure16x9AspectRatio(imageBuffer: Buffer): Promise<Buffer
   return processed;
 }
 
+// Cache for the "skipped" placeholder image to avoid regenerating it
+let skippedPlaceholderCache: Buffer | null = null;
+
+/**
+ * Generate a "skipped" placeholder image using EverArt
+ * Used when skipCutout is true to indicate that cutout/background images were skipped
+ * The image is cached after first generation to avoid unnecessary API calls
+ */
+export async function generateSkippedPlaceholder(): Promise<Buffer> {
+  // Return cached version if available
+  if (skippedPlaceholderCache) {
+    return skippedPlaceholderCache;
+  }
+
+  const apiKey = process.env.EVERART_API_KEY;
+  if (!apiKey) {
+    throw new Error('EverArt API key not configured. Please set EVERART_API_KEY environment variable.');
+  }
+
+  const paletteDescription = 'warm earth tones with vibrant accents';
+  const prompt = `32-bit pixel art with clearly visible chunky pixel clusters, crisp sprite outlines, dithered shading, low-resolution retro fantasy aesthetic. The text "SKIPPED" in large bold letters, centered, transparent background, isolated text sprite, no background scene, no environment, no setting. Rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, no modern objects or technology. Centered composition, transparent background, 16:9 aspect ratio. --ar 16:9 --style raw`;
+
+  const everartClient = new EverArt(apiKey);
+  
+  const baseParams = {
+    imageCount: 1,
+    width: 1024,
+    height: 576, // 16:9 aspect ratio
+  };
+
+  // Create generation using SDK
+  const generations = await everartClient.v1.generations.create(
+    '5000',
+    prompt,
+    'txt2img',
+    baseParams
+  );
+
+  if (!generations || generations.length === 0) {
+    throw new Error('No generations returned from EverArt API');
+  }
+
+  // Poll for the result
+  const result = await everartClient.v1.generations.fetchWithPolling(generations[0].id);
+  const imageUrl = result.image_url;
+
+  if (!imageUrl) {
+    throw new Error('Image generation completed but no image URL was returned');
+  }
+
+  // Download and process the image
+  let buffer = await downloadImage(imageUrl);
+  buffer = await ensure16x9AspectRatio(buffer);
+  
+  // Import ensureTransparentBackground here to avoid circular dependency
+  const { ensureTransparentBackground } = await import('./backgroundRemoval');
+  buffer = await ensureTransparentBackground(buffer);
+
+  // Cache the result for future use
+  skippedPlaceholderCache = buffer;
+  
+  return buffer;
+}
+
 

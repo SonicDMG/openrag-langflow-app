@@ -41,6 +41,7 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [model, setModel] = useState('5000');
+  const [skipCutout, setSkipCutout] = useState(false);
 
   const [customHeroes, setCustomHeroes] = useState<DnDClass[]>([]);
   const [customMonsters, setCustomMonsters] = useState<DnDClass[]>([]);
@@ -130,16 +131,18 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
     }
   }, [klass, selectedDescription, isClass]); // Update when klass changes
 
-  // Update full prompt when userPrompt changes
-  // Always use transparent background version since we generate characters without backgrounds
+  // Update full prompt when userPrompt or skipCutout changes
+  // Use different base prompts based on skipCutout option
   useEffect(() => {
     if (userPrompt.trim()) {
-      const basePrompt = buildBasePrompt(userPrompt, true); // true = transparent background
+      // If skipCutout is true, use background prompt (character on background)
+      // If skipCutout is false, use cutout prompt (transparent background, isolated character)
+      const basePrompt = buildBasePrompt(userPrompt, !skipCutout); // !skipCutout = transparent background when false
       setFullPrompt(basePrompt);
     } else {
       setFullPrompt('');
     }
-  }, [userPrompt]);
+  }, [userPrompt, skipCutout]);
 
   const handleGenerateImage = async () => {
     if (!fullPrompt) {
@@ -152,23 +155,44 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
 
     try {
       // Use the full editable prompt for image generation
-      // Generate character with transparent background (no background scene)
-      // Rebuild prompt without background references if it's a template prompt
       let characterPrompt = fullPrompt;
       
-      // If it's a template prompt (contains background references), rebuild it for transparent background
-      if (fullPrompt.includes('depicted in a distinctly medieval high-fantasy world') || 
-          fullPrompt.includes('Placed in a medieval high-fantasy setting')) {
-        // Extract the character description from the existing prompt
-        // Try to extract the description part (between the style description and "depicted")
-        const match = fullPrompt.match(/retro fantasy aesthetic\.\s*(.+?)(?:,\s*depicted|$)/i);
-        const description = match ? match[1].trim() : userPrompt || 'a fantasy character';
-        characterPrompt = buildBasePrompt(description, true); // true = transparent background
+      if (skipCutout) {
+        // Generate character directly on background (no transparent background)
+        // Remove transparent background references and add background scene
+        if (characterPrompt.toLowerCase().includes('transparent') || 
+            characterPrompt.toLowerCase().includes('no background') ||
+            characterPrompt.toLowerCase().includes('isolated character')) {
+          // Rebuild prompt with background
+          const description = characterPrompt
+            .replace(/transparent background[,\s]*/gi, '')
+            .replace(/isolated character[,\s]*/gi, '')
+            .replace(/no background scene[,\s]*/gi, '')
+            .replace(/no environment[,\s]*/gi, '')
+            .replace(/no setting[,\s]*/gi, '')
+            .trim();
+          characterPrompt = `${description}, depicted in a medieval high-fantasy setting with atmospheric background, ancient ruins, mystical lighting`;
+        } else if (!characterPrompt.toLowerCase().includes('background') && 
+                   !characterPrompt.toLowerCase().includes('setting')) {
+          // Add background if not present
+          characterPrompt = `${characterPrompt}, medieval high-fantasy background scene with atmospheric lighting`;
+        }
       } else {
-        // Custom prompt - just ensure transparent background is requested
-        if (!characterPrompt.toLowerCase().includes('transparent') && 
-            !characterPrompt.toLowerCase().includes('no background')) {
-          characterPrompt = characterPrompt + ', transparent background, isolated character, no background scene, no environment';
+        // Generate character with transparent background (no background scene)
+        // Rebuild prompt without background references if it's a template prompt
+        if (fullPrompt.includes('depicted in a distinctly medieval high-fantasy world') || 
+            fullPrompt.includes('Placed in a medieval high-fantasy setting')) {
+          // Extract the character description from the existing prompt
+          // Try to extract the description part (between the style description and "depicted")
+          const match = fullPrompt.match(/retro fantasy aesthetic\.\s*(.+?)(?:,\s*depicted|$)/i);
+          const description = match ? match[1].trim() : userPrompt || 'a fantasy character';
+          characterPrompt = buildBasePrompt(description, true); // true = transparent background
+        } else {
+          // Custom prompt - just ensure transparent background is requested
+          if (!characterPrompt.toLowerCase().includes('transparent') && 
+              !characterPrompt.toLowerCase().includes('no background')) {
+            characterPrompt = characterPrompt + ', transparent background, isolated character, no background scene, no environment';
+          }
         }
       }
       
@@ -181,7 +205,7 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
           prompt: characterPrompt,
           seed,
           model,
-          transparentBackground: true, // Generate character with transparent background
+          transparentBackground: !skipCutout, // Generate with transparent background only if skipCutout is false
           aspectRatio: '16:9', // 16:9 aspect ratio for perfect fit
         }),
       });
@@ -227,6 +251,7 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
           prompt: fullPrompt,
           seed,
           imageUrl,
+          skipCutout,
           stats: {
             hitPoints: 30,
             maxHitPoints: 30,
@@ -319,6 +344,23 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
             <option value="8000">Recraft-Vector (Vector Art)</option>
           </select>
         </label>
+      </div>
+
+      <div className="space-y-2">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={skipCutout}
+            onChange={(e) => setSkipCutout(e.target.checked)}
+            className="w-4 h-4 text-blue-600 bg-amber-900/50 border-amber-700 rounded focus:ring-blue-500 focus:ring-2"
+          />
+          <span className="text-sm font-medium text-amber-100">
+            Skip cutout creation (reserve for special monsters)
+          </span>
+        </label>
+        <p className="text-xs text-amber-300 ml-6">
+          When enabled, the character will be generated directly on a background (no transparent background processing). A placeholder cutout will be created. Cutout versions are reserved for special monsters that need isolated character sprites.
+        </p>
       </div>
 
       <div className="space-y-2">

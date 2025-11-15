@@ -23,6 +23,7 @@ interface CreatedMonsterData {
     description?: string;
   };
   imageUrl: string;
+  hasCutout?: boolean; // Whether cutout images exist (false when skipCutout was true)
 }
 
 export default function MonsterCreatorPage() {
@@ -142,6 +143,7 @@ export default function MonsterCreatorPage() {
                 ...createdMonsterData,
                 klass: monster.klass,
                 stats: monster.stats,
+                hasCutout: monster.hasCutout,
               });
               setSelectedKlass(monster.klass);
             }
@@ -197,22 +199,70 @@ export default function MonsterCreatorPage() {
     setMissTrigger(prev => prev + 1);
   }, []);
 
-  const handleMonsterCreated = useCallback((monsterId: string, klass: string, imageUrl: string) => {
+  const handleMonsterCreated = useCallback(async (monsterId: string, klass: string, imageUrl: string) => {
     console.log('Monster created:', { monsterId, klass, imageUrl });
-    setCreatedMonsterData({
-      monsterId,
-      klass,
-      prompt: '',
-      stats: {
-        hitPoints: 30,
-        maxHitPoints: 30,
-        armorClass: 14,
-        attackBonus: 4,
-        damageDie: 'd8',
-      },
-      imageUrl: `/cdn/monsters/${monsterId}/280x200.png`, // Use the wider version for card display
-    });
-    setSelectedKlass(klass);
+    
+    // Fetch monster data including hasCutout from API
+    try {
+      const response = await fetch('/api/monsters');
+      if (response.ok) {
+        const data = await response.json();
+        const monster = data.monsters.find((m: any) => m.monsterId === monsterId);
+        if (monster) {
+          setCreatedMonsterData({
+            monsterId,
+            klass: monster.klass || klass,
+            prompt: monster.prompt || '',
+            stats: monster.stats || {
+              hitPoints: 30,
+              maxHitPoints: 30,
+              armorClass: 14,
+              attackBonus: 4,
+              damageDie: 'd8',
+            },
+            imageUrl: `/cdn/monsters/${monsterId}/280x200.png`, // Use the wider version for card display
+            hasCutout: monster.hasCutout,
+          });
+          setSelectedKlass(monster.klass || klass);
+        } else {
+          // Fallback if monster not found in API
+          setCreatedMonsterData({
+            monsterId,
+            klass,
+            prompt: '',
+            stats: {
+              hitPoints: 30,
+              maxHitPoints: 30,
+              armorClass: 14,
+              attackBonus: 4,
+              damageDie: 'd8',
+            },
+            imageUrl: `/cdn/monsters/${monsterId}/280x200.png`,
+            hasCutout: undefined,
+          });
+          setSelectedKlass(klass);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load monster data after creation:', error);
+      // Fallback on error
+      setCreatedMonsterData({
+        monsterId,
+        klass,
+        prompt: '',
+        stats: {
+          hitPoints: 30,
+          maxHitPoints: 30,
+          armorClass: 14,
+          attackBonus: 4,
+          damageDie: 'd8',
+        },
+        imageUrl: `/cdn/monsters/${monsterId}/280x200.png`,
+        hasCutout: undefined,
+      });
+      setSelectedKlass(klass);
+    }
+    
     setSaveSuccess(false);
     setSaveError(null);
   }, []);
@@ -549,7 +599,9 @@ export default function MonsterCreatorPage() {
                     playerClass={previewMonsterClass}
                     characterName={selectedKlass || createdMonsterData.klass || 'Monster'}
                     monsterImageUrl={createdMonsterData.imageUrl}
-                    monsterCutOutImageUrl={createdMonsterData.monsterId ? `/cdn/monsters/${createdMonsterData.monsterId}/280x200-cutout.png` : undefined}
+                    monsterCutOutImageUrl={createdMonsterData.hasCutout !== false && createdMonsterData.monsterId 
+                      ? `/cdn/monsters/${createdMonsterData.monsterId}/280x200-cutout.png` 
+                      : undefined}
                     shouldShake={shouldShake}
                     shouldSparkle={shouldSparkle}
                     shouldMiss={shouldMiss}

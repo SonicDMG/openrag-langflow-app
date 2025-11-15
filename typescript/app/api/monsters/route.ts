@@ -5,7 +5,7 @@ import { join } from 'path';
 import sharp from 'sharp';
 import { pixelize } from '@/app/dnd/server/pixelize';
 import { saveMonsterBundle } from '@/app/dnd/server/storage';
-import { generateReferenceImage, downloadImage, ensure16x9AspectRatio } from '@/app/dnd/server/imageGeneration';
+import { generateReferenceImage, downloadImage, ensure16x9AspectRatio, generateSkippedPlaceholder } from '@/app/dnd/server/imageGeneration';
 import { removeBackground, ensureTransparentBackground } from '@/app/dnd/server/backgroundRemoval';
 import { MonsterBundle } from '@/app/dnd/utils/monsterTypes';
 
@@ -20,7 +20,7 @@ function formatErrorResponse(error: unknown): { error: string } {
 
 export async function POST(req: NextRequest) {
   try {
-    const { klass, prompt, seed = Math.floor(Math.random() * 1000000), stats, imageUrl, animationConfig } = await req.json();
+    const { klass, prompt, seed = Math.floor(Math.random() * 1000000), stats, imageUrl, animationConfig, skipCutout = false } = await req.json();
 
     if (!klass || !prompt) {
       return NextResponse.json(
@@ -32,243 +32,467 @@ export async function POST(req: NextRequest) {
     // Generate monster ID
     const monsterId = uuidv4();
 
-    // 1) Get the character image (should already be transparent background from preview generation)
-    let refPngCutOut: Buffer;
-    
-    if (imageUrl) {
-      // Use provided image URL (should be character with transparent background)
-      try {
-        // Check if it's a data URL (base64) or regular URL
-        if (imageUrl.startsWith('data:image/')) {
-          // Extract base64 data from data URL
-          const base64Data = imageUrl.split(',')[1];
-          refPngCutOut = Buffer.from(base64Data, 'base64');
-          console.log('Using provided data URL image (already processed with transparent background)');
-        } else {
-          // Regular URL - download it
-          refPngCutOut = await downloadImage(imageUrl);
-          // If it came from generate-image with transparentBackground=true, it should already be processed
-          // But if it's a direct URL, we may need to remove background
-          // For now, assume it's already processed if it came from our generate-image endpoint
+    let refPngWithNewBg: Buffer;
+    let refPngCutOut: Buffer | undefined;
+    let newBackgroundPng: Buffer | undefined;
+    let palette: number[];
+
+    if (skipCutout) {
+      // Simplified path: Generate character directly on background (no cutout processing)
+      console.log('Generating character directly on background (skipCutout=true)...');
+      
+      if (imageUrl) {
+        // Use provided image URL
+        try {
+          let imageBuffer: Buffer;
+          if (imageUrl.startsWith('data:image/')) {
+            const base64Data = imageUrl.split(',')[1];
+            imageBuffer = Buffer.from(base64Data, 'base64');
+          } else {
+            imageBuffer = await downloadImage(imageUrl);
+          }
+          refPngWithNewBg = await ensure16x9AspectRatio(imageBuffer);
+        } catch (error) {
+          console.error('Failed to process provided image:', error);
+          return NextResponse.json(
+            { error: 'Failed to process provided image URL' },
+            { status: 400 }
+          );
         }
-        
-        // Ensure 16:9 aspect ratio for perfect fit (crop if needed)
-        console.log('Ensuring 16:9 aspect ratio for character...');
-        refPngCutOut = await ensure16x9AspectRatio(refPngCutOut);
-        
-        // Ensure it has alpha channel (should already be transparent, but verify)
-        refPngCutOut = await ensureTransparentBackground(refPngCutOut);
-      } catch (error) {
-        console.error('Failed to process provided image:', error);
-        return NextResponse.json(
-          { error: 'Failed to process provided image URL' },
-          { status: 400 }
-        );
+      } else {
+        // Generate character on background directly (no transparent background needed)
+        try {
+          let characterPrompt = prompt;
+          // Remove any transparent background references and add background scene
+          if (characterPrompt.toLowerCase().includes('transparent') || 
+              characterPrompt.toLowerCase().includes('no background') ||
+              characterPrompt.toLowerCase().includes('isolated character')) {
+            // Rebuild prompt with background
+            const description = characterPrompt
+              .replace(/transparent background[,\s]*/gi, '')
+              .replace(/isolated character[,\s]*/gi, '')
+              .replace(/no background scene[,\s]*/gi, '')
+              .replace(/no environment[,\s]*/gi, '')
+              .replace(/no setting[,\s]*/gi, '')
+              .trim();
+            characterPrompt = `${description}, depicted in a medieval high-fantasy setting with atmospheric background, ancient ruins, mystical lighting`;
+          } else if (!characterPrompt.toLowerCase().includes('background') && 
+                     !characterPrompt.toLowerCase().includes('setting')) {
+            // Add background if not present
+            characterPrompt = `${characterPrompt}, medieval high-fantasy background scene with atmospheric lighting`;
+          }
+          
+          const characterImage = await generateReferenceImage({
+            prompt: characterPrompt,
+            model: '5000',
+            imageCount: 1,
+            width: 1024,
+            height: 576, // 16:9 aspect ratio
+          });
+          
+          refPngWithNewBg = await ensure16x9AspectRatio(characterImage.buffer);
+        } catch (error) {
+          console.error('Image generation error:', error);
+          return NextResponse.json(
+            { 
+              error: 'Failed to generate image. Please provide an imageUrl or configure image generation service.',
+            },
+            { status: 500 }
+          );
+        }
       }
-    } else {
-      // Generate character with transparent background if no imageUrl provided
+
+      // Pixelize the final image
+      console.log('Pixelizing final image...');
+      const pixelized = await pixelize(refPngWithNewBg, {
+        base: 256,
+        colors: 32,
+      });
+      
+      const { png128, png200, png280x200, png256, png512 } = pixelized;
+      palette = pixelized.palette;
+      
+      // When skipCutout is true, generate "skipped" placeholder images for cutout and background-only
+      console.log('Generating "skipped" placeholder images (skipCutout=true)...');
+      let skippedPlaceholder: Buffer;
       try {
-        console.log('Generating character with transparent background...');
-        let characterPrompt = prompt;
-        // Ensure transparent background is requested
-        if (!characterPrompt.toLowerCase().includes('transparent')) {
-          characterPrompt = characterPrompt + ', transparent background, isolated character, no background scene';
-        }
+        skippedPlaceholder = await generateSkippedPlaceholder();
         
-        const characterImage = await generateReferenceImage({
-          prompt: characterPrompt,
+        // Pixelize the placeholder
+        const skippedPixelized = await pixelize(skippedPlaceholder, {
+          base: 256,
+          colors: 32,
+        });
+        
+        // Create bundle with "skipped" placeholder images
+        const rig = {
+          meta: {
+            imageW: 256,
+            imageH: 256,
+            monsterId,
+            class: klass,
+            seed,
+            animationConfig: animationConfig || undefined,
+            weaponPart: animationConfig?.weaponPart || undefined,
+            skipCutout: true, // Flag to indicate cutouts were skipped
+          },
+          bones: [],
+          slots: [],
+          parts: {},
+          expressions: {
+            neutral: {},
+          },
+        };
+
+        const bundle: MonsterBundle = {
+          monsterId,
+          klass,
+          seed,
+          prompt,
+          stats: stats || {
+            hitPoints: 30,
+            maxHitPoints: 30,
+            armorClass: 14,
+            attackBonus: 4,
+            damageDie: 'd8',
+            description: `A ${klass} monster`,
+          },
+          palette,
+          rig,
+          images: {
+            png128,
+            png200,
+            png280x200,
+            png256,
+            png512,
+          },
+          // Use "skipped" placeholder images for both cutout and background-only
+          cutOutImages: {
+            png128: skippedPixelized.png128,
+            png200: skippedPixelized.png200,
+            png280x200: skippedPixelized.png280x200,
+            png256: skippedPixelized.png256,
+            png512: skippedPixelized.png512,
+          },
+          backgroundOnlyImages: {
+            png128: skippedPixelized.png128,
+            png200: skippedPixelized.png200,
+            png280x200: skippedPixelized.png280x200,
+            png256: skippedPixelized.png256,
+            png512: skippedPixelized.png512,
+          },
+        };
+
+        await saveMonsterBundle(bundle);
+      } catch (error) {
+        console.warn('Failed to generate skipped placeholder, creating without cutout/background images:', error);
+        // Fallback: create bundle without cutout/background images if placeholder generation fails
+        const rig = {
+          meta: {
+            imageW: 256,
+            imageH: 256,
+            monsterId,
+            class: klass,
+            seed,
+            animationConfig: animationConfig || undefined,
+            weaponPart: animationConfig?.weaponPart || undefined,
+            skipCutout: true,
+          },
+          bones: [],
+          slots: [],
+          parts: {},
+          expressions: {
+            neutral: {},
+          },
+        };
+
+        const bundle: MonsterBundle = {
+          monsterId,
+          klass,
+          seed,
+          prompt,
+          stats: stats || {
+            hitPoints: 30,
+            maxHitPoints: 30,
+            armorClass: 14,
+            attackBonus: 4,
+            damageDie: 'd8',
+            description: `A ${klass} monster`,
+          },
+          palette,
+          rig,
+          images: {
+            png128,
+            png200,
+            png280x200,
+            png256,
+            png512,
+          },
+          cutOutImages: undefined,
+          backgroundOnlyImages: undefined,
+        };
+
+        await saveMonsterBundle(bundle);
+      }
+
+      return NextResponse.json({
+        monsterId,
+        url: `/cdn/monsters/${monsterId}`,
+      });
+    } else {
+      // Full path: Generate character with transparent background, then composite
+      // 1) Get the character image (should already be transparent background from preview generation)
+      if (imageUrl) {
+        // Use provided image URL (should be character with transparent background)
+        try {
+          // Check if it's a data URL (base64) or regular URL
+          if (imageUrl.startsWith('data:image/')) {
+            // Extract base64 data from data URL
+            const base64Data = imageUrl.split(',')[1];
+            refPngCutOut = Buffer.from(base64Data, 'base64');
+            console.log('Using provided data URL image (already processed with transparent background)');
+          } else {
+            // Regular URL - download it
+            refPngCutOut = await downloadImage(imageUrl);
+            // If it came from generate-image with transparentBackground=true, it should already be processed
+            // But if it's a direct URL, we may need to remove background
+            // For now, assume it's already processed if it came from our generate-image endpoint
+          }
+          
+          // Don't crop cutout images - preserve full character including head and feet
+          // Ensure it has alpha channel (should already be transparent, but verify)
+          refPngCutOut = await ensureTransparentBackground(refPngCutOut);
+        } catch (error) {
+          console.error('Failed to process provided image:', error);
+          return NextResponse.json(
+            { error: 'Failed to process provided image URL' },
+            { status: 400 }
+          );
+        }
+      } else {
+        // Generate character with transparent background if no imageUrl provided
+        try {
+          console.log('Generating character with transparent background...');
+          let characterPrompt = prompt;
+          // Ensure transparent background is requested
+          if (!characterPrompt.toLowerCase().includes('transparent')) {
+            characterPrompt = characterPrompt + ', transparent background, isolated character, no background scene';
+          }
+          
+          const characterImage = await generateReferenceImage({
+            prompt: characterPrompt,
+            model: '5000',
+            imageCount: 1,
+            width: 1024,
+            height: 576, // 16:9 aspect ratio (but we won't crop to enforce it)
+          });
+          
+          // Don't crop cutout images - preserve full character including head and feet
+          refPngCutOut = await ensureTransparentBackground(characterImage.buffer);
+        } catch (error) {
+          console.error('Image generation error:', error);
+          return NextResponse.json(
+            { 
+              error: 'Failed to generate image. Please provide an imageUrl or configure image generation service.',
+              hint: 'You can generate an image using the EverArt MCP tool and pass the URL in the request body.'
+            },
+            { status: 500 }
+          );
+        }
+      }
+
+      // 2) Generate a new atmospheric background and composite character on top
+      console.log('Generating new background scene...');
+      const backgroundPrompt = `32-bit pixel art with clearly visible chunky pixel clusters, crisp sprite outlines, dithered shading, low-resolution retro fantasy aesthetic. An atmospheric medieval high-fantasy background scene with ancient ruins, mystical lighting, and dramatic atmosphere. EMPTY scene with ABSOLUTELY NO characters, NO creatures, NO people, NO beings, NO figures, NO entities, NO living things - ONLY the environment, architecture, landscape, ruins, lighting, and atmosphere. Completely empty of any characters or creatures. Warm earth tones with vibrant magical accents. Retro SNES/Genesis style, cinematic composition, 16:9 aspect ratio. --ar 16:9 --style raw`;
+      
+      try {
+        // Generate background using the utility function
+        const backgroundImage = await generateReferenceImage({
+          prompt: backgroundPrompt,
           model: '5000',
           imageCount: 1,
           width: 1024,
           height: 576, // 16:9 aspect ratio
         });
         
-        refPngCutOut = await ensure16x9AspectRatio(characterImage.buffer);
-        refPngCutOut = await ensureTransparentBackground(refPngCutOut);
+        newBackgroundPng = await ensure16x9AspectRatio(backgroundImage.buffer);
       } catch (error) {
-        console.error('Image generation error:', error);
-        return NextResponse.json(
-          { 
-            error: 'Failed to generate image. Please provide an imageUrl or configure image generation service.',
-            hint: 'You can generate an image using the EverArt MCP tool and pass the URL in the request body.'
-          },
-          { status: 500 }
-        );
+        console.warn('Failed to generate new background, creating fallback:', error);
+        // Fallback: create a simple solid color background
+        newBackgroundPng = await sharp({
+          create: {
+            width: 1024,
+            height: 576,
+            channels: 3,
+            background: { r: 45, g: 35, b: 28 } // Dark brown/amber background
+          }
+        })
+        .png()
+        .toBuffer();
       }
-    }
 
-    // 2) Generate a new atmospheric background and composite character on top
-    console.log('Generating new background scene...');
-    const backgroundPrompt = `32-bit pixel art with clearly visible chunky pixel clusters, crisp sprite outlines, dithered shading, low-resolution retro fantasy aesthetic. An atmospheric medieval high-fantasy background scene with ancient ruins, mystical lighting, and dramatic atmosphere. EMPTY scene with ABSOLUTELY NO characters, NO creatures, NO people, NO beings, NO figures, NO entities, NO living things - ONLY the environment, architecture, landscape, ruins, lighting, and atmosphere. Completely empty of any characters or creatures. Warm earth tones with vibrant magical accents. Retro SNES/Genesis style, cinematic composition, 16:9 aspect ratio. --ar 16:9 --style raw`;
-    
-    let newBackgroundPng: Buffer;
-    try {
-      // Generate background using the utility function
-      const backgroundImage = await generateReferenceImage({
-        prompt: backgroundPrompt,
-        model: '5000',
-        imageCount: 1,
-        width: 1024,
-        height: 576, // 16:9 aspect ratio
+      // 3) Pixelize all versions first, then composite using pixelized images
+      // This ensures the composite matches exactly what's displayed in CharacterCard
+      console.log('Pixelizing background-only version...');
+      const { 
+        png128: png128BgOnly, 
+        png200: png200BgOnly, 
+        png280x200: png280x200BgOnly, 
+        png256: png256BgOnly, 
+        png512: png512BgOnly,
+        palette: bgPalette 
+      } = await pixelize(newBackgroundPng, {
+        base: 256,
+        colors: 32,
+      });
+
+      console.log('Pixelizing cut-out version...');
+      const cutOutResult = await pixelize(refPngCutOut, {
+        base: 256,
+        colors: 32,
+        preserveFullImage: true, // Preserve full cutout image including top (no cropping)
       });
       
-      newBackgroundPng = await ensure16x9AspectRatio(backgroundImage.buffer);
-    } catch (error) {
-      console.warn('Failed to generate new background, creating fallback:', error);
-      // Fallback: create a simple solid color background
-      newBackgroundPng = await sharp({
-        create: {
-          width: 1024,
-          height: 576,
-          channels: 3,
-          background: { r: 45, g: 35, b: 28 } // Dark brown/amber background
-        }
-      })
-      .png()
-      .toBuffer();
-    }
+      palette = bgPalette;
 
-    // Composite the cut-out character on top of the new background
-    console.log('Compositing character on new background...');
-    const metadata = await sharp(newBackgroundPng).metadata();
-    const cutOutMetadata = await sharp(refPngCutOut).metadata();
-    
-    if (!metadata.width || !metadata.height || !cutOutMetadata.width || !cutOutMetadata.height) {
-      throw new Error('Unable to read image dimensions for compositing');
-    }
+      // Composite the pixelized cutout onto the pixelized background
+      // This ensures the composite matches exactly what CharacterCard displays
+      console.log('Compositing pixelized character on pixelized background...');
+      const bgMetadata = await sharp(png280x200BgOnly).metadata();
+      const cutOutMetadata = await sharp(cutOutResult.png280x200).metadata();
+      
+      if (!bgMetadata.width || !bgMetadata.height || !cutOutMetadata.width || !cutOutMetadata.height) {
+        throw new Error('Unable to read pixelized image dimensions for compositing');
+      }
 
-    // Scale down the character to fit better (80% of background height, maintaining aspect ratio)
-    // This prevents heads from being cut off due to 16:9 cropping
-    const scaleFactor = Math.min(
-      0.8, // Max 80% of background height
-      (metadata.height * 0.8) / cutOutMetadata.height // Scale to fit 80% of background height
-    );
-    
-    const scaledWidth = Math.floor(cutOutMetadata.width * scaleFactor);
-    const scaledHeight = Math.floor(cutOutMetadata.height * scaleFactor);
-    
-    console.log(`Scaling character from ${cutOutMetadata.width}x${cutOutMetadata.height} to ${scaledWidth}x${scaledHeight} (${(scaleFactor * 100).toFixed(1)}%)`);
-    
-    // Resize the character cut-out
-    const scaledCutOut = await sharp(refPngCutOut)
-      .resize(scaledWidth, scaledHeight, {
-        fit: 'inside',
-        kernel: sharp.kernel.lanczos3,
-      })
-      .png()
-      .toBuffer();
+      // Scale down the character to 80% of background height (matching CharacterCard scale)
+      const scaleFactor = 0.8; // 80% scale to match CharacterCard
+      const scaledWidth = Math.floor(cutOutMetadata.width * scaleFactor);
+      const scaledHeight = Math.floor(cutOutMetadata.height * scaleFactor);
+      
+      console.log(`Scaling pixelized character from ${cutOutMetadata.width}x${cutOutMetadata.height} to ${scaledWidth}x${scaledHeight} (80%)`);
+      
+      // Resize the pixelized character cut-out
+      const scaledCutOut = await sharp(cutOutResult.png280x200)
+        .resize(scaledWidth, scaledHeight, {
+          fit: 'inside',
+          kernel: sharp.kernel.nearest, // Use nearest neighbor to maintain pixel art quality
+        })
+        .png()
+        .toBuffer();
 
-    // Center the character on the background with some vertical offset (character appears to be "in front")
-    const compositeX = Math.floor((metadata.width - scaledWidth) / 2);
-    const compositeY = Math.floor((metadata.height - scaledHeight) / 2) - 10; // Slight upward offset for depth
-    
-    const refPngWithNewBg = await sharp(newBackgroundPng)
-      .composite([
-        {
-          input: scaledCutOut,
-          left: Math.max(0, compositeX),
-          top: Math.max(0, compositeY),
-        }
-      ])
-      .png()
-      .toBuffer();
+      // Center the character horizontally, align bottom to background bottom
+      const compositeX = Math.floor((bgMetadata.width - scaledWidth) / 2);
+      const compositeY = Math.floor(bgMetadata.height - scaledHeight); // Align to bottom
+      
+      const png280x200 = await sharp(png280x200BgOnly)
+        .composite([
+          {
+            input: scaledCutOut,
+            left: Math.max(0, compositeX),
+            top: Math.max(0, compositeY),
+          }
+        ])
+        .png()
+        .toBuffer();
 
-    // 3) Pixelize all versions
-    console.log('Pixelizing background-only version...');
-    const { 
-      png128: png128BgOnly, 
-      png200: png200BgOnly, 
-      png280x200: png280x200BgOnly, 
-      png256: png256BgOnly, 
-      png512: png512BgOnly,
-      palette 
-    } = await pixelize(newBackgroundPng, {
-      base: 256,
-      colors: 32,
-    });
+      // Generate other sizes from the composite
+      // For 280x200, we already have it
+      // For other sizes, we can scale from the 280x200 composite or create them separately
+      // For simplicity, let's scale from the 280x200 composite
+      const png128 = await sharp(png280x200)
+        .resize(128, Math.round(128 * (200/280)), {
+          kernel: sharp.kernel.nearest,
+        })
+        .png()
+        .toBuffer();
+      
+      const png200 = await sharp(png280x200)
+        .resize(200, Math.round(200 * (200/280)), {
+          kernel: sharp.kernel.nearest,
+        })
+        .png()
+        .toBuffer();
+      
+      const png256 = await sharp(png280x200)
+        .resize(256, Math.round(256 * (200/280)), {
+          kernel: sharp.kernel.nearest,
+        })
+        .png()
+        .toBuffer();
+      
+      const png512 = await sharp(png280x200)
+        .resize(512, Math.round(512 * (200/280)), {
+          kernel: sharp.kernel.nearest,
+        })
+        .png()
+        .toBuffer();
 
-    console.log('Pixelizing composite version (new background + character)...');
-    const { png128, png200, png280x200, png256, png512 } = await pixelize(refPngWithNewBg, {
-      base: 256,
-      colors: 32, // Increased from 16 to 32 for better color detail
-    });
+      // 4) Create minimal rig metadata (no part extraction needed)
+      const rig = {
+        meta: {
+          imageW: 256,
+          imageH: 256,
+          monsterId,
+          class: klass,
+          seed,
+          animationConfig: animationConfig || undefined,
+          weaponPart: animationConfig?.weaponPart || undefined,
+        },
+        bones: [],
+        slots: [],
+        parts: {},
+        expressions: {
+          neutral: {},
+        },
+      };
 
-    console.log('Pixelizing cut-out version...');
-    const { 
-      png128: png128CutOut, 
-      png200: png200CutOut, 
-      png280x200: png280x200CutOut, 
-      png256: png256CutOut, 
-      png512: png512CutOut 
-    } = await pixelize(refPngCutOut, {
-      base: 256,
-      colors: 32,
-    });
-
-    // 5) Create minimal rig metadata (no part extraction needed)
-    const rig = {
-      meta: {
-        imageW: 256,
-        imageH: 256,
+      // 5) Persist & return id
+      const bundle: MonsterBundle = {
         monsterId,
-        class: klass,
+        klass,
         seed,
-        animationConfig: animationConfig || undefined,
-        weaponPart: animationConfig?.weaponPart || undefined,
-      },
-      bones: [],
-      slots: [],
-      parts: {},
-      expressions: {
-        neutral: {},
-      },
-    };
+        prompt,
+        stats: stats || {
+          hitPoints: 30,
+          maxHitPoints: 30,
+          armorClass: 14,
+          attackBonus: 4,
+          damageDie: 'd8',
+          description: `A ${klass} monster`,
+        },
+        palette,
+        rig,
+        images: {
+          png128,
+          png200,
+          png280x200,
+          png256,
+          png512,
+        },
+        cutOutImages: {
+          png128: cutOutResult.png128,
+          png200: cutOutResult.png200,
+          png280x200: cutOutResult.png280x200,
+          png256: cutOutResult.png256,
+          png512: cutOutResult.png512,
+        },
+        backgroundOnlyImages: {
+          png128: png128BgOnly,
+          png200: png200BgOnly,
+          png280x200: png280x200BgOnly,
+          png256: png256BgOnly,
+          png512: png512BgOnly,
+        },
+      };
 
-    // 6) Persist & return id
-    const bundle: MonsterBundle = {
-      monsterId,
-      klass,
-      seed,
-      prompt,
-      stats: stats || {
-        hitPoints: 30,
-        maxHitPoints: 30,
-        armorClass: 14,
-        attackBonus: 4,
-        damageDie: 'd8',
-        description: `A ${klass} monster`,
-      },
-      palette,
-      rig,
-      images: {
-        png128,
-        png200,
-        png280x200,
-        png256,
-        png512,
-      },
-      cutOutImages: {
-        png128: png128CutOut,
-        png200: png200CutOut,
-        png280x200: png280x200CutOut,
-        png256: png256CutOut,
-        png512: png512CutOut,
-      },
-      backgroundOnlyImages: {
-        png128: png128BgOnly,
-        png200: png200BgOnly,
-        png280x200: png280x200BgOnly,
-        png256: png256BgOnly,
-        png512: png512BgOnly,
-      },
-    };
+      await saveMonsterBundle(bundle);
 
-    await saveMonsterBundle(bundle);
-
-    return NextResponse.json({
-      monsterId,
-      url: `/cdn/monsters/${monsterId}`,
-    });
+      return NextResponse.json({
+        monsterId,
+        url: `/cdn/monsters/${monsterId}`,
+      });
+    }
   } catch (error) {
     console.error('Monster creation error:', error);
     return NextResponse.json(formatErrorResponse(error), { status: 500 });

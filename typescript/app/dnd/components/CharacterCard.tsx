@@ -567,39 +567,52 @@ function CharacterCardComponent({
               />
               {/* Cut-out character layer with animation (only load after main image loads to avoid initial 404s) */}
               {monsterCutOutImageUrl && mainImageLoaded && !cutOutImageError && (
-                <img
-                  ref={cutOutCharacterRef}
-                  src={monsterCutOutImageUrl}
-                  alt={`${characterName} (cut-out)`}
-                  className="character-cutout"
+                <div
                   style={{
-                    imageRendering: 'pixelated' as const,
+                    position: 'absolute',
+                    bottom: 0, // Align bottom of cutout with bottom of background
+                    left: '50%',
+                    transform: 'translateX(-50%) scale(0.8)', // Scale container to 80%
+                    transformOrigin: 'center bottom', // Scale from bottom center so bottom stays aligned
                     width: '100%',
                     height: '100%',
-                    objectFit: 'cover',
-                    display: 'block',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
                     zIndex: 1,
+                    display: 'flex',
+                    alignItems: 'flex-end', // Align image to bottom of container
+                    justifyContent: 'center',
                   }}
-                  onLoad={() => {
-                    // Ensure animation starts when image loads
-                    if (cutOutCharacterRef.current) {
-                      const element = cutOutCharacterRef.current;
-                      element.classList.remove('character-cutout');
-                      requestAnimationFrame(() => {
-                        if (element) {
-                          element.classList.add('character-cutout');
-                        }
-                      });
-                    }
-                  }}
-                  onError={() => {
-                    // Silently handle missing cutout images - they're optional
-                    setCutOutImageError(true);
-                  }}
-                />
+                >
+                  <img
+                    ref={cutOutCharacterRef}
+                    src={monsterCutOutImageUrl}
+                    alt={`${characterName} (cut-out)`}
+                    className="character-cutout"
+                    style={{
+                      imageRendering: 'pixelated' as const,
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain', // Preserve aspect ratio and fit within container
+                      objectPosition: 'center bottom', // Align character to bottom
+                      display: 'block',
+                    }}
+                    onLoad={() => {
+                      // Ensure animation starts when image loads
+                      if (cutOutCharacterRef.current) {
+                        const element = cutOutCharacterRef.current;
+                        element.classList.remove('character-cutout');
+                        requestAnimationFrame(() => {
+                          if (element) {
+                            element.classList.add('character-cutout');
+                          }
+                        });
+                      }
+                    }}
+                    onError={() => {
+                      // Silently handle missing cutout images - they're optional
+                      setCutOutImageError(true);
+                    }}
+                  />
+                </div>
               )}
             </>
           ) : (

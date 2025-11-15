@@ -52,6 +52,9 @@ export async function saveMonsterBundle(bundle: MonsterBundle): Promise<string> 
 
 
   // Save metadata
+  // Note: hasCutout should be false when skipCutout was true (even if placeholder cutouts exist)
+  // This is passed via the bundle's rig.meta.skipCutout flag
+  const skipCutout = (bundle.rig.meta as any)?.skipCutout === true;
   const metadata = {
     monsterId: bundle.monsterId,
     klass: bundle.klass,
@@ -59,7 +62,8 @@ export async function saveMonsterBundle(bundle: MonsterBundle): Promise<string> 
     prompt: bundle.prompt,
     stats: bundle.stats,
     palette: bundle.palette,
-    hasCutout: !!bundle.cutOutImages, // Track if cutout images exist
+    hasCutout: skipCutout ? false : !!bundle.cutOutImages, // Track if cutout images exist (false if skipCutout was true)
+    skipCutout, // Store the skipCutout flag for reference
     createdAt: new Date().toISOString(),
   };
   await fs.writeFile(join(monsterDir, 'metadata.json'), JSON.stringify(metadata, null, 2));
