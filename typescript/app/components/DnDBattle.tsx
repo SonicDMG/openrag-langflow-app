@@ -33,7 +33,7 @@ import { getBattleNarrative } from '../dnd/services/apiService';
 
 // Components
 import { ClassSelection } from '../dnd/components/ClassSelection';
-import { DiceRoll } from '../dnd/components/DiceRoll';
+import { FloatingNumber, FloatingNumberType } from '../dnd/components/FloatingNumber';
 import { CharacterCard } from '../dnd/components/CharacterCard';
 
 export default function DnDBattle() {
@@ -76,27 +76,21 @@ export default function DnDBattle() {
   const [defeatedPlayer, setDefeatedPlayer] = useState<'player1' | 'player2' | null>(null);
   const [victorPlayer, setVictorPlayer] = useState<'player1' | 'player2' | null>(null);
   const [confettiTrigger, setConfettiTrigger] = useState(0);
-  const [diceRollTrigger, setDiceRollTrigger] = useState(0);
-  const [diceRollData, setDiceRollData] = useState<Array<{ diceType: string; result: number }>>([]);
-  const [isDiceRolling, setIsDiceRolling] = useState(false);
   const [castingPlayer, setCastingPlayer] = useState<'player1' | 'player2' | null>(null);
   const [castTrigger, setCastTrigger] = useState({ player1: 0, player2: 0 });
   
-  // Queue for visual effects that should trigger after dice roll completes
-  // (Type imported from battle utils)
-  
-  // Callback to execute after dice roll completes (for HP updates, etc.)
-  type PostDiceRollCallback = () => void;
-  
-  // Dice queue now includes associated visual effects and callbacks
-  type QueuedDiceRoll = {
-    diceRolls: Array<{ diceType: string; result: number }>;
-    visualEffects: PendingVisualEffect[];
-    callbacks?: PostDiceRollCallback[];
+  // Floating numbers state - replaces dice roll system
+  type FloatingNumberData = {
+    id: string;
+    value: number | string;
+    type: FloatingNumberType;
+    targetPlayer: 'player1' | 'player2';
   };
-  const diceQueueRef = useRef<QueuedDiceRoll[]>([]);
-  const currentVisualEffectsRef = useRef<PendingVisualEffect[]>([]);
-  const currentCallbacksRef = useRef<PostDiceRollCallback[]>([]);
+  const [floatingNumbers, setFloatingNumbers] = useState<FloatingNumberData[]>([]);
+  
+  // Refs for character cards to position floating numbers
+  const player1CardRef = useRef<HTMLDivElement | null>(null);
+  const player2CardRef = useRef<HTMLDivElement | null>(null);
   const battleCardsRef = useRef<HTMLDivElement>(null);
   const battleLogRef = useRef<HTMLDivElement>(null);
 
@@ -311,27 +305,6 @@ export default function DnDBattle() {
     }
   }, [findAssociatedMonster]);
 
-  // Helper function to trigger dice roll animation (supports multiple dice at once)
-  // visualEffects and callbacks are queued to be applied after this dice roll completes
-  const triggerDiceRoll = useCallback((
-    diceRolls: Array<{ diceType: string; result: number }>,
-    visualEffects: PendingVisualEffect[] = [],
-    callbacks: PostDiceRollCallback[] = []
-  ) => {
-    if (isDiceRolling) {
-      // Queue the dice rolls and their associated visual effects and callbacks if one is already in progress
-      diceQueueRef.current.push({ diceRolls, visualEffects, callbacks });
-      return;
-    }
-    
-    // Store visual effects and callbacks for the current dice roll
-    currentVisualEffectsRef.current = visualEffects;
-    currentCallbacksRef.current = callbacks;
-    setIsDiceRolling(true);
-    setDiceRollData(diceRolls);
-    setDiceRollTrigger(prev => prev + 1);
-  }, [isDiceRolling]);
-  
   // State to store intensity values for animations
   const [shakeIntensity, setShakeIntensity] = useState<{ player1: number; player2: number }>({ player1: 0, player2: 0 });
   const [sparkleIntensity, setSparkleIntensity] = useState<{ player1: number; player2: number }>({ player1: 0, player2: 0 });
@@ -372,63 +345,36 @@ export default function DnDBattle() {
     }
   }, []);
 
-  // Process next dice in queue when current one completes
-  const handleDiceRollComplete = useCallback(() => {
-    setIsDiceRolling(false);
+  // Helper function to show floating numbers and apply effects immediately
+  const showFloatingNumbers = useCallback((
+    numbers: Array<{ value: number | string; type: FloatingNumberType; targetPlayer: 'player1' | 'player2' }>,
+    visualEffects: PendingVisualEffect[] = [],
+    callbacks: (() => void)[] = []
+  ) => {
+    // Show floating numbers immediately
+    const numberData: FloatingNumberData[] = numbers.map((n, idx) => ({
+      id: `${Date.now()}-${idx}`,
+      ...n,
+    }));
+    setFloatingNumbers(prev => [...prev, ...numberData]);
     
-    // Apply visual effects associated with the dice roll that just completed
-    const pendingEffects = currentVisualEffectsRef.current;
-    currentVisualEffectsRef.current = []; // Clear current effects
-    
-    // Execute HP updates at the same time as visual effects
-    const pendingCallbacks = currentCallbacksRef.current;
-    currentCallbacksRef.current = []; // Clear current callbacks
-    
-    // Apply visual effects FIRST to ensure surprise state is set before HP update
-    // Process surprise effects first, then other effects
-    const surpriseEffects = pendingEffects.filter(e => e.type === 'surprise');
-    const otherEffects = pendingEffects.filter(e => e.type !== 'surprise');
-    
-    // Apply surprise effects first and force synchronous state update
-    // This ensures the surprise state is set before any HP updates
-    surpriseEffects.forEach(effect => {
-      flushSync(() => {
-        applyVisualEffect(effect);
-      });
+    // Apply visual effects immediately
+    visualEffects.forEach(effect => {
+      applyVisualEffect(effect);
     });
     
-    // Then apply other effects (also flush to ensure state is set)
-    otherEffects.forEach(effect => {
-      flushSync(() => {
-        applyVisualEffect(effect);
-      });
-    });
-    
-    // Use requestAnimationFrame to ensure state has propagated to DOM
-    // Then execute HP updates in the next frame
+    // Execute callbacks immediately (with a tiny delay to ensure state updates)
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        pendingCallbacks.forEach(callback => {
-          callback();
-        });
+        callbacks.forEach(callback => callback());
       });
     });
-    
-    // Process next dice in queue after a short delay
-    if (diceQueueRef.current.length > 0) {
-      setTimeout(() => {
-        const nextItem = diceQueueRef.current.shift();
-        if (nextItem) {
-          // Set up visual effects and callbacks for the next dice roll
-          currentVisualEffectsRef.current = nextItem.visualEffects;
-          currentCallbacksRef.current = nextItem.callbacks || [];
-          setIsDiceRolling(true);
-          setDiceRollData(nextItem.diceRolls);
-          setDiceRollTrigger(prev => prev + 1);
-        }
-      }, 150);
-    }
   }, [applyVisualEffect]);
+
+  // Handle floating number completion (cleanup)
+  const handleFloatingNumberComplete = useCallback((id: string) => {
+    setFloatingNumbers(prev => prev.filter(n => n.id !== id));
+  }, []);
 
   // Helper function to calculate attack roll
   const calculateAttackRoll = useCallback((attackerClass: DnDClass): { d20Roll: number; attackRoll: number } => {
@@ -804,7 +750,7 @@ export default function DnDBattle() {
     logAttackRoll(attackerClass, d20Roll, attackRoll, defenderClass.armorClass);
 
     if (attackRoll >= defenderClass.armorClass) {
-      // Hit! Show both attack roll and damage dice
+      // Hit! Show damage number on defender's card
       const damage = rollDice(damageDie);
       const defender = getOpponent(attacker);
       
@@ -816,14 +762,12 @@ export default function DnDBattle() {
       const attackTypeLabel = attackType === 'melee' ? 'melee' : attackType === 'ranged' ? 'ranged' : '';
       const attackDescription = attackTypeLabel ? `${attackTypeLabel} attack` : 'attack';
       
-      triggerDiceRoll(
-        [
-          { diceType: 'd20', result: d20Roll },
-          { diceType: damageDie, result: damage }
-        ],
+      // Show floating damage number immediately
+      showFloatingNumbers(
+        [{ value: damage, type: 'damage', targetPlayer: defender }],
         visualEffects,
         [
-          () => updatePlayerHP(defender, newHP), // HP update happens after dice roll
+          () => updatePlayerHP(defender, newHP),
           createPostDamageCallback(
             newHP,
             damage,
@@ -840,12 +784,12 @@ export default function DnDBattle() {
         ]
       );
     } else {
-      // Miss - show the attack roll dice
+      // Miss - show MISS on attacker's card
       const attackTypeLabel = attackType === 'melee' ? 'melee' : attackType === 'ranged' ? 'ranged' : '';
       const attackDescription = attackTypeLabel ? `${attackTypeLabel} attack` : 'attack';
       
-      triggerDiceRoll(
-        [{ diceType: 'd20', result: d20Roll }],
+      showFloatingNumbers(
+        [{ value: 'MISS', type: 'miss', targetPlayer: attacker }],
         createMissVisualEffects(attacker, attackerClass),
         [
           createPostMissCallback(
@@ -873,11 +817,11 @@ export default function DnDBattle() {
     if (ability.type !== 'healing') return;
     
     const heal = rollDiceWithNotation(ability.healingDice);
-    const { dice } = parseDiceNotation(ability.healingDice);
     const newHP = Math.min(attackerClass.maxHitPoints, attackerClass.hitPoints + heal);
     
-    triggerDiceRoll(
-      [{ diceType: dice, result: heal }],
+    // Show floating healing number immediately
+    showFloatingNumbers(
+      [{ value: heal, type: 'healing', targetPlayer: attacker }],
       createHealingVisualEffects(attacker, heal, attackerClass),
       [
         () => updatePlayerHP(attacker, newHP),
@@ -891,7 +835,7 @@ export default function DnDBattle() {
         )
       ]
     );
-  }, [updatePlayerHP, createPostHealingCallback, rollDiceWithNotation, parseDiceNotation]);
+  }, [updatePlayerHP, createPostHealingCallback, rollDiceWithNotation, parseDiceNotation, showFloatingNumbers]);
 
   // Helper function to handle multi-attack abilities
   const handleMultiAttackAbility = useCallback(async (
@@ -908,7 +852,6 @@ export default function DnDBattle() {
     const damages: number[] = [];
     const hits: boolean[] = [];
     let totalDamage = 0;
-    const diceToShow: Array<{ diceType: string; result: number }> = [];
     
     for (let i = 0; i < numAttacks; i++) {
       const d20Roll = rollDice('d20');
@@ -919,18 +862,15 @@ export default function DnDBattle() {
       hits.push(hit);
       
       if (hit) {
-        diceToShow.push({ diceType: 'd20', result: d20Roll });
-        const { diceArray, totalDamage: damage } = buildDamageDiceArray(
+        const { totalDamage: damage } = buildDamageDiceArray(
           attackAbility.damageDice,
           rollDiceWithNotation,
           parseDiceNotation,
           attackAbility.bonusDamageDice
         );
-        diceToShow.push(...diceArray);
         damages.push(damage);
         totalDamage += damage;
       } else {
-        diceToShow.push({ diceType: 'd20', result: d20Roll });
         damages.push(0);
       }
     }
@@ -938,16 +878,15 @@ export default function DnDBattle() {
     const defender = getOpponent(attacker);
     const newHP = totalDamage > 0 ? Math.max(0, defenderClass.hitPoints - totalDamage) : defenderClass.hitPoints;
     
-    if (diceToShow.length === 0) return;
-    
     const hitDetails = totalDamage > 0 ? hits.map((hit, i) => 
       hit ? `Attack ${i + 1} hits for ${damages[i]} damage.` : `Attack ${i + 1} misses.`
     ).join(' ') : '';
 
     if (totalDamage > 0) {
       const visualEffects = createHitVisualEffects(attacker, defender, totalDamage, defenderClass, attackerClass);
-      triggerDiceRoll(
-        diceToShow,
+      // Show floating damage number for total damage
+      showFloatingNumbers(
+        [{ value: totalDamage, type: 'damage', targetPlayer: defender }],
         visualEffects,
         [
           () => updatePlayerHP(defender, newHP),
@@ -970,8 +909,9 @@ export default function DnDBattle() {
         ]
       );
     } else {
-      triggerDiceRoll(
-        diceToShow,
+      // All attacks missed
+      showFloatingNumbers(
+        [{ value: 'MISS', type: 'miss', targetPlayer: attacker }],
         createMissVisualEffects(attacker, attackerClass),
         [
           async () => {
@@ -988,7 +928,7 @@ export default function DnDBattle() {
         ]
       );
     }
-  }, [updatePlayerHP, createPostDamageCallback, createPostMissCallback, addLog, rollDice, rollDiceWithNotation, parseDiceNotation, buildDamageDiceArray, createHitVisualEffects, createMissVisualEffects, getOpponent]);
+  }, [updatePlayerHP, createPostDamageCallback, createPostMissCallback, addLog, rollDice, rollDiceWithNotation, parseDiceNotation, buildDamageDiceArray, createHitVisualEffects, createMissVisualEffects, getOpponent, showFloatingNumbers]);
 
   // Helper function to handle single attack with roll
   const handleSingleAttackAbility = useCallback(async (
@@ -1003,23 +943,20 @@ export default function DnDBattle() {
     logAttackRoll(attackerClass, d20Roll, attackRoll, defenderClass.armorClass);
 
     if (attackRoll >= defenderClass.armorClass) {
-      const { diceArray, totalDamage: damage } = buildDamageDiceArray(
+      const { totalDamage: damage } = buildDamageDiceArray(
         attackAbility.damageDice,
         rollDiceWithNotation,
         parseDiceNotation,
         attackAbility.bonusDamageDice
       );
-      const diceToShow: Array<{ diceType: string; result: number }> = [
-        { diceType: 'd20', result: d20Roll },
-        ...diceArray
-      ];
       
       const defender = getOpponent(attacker);
       const newHP = Math.max(0, defenderClass.hitPoints - damage);
       const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass);
       
-      triggerDiceRoll(
-        diceToShow,
+      // Show floating damage number immediately
+      showFloatingNumbers(
+        [{ value: damage, type: 'damage', targetPlayer: defender }],
         visualEffects,
         [
           () => updatePlayerHP(defender, newHP),
@@ -1039,8 +976,9 @@ export default function DnDBattle() {
         ]
       );
     } else {
-      triggerDiceRoll(
-        [{ diceType: 'd20', result: d20Roll }],
+      // Miss - show MISS on attacker's card
+      showFloatingNumbers(
+        [{ value: 'MISS', type: 'miss', targetPlayer: attacker }],
         createMissVisualEffects(attacker, attackerClass),
         [
           createPostMissCallback(
@@ -1054,7 +992,7 @@ export default function DnDBattle() {
         ]
       );
     }
-  }, [calculateAttackRoll, logAttackRoll, updatePlayerHP, createPostDamageCallback, createPostMissCallback, rollDiceWithNotation, parseDiceNotation, buildDamageDiceArray, createHitVisualEffects, createMissVisualEffects, getOpponent, triggerDiceRoll]);
+  }, [calculateAttackRoll, logAttackRoll, updatePlayerHP, createPostDamageCallback, createPostMissCallback, rollDiceWithNotation, parseDiceNotation, buildDamageDiceArray, createHitVisualEffects, createMissVisualEffects, getOpponent, showFloatingNumbers]);
 
   // Helper function to handle automatic damage abilities
   const handleAutomaticDamageAbility = useCallback(async (
@@ -1065,7 +1003,7 @@ export default function DnDBattle() {
     attackerDetails: string,
     defenderDetails: string
   ) => {
-    const { diceArray, totalDamage: damage } = buildDamageDiceArray(
+    const { totalDamage: damage } = buildDamageDiceArray(
       attackAbility.damageDice,
       rollDiceWithNotation,
       parseDiceNotation,
@@ -1075,8 +1013,9 @@ export default function DnDBattle() {
     const newHP = Math.max(0, defenderClass.hitPoints - damage);
     const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass);
     
-    triggerDiceRoll(
-      diceArray,
+    // Show floating damage number immediately
+    showFloatingNumbers(
+      [{ value: damage, type: 'damage', targetPlayer: defender }],
       visualEffects,
       [
         () => updatePlayerHP(defender, newHP),
@@ -1095,7 +1034,7 @@ export default function DnDBattle() {
         )
       ]
     );
-  }, [updatePlayerHP, createPostDamageCallback, rollDiceWithNotation, parseDiceNotation, buildDamageDiceArray, createHitVisualEffects, getOpponent, triggerDiceRoll]);
+  }, [updatePlayerHP, createPostDamageCallback, rollDiceWithNotation, parseDiceNotation, buildDamageDiceArray, createHitVisualEffects, getOpponent, showFloatingNumbers]);
 
   const useAbility = async (attacker: 'player1' | 'player2', abilityIndex: number) => {
     if (!isBattleActive || !player1Class || !player2Class || isMoveInProgress) return;
@@ -1235,6 +1174,8 @@ export default function DnDBattle() {
     setCastingPlayer(null);
     setCastTrigger({ player1: 0, player2: 0 });
     setIsOpponentAutoPlaying(false);
+    // Clear floating numbers
+    setFloatingNumbers([]);
     // Clear narrative queue and turn tracking
     narrativeQueueRef.current = [];
     previousTurnRef.current = null;
@@ -1243,15 +1184,16 @@ export default function DnDBattle() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#D1C9BA' }}>
-      {/* Dice Roll Animation */}
-      {diceRollData.length > 0 && (
-        <DiceRoll
-          key={diceRollTrigger}
-          trigger={diceRollTrigger}
-          diceRolls={diceRollData}
-          onComplete={handleDiceRollComplete}
+      {/* Floating Numbers */}
+      {floatingNumbers.map((number) => (
+        <FloatingNumber
+          key={number.id}
+          value={number.value}
+          type={number.type}
+          targetCardRef={number.targetPlayer === 'player1' ? player1CardRef : player2CardRef}
+          onComplete={() => handleFloatingNumberComplete(number.id)}
         />
-      )}
+      ))}
       
       {/* Header */}
       <div className="px-4 sm:px-6 py-4">
@@ -1603,7 +1545,7 @@ export default function DnDBattle() {
                 }}
               />
               {/* Left Card - Rotated counter-clockwise (outward) */}
-              <div className="relative z-10" style={{ transform: 'rotate(-5deg)' }}>
+              <div ref={player1CardRef} className="relative z-10" style={{ transform: 'rotate(-5deg)' }}>
                 <CharacterCard
                   playerClass={player1Class}
                   characterName={player1Name || 'Loading...'}
@@ -1645,7 +1587,7 @@ export default function DnDBattle() {
                 </span>
               </div>
               {/* Right Card - Rotated clockwise (outward) */}
-              <div className="relative z-10" style={{ transform: 'rotate(5deg)' }}>
+              <div ref={player2CardRef} className="relative z-10" style={{ transform: 'rotate(5deg)' }}>
                 <CharacterCard
                   playerClass={player2Class}
                   characterName={player2Name || 'Loading...'}

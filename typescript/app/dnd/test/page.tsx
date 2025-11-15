@@ -1,14 +1,13 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { flushSync } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { DnDClass, BattleLog, CharacterEmotion, Ability, AttackAbility } from '../types';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS, isMonster } from '../constants';
 import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../utils/dice';
 import { generateCharacterName } from '../utils/names';
 import { createHitVisualEffects, createMissVisualEffects, createHealingVisualEffects, getOpponent, buildDamageDiceArray, type PendingVisualEffect } from '../utils/battle';
-import { DiceRoll } from '../components/DiceRoll';
+import { FloatingNumber, FloatingNumberType } from '../components/FloatingNumber';
 import { CharacterCard } from '../components/CharacterCard';
 import { ClassSelection } from '../components/ClassSelection';
 import { useAIOpponent } from '../hooks/useAIOpponent';
@@ -156,16 +155,24 @@ export default function DnDTestPage() {
   const [victorPlayer, setVictorPlayer] = useState<'player1' | 'player2' | null>(null);
   const [confettiTrigger, setConfettiTrigger] = useState(0);
   
-  // Dice roll states
-  const [diceRollTrigger, setDiceRollTrigger] = useState(0);
-  const [diceRollData, setDiceRollData] = useState<Array<{ diceType: string; result: number }>>([]);
-  const [isDiceRolling, setIsDiceRolling] = useState(false);
+  // Floating numbers state - replaces dice roll system
+  type FloatingNumberData = {
+    id: string;
+    value: number | string;
+    type: FloatingNumberType;
+    targetPlayer: 'player1' | 'player2';
+  };
+  const [floatingNumbers, setFloatingNumbers] = useState<FloatingNumberData[]>([]);
+  
+  // Refs for character cards to position floating numbers
+  const player1CardRef = useRef<HTMLDivElement | null>(null);
+  const player2CardRef = useRef<HTMLDivElement | null>(null);
+  
   const [manualEmotion1, setManualEmotion1] = useState<CharacterEmotion | null>(null);
   const [manualEmotion2, setManualEmotion2] = useState<CharacterEmotion | null>(null);
   const [isAIModeActive, setIsAIModeActive] = useState(false);
   const [isOpponentAutoPlaying, setIsOpponentAutoPlaying] = useState(false);
   const [isMoveInProgress, setIsMoveInProgress] = useState(false);
-  const diceQueueRef = useRef<Array<Array<{ diceType: string; result: number }>>>([]);
   
   // Load custom heroes and monsters from database
   useEffect(() => {
@@ -270,20 +277,6 @@ export default function DnDTestPage() {
     }
   }, [createdMonsters, player1Class, player2Class, player1MonsterId, player2MonsterId, findAssociatedMonster]);
   
-  // Queue for visual effects that should trigger after dice roll completes
-  // (PendingVisualEffect type imported from battle utils)
-  
-  // Callback to execute after dice roll completes (for HP updates, etc.)
-  type PostDiceRollCallback = () => void;
-  
-  type QueuedDiceRoll = {
-    diceRolls: Array<{ diceType: string; result: number }>;
-    visualEffects: PendingVisualEffect[];
-    callbacks?: PostDiceRollCallback[];
-  };
-  const diceQueueWithEffectsRef = useRef<QueuedDiceRoll[]>([]);
-  const currentVisualEffectsRef = useRef<PendingVisualEffect[]>([]);
-  const currentCallbacksRef = useRef<PostDiceRollCallback[]>([]);
   
   const addLog = useCallback((type: BattleLog['type'], message: string) => {
     setBattleLog((prev) => [...prev, { type, message, timestamp: Date.now() }]);
@@ -334,90 +327,48 @@ export default function DnDTestPage() {
     }
   }, []);
   
-  // Helper function to trigger dice roll animation
-  const triggerDiceRoll = useCallback((
-    diceRolls: Array<{ diceType: string; result: number }>,
+  // Helper function to show floating numbers and apply effects immediately
+  const showFloatingNumbers = useCallback((
+    numbers: Array<{ value: number | string; type: FloatingNumberType; targetPlayer: 'player1' | 'player2' }>,
     visualEffects: PendingVisualEffect[] = [],
-    callbacks: PostDiceRollCallback[] = []
+    callbacks: (() => void)[] = []
   ) => {
-    if (isDiceRolling) {
-      diceQueueWithEffectsRef.current.push({ diceRolls, visualEffects, callbacks });
-      return;
-    }
+    // Show floating numbers immediately
+    const numberData: FloatingNumberData[] = numbers.map((n, idx) => ({
+      id: `${Date.now()}-${idx}`,
+      ...n,
+    }));
+    setFloatingNumbers(prev => [...prev, ...numberData]);
     
-    currentVisualEffectsRef.current = visualEffects;
-    currentCallbacksRef.current = callbacks;
-    setIsDiceRolling(true);
-    setDiceRollData(diceRolls);
-    setDiceRollTrigger(prev => prev + 1);
-  }, [isDiceRolling]);
-  
-  const handleDiceRollComplete = useCallback(() => {
-    setIsDiceRolling(false);
-    
-    // Apply visual effects associated with the dice roll that just completed
-    const pendingEffects = currentVisualEffectsRef.current;
-    currentVisualEffectsRef.current = [];
-    
-    // Execute HP updates at the same time as visual effects
-    const pendingCallbacks = currentCallbacksRef.current;
-    currentCallbacksRef.current = [];
-    
-    // Apply visual effects FIRST to ensure surprise state is set before HP update
-    // Process surprise effects first, then other effects
-    const surpriseEffects = pendingEffects.filter(e => e.type === 'surprise');
-    const otherEffects = pendingEffects.filter(e => e.type !== 'surprise');
-    
-    // Apply surprise effects first and force synchronous state update
-    // This ensures the surprise state is set before any HP updates
-    surpriseEffects.forEach(effect => {
-      flushSync(() => {
-        applyVisualEffect(effect);
-      });
+    // Apply visual effects immediately
+    visualEffects.forEach(effect => {
+      applyVisualEffect(effect);
     });
     
-    // Then apply other effects (also flush to ensure state is set)
-    otherEffects.forEach(effect => {
-      flushSync(() => {
-        applyVisualEffect(effect);
-      });
-    });
-    
-    // Use requestAnimationFrame to ensure state has propagated to DOM
-    // Then execute HP updates in the next frame
+    // Execute callbacks immediately (with a tiny delay to ensure state updates)
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        pendingCallbacks.forEach(callback => {
-          callback();
-        });
+        callbacks.forEach(callback => callback());
       });
     });
-    
-    // Process next dice in queue
-    if (diceQueueWithEffectsRef.current.length > 0) {
-      setTimeout(() => {
-        const nextItem = diceQueueWithEffectsRef.current.shift();
-        if (nextItem) {
-          currentVisualEffectsRef.current = nextItem.visualEffects;
-          currentCallbacksRef.current = nextItem.callbacks || [];
-          setIsDiceRolling(true);
-          setDiceRollData(nextItem.diceRolls);
-          setDiceRollTrigger(prev => prev + 1);
-        }
-      }, 150);
-    }
   }, [applyVisualEffect]);
+
+  // Handle floating number completion (cleanup)
+  const handleFloatingNumberComplete = useCallback((id: string) => {
+    setFloatingNumbers(prev => prev.filter(n => n.id !== id));
+  }, []);
   
   // Test functions
   const testDiceRoll = () => {
-    const testRolls = [
-      { diceType: 'd20', result: Math.floor(Math.random() * 20) + 1 },
-      { diceType: 'd10', result: Math.floor(Math.random() * 10) + 1 },
-      { diceType: 'd8', result: Math.floor(Math.random() * 8) + 1 },
-      { diceType: 'd6', result: Math.floor(Math.random() * 6) + 1 },
+    // Show random numbers floating on both cards
+    const numbers: Array<{ value: number | string; type: FloatingNumberType; targetPlayer: 'player1' | 'player2' }> = [
+      { value: Math.floor(Math.random() * 20) + 1, type: 'attack-roll', targetPlayer: 'player1' },
+      { value: Math.floor(Math.random() * 10) + 1, type: 'damage', targetPlayer: 'player2' },
+      { value: Math.floor(Math.random() * 8) + 1, type: 'damage', targetPlayer: 'player1' },
+      { value: Math.floor(Math.random() * 6) + 1, type: 'healing', targetPlayer: 'player2' },
     ];
-    triggerDiceRoll(testRolls);
-    addLog('system', '🎲 Test dice roll triggered');
+    showFloatingNumbers(numbers);
+    addLog('system', '🎲 Test floating numbers triggered');
   };
   
   const testAttackHit = (attacker: 'player1' | 'player2') => {
@@ -441,12 +392,10 @@ export default function DnDTestPage() {
     // Build visual effects array using the proper helper function (includes cast effect for spell-casting classes)
     const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass);
     
-    console.log('[TestPage] Triggering dice roll for', attacker);
-    triggerDiceRoll(
-      [
-        { diceType: 'd20', result: d20Roll },
-        { diceType: attackerClass.damageDie, result: damage }
-      ],
+    console.log('[TestPage] Showing floating damage number for', defender);
+    // Show floating damage number immediately
+    showFloatingNumbers(
+      [{ value: damage, type: 'damage', targetPlayer: defender }],
       visualEffects,
       [
         () => {
@@ -465,12 +414,8 @@ export default function DnDTestPage() {
             addLog('system', `🏆 ${attackerClass.name} wins!`);
           } else {
             // Switch turns after attack completes
-            // Wait for shake animation to complete (400ms) before switching turns
-            // This ensures the visual feedback is visible before the turn changes
             const nextTurn = attacker === 'player1' ? 'player2' : 'player1';
             console.log('[TestPage] Switching turn from', attacker, 'to', nextTurn);
-            // Delay turn switch to allow shake animation to complete (400ms) + small buffer
-            // Keep isMoveInProgress true until turn actually switches to prevent AI from triggering again
             setTimeout(() => {
               setCurrentTurn(nextTurn);
               setIsMoveInProgress(false);
@@ -494,16 +439,15 @@ export default function DnDTestPage() {
     // Build visual effects array using the proper helper function (includes cast effect for spell-casting classes)
     const visualEffects = createMissVisualEffects(attacker, attackerClass);
     
-    triggerDiceRoll(
-      [{ diceType: 'd20', result: d20Roll }],
+    // Show MISS floating number immediately
+    showFloatingNumbers(
+      [{ value: 'MISS', type: 'miss', targetPlayer: attacker }],
       visualEffects,
       [
         () => {
           addLog('attack', `❌ ${attackerClass.name} misses!`);
           addLog('narrative', mockBattleNarrative(`${attackerClass.name} attacks ${defenderClass.name} but misses.`));
           // Switch turns after miss
-          // Miss animation is 600ms, so wait a bit longer
-          // Keep isMoveInProgress true until turn actually switches to prevent AI from triggering again
           const nextTurn = attacker === 'player1' ? 'player2' : 'player1';
           setTimeout(() => {
             setCurrentTurn(nextTurn);
@@ -518,7 +462,6 @@ export default function DnDTestPage() {
     const playerClass = player === 'player1' ? player1Class : player2Class;
     
     const heal = rollDiceWithNotation('1d8+3');
-    const { dice } = parseDiceNotation('1d8+3');
     
     addLog('roll', `✨ ${playerClass.name} uses Test Heal!`);
     
@@ -527,17 +470,16 @@ export default function DnDTestPage() {
     // Build visual effects array using the proper helper function (includes cast effect for spell-casting classes)
     const visualEffects = createHealingVisualEffects(player, heal, playerClass);
     
-    triggerDiceRoll(
-      [{ diceType: dice, result: heal }],
+    // Show floating healing number immediately
+    showFloatingNumbers(
+      [{ value: heal, type: 'healing', targetPlayer: player }],
       visualEffects,
       [
-        () => updatePlayerHP(player, newHP), // HP update happens after dice roll
+        () => updatePlayerHP(player, newHP),
         () => {
           addLog('ability', `💚 ${playerClass.name} heals for ${heal} HP!`);
           addLog('narrative', mockBattleNarrative(`${playerClass.name} uses Test Heal and recovers ${heal} HP.`));
           // Switch turns after heal
-          // Sparkle animation is 1500ms, but we can switch sooner since it's just visual
-          // Keep isMoveInProgress true until turn actually switches to prevent AI from triggering again
           const nextTurn = player === 'player1' ? 'player2' : 'player1';
           setTimeout(() => {
             setCurrentTurn(nextTurn);
@@ -559,8 +501,9 @@ export default function DnDTestPage() {
     
     const newHP = Math.max(0, targetClass.hitPoints - damage);
     
-    triggerDiceRoll(
-      [{ diceType: 'd4', result: damage }],
+    // Show floating damage number immediately
+    showFloatingNumbers(
+      [{ value: damage, type: 'damage', targetPlayer: target }],
       [{ type: 'shake', player: target, intensity: damage }],
       [
         () => updatePlayerHP(target, newHP),
@@ -585,8 +528,9 @@ export default function DnDTestPage() {
     
     const newHP = Math.min(playerClass.maxHitPoints, playerClass.hitPoints + heal);
     
-    triggerDiceRoll(
-      [{ diceType: 'd4', result: heal }],
+    // Show floating healing number immediately
+    showFloatingNumbers(
+      [{ value: heal, type: 'healing', targetPlayer: player }],
       [{ type: 'sparkle', player, intensity: heal }],
       [
         () => updatePlayerHP(player, newHP),
@@ -631,11 +575,12 @@ export default function DnDTestPage() {
       visualEffects.push({ type: 'surprise', player: target });
     }
     
-    triggerDiceRoll(
-      [{ diceType: 'd20', result: 20 }, { diceType: 'd12', result: damage }],
+    // Show floating damage number immediately
+    showFloatingNumbers(
+      [{ value: damage, type: 'damage', targetPlayer: target }],
       visualEffects,
       [
-        () => updatePlayerHP(target, newHP), // HP update happens after dice roll
+        () => updatePlayerHP(target, newHP),
         () => {
           addLog('attack', `💥 ${attackerName} deals ${damage} damage to ${targetClass.name}! ${isSurprising ? '😱 SURPRISING DAMAGE!' : ''}`);
           addLog('narrative', mockBattleNarrative(`${attackerName} deals massive ${damage} damage to ${targetClass.name}!`));
@@ -660,11 +605,12 @@ export default function DnDTestPage() {
     
     addLog('roll', `✨ ${playerClass.name} uses Full Heal!`);
     
-    triggerDiceRoll(
-      [{ diceType: 'd20', result: 20 }],
+    // Show floating healing number immediately
+    showFloatingNumbers(
+      [{ value: healAmount, type: 'healing', targetPlayer: player }],
       [{ type: 'sparkle', player, intensity: healAmount }],
       [
-        () => updatePlayerHP(player, playerClass.maxHitPoints), // HP update happens after dice roll
+        () => updatePlayerHP(player, playerClass.maxHitPoints),
         () => {
           addLog('ability', `💚 ${playerClass.name} fully heals to ${playerClass.maxHitPoints} HP!`);
           addLog('narrative', mockBattleNarrative(`${playerClass.name} is fully restored to maximum health!`));
@@ -692,11 +638,11 @@ export default function DnDTestPage() {
     if (ability.type === 'healing') {
       // Handle healing ability
       const heal = rollDiceWithNotation(ability.healingDice);
-      const { dice } = parseDiceNotation(ability.healingDice);
       const newHP = Math.min(attackerClass.maxHitPoints, attackerClass.hitPoints + heal);
       
-      triggerDiceRoll(
-        [{ diceType: dice, result: heal }],
+      // Show floating healing number immediately
+      showFloatingNumbers(
+        [{ value: heal, type: 'healing', targetPlayer: player }],
         createHealingVisualEffects(player, heal, attackerClass),
         [
           () => updatePlayerHP(player, newHP),
@@ -713,93 +659,91 @@ export default function DnDTestPage() {
       );
     } else if (ability.type === 'attack') {
       const attackAbility = ability as AttackAbility;
-      const numAttacks = attackAbility.attacks || 1;
-      const defender = getOpponent(player);
-      
-      if (numAttacks > 1) {
-        // Handle multi-attack
-        const attackRolls: number[] = [];
-        const d20Rolls: number[] = [];
-        const damages: number[] = [];
-        const hits: boolean[] = [];
-        let totalDamage = 0;
-        const diceToShow: Array<{ diceType: string; result: number }> = [];
+        const numAttacks = attackAbility.attacks || 1;
+        const defender = getOpponent(player);
         
-        for (let i = 0; i < numAttacks; i++) {
-          const d20Roll = rollDice('d20');
-          d20Rolls.push(d20Roll);
-          const attackRoll = d20Roll + attackerClass.attackBonus;
-          attackRolls.push(attackRoll);
-          const hit = attackRoll >= defenderClass.armorClass;
-          hits.push(hit);
+        if (numAttacks > 1) {
+          // Handle multi-attack
+          const attackRolls: number[] = [];
+          const d20Rolls: number[] = [];
+          const damages: number[] = [];
+          const hits: boolean[] = [];
+          let totalDamage = 0;
           
-          if (hit) {
-            diceToShow.push({ diceType: 'd20', result: d20Roll });
-            const { diceArray, totalDamage: damage } = buildDamageDiceArray(
-              attackAbility.damageDice,
-              rollDiceWithNotation,
-              parseDiceNotation,
-              attackAbility.bonusDamageDice
-            );
-            diceToShow.push(...diceArray);
-            damages.push(damage);
-            totalDamage += damage;
-          } else {
-            diceToShow.push({ diceType: 'd20', result: d20Roll });
-            damages.push(0);
+          for (let i = 0; i < numAttacks; i++) {
+            const d20Roll = rollDice('d20');
+            d20Rolls.push(d20Roll);
+            const attackRoll = d20Roll + attackerClass.attackBonus;
+            attackRolls.push(attackRoll);
+            const hit = attackRoll >= defenderClass.armorClass;
+            hits.push(hit);
+            
+            if (hit) {
+              const { totalDamage: damage } = buildDamageDiceArray(
+                attackAbility.damageDice,
+                rollDiceWithNotation,
+                parseDiceNotation,
+                attackAbility.bonusDamageDice
+              );
+              damages.push(damage);
+              totalDamage += damage;
+            } else {
+              damages.push(0);
+            }
           }
-        }
-        
-        const newHP = totalDamage > 0 ? Math.max(0, defenderClass.hitPoints - totalDamage) : defenderClass.hitPoints;
-        
-        if (totalDamage > 0) {
-          const visualEffects = createHitVisualEffects(player, defender, totalDamage, defenderClass, attackerClass);
-          triggerDiceRoll(
-            diceToShow,
-            visualEffects,
-            [
-              () => updatePlayerHP(defender, newHP),
-              () => {
-                addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
-                const hitDetails = hits.map((hit, i) => 
-                  hit ? `Attack ${i + 1} hits for ${damages[i]} damage.` : `Attack ${i + 1} misses.`
-                ).join(' ');
-                addLog('attack', `⚔️ ${attackerClass.name} uses ${ability.name}: ${hitDetails} Total damage: ${totalDamage}!`);
-                addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. Total damage: ${totalDamage}.`));
-                
-                if (newHP <= 0) {
-                  setDefeatedPlayer(defender);
-                  setVictorPlayer(player);
-                  setConfettiTrigger(prev => prev + 1);
-                  addLog('system', `🏆 ${attackerClass.name} wins!`);
-                } else {
+          
+          const newHP = totalDamage > 0 ? Math.max(0, defenderClass.hitPoints - totalDamage) : defenderClass.hitPoints;
+          
+          if (totalDamage > 0) {
+            const visualEffects = createHitVisualEffects(player, defender, totalDamage, defenderClass, attackerClass);
+            // Show floating damage number for total damage
+            showFloatingNumbers(
+              [{ value: totalDamage, type: 'damage', targetPlayer: defender }],
+              visualEffects,
+              [
+                () => updatePlayerHP(defender, newHP),
+                () => {
+                  addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
+                  const hitDetails = hits.map((hit, i) => 
+                    hit ? `Attack ${i + 1} hits for ${damages[i]} damage.` : `Attack ${i + 1} misses.`
+                  ).join(' ');
+                  addLog('attack', `⚔️ ${attackerClass.name} uses ${ability.name}: ${hitDetails} Total damage: ${totalDamage}!`);
+                  addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. Total damage: ${totalDamage}.`));
+                  
+                  if (newHP <= 0) {
+                    setDefeatedPlayer(defender);
+                    setVictorPlayer(player);
+                    setConfettiTrigger(prev => prev + 1);
+                    addLog('system', `🏆 ${attackerClass.name} wins!`);
+                  } else {
+                    const nextTurn = player === 'player1' ? 'player2' : 'player1';
+                    setTimeout(() => {
+                      setCurrentTurn(nextTurn);
+                      setIsMoveInProgress(false);
+                    }, 450);
+                  }
+                }
+              ]
+            );
+          } else {
+            // All attacks missed
+            showFloatingNumbers(
+              [{ value: 'MISS', type: 'miss', targetPlayer: player }],
+              createMissVisualEffects(player, attackerClass),
+              [
+                () => {
+                  addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
+                  addLog('attack', `❌ ${attackerClass.name} uses ${ability.name} but all attacks miss!`);
+                  addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} but all attacks miss.`));
                   const nextTurn = player === 'player1' ? 'player2' : 'player1';
                   setTimeout(() => {
                     setCurrentTurn(nextTurn);
                     setIsMoveInProgress(false);
-                  }, 450);
+                  }, 650);
                 }
-              }
-            ]
-          );
-        } else {
-          triggerDiceRoll(
-            diceToShow,
-            createMissVisualEffects(player, attackerClass),
-            [
-              () => {
-                addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
-                addLog('attack', `❌ ${attackerClass.name} uses ${ability.name} but all attacks miss!`);
-                addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} but all attacks miss.`));
-                const nextTurn = player === 'player1' ? 'player2' : 'player1';
-                setTimeout(() => {
-                  setCurrentTurn(nextTurn);
-                  setIsMoveInProgress(false);
-                }, 650);
-              }
-            ]
-          );
-        }
+              ]
+            );
+          }
       } else if (attackAbility.attackRoll) {
         // Handle single attack with roll
         const d20Roll = rollDice('d20');
@@ -808,22 +752,19 @@ export default function DnDTestPage() {
         addLog('roll', `🎲 ${attackerClass.name} rolls ${d20Roll} + ${attackerClass.attackBonus} = ${attackRoll} (vs AC ${defenderClass.armorClass})`);
         
         if (attackRoll >= defenderClass.armorClass) {
-          const { diceArray, totalDamage: damage } = buildDamageDiceArray(
+          const { totalDamage: damage } = buildDamageDiceArray(
             attackAbility.damageDice,
             rollDiceWithNotation,
             parseDiceNotation,
             attackAbility.bonusDamageDice
           );
-          const diceToShow: Array<{ diceType: string; result: number }> = [
-            { diceType: 'd20', result: d20Roll },
-            ...diceArray
-          ];
           
           const newHP = Math.max(0, defenderClass.hitPoints - damage);
           const visualEffects = createHitVisualEffects(player, defender, damage, defenderClass, attackerClass);
           
-          triggerDiceRoll(
-            diceToShow,
+          // Show floating damage number immediately
+          showFloatingNumbers(
+            [{ value: damage, type: 'damage', targetPlayer: defender }],
             visualEffects,
             [
               () => updatePlayerHP(defender, newHP),
@@ -847,8 +788,9 @@ export default function DnDTestPage() {
             ]
           );
         } else {
-          triggerDiceRoll(
-            [{ diceType: 'd20', result: d20Roll }],
+          // Miss - show MISS on attacker's card
+          showFloatingNumbers(
+            [{ value: 'MISS', type: 'miss', targetPlayer: player }],
             createMissVisualEffects(player, attackerClass),
             [
               () => {
@@ -865,7 +807,7 @@ export default function DnDTestPage() {
         }
       } else {
         // Handle automatic damage (no attack roll)
-        const { diceArray, totalDamage: damage } = buildDamageDiceArray(
+        const { totalDamage: damage } = buildDamageDiceArray(
           attackAbility.damageDice,
           rollDiceWithNotation,
           parseDiceNotation,
@@ -874,8 +816,9 @@ export default function DnDTestPage() {
         const newHP = Math.max(0, defenderClass.hitPoints - damage);
         const visualEffects = createHitVisualEffects(player, defender, damage, defenderClass, attackerClass);
         
-        triggerDiceRoll(
-          diceArray,
+        // Show floating damage number immediately
+        showFloatingNumbers(
+          [{ value: damage, type: 'damage', targetPlayer: defender }],
           visualEffects,
           [
             () => updatePlayerHP(defender, newHP),
@@ -946,6 +889,8 @@ export default function DnDTestPage() {
     setCurrentTurn('player1');
     setIsMoveInProgress(false);
     setIsOpponentAutoPlaying(false);
+    // Clear floating numbers
+    setFloatingNumbers([]);
     // Note: We don't reset monster IDs here - they should persist with the selected character
     aiOpponentCleanup.cleanup();
     addLog('system', '🔄 Test reset');
@@ -1002,15 +947,16 @@ export default function DnDTestPage() {
   
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#D1C9BA' }}>
-      {/* Dice Roll Animation */}
-      {diceRollData.length > 0 && (
-        <DiceRoll
-          key={diceRollTrigger}
-          trigger={diceRollTrigger}
-          diceRolls={diceRollData}
-          onComplete={handleDiceRollComplete}
+      {/* Floating Numbers */}
+      {floatingNumbers.map((number) => (
+        <FloatingNumber
+          key={number.id}
+          value={number.value}
+          type={number.type}
+          targetCardRef={number.targetPlayer === 'player1' ? player1CardRef : player2CardRef}
+          onComplete={() => handleFloatingNumberComplete(number.id)}
         />
-      )}
+      ))}
       
       {/* Header */}
       <div className="px-4 sm:px-6 py-4">
@@ -1266,7 +1212,7 @@ export default function DnDTestPage() {
               }}
             />
             {/* Left Card - Rotated counter-clockwise (outward) */}
-            <div className="relative z-10 space-y-3" style={{ transform: 'rotate(-5deg)' }}>
+            <div ref={player1CardRef} className="relative z-10 space-y-3" style={{ transform: 'rotate(-5deg)' }}>
               <CharacterCard
                 playerClass={player1Class}
                 characterName={player1Name || 'Loading...'}
@@ -1350,7 +1296,7 @@ export default function DnDTestPage() {
               </span>
             </div>
             {/* Right Card - Rotated clockwise (outward) */}
-            <div className="relative z-10 space-y-3" style={{ transform: 'rotate(5deg)' }}>
+            <div ref={player2CardRef} className="relative z-10 space-y-3" style={{ transform: 'rotate(5deg)' }}>
               <CharacterCard
                 playerClass={player2Class}
                 characterName={player2Name || 'Loading...'}

@@ -435,7 +435,7 @@ export default function MonsterCreatorPage() {
                   )}
                   
                   <button
-                    onClick={handleSaveAssociation}
+                    onClick={() => handleSaveAssociation()}
                     disabled={isSaving || !selectedKlass}
                     className="w-full px-6 py-3 bg-green-700 hover:bg-green-600 text-white rounded-lg font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg border-2 border-green-600"
                   >
