@@ -139,6 +139,8 @@ interface CharacterCardProps {
   totalCards?: number;
   // Whether this card is selected (for selection UI)
   isSelected?: boolean;
+  // Selection sync trigger - when this changes, all selected cards restart their pulse animation
+  selectionSyncTrigger?: number;
 }
 
 function CharacterCardComponent({
@@ -180,6 +182,7 @@ function CharacterCardComponent({
   cardIndex,
   totalCards,
   isSelected = false,
+  selectionSyncTrigger = 0,
 }: CharacterCardProps) {
   const animationRef = useRef<HTMLDivElement>(null);
   const characterImageRef = useRef<HTMLDivElement>(null);
@@ -270,6 +273,48 @@ function CharacterCardComponent({
       return () => clearTimeout(timer);
     }
   }, [shouldCast, castTrigger, onCastComplete]);
+
+  // Apply pulse animation for selected cards - restart animation to sync with other selected cards
+  useEffect(() => {
+    if (!animationRef.current) return;
+    
+    if (isSelected) {
+      // Remove and re-add the animation class to restart it, ensuring sync with other cards
+      const element = animationRef.current;
+      element.classList.remove('card-pulse');
+      
+      // Use requestAnimationFrame to ensure all cards restart at the same frame
+      // The selectionSyncTrigger ensures all cards restart together even if selected at different times
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (element && isSelected) {
+            element.classList.add('card-pulse');
+          }
+        });
+      });
+    } else {
+      // Remove animation when not selected
+      animationRef.current.classList.remove('card-pulse');
+    }
+  }, [isSelected, selectionSyncTrigger]);
+
+  // Ensure breathing animation is applied to cutout image when it loads
+  useEffect(() => {
+    if (cutOutCharacterRef.current && monsterCutOutImageUrl && mainImageLoaded && !cutOutImageError) {
+      const element = cutOutCharacterRef.current;
+      // Ensure the character-cutout class is applied
+      if (!element.classList.contains('character-cutout')) {
+        element.classList.add('character-cutout');
+      }
+      // Force the animation to start by removing and re-adding the class
+      element.classList.remove('character-cutout');
+      requestAnimationFrame(() => {
+        if (element && !cutOutImageError) {
+          element.classList.add('character-cutout');
+        }
+      });
+    }
+  }, [monsterCutOutImageUrl, mainImageLoaded, cutOutImageError]);
 
   // Reset image error and loaded state when monsterImageUrl changes
   useEffect(() => {
@@ -537,6 +582,18 @@ function CharacterCardComponent({
                     top: 0,
                     left: 0,
                     zIndex: 1,
+                  }}
+                  onLoad={() => {
+                    // Ensure animation starts when image loads
+                    if (cutOutCharacterRef.current) {
+                      const element = cutOutCharacterRef.current;
+                      element.classList.remove('character-cutout');
+                      requestAnimationFrame(() => {
+                        if (element) {
+                          element.classList.add('character-cutout');
+                        }
+                      });
+                    }
                   }}
                   onError={() => {
                     // Silently handle missing cutout images - they're optional

@@ -749,21 +749,48 @@ body {
     transform: translateY(0) translateX(0) scale(1);
   }
   25% {
-    transform: translateY(-1px) translateX(0.5px) scale(1.005);
+    transform: translateY(-2px) translateX(1px) scale(1.01);
   }
   50% {
-    transform: translateY(-0.5px) translateX(0) scale(1);
+    transform: translateY(-1px) translateX(0) scale(1);
   }
   75% {
-    transform: translateY(-1px) translateX(-0.5px) scale(1.005);
+    transform: translateY(-2px) translateX(-1px) scale(1.01);
   }
 }
 
 .character-cutout {
-  animation: character-cutout-breathe 3s ease-in-out infinite;
+  animation: character-cutout-breathe 3s ease-in-out infinite !important;
+  transform-origin: center center !important;
+  will-change: transform !important;
+  pointer-events: none;
+}
+
+/* When shake animation is active, it temporarily overrides breathing, but breathing resumes after shake completes */
+.character-cutout.shake {
+  animation: shake 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+  animation-fill-mode: forwards;
+}
+
+/* Ensure breathing animation resumes after shake completes - use higher specificity */
+img.character-cutout:not(.shake) {
+  animation: character-cutout-breathe 3s ease-in-out infinite !important;
+}
+
+/* Card pulse animation for highlighted/selected cards */
+@keyframes card-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.015);
+  }
+}
+
+.card-pulse {
+  animation: card-pulse 1.5s ease-in-out infinite;
   transform-origin: center center;
   will-change: transform;
-  pointer-events: none;
 }
 
 /* Floating number animation - numbers float up and fade out */

@@ -10,9 +10,10 @@ interface ClassSelectionProps {
   selectedClass: DnDClass | null;
   onSelect: (dndClass: DnDClass) => void;
   createdMonsters?: Array<DnDClass & { monsterId: string; imageUrl: string }>;
+  selectionSyncTrigger?: number;
 }
 
-export function ClassSelection({ title, availableClasses, selectedClass, onSelect, createdMonsters = [] }: ClassSelectionProps) {
+export function ClassSelection({ title, availableClasses, selectedClass, onSelect, createdMonsters = [], selectionSyncTrigger = 0 }: ClassSelectionProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   // Helper to find associated monster for a class
@@ -75,8 +76,11 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
             const monsterImageUrl = associatedMonster 
               ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
               : undefined;
-            // Only generate cutout URL if we know the monster has cutout images
-            const monsterCutOutImageUrl = associatedMonster && (associatedMonster as any).hasCutout
+            // Generate cutout URL if monster has cutout images (hasCutout === true)
+            // For backward compatibility, also try if hasCutout is undefined (old monsters)
+            // CharacterCard will handle 404s gracefully if cutout doesn't exist
+            const hasCutout = (associatedMonster as any)?.hasCutout;
+            const monsterCutOutImageUrl = associatedMonster && hasCutout !== false
               ? `/cdn/monsters/${associatedMonster.monsterId}/280x200-cutout.png`
               : undefined;
             
@@ -101,6 +105,7 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
                   cardIndex={index}
                   totalCards={availableClasses.length}
                   isSelected={isSelected}
+                  selectionSyncTrigger={selectionSyncTrigger}
                 />
               </div>
             );

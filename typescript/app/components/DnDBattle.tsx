@@ -77,6 +77,7 @@ export default function DnDBattle() {
   const [confettiTrigger, setConfettiTrigger] = useState(0);
   const [castingPlayer, setCastingPlayer] = useState<'player1' | 'player2' | null>(null);
   const [castTrigger, setCastTrigger] = useState({ player1: 0, player2: 0 });
+  const [selectionSyncTrigger, setSelectionSyncTrigger] = useState(0);
   
   // Floating numbers state - replaces dice roll system
   type FloatingNumberData = {
@@ -202,8 +203,9 @@ export default function DnDBattle() {
               color: fallback?.color || 'bg-slate-900',
               monsterId: m.monsterId,
               imageUrl: m.imageUrl?.replace('/256.png', '/280x200.png').replace('/200.png', '/280x200.png') || m.imageUrl,
+              hasCutout: m.hasCutout ?? false, // Preserve hasCutout flag from API
               lastAssociatedAt: m.lastAssociatedAt, // Preserve last association time
-            } as DnDClass & { monsterId: string; imageUrl: string; lastAssociatedAt?: string };
+            } as DnDClass & { monsterId: string; imageUrl: string; hasCutout?: boolean; lastAssociatedAt?: string };
           });
           setCreatedMonsters(convertedMonsters);
         }
@@ -302,6 +304,9 @@ export default function DnDBattle() {
         setMonsterId(null);
       }
     }
+    
+    // Increment selection sync trigger to sync pulse animations across all selected cards
+    setSelectionSyncTrigger(prev => prev + 1);
   }, [findAssociatedMonster]);
 
   // State to store intensity values for animations
@@ -1245,6 +1250,7 @@ export default function DnDBattle() {
                   selectedClass={player1Class}
                   onSelect={handlePlayer1Select}
                   createdMonsters={createdMonsters}
+                  selectionSyncTrigger={selectionSyncTrigger}
                 />
                 <div>
                   <div className="flex items-center justify-between mb-4">
@@ -1344,8 +1350,11 @@ export default function DnDBattle() {
                                 const monsterImageUrl = associatedMonster 
                                   ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
                                   : undefined;
-                                // Only generate cutout URL if we know the monster has cutout images
-                                const monsterCutOutImageUrl = associatedMonster && (associatedMonster as any).hasCutout
+                                // Generate cutout URL if monster has cutout images (hasCutout === true)
+                                // For backward compatibility, also try if hasCutout is undefined (old monsters)
+                                // CharacterCard will handle 404s gracefully if cutout doesn't exist
+                                const hasCutout = (associatedMonster as any)?.hasCutout;
+                                const monsterCutOutImageUrl = associatedMonster && hasCutout !== false
                                   ? `/cdn/monsters/${associatedMonster.monsterId}/280x200-cutout.png`
                                   : undefined;
                                 
@@ -1372,6 +1381,7 @@ export default function DnDBattle() {
                                       cardIndex={index}
                                       totalCards={availableMonsters.length}
                                       isSelected={isSelected}
+                                      selectionSyncTrigger={selectionSyncTrigger}
                                     />
                                   </div>
                                 );
@@ -1410,6 +1420,7 @@ export default function DnDBattle() {
                           setPlayerClassWithMonster('player2', cls);
                         }}
                         createdMonsters={createdMonsters}
+                        selectionSyncTrigger={selectionSyncTrigger}
                       />
                     </div>
                   )}
@@ -1470,7 +1481,9 @@ export default function DnDBattle() {
                   monsterCutOutImageUrl={(() => {
                     if (!player1MonsterId || !player1Class) return undefined;
                     const associatedMonster = findAssociatedMonster(player1Class.name);
-                    return associatedMonster && (associatedMonster as any).hasCutout
+                    // For backward compatibility, try if hasCutout is not explicitly false
+                    const hasCutout = (associatedMonster as any)?.hasCutout;
+                    return associatedMonster && hasCutout !== false
                       ? `/cdn/monsters/${player1MonsterId}/280x200-cutout.png`
                       : undefined;
                   })()}
@@ -1518,7 +1531,9 @@ export default function DnDBattle() {
                   monsterCutOutImageUrl={(() => {
                     if (!player2MonsterId || !player2Class) return undefined;
                     const associatedMonster = findAssociatedMonster(player2Class.name);
-                    return associatedMonster && (associatedMonster as any).hasCutout
+                    // For backward compatibility, try if hasCutout is not explicitly false
+                    const hasCutout = (associatedMonster as any)?.hasCutout;
+                    return associatedMonster && hasCutout !== false
                       ? `/cdn/monsters/${player2MonsterId}/280x200-cutout.png`
                       : undefined;
                   })()}
