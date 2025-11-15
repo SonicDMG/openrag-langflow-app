@@ -65,6 +65,20 @@ body {
   }
 }
 
+/* Slow rotation animation for landscape prompt */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+
 /* Shake animation for attacks - explosive zoom-based shake with intensity scaling */
 @keyframes shake {
   0%, 100% {

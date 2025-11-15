@@ -35,6 +35,8 @@ import { getBattleNarrative } from '../dnd/services/apiService';
 import { ClassSelection } from '../dnd/components/ClassSelection';
 import { FloatingNumber, FloatingNumberType } from '../dnd/components/FloatingNumber';
 import { CharacterCard } from '../dnd/components/CharacterCard';
+import { PageHeader } from '../dnd/components/PageHeader';
+import { LandscapePrompt } from '../dnd/components/LandscapePrompt';
 
 export default function DnDBattle() {
   const router = useRouter();
@@ -1184,6 +1186,9 @@ export default function DnDBattle() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#D1C9BA' }}>
+      {/* Landscape Orientation Prompt */}
+      <LandscapePrompt />
+      
       {/* Floating Numbers */}
       {floatingNumbers.map((number) => (
         <FloatingNumber
@@ -1196,214 +1201,122 @@ export default function DnDBattle() {
       ))}
       
       {/* Header */}
-      <div className="px-4 sm:px-6 py-4">
-        <div className="max-w-7xl mx-auto relative">
-          {/* Grid layout to keep title centered */}
-          <div className="grid grid-cols-3 items-center">
-            {/* Left Column - Home Button */}
-            <div className="flex justify-start">
-              <button
-                onClick={() => router.push('/')}
-                className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-                <span className="font-semibold">Home</span>
-              </button>
-            </div>
-
-            {/* Center Column - Title with Dragon Emblem (Always Centered) */}
-            <div className="flex items-center justify-center gap-3">
-              <h1 className="text-3xl font-bold" style={{ fontFamily: 'serif', color: '#5C4033' }}>
-                Battle
-              </h1>
-              {/* Red Dragon/Phoenix Emblem */}
-              <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M12 2C8 2 5 5 5 9c0 2 1 4 3 5-1 1-2 3-2 5 0 3 2 5 5 5 1 0 2 0 3-1 1 1 2 1 3 1 3 0 5-2 5-5 0-2-1-4-2-5 2-1 3-3 3-5 0-4-3-7-7-7z"
-                  fill="#DC2626"
-                />
-                <path
-                  d="M12 4c-2 0-4 1-4 3 0 1 1 2 2 2 1 0 2-1 2-2 0-1 1-1 2-1 1 0 2 0 2 1 0 1 1 2 2 2 1 0 2-1 2-2 0-2-2-3-4-3z"
-                  fill="#EF4444"
-                />
-                <path
-                  d="M10 8c-1 0-2 1-2 2 0 1 1 2 2 2 1 0 2-1 2-2 0-1-1-2-2-2zm4 0c-1 0-2 1-2 2 0 1 1 2 2 2 1 0 2-1 2-2 0-1-1-2-2-2z"
-                  fill="#991B1B"
-                />
-              </svg>
-              <h1 className="text-3xl font-bold" style={{ fontFamily: 'serif', color: '#5C4033' }}>
-                Arena
-              </h1>
-            </div>
-
-            {/* Right Column - Utility Buttons */}
-            <div className="flex items-center justify-end gap-3">
-              {/* Character Creation Buttons - Grouped Together */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => router.push('/dnd/character-image-creator')}
-                  className="px-3 py-2 bg-blue-700 hover:bg-blue-600 text-white text-sm font-semibold rounded-lg border-2 border-blue-600 transition-all"
-                  title="Create character images"
-                >
-                  🎨 Image
-                </button>
-                <button
-                  onClick={() => router.push('/dnd/create-character')}
-                  className="px-3 py-2 bg-green-700 hover:bg-green-600 text-white text-sm font-semibold rounded-lg border-2 border-green-600 transition-all"
-                  title="Create characters with stats"
-                >
-                  ⚔️ Character
-                </button>
-              </div>
-              
-              {/* Utility Buttons */}
-              <div className="flex gap-2">
-                {(classesLoaded || monstersLoaded) && (
-                  <a
-                    href="/dnd/load-data"
-                    className="px-3 py-2 bg-amber-700 hover:bg-amber-600 text-white text-sm font-semibold rounded-lg border-2 border-amber-600 transition-all"
-                    title="Reload data from OpenRAG"
-                  >
-                    🔄 Reload
-                  </a>
-                )}
-                <button
-                  onClick={() => router.push('/dnd/test')}
-                  className="px-3 py-2 bg-purple-700 hover:bg-purple-600 text-white text-sm font-semibold rounded-lg border-2 border-purple-600 transition-all"
-                  title="Test game mechanics"
-                >
-                  🧪 Test
-                </button>
-                <button
-                  onClick={resetBattle}
-                  className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:text-gray-900 transition-colors"
-                  title="Reset battle"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  <span className="font-semibold text-sm">Reset</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Battle"
+        title2="Arena"
+        decalImageUrl="/cdn/decals/battle-arena.png"
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-0">
         <div className="space-y-6 overflow-visible">
           {/* Character Selection */}
           {!isBattleActive && (
-            <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl">
-              <h2 className="text-2xl font-bold mb-4 text-amber-100" style={{ fontFamily: 'serif' }}>
-                Select Your Character
+            <div className="space-y-8">
+              {/* Main Title */}
+              <div className="text-center">
+                <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-2" style={{ 
+                  fontFamily: 'serif', 
+                  color: '#E4DDCD', 
+                  textTransform: 'uppercase', 
+                  letterSpacing: '0.1em',
+                  textShadow: '2px 2px 0px rgba(0,0,0,0.1), 1px 1px 0px rgba(0,0,0,0.15)',
+                  fontWeight: 700
+                }}>
+                  Choose Your Hero
+                </h2>
                 {isLoadingClasses && (
-                  <span className="ml-2 text-sm text-amber-300 italic">
-                    (Loading classes from OpenRAG...)
+                  <p className="text-sm text-gray-600 italic mt-2">
+                    Loading classes from OpenRAG...
                     <span className="waiting-indicator ml-2 inline-block">
                       <span className="waiting-dot"></span>
                       <span className="waiting-dot"></span>
                       <span className="waiting-dot"></span>
                     </span>
-                  </span>
+                  </p>
                 )}
                 {isLoadingClassDetails && !isLoadingClasses && (
-                  <span className="ml-2 text-sm text-amber-300 italic">(Loading class information from knowledge base...)</span>
+                  <p className="text-sm text-gray-600 italic mt-2">Loading class information from knowledge base...</p>
                 )}
-              </h2>
-              {(!classesLoaded && !isLoadingClasses) || (!monstersLoaded && !isLoadingMonsters) ? (
-                <div className="text-center py-8 mb-4">
-                  <div className="text-amber-200 mb-4">
-                    Load classes and monsters from OpenRAG to get started.
-                    <br />
-                    <span className="text-sm text-amber-300">You can specify a search context (e.g., "D&D", "Pokemon") to filter results.</span>
-                  </div>
-                  <a
-                    href="/dnd/load-data"
-                    className="inline-block px-6 py-3 bg-purple-900 hover:bg-purple-800 text-white font-bold rounded-lg border-2 border-purple-700 transition-all shadow-lg"
-                  >
-                    Go to Data Loader →
-                  </a>
-                </div>
-              ) : null}
+              </div>
+
               {!isLoadingClasses && !isLoadingMonsters && (
                 <>
-              <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-8">
                 <ClassSelection
-                  title="Choose Your Character"
+                  title=""
                   availableClasses={availableClasses}
                   selectedClass={player1Class}
                   onSelect={handlePlayer1Select}
                   createdMonsters={createdMonsters}
                 />
-                <div className="bg-amber-800/50 border-2 border-amber-700 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-lg font-semibold text-amber-200">Opponent (Auto-Play)</h3>
-                    <div className="flex gap-2">
-                      <button
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-semibold" style={{ fontFamily: 'serif', color: '#5C4033' }}>Opponent (Auto-Play)</h3>
+                    <div className="flex items-center gap-4">
+                      {player2Class && (
+                        <div className="flex items-center gap-2">
+                          {(() => {
+                            const associatedMonster = findAssociatedMonster(player2Class.name);
+                            const imageUrl = associatedMonster 
+                              ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
+                              : '/cdn/placeholder.png';
+                            return (
+                              <img
+                                src={imageUrl}
+                                alt={player2Class.name}
+                                className="w-10 h-10 object-cover rounded"
+                                style={{ imageRendering: 'pixelated' as const }}
+                              />
+                            );
+                          })()}
+                          <div>
+                            <div className="font-bold text-sm" style={{ color: '#5C4033' }}>{player2Name || player2Class.name}</div>
+                            <div className="text-xs text-gray-600 italic">{player2Class.name}</div>
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setOpponentType('class');
+                            setPlayer2Class(null);
+                            setPlayer2Name('');
+                            setPlayer2MonsterId(null);
+                            // Note: We don't use setPlayerClassWithMonster here since we're clearing the selection
+                          }}
+                          className={`px-3 py-1 text-xs rounded border transition-all ${
+                            opponentType === 'class'
+                              ? 'bg-blue-800 text-white border-blue-600'
+                              : 'bg-gray-200 text-gray-700 border-gray-400 hover:bg-gray-300'
+                          }`}
+                        >
+                          Class
+                        </button>
+                        <button
                         onClick={() => {
-                          setOpponentType('class');
+                          setOpponentType('monster');
                           setPlayer2Class(null);
                           setPlayer2Name('');
                           setPlayer2MonsterId(null);
                           // Note: We don't use setPlayerClassWithMonster here since we're clearing the selection
                         }}
-                        className={`px-3 py-1 text-xs rounded border transition-all ${
-                          opponentType === 'class'
-                            ? 'bg-blue-800 text-white border-blue-600'
-                            : 'bg-amber-800/50 text-amber-300 border-amber-700 hover:bg-amber-700'
-                        }`}
-                      >
-                        Class
-                      </button>
-                      <button
-                      onClick={() => {
-                        setOpponentType('monster');
-                        setPlayer2Class(null);
-                        setPlayer2Name('');
-                        setPlayer2MonsterId(null);
-                        // Note: We don't use setPlayerClassWithMonster here since we're clearing the selection
-                      }}
-                        className={`px-3 py-1 text-xs rounded border transition-all ${
-                          opponentType === 'monster'
-                            ? 'bg-red-800 text-white border-red-600'
-                            : 'bg-amber-800/50 text-amber-300 border-amber-700 hover:bg-amber-700'
-                        }`}
-                      >
-                        Monster
-                      </button>
-                    </div>
-                  </div>
-                  {player2Class && (
-                    <div className="flex items-center gap-3 mb-3">
-                      {(() => {
-                        const associatedMonster = findAssociatedMonster(player2Class.name);
-                        const imageUrl = associatedMonster 
-                          ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
-                          : '/cdn/placeholder.png';
-                        return (
-                          <img
-                            src={imageUrl}
-                            alt={player2Class.name}
-                            className="w-12 h-12 object-cover rounded"
-                            style={{ imageRendering: 'pixelated' as const }}
-                          />
-                        );
-                      })()}
-                      <div>
-                        <div className="font-bold text-amber-100">{player2Name || player2Class.name}</div>
-                        <div className="text-sm text-amber-300 italic">{player2Class.name}</div>
+                          className={`px-3 py-1 text-xs rounded border transition-all ${
+                            opponentType === 'monster'
+                              ? 'bg-red-800 text-white border-red-600'
+                              : 'bg-gray-200 text-gray-700 border-gray-400 hover:bg-gray-300'
+                          }`}
+                        >
+                          Monster
+                        </button>
                       </div>
                     </div>
-                  )}
+                  </div>
                   {opponentType === 'monster' ? (
                     <>
                       {/* Standard Monsters */}
                       {availableMonsters.length > 0 ? (
                         <div className="mt-3">
-                          <h3 className="text-lg font-semibold mb-3 text-amber-200">Select Monster Opponent</h3>
+                          <h3 className="text-lg font-semibold mb-3" style={{ fontFamily: 'serif', color: '#5C4033' }}>Select Monster Opponent</h3>
                           <div className="relative">
                             {/* Left scroll button */}
                             <button
@@ -1423,7 +1336,7 @@ export default function DnDBattle() {
                             {/* Scrollable container */}
                             <div
                               ref={monsterScrollRef}
-                              className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 px-10"
+                              className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 pt-4 px-10"
                               style={{
                                 scrollbarWidth: 'none',
                                 msOverflowStyle: 'none',
@@ -1446,13 +1359,9 @@ export default function DnDBattle() {
                                     onClick={() => {
                                       setPlayerClassWithMonster('player2', monster, monster.name);
                                     }}
-                                    className={`flex-shrink-0 cursor-pointer transition-all ${
-                                      isSelected
-                                        ? 'ring-4 ring-amber-400 shadow-2xl'
-                                        : 'hover:shadow-lg'
-                                    }`}
+                                    className="flex-shrink-0 cursor-pointer transition-all"
                                     style={{
-                                      transform: isSelected ? 'scale(1.03)' : 'scale(1)',
+                                      transform: isSelected ? 'scale(1.03) translateY(-4px)' : 'scale(1)',
                                       padding: '4px', // Add padding to accommodate zoom without overflow
                                     }}
                                   >
@@ -1464,6 +1373,7 @@ export default function DnDBattle() {
                                       size="compact"
                                       cardIndex={index}
                                       totalCards={availableMonsters.length}
+                                      isSelected={isSelected}
                                     />
                                   </div>
                                 );
@@ -1487,15 +1397,15 @@ export default function DnDBattle() {
                           </div>
                         </div>
                       ) : (
-                        <div className="text-amber-300 text-sm italic text-center py-4">
+                        <div className="text-gray-600 text-sm italic text-center py-4">
                           {monstersLoaded ? 'No monsters available. Click "Load Monsters from OpenRAG" to load monsters.' : 'Click "Load Monsters from OpenRAG" to load monsters.'}
                         </div>
                       )}
                     </>
                   ) : (
-                    <div className="mt-3">
+                    <div className="mt-4">
                       <ClassSelection
-                        title="Select Class Opponent"
+                        title=""
                         availableClasses={availableClasses}
                         selectedClass={player2Class}
                         onSelect={(cls) => {
@@ -1508,22 +1418,31 @@ export default function DnDBattle() {
                 </div>
               </div>
 
-              {/* Begin Battle Button - Prominent and Isolated */}
-              <div className="mt-6">
+              {/* Begin Battle and Reset Buttons */}
+              <div className="mt-8 flex gap-4">
                 <button
                   onClick={startBattle}
                   disabled={!player1Class || !player2Class || isLoadingClassDetails || isBattleActive}
-                  className="w-full py-4 px-6 bg-red-900 hover:bg-red-800 text-white font-bold text-xl rounded-lg border-4 border-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-2xl"
+                  className="flex-1 py-4 px-6 bg-red-900 hover:bg-red-800 text-white font-bold text-xl rounded-lg border-4 border-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-2xl"
                   style={{ fontFamily: 'serif' }}
                 >
                   {isLoadingClassDetails ? 'Starting Battle...' : 'Begin Battle! ⚔️'}
                 </button>
-                {player1Class && !player2Class && (
-                  <p className="text-sm text-amber-300 text-center italic mt-2">
-                    Select your character to automatically assign an opponent
-                  </p>
-                )}
+                <button
+                  onClick={resetBattle}
+                  className="flex items-center gap-2 px-6 py-4 text-gray-700 hover:text-gray-900 transition-colors font-semibold text-lg border-2 border-gray-400 rounded-lg"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Reset
+                </button>
               </div>
+              {player1Class && !player2Class && (
+                <p className="text-sm text-gray-600 text-center italic mt-2">
+                  Select your character to automatically assign an opponent
+                </p>
+              )}
                 </>
               )}
             </div>
@@ -1644,17 +1563,26 @@ export default function DnDBattle() {
               paddingBottom: '2rem',
             }}
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
               <h2 className="text-xl font-bold" style={{ fontFamily: 'serif', color: '#5C4033' }}>
                 Battle Log
               </h2>
-              <button
-                onClick={triggerDropAnimation}
-                className="px-3 py-1.5 bg-purple-900 hover:bg-purple-800 text-white text-sm font-semibold rounded-lg border-2 border-purple-700 transition-all shadow-md"
-                title="Test the drop and slam animation"
-              >
-                🎬 Test Drop & Slam
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={resetBattle}
+                  className="px-4 py-2 bg-red-900 hover:bg-red-800 text-white font-semibold rounded-lg border-2 border-red-700 transition-all shadow-md"
+                  title="Start a new battle"
+                >
+                  New Battle
+                </button>
+                <button
+                  onClick={triggerDropAnimation}
+                  className="px-3 py-1.5 bg-purple-900 hover:bg-purple-800 text-white text-sm font-semibold rounded-lg border-2 border-purple-700 transition-all shadow-md"
+                  title="Test the drop and slam animation"
+                >
+                  🎬 Test Drop & Slam
+                </button>
+              </div>
             </div>
             <div className="space-y-2 text-sm">
               {battleLog.length === 0 && (

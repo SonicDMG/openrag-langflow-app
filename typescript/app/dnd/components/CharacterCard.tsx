@@ -137,6 +137,8 @@ interface CharacterCardProps {
   // Card position and total count (for card numbering)
   cardIndex?: number;
   totalCards?: number;
+  // Whether this card is selected (for selection UI)
+  isSelected?: boolean;
 }
 
 function CharacterCardComponent({
@@ -177,6 +179,7 @@ function CharacterCardComponent({
   size = 'normal',
   cardIndex,
   totalCards,
+  isSelected = false,
 }: CharacterCardProps) {
   const animationRef = useRef<HTMLDivElement>(null);
   const characterImageRef = useRef<HTMLDivElement>(null);
@@ -315,7 +318,9 @@ function CharacterCardComponent({
         maxWidth: maxWidth, // Constrain width to maintain portrait aspect
         aspectRatio: '3/4', // Portrait orientation: 3 wide by 4 tall
         padding: framePadding, // Dark frame padding
-        boxShadow: isActive 
+        boxShadow: isSelected
+          ? '0 0 12px rgba(127, 29, 29, 0.6), 0 0 6px rgba(185, 28, 28, 0.4), 0 8px 20px rgba(0, 0, 0, 0.3), 0 4px 10px rgba(0, 0, 0, 0.2), 0 6px 12px rgba(0, 0, 0, 0.4), 0 3px 6px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
+          : isActive 
           ? '0 0 20px rgba(251, 191, 36, 0.5), 0 8px 16px rgba(0, 0, 0, 0.4), 0 4px 8px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
           : '0 8px 16px rgba(0, 0, 0, 0.4), 0 4px 8px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
         // Paper texture effect for outer frame

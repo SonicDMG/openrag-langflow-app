@@ -7,6 +7,8 @@ import { CharacterCard } from '../components/CharacterCard';
 import { DnDClass } from '../types';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../constants';
 import { SearchableSelect } from '../components/SearchableSelect';
+import { PageHeader } from '../components/PageHeader';
+import { LandscapePrompt } from '../components/LandscapePrompt';
 
 interface CreatedMonsterData {
   monsterId: string;
@@ -358,44 +360,15 @@ export default function MonsterCreatorPage() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#D1C9BA' }}>
+      {/* Landscape Orientation Prompt */}
+      <LandscapePrompt />
+      
       {/* Header */}
-      <div className="px-4 sm:px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          {/* Home Button */}
-          <button
-            onClick={() => router.push('/')}
-            className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
-            <span className="font-semibold">Home</span>
-          </button>
-
-          {/* Center Title */}
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold" style={{ fontFamily: 'serif', color: '#5C4033' }}>
-              Character Image Creator
-            </h1>
-            {/* Image Icon */}
-            <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" fill="#DC2626" />
-              <circle cx="8.5" cy="8.5" r="1.5" fill="#EF4444" />
-              <polyline points="21 15 16 10 5 21" stroke="#991B1B" strokeWidth="2" fill="none" />
-            </svg>
-          </div>
-
-          {/* Navigation Links */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push('/dnd/create-character')}
-              className="px-4 py-2 bg-green-700 hover:bg-green-600 text-white rounded-lg font-semibold transition-all border-2 border-green-600"
-            >
-              ⚔️ Create Character
-            </button>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Character"
+        title2="Image Creator"
+        decalImageUrl="/cdn/decals/character-image-creator.png"
+      />
       
       <div className="container mx-auto p-8 space-y-8">
         

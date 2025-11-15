@@ -6,6 +6,8 @@ import { DnDClass, Ability, AttackAbility, HealingAbility } from '../types';
 import { CharacterCard } from '../components/CharacterCard';
 import { generateCharacterStats } from '../services/characterGeneration';
 import { CLASS_COLORS, MONSTER_COLORS } from '../constants';
+import { PageHeader } from '../components/PageHeader';
+import { LandscapePrompt } from '../components/LandscapePrompt';
 
 type CharacterType = 'hero' | 'monster';
 
@@ -260,36 +262,15 @@ export default function CharacterCreatorPage() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#D1C9BA' }}>
+      {/* Landscape Orientation Prompt */}
+      <LandscapePrompt />
+      
       {/* Header */}
-      <div className="px-4 sm:px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <button
-            onClick={() => router.push('/dnd')}
-            className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
-            <span className="font-semibold">Back</span>
-          </button>
-
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold" style={{ fontFamily: 'serif', color: '#5C4033' }}>
-              {editId ? 'Edit' : 'Create'} Character
-            </h1>
-          </div>
-
-          {/* Navigation Links */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push('/dnd/character-image-creator')}
-              className="px-4 py-2 bg-blue-700 hover:bg-blue-600 text-white rounded-lg font-semibold transition-all border-2 border-blue-600"
-            >
-              🎨 Create Image
-            </button>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title={editId ? 'Edit' : 'Create'}
+        title2="Character"
+        decalImageUrl="/cdn/decals/create-character.png"
+      />
 
       <div className="container mx-auto p-8 max-w-7xl">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

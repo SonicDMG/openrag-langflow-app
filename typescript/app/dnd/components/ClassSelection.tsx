@@ -46,7 +46,9 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
   
   return (
     <div>
-      <h3 className="text-lg font-semibold mb-3 text-amber-200">{title}</h3>
+      {title && (
+        <h3 className="text-lg font-semibold mb-3 text-amber-200">{title}</h3>
+      )}
       <div className="relative">
         {/* Left scroll button */}
         <button
@@ -62,7 +64,7 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
         {/* Scrollable container */}
         <div
           ref={scrollContainerRef}
-          className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 px-10"
+          className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 pt-4 px-10"
           style={{
             scrollbarWidth: 'none',
             msOverflowStyle: 'none',
@@ -83,13 +85,9 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
               <div
                 key={dndClass.name}
                 onClick={() => onSelect({ ...dndClass, hitPoints: dndClass.maxHitPoints })}
-                className={`flex-shrink-0 cursor-pointer transition-all ${
-                  isSelected
-                    ? 'ring-4 ring-amber-400 shadow-2xl'
-                    : 'hover:shadow-lg'
-                }`}
+                className="flex-shrink-0 cursor-pointer transition-all"
                 style={{
-                  transform: isSelected ? 'scale(1.03)' : 'scale(1)',
+                  transform: isSelected ? 'scale(1.03) translateY(-4px)' : 'scale(1)',
                   padding: '4px', // Add padding to accommodate zoom without overflow
                 }}
               >
@@ -101,6 +99,7 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
                   size="compact"
                   cardIndex={index}
                   totalCards={availableClasses.length}
+                  isSelected={isSelected}
                 />
               </div>
             );

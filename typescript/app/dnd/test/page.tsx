@@ -11,6 +11,8 @@ import { FloatingNumber, FloatingNumberType } from '../components/FloatingNumber
 import { CharacterCard } from '../components/CharacterCard';
 import { ClassSelection } from '../components/ClassSelection';
 import { useAIOpponent } from '../hooks/useAIOpponent';
+import { PageHeader } from '../components/PageHeader';
+import { LandscapePrompt } from '../components/LandscapePrompt';
 
 // Mock battle narrative generator (doesn't call agent)
 const mockBattleNarrative = (eventDescription: string): string => {
@@ -947,6 +949,9 @@ export default function DnDTestPage() {
   
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#D1C9BA' }}>
+      {/* Landscape Orientation Prompt */}
+      <LandscapePrompt />
+      
       {/* Floating Numbers */}
       {floatingNumbers.map((number) => (
         <FloatingNumber
@@ -959,56 +964,11 @@ export default function DnDTestPage() {
       ))}
       
       {/* Header */}
-      <div className="px-4 sm:px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          {/* Home Button */}
-          <button
-            onClick={() => router.push('/')}
-            className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
-            <span className="font-semibold">Home</span>
-          </button>
-
-          {/* Center Title with Dragon Emblem */}
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold" style={{ fontFamily: 'serif', color: '#5C4033' }}>
-              Test
-            </h1>
-            {/* Red Dragon/Phoenix Emblem */}
-            <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M12 2C8 2 5 5 5 9c0 2 1 4 3 5-1 1-2 3-2 5 0 3 2 5 5 5 1 0 2 0 3-1 1 1 2 1 3 1 3 0 5-2 5-5 0-2-1-4-2-5 2-1 3-3 3-5 0-4-3-7-7-7z"
-                fill="#DC2626"
-              />
-              <path
-                d="M12 4c-2 0-4 1-4 3 0 1 1 2 2 2 1 0 2-1 2-2 0-1 1-1 2-1 1 0 2 0 2 1 0 1 1 2 2 2 1 0 2-1 2-2 0-2-2-3-4-3z"
-                fill="#EF4444"
-              />
-              <path
-                d="M10 8c-1 0-2 1-2 2 0 1 1 2 2 2 1 0 2-1 2-2 0-1-1-2-2-2zm4 0c-1 0-2 1-2 2 0 1 1 2 2 2 1 0 2-1 2-2 0-1-1-2-2-2z"
-                fill="#991B1B"
-              />
-            </svg>
-            <h1 className="text-3xl font-bold" style={{ fontFamily: 'serif', color: '#5C4033' }}>
-              Page
-            </h1>
-          </div>
-
-          {/* Reset Button */}
-          <button
-            onClick={() => router.push('/dnd')}
-            className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            <span className="font-semibold">Back</span>
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Test"
+        title2="Page"
+        decalImageUrl="/cdn/decals/test-page.png"
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-0">
         <div className="space-y-6 overflow-visible">
@@ -1135,7 +1095,7 @@ export default function DnDTestPage() {
                       {/* Scrollable container */}
                       <div
                         ref={monsterScrollRef}
-                        className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 px-10"
+                        className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 pt-4 px-10"
                         style={{
                           scrollbarWidth: 'none',
                           msOverflowStyle: 'none',
@@ -1152,13 +1112,9 @@ export default function DnDTestPage() {
                             <div
                               key={monster.name}
                               onClick={() => handlePlayer2Select(createTestEntity(monster))}
-                              className={`flex-shrink-0 cursor-pointer transition-all ${
-                                isSelected
-                                  ? 'ring-4 ring-amber-400 shadow-2xl'
-                                  : 'hover:shadow-lg'
-                              }`}
+                              className="flex-shrink-0 cursor-pointer transition-all"
                               style={{
-                                transform: isSelected ? 'scale(1.03)' : 'scale(1)',
+                                transform: isSelected ? 'scale(1.03) translateY(-4px)' : 'scale(1)',
                                 padding: '4px', // Add padding to accommodate zoom without overflow
                               }}
                             >
@@ -1170,6 +1126,7 @@ export default function DnDTestPage() {
                                 size="compact"
                                 cardIndex={index}
                                 totalCards={FALLBACK_MONSTERS.length + customMonsters.length}
+                                isSelected={isSelected}
                               />
                             </div>
                           );

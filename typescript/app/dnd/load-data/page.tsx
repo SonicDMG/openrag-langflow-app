@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { DnDClass, Ability } from '../types';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS, CLASS_COLORS, FALLBACK_ABILITIES, MONSTER_COLORS, FALLBACK_MONSTER_ABILITIES } from '../constants';
 import { fetchAvailableClasses, fetchClassStats, extractAbilities, fetchAvailableMonsters, fetchMonsterStats, extractMonsterAbilities } from '../services/apiService';
+import { PageHeader } from '../components/PageHeader';
+import { LandscapePrompt } from '../components/LandscapePrompt';
 
 type LogEntry = {
   id: string;
@@ -479,125 +481,139 @@ export default function LoadDataPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-950 via-amber-900 to-amber-950 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-6">
-          <button
-            onClick={() => router.back()}
-            className="mb-4 px-4 py-2 bg-amber-800 hover:bg-amber-700 text-amber-100 rounded-lg border-2 border-amber-700 transition-all"
-          >
-            ← Back
-          </button>
-          <h1 className="text-3xl font-bold text-amber-100 mb-2">Load Data from OpenRAG</h1>
-          <p className="text-amber-300">Import heroes and monsters from your OpenRAG knowledge base</p>
-          <div className="mt-4">
-            <button
-              onClick={saveFallbackDataToAstra}
-              className="px-4 py-2 bg-green-900 hover:bg-green-800 text-white font-semibold rounded-lg border-2 border-green-700 transition-all"
-            >
-              💾 Save Fallback Data to Astra DB
-            </button>
-            <p className="text-xs text-amber-400 mt-2">
-              Save the default fallback classes and monsters to Astra DB (useful for initial setup)
-            </p>
-          </div>
-        </div>
+    <div className="min-h-screen" style={{ backgroundColor: '#D1C9BA' }}>
+      {/* Landscape Orientation Prompt */}
+      <LandscapePrompt />
+      
+      <PageHeader
+        title="Load"
+        title2="Data"
+        decalImageUrl="/cdn/decals/load-data.png"
+      />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Classes Section */}
-          <div className="bg-amber-900/50 border-2 border-amber-700 rounded-lg p-6">
-            <h2 className="text-xl font-bold text-amber-100 mb-4">Load Classes/Heroes</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-amber-200 mb-2">
-                  Search Context
-                </label>
-                <input
-                  type="text"
-                  value={classSearchContext}
-                  onChange={(e) => setClassSearchContext(e.target.value)}
-                  placeholder="e.g., D&D, Pokemon"
-                  className="w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100 placeholder-amber-400"
-                />
-                <p className="text-xs text-amber-400 mt-1">
-                  Specify the context to search (e.g., "D&D", "Pokemon"). Leave blank for default.
-                </p>
-              </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-0">
+        <div className="space-y-6 overflow-visible">
+          {/* Description Section */}
+          <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl">
+            <h2 className="text-2xl font-bold mb-4 text-amber-100" style={{ fontFamily: 'serif' }}>
+              Load Data from OpenRAG
+            </h2>
+            <p className="text-amber-200 mb-4">Import heroes and monsters from your OpenRAG knowledge base</p>
+            <div>
               <button
-                onClick={loadClassesFromOpenRAG}
-                disabled={isLoadingClasses || isLoadingMonsters}
-                className="w-full px-6 py-3 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-lg border-2 border-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                onClick={saveFallbackDataToAstra}
+                className="px-4 py-2 bg-green-900 hover:bg-green-800 text-white font-semibold rounded-lg border-2 border-green-700 transition-all"
               >
-                {isLoadingClasses ? 'Loading Classes...' : 'Load Classes from OpenRAG'}
+                💾 Save Fallback Data to Astra DB
               </button>
+              <p className="text-xs text-amber-300 mt-2">
+                Save the default fallback classes and monsters to Astra DB (useful for initial setup)
+              </p>
             </div>
           </div>
 
-          {/* Monsters Section */}
-          <div className="bg-amber-900/50 border-2 border-amber-700 rounded-lg p-6">
-            <h2 className="text-xl font-bold text-amber-100 mb-4">Load Monsters</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-amber-200 mb-2">
-                  Search Context
-                </label>
-                <input
-                  type="text"
-                  value={monsterSearchContext}
-                  onChange={(e) => setMonsterSearchContext(e.target.value)}
-                  placeholder="e.g., D&D, Pokemon"
-                  className="w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100 placeholder-amber-400"
-                />
-                <p className="text-xs text-amber-400 mt-1">
-                  Specify the context to search (e.g., "D&D", "Pokemon"). Leave blank for default.
-                </p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Classes Section */}
+            <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl">
+              <h2 className="text-2xl font-bold mb-4 text-amber-100" style={{ fontFamily: 'serif' }}>
+                Load Classes/Heroes
+              </h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-amber-200 mb-2">
+                    Search Context
+                  </label>
+                  <input
+                    type="text"
+                    value={classSearchContext}
+                    onChange={(e) => setClassSearchContext(e.target.value)}
+                    placeholder="e.g., D&D, Pokemon"
+                    className="w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100 placeholder-amber-400"
+                  />
+                  <p className="text-xs text-amber-300 mt-1">
+                    Specify the context to search (e.g., "D&D", "Pokemon"). Leave blank for default.
+                  </p>
+                </div>
+                <button
+                  onClick={loadClassesFromOpenRAG}
+                  disabled={isLoadingClasses || isLoadingMonsters}
+                  className="w-full px-6 py-3 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-lg border-2 border-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {isLoadingClasses ? 'Loading Classes...' : 'Load Classes from OpenRAG'}
+                </button>
               </div>
-              <button
-                onClick={loadMonstersFromOpenRAG}
-                disabled={isLoadingClasses || isLoadingMonsters}
-                className="w-full px-6 py-3 bg-red-900 hover:bg-red-800 text-white font-bold rounded-lg border-2 border-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              >
-                {isLoadingMonsters ? 'Loading Monsters...' : 'Load Monsters from OpenRAG'}
-              </button>
+            </div>
+
+            {/* Monsters Section */}
+            <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl">
+              <h2 className="text-2xl font-bold mb-4 text-amber-100" style={{ fontFamily: 'serif' }}>
+                Load Monsters
+              </h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-amber-200 mb-2">
+                    Search Context
+                  </label>
+                  <input
+                    type="text"
+                    value={monsterSearchContext}
+                    onChange={(e) => setMonsterSearchContext(e.target.value)}
+                    placeholder="e.g., D&D, Pokemon"
+                    className="w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100 placeholder-amber-400"
+                  />
+                  <p className="text-xs text-amber-300 mt-1">
+                    Specify the context to search (e.g., "D&D", "Pokemon"). Leave blank for default.
+                  </p>
+                </div>
+                <button
+                  onClick={loadMonstersFromOpenRAG}
+                  disabled={isLoadingClasses || isLoadingMonsters}
+                  className="w-full px-6 py-3 bg-red-900 hover:bg-red-800 text-white font-bold rounded-lg border-2 border-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {isLoadingMonsters ? 'Loading Monsters...' : 'Load Monsters from OpenRAG'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Live Log */}
-        <div className="bg-amber-900/50 border-2 border-amber-700 rounded-lg p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-amber-100">Import Log</h2>
-            <button
-              onClick={clearLog}
-              className="px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-sm rounded border border-amber-700 transition-all"
-            >
-              Clear Log
-            </button>
-          </div>
-          <div className="bg-amber-950/50 border border-amber-800 rounded p-4 h-96 overflow-y-auto font-mono text-sm">
-            {logEntries.length === 0 ? (
-              <div className="text-amber-500 italic">No log entries yet. Start loading data to see progress...</div>
-            ) : (
-              <div className="space-y-1">
-                {logEntries.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className={`flex items-start gap-2 ${getStatusColor(entry.type, entry.status)}`}
-                  >
-                    <span className="flex-shrink-0">
-                      {getStatusIcon(entry.status)}
-                    </span>
-                    <span className="flex-shrink-0 text-amber-600">
-                      {entry.timestamp.toLocaleTimeString()}
-                    </span>
-                    <span className="flex-1 break-words">
-                      {entry.message}
-                    </span>
-                  </div>
-                ))}
-                <div ref={logEndRef} />
-              </div>
-            )}
+          {/* Live Log */}
+          <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold text-amber-100" style={{ fontFamily: 'serif' }}>
+                Import Log
+              </h2>
+              <button
+                onClick={clearLog}
+                className="px-3 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-sm rounded border border-amber-700 transition-all"
+              >
+                Clear Log
+              </button>
+            </div>
+            <div className="bg-amber-950/50 border border-amber-800 rounded p-4 h-96 overflow-y-auto font-mono text-sm">
+              {logEntries.length === 0 ? (
+                <div className="text-amber-300 italic">No log entries yet. Start loading data to see progress...</div>
+              ) : (
+                <div className="space-y-1">
+                  {logEntries.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className={`flex items-start gap-2 ${getStatusColor(entry.type, entry.status)}`}
+                    >
+                      <span className="flex-shrink-0">
+                        {getStatusIcon(entry.status)}
+                      </span>
+                      <span className="flex-shrink-0 text-amber-400">
+                        {entry.timestamp.toLocaleTimeString()}
+                      </span>
+                      <span className="flex-1 break-words">
+                        {entry.message}
+                      </span>
+                    </div>
+                  ))}
+                  <div ref={logEndRef} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
