@@ -342,6 +342,7 @@ export async function GET(req: NextRequest) {
             prompt: metadata.prompt,
             seed: metadata.seed,
             stats: metadata.stats,
+            hasCutout: metadata.hasCutout ?? false, // Include cutout flag (default to false for backward compatibility)
             createdAt: metadata.createdAt || new Date().toISOString(),
             lastAssociatedAt: metadata.lastAssociatedAt, // Include last association time
             imageUrl: `/cdn/monsters/${dir.name}/280x200.png`,

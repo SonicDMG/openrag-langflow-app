@@ -2,6 +2,143 @@ import { DnDClass, Ability } from '../types';
 import { CLASS_COLORS, FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, getPlayerClassNames, isMonster } from '../constants';
 import { extractJsonFromResponse, parseSSEResponse } from '../utils/api';
 
+/**
+ * Shared helper to extract abilities from AI response
+ */
+async function extractAbilitiesFromResponse(
+  name: string,
+  accumulatedResponse: string,
+  fallbackAbilities: Record<string, Ability[]>
+): Promise<Ability[]> {
+  // Check if response indicates no data found
+  if (accumulatedResponse.toLowerCase().includes('no relevant supporting sources') || 
+      accumulatedResponse.toLowerCase().includes('no sources found') ||
+      accumulatedResponse.toLowerCase().includes('no relevant information') ||
+      accumulatedResponse.trim().length === 0) {
+    console.warn(`No data found for ${name} abilities in knowledge base`);
+    return fallbackAbilities[name] || [];
+  }
+
+  // Extract JSON from response using utility function
+  let abilitiesJsonString = extractJsonFromResponse(
+    accumulatedResponse,
+    ['abilities'] // required field
+  );
+  
+  if (!abilitiesJsonString) {
+    // Check if response only contains search_query objects (no actual data)
+    if (accumulatedResponse.includes('"search_query"') && !accumulatedResponse.includes('"abilities"')) {
+      console.warn(`Only search queries found for ${name}, no abilities data`);
+      return fallbackAbilities[name] || [];
+    }
+    console.error('No JSON object with "abilities" field found. Full response:', accumulatedResponse.substring(0, 200) + '...');
+    console.warn(`Using fallback abilities for ${name}`);
+    return fallbackAbilities[name] || [];
+  }
+  
+  // Fix common JSON malformation: quoted JSON objects in arrays
+  // e.g., [{"name":"A"},"{"name":"B"}"] should be [{"name":"A"},{"name":"B"}]
+  abilitiesJsonString = abilitiesJsonString.replace(/,\s*"(\{[^"]*"[^"]*"[^}]*\})"\s*/g, ',$1');
+  abilitiesJsonString = abilitiesJsonString.replace(/\[\s*"(\{[^"]*"[^"]*"[^}]*\})"\s*/g, '[$1');
+  abilitiesJsonString = abilitiesJsonString.replace(/"(\{[^"]*"[^"]*"[^}]*\})"/g, '$1');
+  abilitiesJsonString = abilitiesJsonString.replace(/,(\s*[}\]])/g, '$1');
+
+  try {
+    const parsed = JSON.parse(abilitiesJsonString);
+    if (parsed.abilities && Array.isArray(parsed.abilities)) {
+      // Validate and normalize abilities
+      const validAbilities: Ability[] = [];
+      
+      for (const ability of parsed.abilities) {
+        if (ability.type === 'attack' && ability.name && ability.damageDice) {
+          validAbilities.push({
+            name: ability.name,
+            type: 'attack',
+            damageDice: ability.damageDice,
+            attackRoll: ability.attackRoll !== undefined ? ability.attackRoll : true,
+            attacks: ability.attacks || 1,
+            bonusDamageDice: ability.bonusDamageDice,
+            description: ability.description || '',
+          } as Ability);
+        } else if (ability.type === 'healing' && ability.name && ability.healingDice) {
+          validAbilities.push({
+            name: ability.name,
+            type: 'healing',
+            healingDice: ability.healingDice,
+            description: ability.description || '',
+          } as Ability);
+        } else {
+          console.warn('Skipping invalid ability:', ability);
+        }
+      }
+      
+      if (validAbilities.length > 0) {
+        return validAbilities;
+      }
+    }
+    // If we parsed successfully but got no valid abilities, use fallback
+    console.warn('Parsed JSON but found no valid abilities:', parsed);
+    console.warn(`Using fallback abilities for ${name}`);
+    return fallbackAbilities[name] || [];
+  } catch (parseError) {
+    console.error('Error parsing JSON from AI response:', parseError);
+    console.error('Extracted JSON string was:', abilitiesJsonString);
+    console.error('Full response was:', accumulatedResponse.substring(0, 200) + '...');
+    
+    // Try to extract abilities manually using regex as a last resort
+    try {
+      const abilities: Ability[] = [];
+      
+      // Try to find ability objects in the malformed JSON
+      const abilityPattern = /\{"name"\s*:\s*"([^"]+)",\s*"type"\s*:\s*"([^"]+)",\s*"damageDice"\s*:\s*"([^"]+)"/g;
+      let match;
+      while ((match = abilityPattern.exec(abilitiesJsonString)) !== null) {
+        const name = match[1];
+        const type = match[2];
+        const damageDice = match[3];
+        
+        if (type === 'attack' && name && damageDice) {
+          // Try to extract attackRoll and description
+          const attackRollMatch = abilitiesJsonString.substring(match.index).match(/"attackRoll"\s*:\s*(true|false)/);
+          const descriptionMatch = abilitiesJsonString.substring(match.index).match(/"description"\s*:\s*"([^"]*)"/);
+          
+          abilities.push({
+            name,
+            type: 'attack',
+            damageDice,
+            attackRoll: attackRollMatch ? attackRollMatch[1] === 'true' : true,
+            attacks: 1,
+            description: descriptionMatch ? descriptionMatch[1] : '',
+          } as Ability);
+        } else if (type === 'healing' && name) {
+          // Try to extract healingDice
+          const healingDiceMatch = abilitiesJsonString.substring(match.index).match(/"healingDice"\s*:\s*"([^"]+)"/);
+          const descriptionMatch = abilitiesJsonString.substring(match.index).match(/"description"\s*:\s*"([^"]*)"/);
+          
+          if (healingDiceMatch) {
+            abilities.push({
+              name,
+              type: 'healing',
+              healingDice: healingDiceMatch[1],
+              description: descriptionMatch ? descriptionMatch[1] : '',
+            } as Ability);
+          }
+        }
+      }
+      
+      if (abilities.length > 0) {
+        console.warn(`Extracted ${abilities.length} abilities using regex fallback for ${name}`);
+        return abilities;
+      }
+    } catch (regexError) {
+      console.error('Regex extraction also failed:', regexError);
+    }
+    
+    console.warn(`Using fallback abilities for ${name}`);
+    return fallbackAbilities[name] || [];
+  }
+}
+
 // Fetch all available D&D classes from OpenRAG
 export async function fetchAvailableClasses(
   addLog: (type: 'system' | 'narrative', message: string) => void,
@@ -264,136 +401,7 @@ Important rules:
 
     const { content: accumulatedResponse } = await parseSSEResponse(reader);
 
-    // Check if response indicates no data found
-    if (accumulatedResponse.toLowerCase().includes('no relevant supporting sources') || 
-        accumulatedResponse.toLowerCase().includes('no sources found') ||
-        accumulatedResponse.toLowerCase().includes('no relevant information') ||
-        accumulatedResponse.trim().length === 0) {
-      console.warn(`No data found for ${className} abilities in knowledge base`);
-      return FALLBACK_ABILITIES[className] || [];
-    }
-
-    // Extract JSON from response using utility function
-    let abilitiesJsonString = extractJsonFromResponse(
-      accumulatedResponse,
-      ['abilities'] // required field
-    );
-    
-    if (!abilitiesJsonString) {
-      // Check if response only contains search_query objects (no actual data)
-      if (accumulatedResponse.includes('"search_query"') && !accumulatedResponse.includes('"abilities"')) {
-        console.warn(`Only search queries found for ${className}, no abilities data`);
-        return FALLBACK_ABILITIES[className] || [];
-      }
-      console.error('No JSON object with "abilities" field found. Full response:', accumulatedResponse.substring(0, 200) + '...');
-      console.warn(`Using fallback abilities for ${className}`);
-      return FALLBACK_ABILITIES[className] || [];
-    }
-    
-    // Fix common JSON malformation: quoted JSON objects in arrays
-    // e.g., [{"name":"A"},"{"name":"B"}"] should be [{"name":"A"},{"name":"B"}]
-    abilitiesJsonString = abilitiesJsonString.replace(/,\s*"(\{[^"]*"[^"]*"[^}]*\})"\s*/g, ',$1');
-    abilitiesJsonString = abilitiesJsonString.replace(/\[\s*"(\{[^"]*"[^"]*"[^}]*\})"\s*/g, '[$1');
-    abilitiesJsonString = abilitiesJsonString.replace(/"(\{[^"]*"[^"]*"[^}]*\})"/g, '$1');
-    abilitiesJsonString = abilitiesJsonString.replace(/,(\s*[}\]])/g, '$1');
-
-    try {
-      const parsed = JSON.parse(abilitiesJsonString);
-      if (parsed.abilities && Array.isArray(parsed.abilities)) {
-        // Validate and normalize abilities
-        const validAbilities: Ability[] = [];
-        
-        for (const ability of parsed.abilities) {
-          if (ability.type === 'attack' && ability.name && ability.damageDice) {
-            validAbilities.push({
-              name: ability.name,
-              type: 'attack',
-              damageDice: ability.damageDice,
-              attackRoll: ability.attackRoll !== undefined ? ability.attackRoll : true,
-              attacks: ability.attacks || 1,
-              bonusDamageDice: ability.bonusDamageDice,
-              description: ability.description || '',
-            } as Ability);
-          } else if (ability.type === 'healing' && ability.name && ability.healingDice) {
-            validAbilities.push({
-              name: ability.name,
-              type: 'healing',
-              healingDice: ability.healingDice,
-              description: ability.description || '',
-            } as Ability);
-          } else {
-            console.warn('Skipping invalid ability:', ability);
-          }
-        }
-        
-        if (validAbilities.length > 0) {
-          // Agent already returns a random selection of 1-3 attacks and 1-3 heals
-          // Just return what the agent selected (it's already randomized)
-          
-          return validAbilities;
-        }
-      }
-      // If we parsed successfully but got no valid abilities, use fallback
-      console.warn('Parsed JSON but found no valid abilities:', parsed);
-      console.warn(`Using fallback abilities for ${className}`);
-      return FALLBACK_ABILITIES[className] || [];
-    } catch (parseError) {
-      console.error('Error parsing JSON from AI response:', parseError);
-      console.error('Extracted JSON string was:', abilitiesJsonString);
-      console.error('Full response was:', accumulatedResponse.substring(0, 200) + '...');
-      
-      // Try to extract abilities manually using regex as a last resort
-      try {
-        const abilities: Ability[] = [];
-        
-        // Try to find ability objects in the malformed JSON
-        const abilityPattern = /\{"name"\s*:\s*"([^"]+)",\s*"type"\s*:\s*"([^"]+)",\s*"damageDice"\s*:\s*"([^"]+)"/g;
-        let match;
-        while ((match = abilityPattern.exec(abilitiesJsonString)) !== null) {
-          const name = match[1];
-          const type = match[2];
-          const damageDice = match[3];
-          
-          if (type === 'attack' && name && damageDice) {
-            // Try to extract attackRoll and description
-            const attackRollMatch = abilitiesJsonString.substring(match.index).match(/"attackRoll"\s*:\s*(true|false)/);
-            const descriptionMatch = abilitiesJsonString.substring(match.index).match(/"description"\s*:\s*"([^"]*)"/);
-            
-            abilities.push({
-              name,
-              type: 'attack',
-              damageDice,
-              attackRoll: attackRollMatch ? attackRollMatch[1] === 'true' : true,
-              attacks: 1,
-              description: descriptionMatch ? descriptionMatch[1] : '',
-            } as Ability);
-          } else if (type === 'healing' && name) {
-            // Try to extract healingDice
-            const healingDiceMatch = abilitiesJsonString.substring(match.index).match(/"healingDice"\s*:\s*"([^"]+)"/);
-            const descriptionMatch = abilitiesJsonString.substring(match.index).match(/"description"\s*:\s*"([^"]*)"/);
-            
-            if (healingDiceMatch) {
-              abilities.push({
-                name,
-                type: 'healing',
-                healingDice: healingDiceMatch[1],
-                description: descriptionMatch ? descriptionMatch[1] : '',
-              } as Ability);
-            }
-          }
-        }
-        
-        if (abilities.length > 0) {
-          console.warn(`Extracted ${abilities.length} abilities using regex fallback for ${className}`);
-          return abilities;
-        }
-      } catch (regexError) {
-        console.error('Regex extraction also failed:', regexError);
-      }
-      
-      console.warn(`Using fallback abilities for ${className}`);
-      return FALLBACK_ABILITIES[className] || [];
-    }
+    return await extractAbilitiesFromResponse(className, accumulatedResponse, FALLBACK_ABILITIES);
   } catch (error) {
     console.error('Error extracting abilities:', error);
     console.warn(`Using fallback abilities for ${className}`);
@@ -652,120 +660,7 @@ Important rules:
 
     const { content: accumulatedResponse } = await parseSSEResponse(reader);
 
-    // Check if response indicates no data found
-    if (accumulatedResponse.toLowerCase().includes('no relevant supporting sources') || 
-        accumulatedResponse.toLowerCase().includes('no sources found') ||
-        accumulatedResponse.toLowerCase().includes('no relevant information') ||
-        accumulatedResponse.trim().length === 0) {
-      console.warn(`No data found for ${monsterName} abilities in knowledge base`);
-      return FALLBACK_MONSTER_ABILITIES[monsterName] || [];
-    }
-
-    // Extract JSON from response using utility function
-    let abilitiesJsonString = extractJsonFromResponse(
-      accumulatedResponse,
-      ['abilities'] // required field
-    );
-    
-    if (!abilitiesJsonString) {
-      // Check if response only contains search_query objects (no actual data)
-      if (accumulatedResponse.includes('"search_query"') && !accumulatedResponse.includes('"abilities"')) {
-        console.warn(`Only search queries found for ${monsterName}, no abilities data`);
-        return FALLBACK_MONSTER_ABILITIES[monsterName] || [];
-      }
-      console.error('No JSON object with "abilities" field found. Full response:', accumulatedResponse.substring(0, 200) + '...');
-      console.warn(`Using fallback abilities for ${monsterName}`);
-      return FALLBACK_MONSTER_ABILITIES[monsterName] || [];
-    }
-    
-    // Fix common JSON malformation: quoted JSON objects in arrays
-    // e.g., [{"name":"A"},"{"name":"B"}"] should be [{"name":"A"},{"name":"B"}]
-    abilitiesJsonString = abilitiesJsonString.replace(/,\s*"(\{[^"]*"[^"]*"[^}]*\})"\s*/g, ',$1');
-    abilitiesJsonString = abilitiesJsonString.replace(/\[\s*"(\{[^"]*"[^"]*"[^}]*\})"\s*/g, '[$1');
-    abilitiesJsonString = abilitiesJsonString.replace(/"(\{[^"]*"[^"]*"[^}]*\})"/g, '$1');
-    abilitiesJsonString = abilitiesJsonString.replace(/,(\s*[}\]])/g, '$1');
-
-    try {
-      const parsed = JSON.parse(abilitiesJsonString);
-      if (parsed.abilities && Array.isArray(parsed.abilities)) {
-        // Validate and normalize abilities
-        const validAbilities: Ability[] = [];
-        
-        for (const ability of parsed.abilities) {
-          if (ability.type === 'attack' && ability.name && ability.damageDice) {
-            validAbilities.push({
-              name: ability.name,
-              type: 'attack',
-              damageDice: ability.damageDice,
-              attackRoll: ability.attackRoll !== undefined ? ability.attackRoll : true,
-              attacks: ability.attacks || 1,
-              bonusDamageDice: ability.bonusDamageDice,
-              description: ability.description || '',
-            } as Ability);
-          } else if (ability.type === 'healing' && ability.name && ability.healingDice) {
-            validAbilities.push({
-              name: ability.name,
-              type: 'healing',
-              healingDice: ability.healingDice,
-              description: ability.description || '',
-            } as Ability);
-          } else {
-            console.warn('Skipping invalid ability:', ability);
-          }
-        }
-        
-        if (validAbilities.length > 0) {
-          return validAbilities;
-        }
-      }
-      // If we parsed successfully but got no valid abilities, use fallback
-      console.warn('Parsed JSON but found no valid abilities:', parsed);
-      console.warn(`Using fallback abilities for ${monsterName}`);
-      return FALLBACK_MONSTER_ABILITIES[monsterName] || [];
-    } catch (parseError) {
-      console.error('Error parsing JSON from AI response:', parseError);
-      console.error('Extracted JSON string was:', abilitiesJsonString);
-      console.error('Full response was:', accumulatedResponse.substring(0, 200) + '...');
-      
-      // Try to extract abilities manually using regex as a last resort
-      try {
-        const abilities: Ability[] = [];
-        
-        // Try to find ability objects in the malformed JSON
-        const abilityPattern = /\{"name"\s*:\s*"([^"]+)",\s*"type"\s*:\s*"([^"]+)",\s*"damageDice"\s*:\s*"([^"]+)"/g;
-        let match;
-        while ((match = abilityPattern.exec(abilitiesJsonString)) !== null) {
-          const name = match[1];
-          const type = match[2];
-          const damageDice = match[3];
-          
-          if (type === 'attack' && name && damageDice) {
-            // Try to extract attackRoll and description
-            const attackRollMatch = abilitiesJsonString.substring(match.index).match(/"attackRoll"\s*:\s*(true|false)/);
-            const descriptionMatch = abilitiesJsonString.substring(match.index).match(/"description"\s*:\s*"([^"]*)"/);
-            
-            abilities.push({
-              name,
-              type: 'attack',
-              damageDice,
-              attackRoll: attackRollMatch ? attackRollMatch[1] === 'true' : true,
-              attacks: 1,
-              description: descriptionMatch ? descriptionMatch[1] : '',
-            } as Ability);
-          }
-        }
-        
-        if (abilities.length > 0) {
-          console.warn(`Extracted ${abilities.length} abilities using regex fallback for ${monsterName}`);
-          return abilities;
-        }
-      } catch (regexError) {
-        console.error('Regex extraction also failed:', regexError);
-      }
-      
-      console.warn(`Using fallback abilities for ${monsterName}`);
-      return FALLBACK_MONSTER_ABILITIES[monsterName] || [];
-    }
+    return await extractAbilitiesFromResponse(monsterName, accumulatedResponse, FALLBACK_MONSTER_ABILITIES);
   } catch (error) {
     console.error('Error extracting monster abilities:', error);
     console.warn(`Using fallback abilities for ${monsterName}`);

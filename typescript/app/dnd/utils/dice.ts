@@ -18,11 +18,6 @@ export function rollDice(dice: string): number {
   return total;
 }
 
-// Roll with modifier
-export function rollWithModifier(dice: string, modifier: number = 0): number {
-  return rollDice(dice) + modifier;
-}
-
 // Parse dice notation with modifiers (e.g., "1d8+3", "2d6+2", "3d6")
 // Returns { dice: string, modifier: number }
 export function parseDiceNotation(notation: string): { dice: string; modifier: number } {

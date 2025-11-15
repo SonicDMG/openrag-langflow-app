@@ -188,6 +188,7 @@ function CharacterCardComponent({
   const isDisabled = (effectiveIsActive && isMoveInProgress) || isDefeated;
   const [imageError, setImageError] = useState(false);
   const [cutOutImageError, setCutOutImageError] = useState(false);
+  const [mainImageLoaded, setMainImageLoaded] = useState(false);
   
   // Placeholder image URL for cards without associated monsters
   const placeholderImageUrl = '/cdn/placeholder.png';
@@ -270,10 +271,11 @@ function CharacterCardComponent({
     }
   }, [shouldCast, castTrigger, onCastComplete]);
 
-  // Reset image error when monsterImageUrl changes
+  // Reset image error and loaded state when monsterImageUrl changes
   useEffect(() => {
     if (monsterImageUrl) {
       setImageError(false);
+      setMainImageLoaded(false);
     }
   }, [monsterImageUrl]);
 
@@ -515,10 +517,11 @@ function CharacterCardComponent({
                   top: 0,
                   left: 0,
                 }}
+                onLoad={() => setMainImageLoaded(true)}
                 onError={() => setImageError(true)}
               />
-              {/* Cut-out character layer with animation (if available) */}
-              {monsterCutOutImageUrl && !cutOutImageError && (
+              {/* Cut-out character layer with animation (only load after main image loads to avoid initial 404s) */}
+              {monsterCutOutImageUrl && mainImageLoaded && !cutOutImageError && (
                 <img
                   ref={cutOutCharacterRef}
                   src={monsterCutOutImageUrl}
@@ -535,8 +538,8 @@ function CharacterCardComponent({
                     left: 0,
                     zIndex: 1,
                   }}
-                  onError={(e) => {
-                    console.warn('Cut-out image failed to load:', monsterCutOutImageUrl);
+                  onError={() => {
+                    // Silently handle missing cutout images - they're optional
                     setCutOutImageError(true);
                   }}
                 />

@@ -59,6 +59,7 @@ export async function saveMonsterBundle(bundle: MonsterBundle): Promise<string> 
     prompt: bundle.prompt,
     stats: bundle.stats,
     palette: bundle.palette,
+    hasCutout: !!bundle.cutOutImages, // Track if cutout images exist
     createdAt: new Date().toISOString(),
   };
   await fs.writeFile(join(monsterDir, 'metadata.json'), JSON.stringify(metadata, null, 2));

@@ -75,7 +75,8 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
             const monsterImageUrl = associatedMonster 
               ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
               : undefined;
-            const monsterCutOutImageUrl = associatedMonster 
+            // Only generate cutout URL if we know the monster has cutout images
+            const monsterCutOutImageUrl = associatedMonster && (associatedMonster as any).hasCutout
               ? `/cdn/monsters/${associatedMonster.monsterId}/280x200-cutout.png`
               : undefined;
             

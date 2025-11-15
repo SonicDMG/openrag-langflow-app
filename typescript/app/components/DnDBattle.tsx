@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { flushSync } from 'react-dom';
-import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -10,7 +8,7 @@ import remarkGfm from 'remark-gfm';
 import { DnDClass, BattleLog, AttackAbility, Ability } from '../dnd/types';
 
 // Constants
-import { FALLBACK_CLASSES, FALLBACK_MONSTERS, CLASS_COLORS, FALLBACK_ABILITIES, MONSTER_COLORS, selectRandomAbilities, FALLBACK_MONSTER_ABILITIES, isMonster } from '../dnd/constants';
+import { FALLBACK_CLASSES, FALLBACK_MONSTERS, FALLBACK_ABILITIES, selectRandomAbilities, FALLBACK_MONSTER_ABILITIES, isMonster } from '../dnd/constants';
 
 // Utilities
 import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../dnd/utils/dice';
@@ -39,7 +37,6 @@ import { PageHeader } from '../dnd/components/PageHeader';
 import { LandscapePrompt } from '../dnd/components/LandscapePrompt';
 
 export default function DnDBattle() {
-  const router = useRouter();
   const [player1Class, setPlayer1Class] = useState<DnDClass | null>(null);
   const [player2Class, setPlayer2Class] = useState<DnDClass | null>(null);
   const [player1Name, setPlayer1Name] = useState<string>('');
@@ -837,7 +834,7 @@ export default function DnDBattle() {
         )
       ]
     );
-  }, [updatePlayerHP, createPostHealingCallback, rollDiceWithNotation, parseDiceNotation, showFloatingNumbers]);
+  }, [updatePlayerHP, createPostHealingCallback, rollDiceWithNotation, showFloatingNumbers]);
 
   // Helper function to handle multi-attack abilities
   const handleMultiAttackAbility = useCallback(async (
@@ -1347,7 +1344,8 @@ export default function DnDBattle() {
                                 const monsterImageUrl = associatedMonster 
                                   ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
                                   : undefined;
-                                const monsterCutOutImageUrl = associatedMonster 
+                                // Only generate cutout URL if we know the monster has cutout images
+                                const monsterCutOutImageUrl = associatedMonster && (associatedMonster as any).hasCutout
                                   ? `/cdn/monsters/${associatedMonster.monsterId}/280x200-cutout.png`
                                   : undefined;
                                 
@@ -1469,7 +1467,13 @@ export default function DnDBattle() {
                   playerClass={player1Class}
                   characterName={player1Name || 'Loading...'}
                   monsterImageUrl={player1MonsterId ? `/cdn/monsters/${player1MonsterId}/280x200.png` : undefined}
-                  monsterCutOutImageUrl={player1MonsterId ? `/cdn/monsters/${player1MonsterId}/280x200-cutout.png` : undefined}
+                  monsterCutOutImageUrl={(() => {
+                    if (!player1MonsterId || !player1Class) return undefined;
+                    const associatedMonster = findAssociatedMonster(player1Class.name);
+                    return associatedMonster && (associatedMonster as any).hasCutout
+                      ? `/cdn/monsters/${player1MonsterId}/280x200-cutout.png`
+                      : undefined;
+                  })()}
                   onAttack={() => performAttack('player1')}
                   onUseAbility={(idx) => useAbility('player1', idx)}
                   shouldShake={shakingPlayer === 'player1'}
@@ -1511,7 +1515,13 @@ export default function DnDBattle() {
                   playerClass={player2Class}
                   characterName={player2Name || 'Loading...'}
                   monsterImageUrl={player2MonsterId ? `/cdn/monsters/${player2MonsterId}/280x200.png` : undefined}
-                  monsterCutOutImageUrl={player2MonsterId ? `/cdn/monsters/${player2MonsterId}/280x200-cutout.png` : undefined}
+                  monsterCutOutImageUrl={(() => {
+                    if (!player2MonsterId || !player2Class) return undefined;
+                    const associatedMonster = findAssociatedMonster(player2Class.name);
+                    return associatedMonster && (associatedMonster as any).hasCutout
+                      ? `/cdn/monsters/${player2MonsterId}/280x200-cutout.png`
+                      : undefined;
+                  })()}
                   onAttack={() => performAttack('player2')}
                   onUseAbility={(idx) => useAbility('player2', idx)}
                   shouldShake={shakingPlayer === 'player2'}
