@@ -1,0 +1,469 @@
+/* Flash effect animation */
+@keyframes flash-glow {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Flash overlay for right side (player1 facing opponent) */
+.card-flash-right {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 30%;
+  height: 100%;
+  background: linear-gradient(
+    to left,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(255, 255, 255, 0.95) 20%,
+    rgba(255, 215, 0, 0.9) 40%,
+    rgba(255, 165, 0, 0.7) 60%,
+    rgba(255, 140, 0, 0.5) 80%,
+    transparent 100%
+  );
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 30 !important;
+  animation: flash-glow 0.5s ease-out !important;
+  mix-blend-mode: screen;
+  box-shadow: inset -10px 0 30px rgba(255, 255, 255, 0.8);
+}
+
+/* Flash overlay for left side (player2/opponent facing opponent) */
+.card-flash-left {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 30%;
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(255, 255, 255, 0.95) 20%,
+    rgba(255, 215, 0, 0.9) 40%,
+    rgba(255, 165, 0, 0.7) 60%,
+    rgba(255, 140, 0, 0.5) 80%,
+    transparent 100%
+  );
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 30 !important;
+  animation: flash-glow 0.5s ease-out !important;
+  mix-blend-mode: screen;
+  box-shadow: inset 10px 0 30px rgba(255, 255, 255, 0.8);
+}
+
+/* Flash effect color variations based on projectile type */
+/* Fire */
+.card-flash-fire.card-flash-right {
+  background: linear-gradient(
+    to left,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(255, 140, 0, 1) 20%,
+    rgba(255, 69, 0, 0.95) 40%,
+    rgba(220, 20, 60, 0.85) 60%,
+    rgba(255, 99, 71, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset -10px 0 30px rgba(255, 69, 0, 0.9);
+}
+
+.card-flash-fire.card-flash-left {
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(255, 140, 0, 1) 20%,
+    rgba(255, 69, 0, 0.95) 40%,
+    rgba(220, 20, 60, 0.85) 60%,
+    rgba(255, 99, 71, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset 10px 0 30px rgba(255, 69, 0, 0.9);
+}
+
+/* Ice */
+.card-flash-ice.card-flash-right {
+  background: linear-gradient(
+    to left,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(176, 224, 230, 1) 20%,
+    rgba(135, 206, 235, 0.95) 40%,
+    rgba(0, 206, 209, 0.85) 60%,
+    rgba(70, 130, 180, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset -10px 0 30px rgba(176, 224, 230, 0.9);
+}
+
+.card-flash-ice.card-flash-left {
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(176, 224, 230, 1) 20%,
+    rgba(135, 206, 235, 0.95) 40%,
+    rgba(0, 206, 209, 0.85) 60%,
+    rgba(70, 130, 180, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset 10px 0 30px rgba(176, 224, 230, 0.9);
+}
+
+/* Water */
+.card-flash-water.card-flash-right {
+  background: linear-gradient(
+    to left,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(65, 105, 225, 1) 20%,
+    rgba(30, 144, 255, 0.95) 40%,
+    rgba(0, 191, 255, 0.85) 60%,
+    rgba(135, 206, 235, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset -10px 0 30px rgba(65, 105, 225, 0.9);
+}
+
+.card-flash-water.card-flash-left {
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(65, 105, 225, 1) 20%,
+    rgba(30, 144, 255, 0.95) 40%,
+    rgba(0, 191, 255, 0.85) 60%,
+    rgba(135, 206, 235, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset 10px 0 30px rgba(65, 105, 225, 0.9);
+}
+
+/* Earth */
+.card-flash-earth.card-flash-right {
+  background: linear-gradient(
+    to left,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(139, 69, 19, 1) 20%,
+    rgba(160, 82, 45, 0.95) 40%,
+    rgba(205, 133, 63, 0.85) 60%,
+    rgba(210, 180, 140, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset -10px 0 30px rgba(139, 69, 19, 0.9);
+}
+
+.card-flash-earth.card-flash-left {
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(139, 69, 19, 1) 20%,
+    rgba(160, 82, 45, 0.95) 40%,
+    rgba(205, 133, 63, 0.85) 60%,
+    rgba(210, 180, 140, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset 10px 0 30px rgba(139, 69, 19, 0.9);
+}
+
+/* Air */
+.card-flash-air.card-flash-right {
+  background: linear-gradient(
+    to left,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(255, 255, 255, 1) 20%,
+    rgba(211, 211, 211, 0.95) 40%,
+    rgba(192, 192, 192, 0.85) 60%,
+    rgba(169, 169, 169, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset -10px 0 30px rgba(255, 255, 255, 0.9);
+}
+
+.card-flash-air.card-flash-left {
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(255, 255, 255, 1) 20%,
+    rgba(211, 211, 211, 0.95) 40%,
+    rgba(192, 192, 192, 0.85) 60%,
+    rgba(169, 169, 169, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset 10px 0 30px rgba(255, 255, 255, 0.9);
+}
+
+/* Poison */
+.card-flash-poison.card-flash-right {
+  background: linear-gradient(
+    to left,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(34, 139, 34, 1) 20%,
+    rgba(50, 205, 50, 0.95) 40%,
+    rgba(173, 255, 47, 0.85) 60%,
+    rgba(85, 107, 47, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset -10px 0 30px rgba(34, 139, 34, 0.9);
+}
+
+.card-flash-poison.card-flash-left {
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(34, 139, 34, 1) 20%,
+    rgba(50, 205, 50, 0.95) 40%,
+    rgba(173, 255, 47, 0.85) 60%,
+    rgba(85, 107, 47, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset 10px 0 30px rgba(34, 139, 34, 0.9);
+}
+
+/* Psychic */
+.card-flash-psychic.card-flash-right {
+  background: linear-gradient(
+    to left,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(147, 112, 219, 1) 20%,
+    rgba(255, 0, 255, 0.95) 40%,
+    rgba(255, 105, 180, 0.85) 60%,
+    rgba(218, 112, 214, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset -10px 0 30px rgba(147, 112, 219, 0.9);
+}
+
+.card-flash-psychic.card-flash-left {
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(147, 112, 219, 1) 20%,
+    rgba(255, 0, 255, 0.95) 40%,
+    rgba(255, 105, 180, 0.85) 60%,
+    rgba(218, 112, 214, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset 10px 0 30px rgba(147, 112, 219, 0.9);
+}
+
+/* Necrotic */
+.card-flash-necrotic.card-flash-right {
+  background: linear-gradient(
+    to left,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(0, 0, 0, 1) 20%,
+    rgba(75, 0, 130, 0.95) 40%,
+    rgba(85, 107, 47, 0.85) 60%,
+    rgba(47, 47, 47, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset -10px 0 30px rgba(0, 0, 0, 0.9);
+}
+
+.card-flash-necrotic.card-flash-left {
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(0, 0, 0, 1) 20%,
+    rgba(75, 0, 130, 0.95) 40%,
+    rgba(85, 107, 47, 0.85) 60%,
+    rgba(47, 47, 47, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset 10px 0 30px rgba(0, 0, 0, 0.9);
+}
+
+/* Radiant */
+.card-flash-radiant.card-flash-right {
+  background: linear-gradient(
+    to left,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(255, 215, 0, 1) 20%,
+    rgba(255, 255, 255, 0.95) 40%,
+    rgba(255, 255, 0, 0.85) 60%,
+    rgba(255, 165, 0, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset -10px 0 30px rgba(255, 215, 0, 0.9);
+}
+
+.card-flash-radiant.card-flash-left {
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(255, 215, 0, 1) 20%,
+    rgba(255, 255, 255, 0.95) 40%,
+    rgba(255, 255, 0, 0.85) 60%,
+    rgba(255, 165, 0, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset 10px 0 30px rgba(255, 215, 0, 0.9);
+}
+
+/* Lightning */
+.card-flash-lightning.card-flash-right {
+  background: linear-gradient(
+    to left,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(0, 191, 255, 1) 20%,
+    rgba(255, 255, 255, 0.95) 40%,
+    rgba(255, 255, 0, 0.85) 60%,
+    rgba(30, 144, 255, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset -10px 0 30px rgba(0, 191, 255, 0.9);
+}
+
+.card-flash-lightning.card-flash-left {
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(0, 191, 255, 1) 20%,
+    rgba(255, 255, 255, 0.95) 40%,
+    rgba(255, 255, 0, 0.85) 60%,
+    rgba(30, 144, 255, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset 10px 0 30px rgba(0, 191, 255, 0.9);
+}
+
+/* Acid */
+.card-flash-acid.card-flash-right {
+  background: linear-gradient(
+    to left,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(0, 255, 0, 1) 20%,
+    rgba(173, 255, 47, 0.95) 40%,
+    rgba(50, 205, 50, 0.85) 60%,
+    rgba(0, 100, 0, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset -10px 0 30px rgba(0, 255, 0, 0.9);
+}
+
+.card-flash-acid.card-flash-left {
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(0, 255, 0, 1) 20%,
+    rgba(173, 255, 47, 0.95) 40%,
+    rgba(50, 205, 50, 0.85) 60%,
+    rgba(0, 100, 0, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset 10px 0 30px rgba(0, 255, 0, 0.9);
+}
+
+/* Melee */
+.card-flash-melee.card-flash-right {
+  background: linear-gradient(
+    to left,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(128, 128, 128, 1) 20%,
+    rgba(255, 255, 255, 0.95) 40%,
+    rgba(220, 20, 60, 0.85) 60%,
+    rgba(128, 128, 128, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset -10px 0 30px rgba(128, 128, 128, 0.9);
+}
+
+.card-flash-melee.card-flash-left {
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(128, 128, 128, 1) 20%,
+    rgba(255, 255, 255, 0.95) 40%,
+    rgba(220, 20, 60, 0.85) 60%,
+    rgba(128, 128, 128, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset 10px 0 30px rgba(128, 128, 128, 0.9);
+}
+
+/* Ranged */
+.card-flash-ranged.card-flash-right {
+  background: linear-gradient(
+    to left,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(128, 128, 128, 1) 20%,
+    rgba(139, 69, 19, 0.95) 40%,
+    rgba(255, 255, 255, 0.85) 60%,
+    rgba(128, 128, 128, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset -10px 0 30px rgba(128, 128, 128, 0.9);
+}
+
+.card-flash-ranged.card-flash-left {
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(128, 128, 128, 1) 20%,
+    rgba(139, 69, 19, 0.95) 40%,
+    rgba(255, 255, 255, 0.85) 60%,
+    rgba(128, 128, 128, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset 10px 0 30px rgba(128, 128, 128, 0.9);
+}
+
+/* Magic */
+.card-flash-magic.card-flash-right {
+  background: linear-gradient(
+    to left,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(65, 105, 225, 1) 20%,
+    rgba(147, 112, 219, 0.95) 40%,
+    rgba(255, 255, 255, 0.85) 60%,
+    rgba(65, 105, 225, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset -10px 0 30px rgba(65, 105, 225, 0.9);
+}
+
+.card-flash-magic.card-flash-left {
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(65, 105, 225, 1) 20%,
+    rgba(147, 112, 219, 0.95) 40%,
+    rgba(255, 255, 255, 0.85) 60%,
+    rgba(65, 105, 225, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset 10px 0 30px rgba(65, 105, 225, 0.9);
+}
+
+/* Shadow */
+.card-flash-shadow.card-flash-right {
+  background: linear-gradient(
+    to left,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(0, 0, 0, 1) 20%,
+    rgba(47, 47, 47, 0.95) 40%,
+    rgba(75, 0, 130, 0.85) 60%,
+    rgba(0, 0, 0, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset -10px 0 30px rgba(0, 0, 0, 0.9);
+}
+
+.card-flash-shadow.card-flash-left {
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(0, 0, 0, 1) 20%,
+    rgba(47, 47, 47, 0.95) 40%,
+    rgba(75, 0, 130, 0.85) 60%,
+    rgba(0, 0, 0, 0.7) 80%,
+    transparent 100%
+  );
+  box-shadow: inset 10px 0 30px rgba(0, 0, 0, 0.9);
+}

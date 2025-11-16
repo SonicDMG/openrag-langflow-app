@@ -1,0 +1,430 @@
+/* Projectile Effect - lobbed attack effects */
+.projectile-effect {
+  width: 60px;
+  height: 60px;
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* Projectile core - energy ball */
+.projectile-core {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fbbf24 0%, #f59e0b 40%, #dc2626 80%, #991b1b 100%);
+  box-shadow: 
+    0 0 30px rgba(251, 191, 36, 0.9),
+    0 0 60px rgba(220, 38, 38, 0.7),
+    0 0 90px rgba(153, 27, 27, 0.5),
+    0 0 120px rgba(127, 29, 29, 0.3),
+    inset 0 0 15px rgba(255, 255, 255, 0.4);
+  animation: projectile-pulse 0.2s ease-in-out infinite;
+}
+
+@keyframes projectile-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.9;
+  }
+}
+
+/* Projectile trail for hits - follows behind the projectile */
+.projectile-trail {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.7) 0%, transparent 70%);
+  box-shadow: 0 0 25px rgba(251, 191, 36, 0.6);
+  animation: projectile-trail 0.4s ease-out infinite;
+  transform: translate(-50%, -50%);
+}
+
+@keyframes projectile-trail {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.5);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.5);
+  }
+}
+
+/* Projectile hit/miss animations are handled via JavaScript transforms */
+
+/* Fizzle effect for misses - particles that fade out */
+.projectile-fizzle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.projectile-fizzle::before,
+.projectile-fizzle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.8) 0%, transparent 70%);
+  animation: fizzle-particle 0.4s ease-out forwards;
+}
+
+.projectile-fizzle::before {
+  animation-delay: 0.2s;
+  transform: translate(-50%, -50%) translate(-20px, -20px);
+}
+
+.projectile-fizzle::after {
+  animation-delay: 0.25s;
+  transform: translate(-50%, -50%) translate(20px, 20px);
+}
+
+@keyframes fizzle-particle {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.5) translate(var(--fizzle-x, 30px), var(--fizzle-y, 30px));
+  }
+}
+
+/* ============================================
+   PROJECTILE TYPE STYLES
+   ============================================ */
+
+/* Fire Projectile - Particle spray effect */
+.projectile-fire-core {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #FF4500 0%, #FF6347 30%, #FF8C00 60%, #DC143C 100%);
+  box-shadow: 
+    0 0 30px rgba(255, 69, 0, 0.9),
+    0 0 60px rgba(255, 99, 71, 0.7),
+    0 0 90px rgba(220, 20, 60, 0.5),
+    inset 0 0 20px rgba(255, 215, 0, 0.6);
+  animation: fire-flicker 0.15s ease-in-out infinite;
+}
+
+.projectile-fire-particles {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120%;
+  height: 120%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.projectile-fire-particles::before,
+.projectile-fire-particles::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #FFD700 0%, #FF8C00 50%, transparent 100%);
+  animation: fire-particle 0.3s ease-out infinite;
+}
+
+.projectile-fire-particles::before {
+  top: 10%;
+  left: 20%;
+  animation-delay: 0s;
+}
+
+.projectile-fire-particles::after {
+  top: 30%;
+  right: 15%;
+  animation-delay: 0.1s;
+}
+
+@keyframes fire-flicker {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  25% { transform: scale(1.1) rotate(2deg); opacity: 0.95; }
+  50% { transform: scale(0.95) rotate(-2deg); opacity: 0.9; }
+  75% { transform: scale(1.05) rotate(1deg); opacity: 0.95; }
+}
+
+@keyframes fire-particle {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--particle-x, 20px), var(--particle-y, -30px)) scale(0.3);
+  }
+}
+
+/* Ice Projectile - Crystalline shard */
+.projectile-ice .projectile-core {
+  background: radial-gradient(circle, #B0E0E6 0%, #87CEEB 40%, #00CED1 70%, #4682B4 100%);
+  box-shadow: 
+    0 0 30px rgba(176, 224, 230, 0.9),
+    0 0 60px rgba(135, 206, 235, 0.7),
+    0 0 90px rgba(0, 206, 209, 0.5),
+    inset 0 0 15px rgba(255, 255, 255, 0.8);
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+}
+
+.projectile-ice .projectile-trail {
+  background: radial-gradient(circle, rgba(176, 224, 230, 0.7) 0%, transparent 70%);
+  box-shadow: 0 0 25px rgba(176, 224, 230, 0.6);
+}
+
+/* Water Projectile - Liquid droplet */
+.projectile-water .projectile-core {
+  background: radial-gradient(ellipse at center, #4169E1 0%, #1E90FF 40%, #00BFFF 70%, #87CEEB 100%);
+  box-shadow: 
+    0 0 30px rgba(65, 105, 225, 0.8),
+    0 0 60px rgba(30, 144, 255, 0.6),
+    inset 0 0 20px rgba(135, 206, 235, 0.5);
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  animation: water-ripple 0.3s ease-in-out infinite;
+}
+
+@keyframes water-ripple {
+  0%, 100% { border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; }
+  50% { border-radius: 50% 50% 50% 50% / 50% 50% 50% 50%; }
+}
+
+.projectile-water .projectile-trail {
+  background: radial-gradient(circle, rgba(65, 105, 225, 0.6) 0%, transparent 70%);
+  box-shadow: 0 0 25px rgba(30, 144, 255, 0.5);
+}
+
+/* Earth Projectile - Solid chunk */
+.projectile-earth .projectile-core {
+  background: radial-gradient(circle, #8B4513 0%, #A0522D 30%, #CD853F 60%, #D2B48C 100%);
+  box-shadow: 
+    0 0 20px rgba(139, 69, 19, 0.8),
+    0 0 40px rgba(160, 82, 45, 0.6),
+    inset 0 0 15px rgba(128, 128, 128, 0.4);
+  border-radius: 40% 60% 50% 50% / 50% 50% 60% 40%;
+  transform: rotate(45deg);
+}
+
+.projectile-earth .projectile-trail {
+  background: radial-gradient(circle, rgba(139, 69, 19, 0.6) 0%, transparent 70%);
+  box-shadow: 0 0 20px rgba(160, 82, 45, 0.5);
+}
+
+/* Air Projectile - Swirling vortex */
+.projectile-air .projectile-core {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, rgba(211, 211, 211, 0.7) 50%, transparent 100%);
+  box-shadow: 
+    0 0 30px rgba(255, 255, 255, 0.8),
+    0 0 60px rgba(211, 211, 211, 0.6);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  animation: air-swirl 0.4s linear infinite;
+}
+
+@keyframes air-swirl {
+  0% { transform: rotate(0deg) scale(1); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+.projectile-air .projectile-trail {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.5) 0%, transparent 70%);
+  box-shadow: 0 0 20px rgba(211, 211, 211, 0.4);
+}
+
+/* Poison Projectile - Green cloud */
+.projectile-poison .projectile-core {
+  background: radial-gradient(circle, #228B22 0%, #32CD32 30%, #ADFF2F 60%, #556B2F 100%);
+  box-shadow: 
+    0 0 30px rgba(34, 139, 34, 0.9),
+    0 0 60px rgba(50, 205, 50, 0.7),
+    0 0 90px rgba(173, 255, 47, 0.5),
+    inset 0 0 15px rgba(85, 107, 47, 0.6);
+  filter: blur(2px);
+}
+
+.projectile-poison .projectile-trail {
+  background: radial-gradient(circle, rgba(34, 139, 34, 0.6) 0%, transparent 70%);
+  box-shadow: 0 0 30px rgba(50, 205, 50, 0.5);
+  filter: blur(3px);
+}
+
+/* Psychic Projectile - Purple energy waves */
+.projectile-psychic .projectile-core {
+  background: radial-gradient(circle, #9370DB 0%, #FF00FF 30%, #FF69B4 60%, #DA70D6 100%);
+  box-shadow: 
+    0 0 30px rgba(147, 112, 219, 0.9),
+    0 0 60px rgba(255, 0, 255, 0.7),
+    0 0 90px rgba(255, 105, 180, 0.5),
+    inset 0 0 15px rgba(218, 112, 214, 0.6);
+  animation: psychic-pulse 0.25s ease-in-out infinite;
+}
+
+@keyframes psychic-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.85; }
+}
+
+.projectile-psychic .projectile-trail {
+  background: radial-gradient(circle, rgba(147, 112, 219, 0.7) 0%, transparent 70%);
+  box-shadow: 0 0 30px rgba(255, 0, 255, 0.6);
+}
+
+/* Necrotic Projectile - Dark energy orb */
+.projectile-necrotic .projectile-core {
+  background: radial-gradient(circle, #000000 0%, #4B0082 30%, #556B2F 60%, #2F2F2F 100%);
+  box-shadow: 
+    0 0 30px rgba(0, 0, 0, 0.9),
+    0 0 60px rgba(75, 0, 130, 0.7),
+    0 0 90px rgba(85, 107, 47, 0.5),
+    inset 0 0 15px rgba(47, 47, 47, 0.8);
+}
+
+.projectile-necrotic .projectile-trail {
+  background: radial-gradient(circle, rgba(0, 0, 0, 0.7) 0%, transparent 70%);
+  box-shadow: 0 0 30px rgba(75, 0, 130, 0.6);
+}
+
+/* Radiant Projectile - Bright light beam */
+.projectile-radiant .projectile-core {
+  background: radial-gradient(circle, #FFD700 0%, #FFFFFF 30%, #FFFF00 60%, #FFA500 100%);
+  box-shadow: 
+    0 0 40px rgba(255, 215, 0, 1),
+    0 0 80px rgba(255, 255, 255, 0.9),
+    0 0 120px rgba(255, 255, 0, 0.7),
+    inset 0 0 20px rgba(255, 255, 255, 0.9);
+}
+
+.projectile-radiant .projectile-trail {
+  background: radial-gradient(circle, rgba(255, 215, 0, 0.9) 0%, transparent 70%);
+  box-shadow: 0 0 40px rgba(255, 255, 255, 0.8);
+}
+
+/* Lightning Projectile - Electric bolt */
+.projectile-lightning .projectile-core {
+  background: radial-gradient(circle, #00BFFF 0%, #FFFFFF 40%, #FFFF00 70%, #1E90FF 100%);
+  box-shadow: 
+    0 0 35px rgba(0, 191, 255, 1),
+    0 0 70px rgba(255, 255, 255, 0.9),
+    0 0 105px rgba(255, 255, 0, 0.7),
+    inset 0 0 20px rgba(255, 255, 255, 0.8);
+  clip-path: polygon(40% 0%, 60% 0%, 100% 40%, 100% 60%, 60% 100%, 40% 100%, 0% 60%, 0% 40%);
+  animation: lightning-zap 0.1s ease-in-out infinite;
+}
+
+@keyframes lightning-zap {
+  0%, 100% { clip-path: polygon(40% 0%, 60% 0%, 100% 40%, 100% 60%, 60% 100%, 40% 100%, 0% 60%, 0% 40%); }
+  50% { clip-path: polygon(45% 0%, 55% 0%, 100% 45%, 100% 55%, 55% 100%, 45% 100%, 0% 55%, 0% 45%); }
+}
+
+.projectile-lightning .projectile-trail {
+  background: radial-gradient(circle, rgba(0, 191, 255, 0.8) 0%, transparent 70%);
+  box-shadow: 0 0 35px rgba(255, 255, 255, 0.7);
+}
+
+/* Acid Projectile - Bubbling droplet */
+.projectile-acid .projectile-core {
+  background: radial-gradient(circle, #00FF00 0%, #ADFF2F 30%, #32CD32 60%, #006400 100%);
+  box-shadow: 
+    0 0 30px rgba(0, 255, 0, 0.9),
+    0 0 60px rgba(173, 255, 47, 0.7),
+    0 0 90px rgba(0, 100, 0, 0.5),
+    inset 0 0 15px rgba(50, 205, 50, 0.6);
+  border-radius: 50% 50% 50% 50% / 55% 55% 45% 45%;
+  animation: acid-bubble 0.3s ease-in-out infinite;
+}
+
+@keyframes acid-bubble {
+  0%, 100% { border-radius: 50% 50% 50% 50% / 55% 55% 45% 45%; transform: scale(1); }
+  50% { border-radius: 50% 50% 50% 50% / 45% 45% 55% 55%; transform: scale(1.1); }
+}
+
+.projectile-acid .projectile-trail {
+  background: radial-gradient(circle, rgba(0, 255, 0, 0.6) 0%, transparent 70%);
+  box-shadow: 0 0 30px rgba(173, 255, 47, 0.5);
+}
+
+/* Melee Projectile - Weapon-like energy slash */
+.projectile-melee .projectile-core {
+  background: linear-gradient(135deg, #808080 0%, #FFFFFF 30%, #DC143C 60%, #808080 100%);
+  box-shadow: 
+    0 0 25px rgba(128, 128, 128, 0.8),
+    0 0 50px rgba(220, 20, 60, 0.6),
+    inset 0 0 10px rgba(255, 255, 255, 0.5);
+  border-radius: 20% 80% 20% 80% / 80% 20% 80% 20%;
+  transform: rotate(45deg);
+}
+
+.projectile-melee .projectile-trail {
+  background: linear-gradient(135deg, rgba(128, 128, 128, 0.7) 0%, transparent 70%);
+  box-shadow: 0 0 20px rgba(220, 20, 60, 0.5);
+  border-radius: 50%;
+}
+
+/* Ranged Projectile - Arrow-like shape */
+.projectile-ranged .projectile-core {
+  background: linear-gradient(135deg, #808080 0%, #8B4513 40%, #FFFFFF 60%, #808080 100%);
+  box-shadow: 
+    0 0 20px rgba(128, 128, 128, 0.8),
+    0 0 40px rgba(139, 69, 19, 0.6),
+    inset 0 0 10px rgba(255, 255, 255, 0.4);
+  clip-path: polygon(50% 0%, 60% 30%, 100% 30%, 50% 100%, 0% 30%, 40% 30%);
+}
+
+.projectile-ranged .projectile-trail {
+  background: radial-gradient(circle, rgba(128, 128, 128, 0.6) 0%, transparent 70%);
+  box-shadow: 0 0 20px rgba(139, 69, 19, 0.5);
+}
+
+/* Magic Projectile - Generic magical energy (default) */
+.projectile-magic .projectile-core {
+  background: radial-gradient(circle, #4169E1 0%, #9370DB 40%, #FFFFFF 70%, #4169E1 100%);
+  box-shadow: 
+    0 0 30px rgba(65, 105, 225, 0.9),
+    0 0 60px rgba(147, 112, 219, 0.7),
+    0 0 90px rgba(255, 255, 255, 0.5),
+    inset 0 0 15px rgba(255, 255, 255, 0.6);
+}
+
+.projectile-magic .projectile-trail {
+  background: radial-gradient(circle, rgba(65, 105, 225, 0.7) 0%, transparent 70%);
+  box-shadow: 0 0 30px rgba(147, 112, 219, 0.6);
+}
+
+/* Shadow Projectile - Dark mist */
+.projectile-shadow .projectile-core {
+  background: radial-gradient(circle, #000000 0%, #2F2F2F 30%, #4B0082 60%, #000000 100%);
+  box-shadow: 
+    0 0 30px rgba(0, 0, 0, 0.9),
+    0 0 60px rgba(47, 47, 47, 0.7),
+    0 0 90px rgba(75, 0, 130, 0.5),
+    inset 0 0 15px rgba(75, 0, 130, 0.6);
+  filter: blur(1px);
+  opacity: 0.85;
+}
+
+.projectile-shadow .projectile-trail {
+  background: radial-gradient(circle, rgba(0, 0, 0, 0.6) 0%, transparent 70%);
+  box-shadow: 0 0 30px rgba(75, 0, 130, 0.5);
+  filter: blur(2px);
+}
