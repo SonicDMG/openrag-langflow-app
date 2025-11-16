@@ -163,6 +163,7 @@ export default function DnDTestPage() {
     value: number | string;
     type: FloatingNumberType;
     targetPlayer: 'player1' | 'player2';
+    persistent?: boolean;
   };
   const [floatingNumbers, setFloatingNumbers] = useState<FloatingNumberData[]>([]);
   
@@ -333,7 +334,7 @@ export default function DnDTestPage() {
   
   // Helper function to show floating numbers and apply effects immediately
   const showFloatingNumbers = useCallback((
-    numbers: Array<{ value: number | string; type: FloatingNumberType; targetPlayer: 'player1' | 'player2' }>,
+    numbers: Array<{ value: number | string; type: FloatingNumberType; targetPlayer: 'player1' | 'player2'; persistent?: boolean }>,
     visualEffects: PendingVisualEffect[] = [],
     callbacks: (() => void)[] = []
   ) => {
@@ -415,6 +416,14 @@ export default function DnDTestPage() {
             setDefeatedPlayer(defender);
             setVictorPlayer(attacker);
             setConfettiTrigger(prev => prev + 1);
+            
+            // Show floating "DEFEATED!" text (persistent - stays on card)
+            showFloatingNumbers(
+              [{ value: 'DEFEATED!', type: 'defeated', targetPlayer: defender, persistent: true }],
+              [],
+              []
+            );
+            
             addLog('system', `🏆 ${attackerClass.name} wins!`);
           } else {
             // Switch turns after attack completes
@@ -517,6 +526,14 @@ export default function DnDTestPage() {
           
           if (newHP <= 0) {
             setDefeatedPlayer(target);
+            
+            // Show floating "DEFEATED!" text (persistent - stays on card)
+            showFloatingNumbers(
+              [{ value: 'DEFEATED!', type: 'defeated', targetPlayer: target, persistent: true }],
+              [],
+              []
+            );
+            
             addLog('system', `💀 ${targetClass.name} is defeated!`);
           }
         }
@@ -591,6 +608,14 @@ export default function DnDTestPage() {
           
           if (newHP <= 0) {
             setDefeatedPlayer(target);
+            
+            // Show floating "DEFEATED!" text (persistent - stays on card)
+            showFloatingNumbers(
+              [{ value: 'DEFEATED!', type: 'defeated', targetPlayer: target, persistent: true }],
+              [],
+              []
+            );
+            
             addLog('system', `💀 ${targetClass.name} is defeated!`);
           }
         }
@@ -718,6 +743,14 @@ export default function DnDTestPage() {
                     setDefeatedPlayer(defender);
                     setVictorPlayer(player);
                     setConfettiTrigger(prev => prev + 1);
+                    
+                    // Show floating "DEFEATED!" text
+                    showFloatingNumbers(
+                      [{ value: 'DEFEATED!', type: 'defeated', targetPlayer: defender }],
+                      [],
+                      []
+                    );
+                    
                     addLog('system', `🏆 ${attackerClass.name} wins!`);
                   } else {
                     const nextTurn = player === 'player1' ? 'player2' : 'player1';
@@ -962,6 +995,7 @@ export default function DnDTestPage() {
           type={number.type}
           targetCardRef={number.targetPlayer === 'player1' ? player1CardRef : player2CardRef}
           onComplete={() => handleFloatingNumberComplete(number.id)}
+          persistent={number.persistent}
         />
       ))}
       

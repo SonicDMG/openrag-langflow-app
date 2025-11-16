@@ -85,6 +85,7 @@ export default function DnDBattle() {
     value: number | string;
     type: FloatingNumberType;
     targetPlayer: 'player1' | 'player2';
+    persistent?: boolean;
   };
   const [floatingNumbers, setFloatingNumbers] = useState<FloatingNumberData[]>([]);
   
@@ -351,7 +352,7 @@ export default function DnDBattle() {
 
   // Helper function to show floating numbers and apply effects immediately
   const showFloatingNumbers = useCallback((
-    numbers: Array<{ value: number | string; type: FloatingNumberType; targetPlayer: 'player1' | 'player2' }>,
+    numbers: Array<{ value: number | string; type: FloatingNumberType; targetPlayer: 'player1' | 'player2'; persistent?: boolean }>,
     visualEffects: PendingVisualEffect[] = [],
     callbacks: (() => void)[] = []
   ) => {
@@ -509,6 +510,14 @@ export default function DnDBattle() {
     const victor = defender === 'player1' ? 'player2' : 'player1';
     setVictorPlayer(victor);
     setConfettiTrigger(prev => prev + 1);
+    
+    // Show floating "DEFEATED!" text (persistent - stays on card)
+    showFloatingNumbers(
+      [{ value: 'DEFEATED!', type: 'defeated', targetPlayer: defender, persistent: true }],
+      [],
+      []
+    );
+    
     await generateAndLogNarrative(
       eventDescription,
       attackerClass,
@@ -517,7 +526,7 @@ export default function DnDBattle() {
       defenderDetails
     );
     addLog('system', `🏆 ${attackerClass.name} wins! ${defenderClass.name} has been defeated!`);
-  }, [generateAndLogNarrative, addLog]);
+  }, [generateAndLogNarrative, addLog, showFloatingNumbers]);
 
   // Note: applyDamage and handlePostDamage helpers removed - logic now inlined with helper functions
 
@@ -1199,6 +1208,7 @@ export default function DnDBattle() {
           type={number.type}
           targetCardRef={number.targetPlayer === 'player1' ? player1CardRef : player2CardRef}
           onComplete={() => handleFloatingNumberComplete(number.id)}
+          persistent={number.persistent}
         />
       ))}
       
@@ -1254,10 +1264,10 @@ export default function DnDBattle() {
                 />
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-semibold" style={{ fontFamily: 'serif', color: '#5C4033' }}>Opponent (Auto-Play)</h3>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-xl font-semibold" style={{ fontFamily: 'serif', color: '#5C4033' }}>Opponent (Auto-Play)</h3>
                       {player2Class && (
-                        <div className="flex items-center gap-2">
+                        <>
                           {(() => {
                             const associatedMonster = findAssociatedMonster(player2Class.name);
                             const imageUrl = associatedMonster 
@@ -1272,12 +1282,16 @@ export default function DnDBattle() {
                               />
                             );
                           })()}
-                          <div>
-                            <div className="font-bold text-sm" style={{ color: '#5C4033' }}>{player2Name || player2Class.name}</div>
-                            <div className="text-xs text-gray-600 italic">{player2Class.name}</div>
+                          <div className="flex items-center gap-2">
+                            <div>
+                              <div className="font-bold text-sm" style={{ color: '#5C4033' }}>{player2Name || player2Class.name}</div>
+                              <div className="text-xs text-gray-600 italic">{player2Class.name}</div>
+                            </div>
                           </div>
-                        </div>
+                        </>
                       )}
+                    </div>
+                    <div className="flex items-center gap-4">
                       <div className="flex gap-2">
                         <button
                           onClick={() => {

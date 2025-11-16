@@ -2,16 +2,17 @@
 
 import { useEffect, useState } from 'react';
 
-export type FloatingNumberType = 'damage' | 'healing' | 'miss' | 'attack-roll';
+export type FloatingNumberType = 'damage' | 'healing' | 'miss' | 'attack-roll' | 'defeated';
 
 interface FloatingNumberProps {
   value: number | string;
   type: FloatingNumberType;
   targetCardRef: React.RefObject<HTMLDivElement | null>;
   onComplete?: () => void;
+  persistent?: boolean; // If true, text stays visible and doesn't auto-remove
 }
 
-export function FloatingNumber({ value, type, targetCardRef, onComplete }: FloatingNumberProps) {
+export function FloatingNumber({ value, type, targetCardRef, onComplete, persistent = false }: FloatingNumberProps) {
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -38,18 +39,32 @@ export function FloatingNumber({ value, type, targetCardRef, onComplete }: Float
       const timer = setTimeout(updatePosition, 50);
       return () => clearTimeout(timer);
     }
-  }, [targetCardRef]);
+
+    // For persistent defeated text, update position continuously
+    if (persistent && type === 'defeated') {
+      const handleUpdate = () => updatePosition();
+      const interval = setInterval(handleUpdate, 100); // Update every 100ms
+      window.addEventListener('scroll', handleUpdate, true);
+      window.addEventListener('resize', handleUpdate);
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('scroll', handleUpdate, true);
+        window.removeEventListener('resize', handleUpdate);
+      };
+    }
+  }, [targetCardRef, persistent, type]);
 
   useEffect(() => {
-    if (isVisible) {
-      // Animation duration matches CSS animation (2s)
+    if (isVisible && !persistent) {
+      // Animation duration matches CSS animation (2s for normal, 3s for defeated)
+      const duration = type === 'defeated' ? 3000 : 2000;
       const timer = setTimeout(() => {
         setIsVisible(false);
         onComplete?.();
-      }, 2000);
+      }, duration);
       return () => clearTimeout(timer);
     }
-  }, [isVisible, onComplete]);
+  }, [isVisible, onComplete, type, persistent]);
 
   if (!position || !isVisible) return null;
 
@@ -84,6 +99,19 @@ export function FloatingNumber({ value, type, targetCardRef, onComplete }: Float
           fontWeight: 700,
           textShadow: '2px 2px 4px rgba(0, 0, 0, 0.5)',
         };
+      case 'defeated':
+        return {
+          color: '#DC2626', // red-600
+          fontSize: '3rem',
+          fontWeight: 900,
+          textShadow: 
+            '3px 3px 6px rgba(0, 0, 0, 0.8), ' +
+            '0 0 20px rgba(220, 38, 38, 0.8), ' +
+            '0 0 40px rgba(220, 38, 38, 0.6), ' +
+            '0 0 60px rgba(220, 38, 38, 0.4)',
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+        };
       default:
         return {
           color: '#FFFFFF',
@@ -99,6 +127,8 @@ export function FloatingNumber({ value, type, targetCardRef, onComplete }: Float
   // Format the display value
   const displayValue = type === 'miss' 
     ? 'MISS' 
+    : type === 'defeated'
+    ? 'DEFEATED!'
     : type === 'attack-roll' 
     ? String(value) 
     : type === 'healing'
@@ -107,7 +137,7 @@ export function FloatingNumber({ value, type, targetCardRef, onComplete }: Float
 
   return (
     <div
-      className="floating-number"
+      className={type === 'defeated' ? (persistent ? 'floating-number-defeated-persistent' : 'floating-number-defeated') : 'floating-number'}
       style={{
         position: 'fixed',
         left: `${position.x}px`,

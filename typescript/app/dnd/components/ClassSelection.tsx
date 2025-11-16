@@ -54,10 +54,10 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
         {/* Left scroll button */}
         <button
           onClick={scrollLeft}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-amber-900/90 hover:bg-amber-800 text-amber-100 p-2 rounded-full border-2 border-amber-700 shadow-lg transition-all"
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-amber-900/90 hover:bg-amber-800 text-amber-100 p-1 sm:p-1.5 md:p-2 rounded-full border-2 border-amber-700 shadow-lg transition-all"
           aria-label="Scroll left"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
@@ -65,10 +65,12 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
         {/* Scrollable container */}
         <div
           ref={scrollContainerRef}
-          className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 pt-4 px-10"
+          className="flex gap-2 sm:gap-3 md:gap-4 overflow-x-auto scrollbar-hide pb-2 sm:pb-3 md:pb-4 pt-2 sm:pt-3 md:pt-4 px-6 sm:px-8 md:px-10"
           style={{
             scrollbarWidth: 'none',
             msOverflowStyle: 'none',
+            // On small screens, limit visible area to show ~2 cards (192px * 2 + gap + padding)
+            maxWidth: '100%',
           }}
         >
           {availableClasses.map((dndClass, index) => {
@@ -115,10 +117,10 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
         {/* Right scroll button */}
         <button
           onClick={scrollRight}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-amber-900/90 hover:bg-amber-800 text-amber-100 p-2 rounded-full border-2 border-amber-700 shadow-lg transition-all"
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-amber-900/90 hover:bg-amber-800 text-amber-100 p-1 sm:p-1.5 md:p-2 rounded-full border-2 border-amber-700 shadow-lg transition-all"
           aria-label="Scroll right"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </button>

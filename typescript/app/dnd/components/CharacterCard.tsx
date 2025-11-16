@@ -354,10 +354,13 @@ function CharacterCardComponent({
   const framePadding = isCompact ? '6px' : '10px'; // Padding for the dark frame
   const innerBorderRadius = isCompact ? '8px' : '12px'; // Rounded corners for inner card
 
+  // Check if we're in battle mode (has onAttack callback)
+  const isInBattle = !!onAttack;
+  
   return (
     <div 
       ref={animationRef}
-      className="relative flex flex-col"
+      className={`relative flex flex-col ${isDefeated ? 'card-damaged card-slam-down' : isInBattle ? 'card-elevated' : ''}`}
       style={{ 
         backgroundColor: '#1a1a1a', // Dark black frame background
         borderRadius: borderRadius,
@@ -381,6 +384,113 @@ function CharacterCardComponent({
         position: 'relative'
       }}
     >
+      {/* Dust particles effect when card slams down */}
+      {isDefeated && isInBattle && (() => {
+        // Generate random particle counts per side (more realistic dust distribution)
+        // Each side gets a random number between min and max particles
+        const getRandomCount = (min: number, max: number) => 
+          Math.floor(Math.random() * (max - min + 1)) + min;
+        
+        // Generate random counts for each side (ensuring bottom has good coverage)
+        const bottomCount = getRandomCount(8, 15); // Bottom: 8-15 particles
+        const topCount = getRandomCount(6, 12);   // Top: 6-12 particles
+        const leftCount = getRandomCount(6, 12);  // Left: 6-12 particles
+        const rightCount = getRandomCount(6, 12); // Right: 6-12 particles
+        
+        const totalParticles = bottomCount + topCount + leftCount + rightCount;
+        const particles: Array<{ 
+          side: 'bottom' | 'top' | 'left' | 'right'; 
+          position: number; // 0-100 for position along the edge
+          delay: number; // Animation delay in seconds
+          duration: number; // Animation duration in seconds
+          horizontalOffset: number; // Random horizontal offset for bottom/top
+          verticalOffset: number; // Random vertical offset for left/right
+        }> = [];
+        
+        // Helper to generate random position along edge
+        const getRandomPosition = () => Math.random() * 100;
+        const getRandomDelay = () => Math.random() * 0.05; // 0-0.05s delay (almost immediate)
+        const getRandomDuration = () => 0.3 + Math.random() * 0.2; // 0.3-0.5s duration (quick burst)
+        const getRandomOffset = () => (Math.random() - 0.5) * 30; // -15px to +15px
+        
+        // Create bottom particles
+        for (let i = 0; i < bottomCount; i++) {
+          particles.push({ 
+            side: 'bottom', 
+            position: getRandomPosition(),
+            delay: getRandomDelay(),
+            duration: getRandomDuration(),
+            horizontalOffset: getRandomOffset(),
+            verticalOffset: 0
+          });
+        }
+        
+        // Create top particles
+        for (let i = 0; i < topCount; i++) {
+          particles.push({ 
+            side: 'top', 
+            position: getRandomPosition(),
+            delay: getRandomDelay(),
+            duration: getRandomDuration(),
+            horizontalOffset: getRandomOffset(),
+            verticalOffset: 0
+          });
+        }
+        
+        // Create left particles
+        for (let i = 0; i < leftCount; i++) {
+          particles.push({ 
+            side: 'left', 
+            position: getRandomPosition(),
+            delay: getRandomDelay(),
+            duration: getRandomDuration(),
+            horizontalOffset: 0,
+            verticalOffset: getRandomOffset()
+          });
+        }
+        
+        // Create right particles
+        for (let i = 0; i < rightCount; i++) {
+          particles.push({ 
+            side: 'right', 
+            position: getRandomPosition(),
+            delay: getRandomDelay(),
+            duration: getRandomDuration(),
+            horizontalOffset: 0,
+            verticalOffset: getRandomOffset()
+          });
+        }
+        
+        return (
+          <div className="card-dust-container">
+            {particles.map((particle, i) => {
+              // Set initial position based on side
+              const initialStyle: React.CSSProperties = {
+                '--dust-delay': `${particle.delay}s`,
+                '--dust-duration': `${particle.duration}s`,
+                '--dust-horizontal-offset': `${particle.horizontalOffset}px`,
+                '--dust-vertical-offset': `${particle.verticalOffset}px`,
+              };
+              
+              if (particle.side === 'bottom' || particle.side === 'top') {
+                initialStyle.left = `${particle.position}%`;
+                initialStyle.top = particle.side === 'bottom' ? '100%' : '0%';
+              } else {
+                initialStyle.left = particle.side === 'left' ? '0%' : '100%';
+                initialStyle.top = `${particle.position}%`;
+              }
+              
+              return (
+                <div 
+                  key={i} 
+                  className={`card-dust-particle card-dust-${particle.side}`}
+                  style={initialStyle}
+                />
+              );
+            })}
+          </div>
+        );
+      })()}
       {/* Texture overlay for outer frame */}
       <div 
         className="absolute inset-0 pointer-events-none"
@@ -408,7 +518,7 @@ function CharacterCardComponent({
       />
       {/* Inner card with rounded corners */}
       <div 
-        className="relative overflow-hidden"
+        className={`relative overflow-hidden ${isDefeated ? 'card-inner-damaged' : ''}`}
         style={{ 
           backgroundColor: '#F2ECDE', // Light beige background
           borderRadius: innerBorderRadius,
@@ -456,14 +566,7 @@ function CharacterCardComponent({
             mixBlendMode: 'multiply'
           }}
         />
-        {/* Defeated overlay */}
-        {isDefeated && (
-          <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none bg-black/30">
-            <div className={`${isCompact ? 'text-5xl' : 'text-8xl'} text-red-900 drop-shadow-2xl`} style={{ filter: 'drop-shadow(0 0 10px rgba(0,0,0,0.8))' }}>
-              ☠️
-            </div>
-          </div>
-        )}
+        {/* Defeated overlay - removed skull icon, damage effect applied via CSS class */}
 
         {/* Confetti for victor */}
         {isVictor && <Confetti key={confettiTrigger} trigger={confettiTrigger} />}
@@ -478,7 +581,7 @@ function CharacterCardComponent({
         )}
 
         {/* Card Content */}
-        <div className="h-full flex flex-col relative z-10" style={{ padding: padding }}>
+        <div className={`h-full flex flex-col relative z-10 ${isDefeated ? 'card-content-damaged' : ''}`} style={{ padding: padding }}>
         {/* Header with name, type, and symbol */}
         <div className="relative" style={{ marginBottom: isCompact ? '0.5rem' : '0.75rem' }}>
           {/* Purple abstract symbol in top right - flame/swirling design */}
@@ -514,7 +617,6 @@ function CharacterCardComponent({
           >
             {characterName}
             {isActive && ' ⚡'}
-            {isDefeated && ' 💀'}
             {isVictor && ' 🏆'}
             {isOpponent && ' 🤖'}
           </h3>
