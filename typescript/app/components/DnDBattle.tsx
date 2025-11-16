@@ -14,13 +14,14 @@ import { FALLBACK_CLASSES, FALLBACK_MONSTERS, FALLBACK_ABILITIES, selectRandomAb
 import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../dnd/utils/dice';
 import { generateCharacterName } from '../dnd/utils/names';
 import { 
-  isSurprisingDamage, 
   createHitVisualEffects, 
   createMissVisualEffects, 
   createHealingVisualEffects,
   getOpponent,
   buildDamageDiceArray,
-  type PendingVisualEffect 
+  getProjectileType,
+  type PendingVisualEffect,
+  type ProjectileType
 } from '../dnd/utils/battle';
 
 // Hooks
@@ -35,6 +36,7 @@ import { FloatingNumber, FloatingNumberType } from '../dnd/components/FloatingNu
 import { CharacterCard } from '../dnd/components/CharacterCard';
 import { PageHeader } from '../dnd/components/PageHeader';
 import { LandscapePrompt } from '../dnd/components/LandscapePrompt';
+import { ProjectileEffect } from '../dnd/components/ProjectileEffect';
 
 export default function DnDBattle() {
   const [player1Class, setPlayer1Class] = useState<DnDClass | null>(null);
@@ -68,8 +70,6 @@ export default function DnDBattle() {
   const [missTrigger, setMissTrigger] = useState({ player1: 0, player2: 0 });
   const [hittingPlayer, setHittingPlayer] = useState<'player1' | 'player2' | null>(null);
   const [hitTrigger, setHitTrigger] = useState({ player1: 0, player2: 0 });
-  const [surprisedPlayer, setSurprisedPlayer] = useState<'player1' | 'player2' | null>(null);
-  const [surpriseTrigger, setSurpriseTrigger] = useState({ player1: 0, player2: 0 });
   const [isWaitingForAgent, setIsWaitingForAgent] = useState(false);
   const [isMoveInProgress, setIsMoveInProgress] = useState(false);
   const [defeatedPlayer, setDefeatedPlayer] = useState<'player1' | 'player2' | null>(null);
@@ -88,6 +88,20 @@ export default function DnDBattle() {
     persistent?: boolean;
   };
   const [floatingNumbers, setFloatingNumbers] = useState<FloatingNumberData[]>([]);
+  
+  // Projectile effects state
+  type ProjectileData = {
+    id: string;
+    fromPlayer: 'player1' | 'player2';
+    toPlayer: 'player1' | 'player2';
+    isHit: boolean;
+    onHit?: () => void;
+    onComplete?: () => void;
+    fromCardRotation?: number;
+    delay?: number;
+    projectileType?: ProjectileType;
+  };
+  const [projectileEffects, setProjectileEffects] = useState<ProjectileData[]>([]);
   
   // Refs for character cards to position floating numbers
   const player1CardRef = useRef<HTMLDivElement | null>(null);
@@ -339,15 +353,57 @@ export default function DnDBattle() {
         setHittingPlayer(effect.player);
         setHitTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
         break;
-      case 'surprise':
-        setSurprisedPlayer(effect.player);
-        setSurpriseTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
-        break;
       case 'cast':
         setCastingPlayer(effect.player);
         setCastTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
         break;
     }
+  }, []);
+
+  // Ref to track recent projectile creations to prevent duplicates
+  const lastProjectileTimeRef = useRef<{ [key: string]: number }>({});
+  
+  // Helper function to show projectile effect
+  const showProjectileEffect = useCallback((
+    fromPlayer: 'player1' | 'player2',
+    toPlayer: 'player1' | 'player2',
+    isHit: boolean,
+    onHit?: () => void,
+    onComplete?: () => void,
+    fromCardRotation?: number,
+    delay?: number,
+    projectileType?: ProjectileType
+  ) => {
+    // Create a unique key for this attack (fromPlayer + toPlayer + delay)
+    // This prevents duplicate projectiles for the same attack within 200ms
+    const attackKey = `${fromPlayer}-${toPlayer}-${delay || 0}`;
+    const now = Date.now();
+    const lastTime = lastProjectileTimeRef.current[attackKey] || 0;
+    
+    // Prevent duplicate projectiles within 200ms for the same attack
+    if (now - lastTime < 200) {
+      return;
+    }
+    
+    lastProjectileTimeRef.current[attackKey] = now;
+    
+    const projectileId = `projectile-${now}-${Math.random()}`;
+    setProjectileEffects(prev => [...prev, {
+      id: projectileId,
+      fromPlayer,
+      toPlayer,
+      isHit,
+      onHit,
+      onComplete,
+      fromCardRotation,
+      delay,
+      projectileType,
+    }]);
+  }, []);
+
+  // Helper function to remove projectile effect
+  const removeProjectileEffect = useCallback((id: string) => {
+    setProjectileEffects(prev => prev.filter(p => p.id !== id));
   }, []);
 
   // Helper function to show floating numbers and apply effects immediately
@@ -567,6 +623,8 @@ export default function DnDBattle() {
       }
       await switchTurn(attacker);
       setIsMoveInProgress(false);
+      // Clear projectile tracking ref when move completes to allow new attacks
+      lastProjectileTimeRef.current = {};
     };
   }, [handleVictory, switchTurn]);
 
@@ -591,6 +649,8 @@ export default function DnDBattle() {
       });
       await switchTurn(attacker);
       setIsMoveInProgress(false);
+      // Clear projectile tracking ref when move completes to allow new attacks
+      lastProjectileTimeRef.current = {};
     };
   }, [switchTurn]);
 
@@ -615,6 +675,8 @@ export default function DnDBattle() {
       });
       await switchTurn(attacker);
       setIsMoveInProgress(false);
+      // Clear projectile tracking ref when move completes to allow new attacks
+      lastProjectileTimeRef.current = {};
     };
   }, [switchTurn]);
 
@@ -633,10 +695,6 @@ export default function DnDBattle() {
 
   const handleHitComplete = useCallback(() => {
     setHittingPlayer(null);
-  }, []);
-
-  const handleSurpriseComplete = useCallback(() => {
-    setSurprisedPlayer(null);
   }, []);
 
   const handleCastComplete = useCallback(() => {
@@ -762,58 +820,90 @@ export default function DnDBattle() {
     const { d20Roll, attackRoll } = calculateAttackRoll(attackerClass);
     logAttackRoll(attackerClass, d20Roll, attackRoll, defenderClass.armorClass);
 
+    const defender = getOpponent(attacker);
+    const attackTypeLabel = attackType === 'melee' ? 'melee' : attackType === 'ranged' ? 'ranged' : '';
+    const attackDescription = attackTypeLabel ? `${attackTypeLabel} attack` : 'attack';
+
     if (attackRoll >= defenderClass.armorClass) {
-      // Hit! Show damage number on defender's card
+      // Hit! Show projectile effect first, then damage on impact
       const damage = rollDice(damageDie);
-      const defender = getOpponent(attacker);
-      
       const newHP = Math.max(0, defenderClass.hitPoints - damage);
       
-      // Create visual effects using helper function (includes cast effect for wizards)
-      const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass);
+      // Create visual effects, but exclude shake (will be triggered by projectile hit)
+      const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass)
+        .filter(effect => effect.type !== 'shake'); // Remove shake, will be triggered on projectile hit
       
-      const attackTypeLabel = attackType === 'melee' ? 'melee' : attackType === 'ranged' ? 'ranged' : '';
-      const attackDescription = attackTypeLabel ? `${attackTypeLabel} attack` : 'attack';
-      
-      // Show floating damage number immediately
-      showFloatingNumbers(
-        [{ value: damage, type: 'damage', targetPlayer: defender }],
-        visualEffects,
-        [
-          () => updatePlayerHP(defender, newHP),
-          createPostDamageCallback(
-            newHP,
-            damage,
-            attackerClass,
-            defenderClass,
-            attackerDetails,
-            defenderDetails,
-            newHP <= 0
-              ? `${attackerClass.name} ${attackDescription}s ${defenderClass.name} and deals ${damage} damage. ${defenderClass.name} is defeated with 0 HP remaining.`
-              : `${attackerClass.name} ${attackDescription}s ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack hits! ${defenderClass.name} takes ${damage} damage and is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
-            defender,
-            attacker
-          )
-        ]
+      // Show projectile effect with card rotation angle
+      const cardRotation = attacker === 'player1' ? -5 : 5;
+      const projectileType = getProjectileType(null, attackType, attackerClass.name);
+      showProjectileEffect(
+        attacker,
+        defender,
+        true, // isHit
+        () => {
+          // On projectile hit: trigger shake and show damage
+          const shakeEffect = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass)
+            .find(effect => effect.type === 'shake');
+          if (shakeEffect) {
+            applyVisualEffect(shakeEffect);
+          }
+          
+          // Show floating damage number when projectile hits
+          showFloatingNumbers(
+            [{ value: damage, type: 'damage', targetPlayer: defender }],
+            visualEffects, // Other effects (hit, cast) shown immediately
+            [
+              () => updatePlayerHP(defender, newHP),
+              createPostDamageCallback(
+                newHP,
+                damage,
+                attackerClass,
+                defenderClass,
+                attackerDetails,
+                defenderDetails,
+                newHP <= 0
+                  ? `${attackerClass.name} ${attackDescription}s ${defenderClass.name} and deals ${damage} damage. ${defenderClass.name} is defeated with 0 HP remaining.`
+                  : `${attackerClass.name} ${attackDescription}s ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack hits! ${defenderClass.name} takes ${damage} damage and is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
+                defender,
+                attacker
+              )
+            ]
+          );
+        },
+        undefined, // onComplete
+        cardRotation,
+        undefined, // delay
+        projectileType
       );
     } else {
-      // Miss - show MISS on attacker's card
-      const attackTypeLabel = attackType === 'melee' ? 'melee' : attackType === 'ranged' ? 'ranged' : '';
-      const attackDescription = attackTypeLabel ? `${attackTypeLabel} attack` : 'attack';
-      
-      showFloatingNumbers(
-        [{ value: 'MISS', type: 'miss', targetPlayer: attacker }],
-        createMissVisualEffects(attacker, attackerClass),
-        [
-          createPostMissCallback(
-            attackerClass,
-            defenderClass,
-            attackerDetails,
-            defenderDetails,
-            `${attackerClass.name} ${attackDescription}s ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack misses! ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
-            attacker
-          )
-        ]
+      // Miss - show projectile effect that misses the target
+      const cardRotation = attacker === 'player1' ? -5 : 5;
+      const projectileType = getProjectileType(null, attackType, attackerClass.name);
+      showProjectileEffect(
+        attacker,
+        defender,
+        false, // isHit
+        undefined, // onHit
+        () => {
+          // After projectile misses, show miss effects
+          showFloatingNumbers(
+            [{ value: 'MISS', type: 'miss', targetPlayer: attacker }],
+            createMissVisualEffects(attacker, attackerClass),
+            [
+              createPostMissCallback(
+                attackerClass,
+                defenderClass,
+                attackerDetails,
+                defenderDetails,
+                `${attackerClass.name} ${attackDescription}s ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack misses! ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
+                attacker
+              )
+            ]
+          );
+        },
+        cardRotation,
+        undefined, // delay
+        projectileType
       );
     }
   };
@@ -895,53 +985,103 @@ export default function DnDBattle() {
       hit ? `Attack ${i + 1} hits for ${damages[i]} damage.` : `Attack ${i + 1} misses.`
     ).join(' ') : '';
 
-    if (totalDamage > 0) {
-      const visualEffects = createHitVisualEffects(attacker, defender, totalDamage, defenderClass, attackerClass);
-      // Show floating damage number for total damage
-      showFloatingNumbers(
-        [{ value: totalDamage, type: 'damage', targetPlayer: defender }],
-        visualEffects,
-        [
-          () => updatePlayerHP(defender, newHP),
-          async () => {
-            addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
-            await createPostDamageCallback(
-              newHP,
-              totalDamage,
-              attackerClass,
-              defenderClass,
-              attackerDetails,
-              defenderDetails,
-              newHP <= 0
-                ? `${attackerClass.name} uses ${attackAbility.name} and makes ${numAttacks} attacks. ${hitDetails} Total damage: ${totalDamage}. ${defenderClass.name} is defeated with 0 HP.`
-                : `${attackerClass.name} uses ${attackAbility.name} and makes ${numAttacks} attacks. ${hitDetails} Total damage: ${totalDamage}. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
-              defender,
-              attacker
-            )();
-          }
-        ]
-      );
+    const cardRotation = attacker === 'player1' ? -5 : 5;
+    const projectileType = getProjectileType(attackAbility, undefined, attackerClass.name);
+    const successfulHits = hits.map((hit, i) => ({ hit, damage: damages[i], index: i })).filter(h => h.hit);
+    
+    if (successfulHits.length > 0) {
+      // Show one projectile per successful hit with staggered delays
+      const damageNumbers: Array<{ value: number; type: FloatingNumberType; targetPlayer: 'player1' | 'player2' }> = [];
+      const completedHitsRef = { count: 0 };
+      
+      successfulHits.forEach((hitData, hitIndex) => {
+        const delay = hitIndex * 100; // 100ms delay between each projectile
+        
+        showProjectileEffect(
+          attacker,
+          defender,
+          true, // isHit
+          () => {
+            // On projectile hit: trigger shake and show individual damage
+            const shakeEffect = createHitVisualEffects(attacker, defender, hitData.damage, defenderClass, attackerClass)
+              .find(effect => effect.type === 'shake');
+            if (shakeEffect) {
+              applyVisualEffect(shakeEffect);
+            }
+            
+            // Add this hit's damage to the numbers array
+            damageNumbers.push({ value: hitData.damage, type: 'damage', targetPlayer: defender });
+            completedHitsRef.count++;
+            
+            // If this is the last hit, show all damage numbers and complete
+            if (completedHitsRef.count === successfulHits.length) {
+              const visualEffects = createHitVisualEffects(attacker, defender, totalDamage, defenderClass, attackerClass)
+                .filter(effect => effect.type !== 'shake');
+              
+              showFloatingNumbers(
+                damageNumbers,
+                visualEffects,
+                [
+                  () => updatePlayerHP(defender, newHP),
+                  async () => {
+                    addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
+                    await createPostDamageCallback(
+                      newHP,
+                      totalDamage,
+                      attackerClass,
+                      defenderClass,
+                      attackerDetails,
+                      defenderDetails,
+                      newHP <= 0
+                        ? `${attackerClass.name} uses ${attackAbility.name} and makes ${numAttacks} attacks. ${hitDetails} Total damage: ${totalDamage}. ${defenderClass.name} is defeated with 0 HP.`
+                        : `${attackerClass.name} uses ${attackAbility.name} and makes ${numAttacks} attacks. ${hitDetails} Total damage: ${totalDamage}. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
+                      defender,
+                      attacker
+                    )();
+                  }
+                ]
+              );
+            }
+          },
+          undefined, // onComplete - handled in onHit for last projectile
+          cardRotation,
+          delay,
+          projectileType
+        );
+      });
     } else {
-      // All attacks missed
-      showFloatingNumbers(
-        [{ value: 'MISS', type: 'miss', targetPlayer: attacker }],
-        createMissVisualEffects(attacker, attackerClass),
-        [
-          async () => {
-            addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
-            await createPostMissCallback(
-              attackerClass,
-              defenderClass,
-              attackerDetails,
-              defenderDetails,
-              `${attackerClass.name} uses ${attackAbility.name} and makes ${numAttacks} attacks. All attacks miss. ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
-              attacker
-            )();
-          }
-        ]
+      // All attacks missed - show projectile effect that misses the target
+      showProjectileEffect(
+        attacker,
+        defender,
+        false, // isHit
+        undefined, // onHit
+        () => {
+          // After projectile misses, show miss effects
+          showFloatingNumbers(
+            [{ value: 'MISS', type: 'miss', targetPlayer: attacker }],
+            createMissVisualEffects(attacker, attackerClass),
+            [
+              async () => {
+                addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
+                await createPostMissCallback(
+                  attackerClass,
+                  defenderClass,
+                  attackerDetails,
+                  defenderDetails,
+                  `${attackerClass.name} uses ${attackAbility.name} and makes ${numAttacks} attacks. All attacks miss. ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
+                  attacker
+                )();
+              }
+            ]
+          );
+        },
+        cardRotation,
+        undefined, // delay
+        projectileType
       );
     }
-  }, [updatePlayerHP, createPostDamageCallback, createPostMissCallback, addLog, rollDice, rollDiceWithNotation, parseDiceNotation, buildDamageDiceArray, createHitVisualEffects, createMissVisualEffects, getOpponent, showFloatingNumbers]);
+  }, [updatePlayerHP, createPostDamageCallback, createPostMissCallback, addLog, rollDice, rollDiceWithNotation, parseDiceNotation, buildDamageDiceArray, createHitVisualEffects, createMissVisualEffects, getOpponent, showFloatingNumbers, showProjectileEffect, applyVisualEffect]);
 
   // Helper function to handle single attack with roll
   const handleSingleAttackAbility = useCallback(async (
@@ -955,6 +1095,8 @@ export default function DnDBattle() {
     const { d20Roll, attackRoll } = calculateAttackRoll(attackerClass);
     logAttackRoll(attackerClass, d20Roll, attackRoll, defenderClass.armorClass);
 
+    const defender = getOpponent(attacker);
+    
     if (attackRoll >= defenderClass.armorClass) {
       const { totalDamage: damage } = buildDamageDiceArray(
         attackAbility.damageDice,
@@ -963,49 +1105,86 @@ export default function DnDBattle() {
         attackAbility.bonusDamageDice
       );
       
-      const defender = getOpponent(attacker);
       const newHP = Math.max(0, defenderClass.hitPoints - damage);
-      const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass);
       
-      // Show floating damage number immediately
-      showFloatingNumbers(
-        [{ value: damage, type: 'damage', targetPlayer: defender }],
-        visualEffects,
-        [
-          () => updatePlayerHP(defender, newHP),
-          createPostDamageCallback(
-            newHP,
-            damage,
-            attackerClass,
-            defenderClass,
-            attackerDetails,
-            defenderDetails,
-            newHP <= 0
-              ? `${attackerClass.name} uses ${attackAbility.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack hits for ${damage} damage. ${defenderClass.name} is defeated with 0 HP.`
-              : `${attackerClass.name} uses ${attackAbility.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack hits for ${damage} damage. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
-            defender,
-            attacker
-          )
-        ]
+      // Create visual effects, but exclude shake (will be triggered by projectile hit)
+      const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass)
+        .filter(effect => effect.type !== 'shake'); // Remove shake, will be triggered on projectile hit
+      
+      // Show projectile effect with card rotation angle
+      const cardRotation = attacker === 'player1' ? -5 : 5;
+      const projectileType = getProjectileType(attackAbility, undefined, attackerClass.name);
+      showProjectileEffect(
+        attacker,
+        defender,
+        true, // isHit
+        () => {
+          // On projectile hit: trigger shake and show damage
+          const shakeEffect = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass)
+            .find(effect => effect.type === 'shake');
+          if (shakeEffect) {
+            applyVisualEffect(shakeEffect);
+          }
+          
+          // Show floating damage number when projectile hits
+          showFloatingNumbers(
+            [{ value: damage, type: 'damage', targetPlayer: defender }],
+            visualEffects, // Other effects (hit, cast) shown immediately
+            [
+              () => updatePlayerHP(defender, newHP),
+              createPostDamageCallback(
+                newHP,
+                damage,
+                attackerClass,
+                defenderClass,
+                attackerDetails,
+                defenderDetails,
+                newHP <= 0
+                  ? `${attackerClass.name} uses ${attackAbility.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack hits for ${damage} damage. ${defenderClass.name} is defeated with 0 HP.`
+                  : `${attackerClass.name} uses ${attackAbility.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack hits for ${damage} damage. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
+                defender,
+                attacker
+              )
+            ]
+          );
+        },
+        undefined, // onComplete
+        cardRotation,
+        undefined, // delay
+        projectileType
       );
     } else {
-      // Miss - show MISS on attacker's card
-      showFloatingNumbers(
-        [{ value: 'MISS', type: 'miss', targetPlayer: attacker }],
-        createMissVisualEffects(attacker, attackerClass),
-        [
-          createPostMissCallback(
-            attackerClass,
-            defenderClass,
-            attackerDetails,
-            defenderDetails,
-            `${attackerClass.name} uses ${attackAbility.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack misses! ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
-            attacker
-          )
-        ]
+      // Miss - show projectile effect that misses the target
+      const cardRotation = attacker === 'player1' ? -5 : 5;
+      const projectileType = getProjectileType(attackAbility, undefined, attackerClass.name);
+      showProjectileEffect(
+        attacker,
+        defender,
+        false, // isHit
+        undefined, // onHit
+        () => {
+          // After projectile misses, show miss effects
+          showFloatingNumbers(
+            [{ value: 'MISS', type: 'miss', targetPlayer: attacker }],
+            createMissVisualEffects(attacker, attackerClass),
+            [
+              createPostMissCallback(
+                attackerClass,
+                defenderClass,
+                attackerDetails,
+                defenderDetails,
+                `${attackerClass.name} uses ${attackAbility.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack misses! ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
+                attacker
+              )
+            ]
+          );
+        },
+        cardRotation,
+        undefined, // delay
+        projectileType
       );
     }
-  }, [calculateAttackRoll, logAttackRoll, updatePlayerHP, createPostDamageCallback, createPostMissCallback, rollDiceWithNotation, parseDiceNotation, buildDamageDiceArray, createHitVisualEffects, createMissVisualEffects, getOpponent, showFloatingNumbers]);
+  }, [calculateAttackRoll, logAttackRoll, updatePlayerHP, createPostDamageCallback, createPostMissCallback, rollDiceWithNotation, parseDiceNotation, buildDamageDiceArray, createHitVisualEffects, createMissVisualEffects, getOpponent, showFloatingNumbers, showProjectileEffect, applyVisualEffect]);
 
   // Helper function to handle automatic damage abilities
   const handleAutomaticDamageAbility = useCallback(async (
@@ -1024,30 +1203,54 @@ export default function DnDBattle() {
     );
     const defender = getOpponent(attacker);
     const newHP = Math.max(0, defenderClass.hitPoints - damage);
-    const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass);
     
-    // Show floating damage number immediately
-    showFloatingNumbers(
-      [{ value: damage, type: 'damage', targetPlayer: defender }],
-      visualEffects,
-      [
-        () => updatePlayerHP(defender, newHP),
-        createPostDamageCallback(
-          newHP,
-          damage,
-          attackerClass,
-          defenderClass,
-          attackerDetails,
-          defenderDetails,
-          newHP <= 0
-            ? `${attackerClass.name} uses ${attackAbility.name} and deals ${damage} damage to ${defenderClass.name}. ${defenderClass.name} is defeated with 0 HP.`
-            : `${attackerClass.name} uses ${attackAbility.name} and deals ${damage} damage to ${defenderClass.name}. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
-          defender,
-          attacker
-        )
-      ]
+    // Create visual effects, but exclude shake (will be triggered by projectile hit)
+    const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass)
+      .filter(effect => effect.type !== 'shake'); // Remove shake, will be triggered on projectile hit
+    
+    // Show projectile effect
+    const cardRotation = attacker === 'player1' ? -5 : 5;
+    const projectileType = getProjectileType(attackAbility, undefined, attackerClass.name);
+    showProjectileEffect(
+      attacker,
+      defender,
+      true, // isHit
+      () => {
+        // On projectile hit: trigger shake and show damage
+        const shakeEffect = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass)
+          .find(effect => effect.type === 'shake');
+        if (shakeEffect) {
+          applyVisualEffect(shakeEffect);
+        }
+        
+        // Show floating damage number when projectile hits
+        showFloatingNumbers(
+          [{ value: damage, type: 'damage', targetPlayer: defender }],
+          visualEffects, // Other effects (hit, cast) shown immediately
+          [
+            () => updatePlayerHP(defender, newHP),
+            createPostDamageCallback(
+              newHP,
+              damage,
+              attackerClass,
+              defenderClass,
+              attackerDetails,
+              defenderDetails,
+              newHP <= 0
+                ? `${attackerClass.name} uses ${attackAbility.name} and deals ${damage} damage to ${defenderClass.name}. ${defenderClass.name} is defeated with 0 HP.`
+                : `${attackerClass.name} uses ${attackAbility.name} and deals ${damage} damage to ${defenderClass.name}. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
+              defender,
+              attacker
+            )
+          ]
+        );
+      },
+      undefined, // onComplete
+      cardRotation,
+      undefined, // delay
+      projectileType
     );
-  }, [updatePlayerHP, createPostDamageCallback, rollDiceWithNotation, parseDiceNotation, buildDamageDiceArray, createHitVisualEffects, getOpponent, showFloatingNumbers]);
+  }, [updatePlayerHP, createPostDamageCallback, rollDiceWithNotation, parseDiceNotation, buildDamageDiceArray, createHitVisualEffects, getOpponent, showFloatingNumbers, showProjectileEffect, applyVisualEffect]);
 
   const useAbility = async (attacker: 'player1' | 'player2', abilityIndex: number) => {
     if (!isBattleActive || !player1Class || !player2Class || isMoveInProgress) return;
@@ -1182,13 +1385,13 @@ export default function DnDBattle() {
     setMissTrigger({ player1: 0, player2: 0 });
     setHittingPlayer(null);
     setHitTrigger({ player1: 0, player2: 0 });
-    setSurprisedPlayer(null);
-    setSurpriseTrigger({ player1: 0, player2: 0 });
     setCastingPlayer(null);
     setCastTrigger({ player1: 0, player2: 0 });
     setIsOpponentAutoPlaying(false);
     // Clear floating numbers
     setFloatingNumbers([]);
+    // Clear projectile effects
+    setProjectileEffects([]);
     // Clear narrative queue and turn tracking
     narrativeQueueRef.current = [];
     previousTurnRef.current = null;
@@ -1209,6 +1412,26 @@ export default function DnDBattle() {
           targetCardRef={number.targetPlayer === 'player1' ? player1CardRef : player2CardRef}
           onComplete={() => handleFloatingNumberComplete(number.id)}
           persistent={number.persistent}
+        />
+      ))}
+      
+      {/* Projectile Effects */}
+      {projectileEffects.map((projectile) => (
+        <ProjectileEffect
+          key={projectile.id}
+          fromCardRef={projectile.fromPlayer === 'player1' ? player1CardRef : player2CardRef}
+          toCardRef={projectile.toPlayer === 'player1' ? player1CardRef : player2CardRef}
+          isHit={projectile.isHit}
+          onHit={projectile.onHit}
+          onComplete={() => {
+            if (projectile.onComplete) {
+              projectile.onComplete();
+            }
+            removeProjectileEffect(projectile.id);
+          }}
+          fromCardRotation={projectile.fromCardRotation}
+          delay={projectile.delay}
+          projectileType={projectile.projectileType}
         />
       ))}
       
@@ -1507,14 +1730,12 @@ export default function DnDBattle() {
                   shouldSparkle={sparklingPlayer === 'player1'}
                   shouldMiss={missingPlayer === 'player1'}
                   shouldHit={hittingPlayer === 'player1'}
-                  shouldSurprise={surprisedPlayer === 'player1'}
                   shouldCast={castingPlayer === 'player1'}
                   castTrigger={castTrigger.player1}
                   shakeTrigger={shakeTrigger.player1}
                   sparkleTrigger={sparkleTrigger.player1}
                   missTrigger={missTrigger.player1}
                   hitTrigger={hitTrigger.player1}
-                  surpriseTrigger={surpriseTrigger.player1}
                   shakeIntensity={shakeIntensity.player1}
                   sparkleIntensity={sparkleIntensity.player1}
                   isMoveInProgress={isMoveInProgress}
@@ -1526,7 +1747,6 @@ export default function DnDBattle() {
                   onSparkleComplete={handleSparkleComplete}
                   onMissComplete={handleMissComplete}
                   onHitComplete={handleHitComplete}
-                  onSurpriseComplete={handleSurpriseComplete}
                   onCastComplete={handleCastComplete}
                 />
               </div>
@@ -1557,14 +1777,12 @@ export default function DnDBattle() {
                   shouldSparkle={sparklingPlayer === 'player2'}
                   shouldMiss={missingPlayer === 'player2'}
                   shouldHit={hittingPlayer === 'player2'}
-                  shouldSurprise={surprisedPlayer === 'player2'}
                   shouldCast={castingPlayer === 'player2'}
                   castTrigger={castTrigger.player2}
                   shakeTrigger={shakeTrigger.player2}
                   sparkleTrigger={sparkleTrigger.player2}
                   missTrigger={missTrigger.player2}
                   hitTrigger={hitTrigger.player2}
-                  surpriseTrigger={surpriseTrigger.player2}
                   shakeIntensity={shakeIntensity.player2}
                   sparkleIntensity={sparkleIntensity.player2}
                   isMoveInProgress={isMoveInProgress}
@@ -1576,7 +1794,6 @@ export default function DnDBattle() {
                   onSparkleComplete={handleSparkleComplete}
                   onMissComplete={handleMissComplete}
                   onHitComplete={handleHitComplete}
-                  onSurpriseComplete={handleSurpriseComplete}
                   onCastComplete={handleCastComplete}
                   isOpponent={true}
                 />

@@ -6,13 +6,14 @@ import { DnDClass, BattleLog, CharacterEmotion, Ability, AttackAbility } from '.
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS, isMonster } from '../constants';
 import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../utils/dice';
 import { generateCharacterName } from '../utils/names';
-import { createHitVisualEffects, createMissVisualEffects, createHealingVisualEffects, getOpponent, buildDamageDiceArray, type PendingVisualEffect } from '../utils/battle';
+import { createHitVisualEffects, createMissVisualEffects, createHealingVisualEffects, getOpponent, buildDamageDiceArray, getProjectileType, type PendingVisualEffect, type ProjectileType } from '../utils/battle';
 import { FloatingNumber, FloatingNumberType } from '../components/FloatingNumber';
 import { CharacterCard } from '../components/CharacterCard';
 import { ClassSelection } from '../components/ClassSelection';
 import { useAIOpponent } from '../hooks/useAIOpponent';
 import { PageHeader } from '../components/PageHeader';
 import { LandscapePrompt } from '../components/LandscapePrompt';
+import { ProjectileEffect } from '../components/ProjectileEffect';
 
 // Mock battle narrative generator (doesn't call agent)
 const mockBattleNarrative = (eventDescription: string): string => {
@@ -147,8 +148,6 @@ export default function DnDTestPage() {
   const [missTrigger, setMissTrigger] = useState({ player1: 0, player2: 0 });
   const [hittingPlayer, setHittingPlayer] = useState<'player1' | 'player2' | null>(null);
   const [hitTrigger, setHitTrigger] = useState({ player1: 0, player2: 0 });
-  const [surprisedPlayer, setSurprisedPlayer] = useState<'player1' | 'player2' | null>(null);
-  const [surpriseTrigger, setSurpriseTrigger] = useState({ player1: 0, player2: 0 });
   const [castingPlayer, setCastingPlayer] = useState<'player1' | 'player2' | null>(null);
   const [castTrigger, setCastTrigger] = useState({ player1: 0, player2: 0 });
   const [shakeIntensity, setShakeIntensity] = useState<{ player1: number; player2: number }>({ player1: 0, player2: 0 });
@@ -166,6 +165,20 @@ export default function DnDTestPage() {
     persistent?: boolean;
   };
   const [floatingNumbers, setFloatingNumbers] = useState<FloatingNumberData[]>([]);
+  
+  // Projectile effects state
+  type ProjectileData = {
+    id: string;
+    fromPlayer: 'player1' | 'player2';
+    toPlayer: 'player1' | 'player2';
+    isHit: boolean;
+    onHit?: () => void;
+    onComplete?: () => void;
+    fromCardRotation?: number;
+    delay?: number;
+    projectileType?: ProjectileType;
+  };
+  const [projectileEffects, setProjectileEffects] = useState<ProjectileData[]>([]);
   
   // Refs for character cards to position floating numbers
   const player1CardRef = useRef<HTMLDivElement | null>(null);
@@ -320,11 +333,6 @@ export default function DnDTestPage() {
         setHittingPlayer(effect.player);
         setHitTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
         break;
-      case 'surprise':
-        console.log('[TestPage] Setting surprise effect for', effect.player);
-        setSurprisedPlayer(effect.player);
-        setSurpriseTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
-        break;
       case 'cast':
         setCastingPlayer(effect.player);
         setCastTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
@@ -362,6 +370,52 @@ export default function DnDTestPage() {
   const handleFloatingNumberComplete = useCallback((id: string) => {
     setFloatingNumbers(prev => prev.filter(n => n.id !== id));
   }, []);
+
+  // Ref to track recent projectile creations to prevent duplicates
+  const lastProjectileTimeRef = useRef<{ [key: string]: number }>({});
+  
+  // Helper function to show projectile effect
+  const showProjectileEffect = useCallback((
+    fromPlayer: 'player1' | 'player2',
+    toPlayer: 'player1' | 'player2',
+    isHit: boolean,
+    onHit?: () => void,
+    onComplete?: () => void,
+    fromCardRotation?: number,
+    delay?: number,
+    projectileType?: ProjectileType
+  ) => {
+    // Create a unique key for this attack (fromPlayer + toPlayer + delay)
+    // This prevents duplicate projectiles for the same attack within 200ms
+    const attackKey = `${fromPlayer}-${toPlayer}-${delay || 0}`;
+    const now = Date.now();
+    const lastTime = lastProjectileTimeRef.current[attackKey] || 0;
+    
+    // Prevent duplicate projectiles within 200ms for the same attack
+    if (now - lastTime < 200) {
+      return;
+    }
+    
+    lastProjectileTimeRef.current[attackKey] = now;
+    
+    const projectileId = `projectile-${now}-${Math.random()}`;
+    setProjectileEffects(prev => [...prev, {
+      id: projectileId,
+      fromPlayer,
+      toPlayer,
+      isHit,
+      onHit,
+      onComplete,
+      fromCardRotation,
+      delay,
+      projectileType,
+    }]);
+  }, []);
+
+  // Helper function to remove projectile effect
+  const removeProjectileEffect = useCallback((id: string) => {
+    setProjectileEffects(prev => prev.filter(p => p.id !== id));
+  }, []);
   
   // Test functions
   const testDiceRoll = () => {
@@ -394,80 +448,113 @@ export default function DnDTestPage() {
     
     const newHP = Math.max(0, defenderClass.hitPoints - damage);
     
-    // Build visual effects array using the proper helper function (includes cast effect for spell-casting classes)
-    const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass);
+    // Create visual effects, but exclude shake (will be triggered by projectile hit)
+    const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass)
+      .filter(effect => effect.type !== 'shake'); // Remove shake, will be triggered on projectile hit
     
-    console.log('[TestPage] Showing floating damage number for', defender);
-    // Show floating damage number immediately
-    showFloatingNumbers(
-      [{ value: damage, type: 'damage', targetPlayer: defender }],
-      visualEffects,
-      [
-        () => {
-          console.log('[TestPage] HP update callback for', defender, 'newHP:', newHP);
-          updatePlayerHP(defender, newHP);
-        },
-        () => {
-          console.log('[TestPage] Attack complete callback for', attacker);
-          addLog('attack', `⚔️ ${attackerClass.name} hits for ${damage} damage!`);
-          addLog('narrative', mockBattleNarrative(`${attackerClass.name} attacks ${defenderClass.name} and deals ${damage} damage.`));
-          
-          if (newHP <= 0) {
-            setDefeatedPlayer(defender);
-            setVictorPlayer(attacker);
-            setConfettiTrigger(prev => prev + 1);
-            
-            // Show floating "DEFEATED!" text (persistent - stays on card)
-            showFloatingNumbers(
-              [{ value: 'DEFEATED!', type: 'defeated', targetPlayer: defender, persistent: true }],
-              [],
-              []
-            );
-            
-            addLog('system', `🏆 ${attackerClass.name} wins!`);
-          } else {
-            // Switch turns after attack completes
-            const nextTurn = attacker === 'player1' ? 'player2' : 'player1';
-            console.log('[TestPage] Switching turn from', attacker, 'to', nextTurn);
-            setTimeout(() => {
-              setCurrentTurn(nextTurn);
-              setIsMoveInProgress(false);
-            }, 450);
-            return; // Early return to prevent double execution
-          }
+    // Show projectile effect with card rotation angle
+    const cardRotation = attacker === 'player1' ? -5 : 5;
+    const projectileType = getProjectileType(null, undefined, attackerClass.name);
+    showProjectileEffect(
+      attacker,
+      defender,
+      true, // isHit
+      () => {
+        // On projectile hit: trigger shake and show damage
+        const shakeEffect = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass)
+          .find(effect => effect.type === 'shake');
+        if (shakeEffect) {
+          applyVisualEffect(shakeEffect);
         }
-      ]
+        
+        // Show floating damage number when projectile hits
+        showFloatingNumbers(
+          [{ value: damage, type: 'damage', targetPlayer: defender }],
+          visualEffects, // Other effects (hit, cast) shown immediately
+          [
+            () => {
+              console.log('[TestPage] HP update callback for', defender, 'newHP:', newHP);
+              updatePlayerHP(defender, newHP);
+            },
+            () => {
+              console.log('[TestPage] Attack complete callback for', attacker);
+              addLog('attack', `⚔️ ${attackerClass.name} hits for ${damage} damage!`);
+              addLog('narrative', mockBattleNarrative(`${attackerClass.name} attacks ${defenderClass.name} and deals ${damage} damage.`));
+              
+              if (newHP <= 0) {
+                setDefeatedPlayer(defender);
+                setVictorPlayer(attacker);
+                setConfettiTrigger(prev => prev + 1);
+                
+                // Show floating "DEFEATED!" text (persistent - stays on card)
+                showFloatingNumbers(
+                  [{ value: 'DEFEATED!', type: 'defeated', targetPlayer: defender, persistent: true }],
+                  [],
+                  []
+                );
+                
+                addLog('system', `🏆 ${attackerClass.name} wins!`);
+              } else {
+                // Switch turns after attack completes
+                const nextTurn = attacker === 'player1' ? 'player2' : 'player1';
+                console.log('[TestPage] Switching turn from', attacker, 'to', nextTurn);
+                setTimeout(() => {
+                  setCurrentTurn(nextTurn);
+                  setIsMoveInProgress(false);
+                }, 450);
+                return; // Early return to prevent double execution
+              }
+            }
+          ]
+        );
+      },
+      undefined, // onComplete
+      cardRotation,
+      undefined, // delay
+      projectileType
     );
   };
   
   const testAttackMiss = (attacker: 'player1' | 'player2') => {
     const attackerClass = attacker === 'player1' ? player1Class : player2Class;
     const defenderClass = attacker === 'player1' ? player2Class : player1Class;
+    const defender = getOpponent(attacker);
     
     const d20Roll = rollDice('d20');
     const attackRoll = d20Roll + attackerClass.attackBonus;
     
     addLog('roll', `🎲 ${attackerClass.name} rolls ${d20Roll} + ${attackerClass.attackBonus} = ${attackRoll} (misses AC ${defenderClass.armorClass})`);
     
-    // Build visual effects array using the proper helper function (includes cast effect for spell-casting classes)
-    const visualEffects = createMissVisualEffects(attacker, attackerClass);
-    
-    // Show MISS floating number immediately
-    showFloatingNumbers(
-      [{ value: 'MISS', type: 'miss', targetPlayer: attacker }],
-      visualEffects,
-      [
-        () => {
-          addLog('attack', `❌ ${attackerClass.name} misses!`);
-          addLog('narrative', mockBattleNarrative(`${attackerClass.name} attacks ${defenderClass.name} but misses.`));
-          // Switch turns after miss
-          const nextTurn = attacker === 'player1' ? 'player2' : 'player1';
-          setTimeout(() => {
-            setCurrentTurn(nextTurn);
-            setIsMoveInProgress(false);
-          }, 650);
-        }
-      ]
+    // Show projectile effect that misses the target
+    const cardRotation = attacker === 'player1' ? -5 : 5;
+    const projectileType = getProjectileType(null, undefined, attackerClass.name);
+    showProjectileEffect(
+      attacker,
+      defender,
+      false, // isHit
+      undefined, // onHit
+      () => {
+        // After projectile misses, show miss effects
+        showFloatingNumbers(
+          [{ value: 'MISS', type: 'miss', targetPlayer: attacker }],
+          createMissVisualEffects(attacker, attackerClass),
+          [
+            () => {
+              addLog('attack', `❌ ${attackerClass.name} misses!`);
+              addLog('narrative', mockBattleNarrative(`${attackerClass.name} attacks ${defenderClass.name} but misses.`));
+              // Switch turns after miss
+              const nextTurn = attacker === 'player1' ? 'player2' : 'player1';
+              setTimeout(() => {
+                setCurrentTurn(nextTurn);
+                setIsMoveInProgress(false);
+              }, 650);
+            }
+          ]
+        );
+      },
+      cardRotation,
+      undefined, // delay
+      projectileType
     );
   };
   
@@ -567,11 +654,7 @@ export default function DnDTestPage() {
     const targetClass = target === 'player1' ? player1Class : player2Class;
     const attackerName = target === 'player1' ? 'Test Attacker' : 'Test Attacker';
     
-    // Calculate damage that will ALWAYS trigger surprise
-    // Surprise triggers if: damage >= 30% of max HP OR damage >= 50% of current HP
-    // We ensure it meets at least one condition by using the larger of:
-    // - 40% of max HP (guarantees >= 30% of max)
-    // - 50% of current HP (guarantees >= 50% of current)
+    // Calculate high damage (40% of max HP or 50% of current HP, whichever is larger)
     const damageFromMaxPercent = Math.ceil(targetClass.maxHitPoints * 0.4);
     const damageFromCurrentPercent = Math.ceil(targetClass.hitPoints * 0.5);
     const damage = Math.max(damageFromMaxPercent, damageFromCurrentPercent);
@@ -580,30 +663,14 @@ export default function DnDTestPage() {
     
     const newHP = Math.max(0, targetClass.hitPoints - damage);
     
-    // Check if this is a surprising amount of damage (same logic as battle system)
-    const damagePercentOfMax = damage / targetClass.maxHitPoints;
-    const damagePercentOfCurrent = targetClass.hitPoints > 0 ? damage / targetClass.hitPoints : 0;
-    const isSurprising = damagePercentOfMax >= 0.3 || damagePercentOfCurrent >= 0.5;
-    
-    // Log the calculation for debugging
-    addLog('system', `📊 Damage calc: ${damage} HP (${(damagePercentOfMax * 100).toFixed(1)}% of max, ${(damagePercentOfCurrent * 100).toFixed(1)}% of current) - ${isSurprising ? 'SURPRISING!' : 'not surprising'}`);
-    
-    const visualEffects: Array<{ type: 'shake' | 'sparkle' | 'miss' | 'hit' | 'surprise'; player: 'player1' | 'player2'; intensity?: number }> = [
-      { type: 'shake', player: target, intensity: damage }
-    ];
-    
-    if (isSurprising) {
-      visualEffects.push({ type: 'surprise', player: target });
-    }
-    
     // Show floating damage number immediately
     showFloatingNumbers(
       [{ value: damage, type: 'damage', targetPlayer: target }],
-      visualEffects,
+      [{ type: 'shake', player: target, intensity: damage }],
       [
         () => updatePlayerHP(target, newHP),
         () => {
-          addLog('attack', `💥 ${attackerName} deals ${damage} damage to ${targetClass.name}! ${isSurprising ? '😱 SURPRISING DAMAGE!' : ''}`);
+          addLog('attack', `💥 ${attackerName} deals ${damage} damage to ${targetClass.name}!`);
           addLog('narrative', mockBattleNarrative(`${attackerName} deals massive ${damage} damage to ${targetClass.name}!`));
           
           if (newHP <= 0) {
@@ -688,99 +755,148 @@ export default function DnDTestPage() {
       );
     } else if (ability.type === 'attack') {
       const attackAbility = ability as AttackAbility;
-        const numAttacks = attackAbility.attacks || 1;
-        const defender = getOpponent(player);
+      const numAttacks = attackAbility.attacks || 1;
+      const defender = getOpponent(player);
+      const cardRotation = player === 'player1' ? -5 : 5;
+      const projectileType = getProjectileType(attackAbility, undefined, attackerClass.name);
+      
+      if (numAttacks > 1) {
+        // Handle multi-attack
+        const attackRolls: number[] = [];
+        const d20Rolls: number[] = [];
+        const damages: number[] = [];
+        const hits: boolean[] = [];
+        let totalDamage = 0;
         
-        if (numAttacks > 1) {
-          // Handle multi-attack
-          const attackRolls: number[] = [];
-          const d20Rolls: number[] = [];
-          const damages: number[] = [];
-          const hits: boolean[] = [];
-          let totalDamage = 0;
+        for (let i = 0; i < numAttacks; i++) {
+          const d20Roll = rollDice('d20');
+          d20Rolls.push(d20Roll);
+          const attackRoll = d20Roll + attackerClass.attackBonus;
+          attackRolls.push(attackRoll);
+          const hit = attackRoll >= defenderClass.armorClass;
+          hits.push(hit);
           
-          for (let i = 0; i < numAttacks; i++) {
-            const d20Roll = rollDice('d20');
-            d20Rolls.push(d20Roll);
-            const attackRoll = d20Roll + attackerClass.attackBonus;
-            attackRolls.push(attackRoll);
-            const hit = attackRoll >= defenderClass.armorClass;
-            hits.push(hit);
-            
-            if (hit) {
-              const { totalDamage: damage } = buildDamageDiceArray(
-                attackAbility.damageDice,
-                rollDiceWithNotation,
-                parseDiceNotation,
-                attackAbility.bonusDamageDice
-              );
-              damages.push(damage);
-              totalDamage += damage;
-            } else {
-              damages.push(0);
-            }
+          if (hit) {
+            const { totalDamage: damage } = buildDamageDiceArray(
+              attackAbility.damageDice,
+              rollDiceWithNotation,
+              parseDiceNotation,
+              attackAbility.bonusDamageDice
+            );
+            damages.push(damage);
+            totalDamage += damage;
+          } else {
+            damages.push(0);
           }
+        }
+        
+        const newHP = totalDamage > 0 ? Math.max(0, defenderClass.hitPoints - totalDamage) : defenderClass.hitPoints;
+        const successfulHits = hits.map((hit, i) => ({ hit, damage: damages[i], index: i })).filter(h => h.hit);
+        
+        if (successfulHits.length > 0) {
+          // Show one projectile per successful hit with staggered delays
+          const damageNumbers: Array<{ value: number; type: FloatingNumberType; targetPlayer: 'player1' | 'player2' }> = [];
+          const completedHitsRef = { count: 0 };
           
-          const newHP = totalDamage > 0 ? Math.max(0, defenderClass.hitPoints - totalDamage) : defenderClass.hitPoints;
-          
-          if (totalDamage > 0) {
-            const visualEffects = createHitVisualEffects(player, defender, totalDamage, defenderClass, attackerClass);
-            // Show floating damage number for total damage
-            showFloatingNumbers(
-              [{ value: totalDamage, type: 'damage', targetPlayer: defender }],
-              visualEffects,
-              [
-                () => updatePlayerHP(defender, newHP),
-                () => {
-                  addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
-                  const hitDetails = hits.map((hit, i) => 
-                    hit ? `Attack ${i + 1} hits for ${damages[i]} damage.` : `Attack ${i + 1} misses.`
-                  ).join(' ');
-                  addLog('attack', `⚔️ ${attackerClass.name} uses ${ability.name}: ${hitDetails} Total damage: ${totalDamage}!`);
-                  addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. Total damage: ${totalDamage}.`));
+          successfulHits.forEach((hitData, hitIndex) => {
+            const delay = hitIndex * 100; // 100ms delay between each projectile
+            
+            showProjectileEffect(
+              player,
+              defender,
+              true, // isHit
+              () => {
+                // On projectile hit: trigger shake and show individual damage
+                const shakeEffect = createHitVisualEffects(player, defender, hitData.damage, defenderClass, attackerClass)
+                  .find(effect => effect.type === 'shake');
+                if (shakeEffect) {
+                  applyVisualEffect(shakeEffect);
+                }
+                
+                // Add this hit's damage to the numbers array
+                damageNumbers.push({ value: hitData.damage, type: 'damage', targetPlayer: defender });
+                completedHitsRef.count++;
+                
+                // If this is the last hit, show all damage numbers and complete
+                if (completedHitsRef.count === successfulHits.length) {
+                  const visualEffects = createHitVisualEffects(player, defender, totalDamage, defenderClass, attackerClass)
+                    .filter(effect => effect.type !== 'shake');
                   
-                  if (newHP <= 0) {
-                    setDefeatedPlayer(defender);
-                    setVictorPlayer(player);
-                    setConfettiTrigger(prev => prev + 1);
-                    
-                    // Show floating "DEFEATED!" text
-                    showFloatingNumbers(
-                      [{ value: 'DEFEATED!', type: 'defeated', targetPlayer: defender }],
-                      [],
-                      []
-                    );
-                    
-                    addLog('system', `🏆 ${attackerClass.name} wins!`);
-                  } else {
+                  showFloatingNumbers(
+                    damageNumbers,
+                    visualEffects,
+                    [
+                      () => updatePlayerHP(defender, newHP),
+                      () => {
+                        addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
+                        const hitDetails = hits.map((hit, i) => 
+                          hit ? `Attack ${i + 1} hits for ${damages[i]} damage.` : `Attack ${i + 1} misses.`
+                        ).join(' ');
+                        addLog('attack', `⚔️ ${attackerClass.name} uses ${ability.name}: ${hitDetails} Total damage: ${totalDamage}!`);
+                        addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. Total damage: ${totalDamage}.`));
+                        
+                        if (newHP <= 0) {
+                          setDefeatedPlayer(defender);
+                          setVictorPlayer(player);
+                          setConfettiTrigger(prev => prev + 1);
+                          
+                          // Show floating "DEFEATED!" text
+                          showFloatingNumbers(
+                            [{ value: 'DEFEATED!', type: 'defeated', targetPlayer: defender }],
+                            [],
+                            []
+                          );
+                          
+                          addLog('system', `🏆 ${attackerClass.name} wins!`);
+                        } else {
+                          const nextTurn = player === 'player1' ? 'player2' : 'player1';
+                          setTimeout(() => {
+                            setCurrentTurn(nextTurn);
+                            setIsMoveInProgress(false);
+                          }, 450);
+                        }
+                      }
+                    ]
+                  );
+                }
+              },
+              undefined, // onComplete - handled in onHit for last projectile
+              cardRotation,
+              delay,
+              projectileType
+            );
+          });
+        } else {
+          // All attacks missed - show projectile effect that misses the target
+          showProjectileEffect(
+            player,
+            defender,
+            false, // isHit
+            undefined, // onHit
+            () => {
+              // After projectile misses, show miss effects
+              showFloatingNumbers(
+                [{ value: 'MISS', type: 'miss', targetPlayer: player }],
+                createMissVisualEffects(player, attackerClass),
+                [
+                  () => {
+                    addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
+                    addLog('attack', `❌ ${attackerClass.name} uses ${ability.name} but all attacks miss!`);
+                    addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} but all attacks miss.`));
                     const nextTurn = player === 'player1' ? 'player2' : 'player1';
                     setTimeout(() => {
                       setCurrentTurn(nextTurn);
                       setIsMoveInProgress(false);
-                    }, 450);
+                    }, 650);
                   }
-                }
-              ]
-            );
-          } else {
-            // All attacks missed
-            showFloatingNumbers(
-              [{ value: 'MISS', type: 'miss', targetPlayer: player }],
-              createMissVisualEffects(player, attackerClass),
-              [
-                () => {
-                  addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
-                  addLog('attack', `❌ ${attackerClass.name} uses ${ability.name} but all attacks miss!`);
-                  addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} but all attacks miss.`));
-                  const nextTurn = player === 'player1' ? 'player2' : 'player1';
-                  setTimeout(() => {
-                    setCurrentTurn(nextTurn);
-                    setIsMoveInProgress(false);
-                  }, 650);
-                }
-              ]
-            );
-          }
+                ]
+              );
+            },
+            cardRotation,
+            undefined, // delay
+            projectileType
+          );
+        }
       } else if (attackAbility.attackRoll) {
         // Handle single attack with roll
         const d20Roll = rollDice('d20');
@@ -797,49 +913,83 @@ export default function DnDTestPage() {
           );
           
           const newHP = Math.max(0, defenderClass.hitPoints - damage);
-          const visualEffects = createHitVisualEffects(player, defender, damage, defenderClass, attackerClass);
           
-          // Show floating damage number immediately
-          showFloatingNumbers(
-            [{ value: damage, type: 'damage', targetPlayer: defender }],
-            visualEffects,
-            [
-              () => updatePlayerHP(defender, newHP),
-              () => {
-                addLog('attack', `⚔️ ${attackerClass.name} hits for ${damage} damage!`);
-                addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} and hits for ${damage} damage.`));
-                
-                if (newHP <= 0) {
-                  setDefeatedPlayer(defender);
-                  setVictorPlayer(player);
-                  setConfettiTrigger(prev => prev + 1);
-                  addLog('system', `🏆 ${attackerClass.name} wins!`);
-                } else {
-                  const nextTurn = player === 'player1' ? 'player2' : 'player1';
-                  setTimeout(() => {
-                    setCurrentTurn(nextTurn);
-                    setIsMoveInProgress(false);
-                  }, 450);
-                }
+          // Create visual effects, but exclude shake (will be triggered by projectile hit)
+          const visualEffects = createHitVisualEffects(player, defender, damage, defenderClass, attackerClass)
+            .filter(effect => effect.type !== 'shake'); // Remove shake, will be triggered on projectile hit
+          
+          // Show projectile effect
+          showProjectileEffect(
+            player,
+            defender,
+            true, // isHit
+            () => {
+              // On projectile hit: trigger shake and show damage
+              const shakeEffect = createHitVisualEffects(player, defender, damage, defenderClass, attackerClass)
+                .find(effect => effect.type === 'shake');
+              if (shakeEffect) {
+                applyVisualEffect(shakeEffect);
               }
-            ]
+              
+              // Show floating damage number when projectile hits
+              showFloatingNumbers(
+                [{ value: damage, type: 'damage', targetPlayer: defender }],
+                visualEffects, // Other effects (hit, cast) shown immediately
+                [
+                  () => updatePlayerHP(defender, newHP),
+                  () => {
+                    addLog('attack', `⚔️ ${attackerClass.name} hits for ${damage} damage!`);
+                    addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} and hits for ${damage} damage.`));
+                    
+                    if (newHP <= 0) {
+                      setDefeatedPlayer(defender);
+                      setVictorPlayer(player);
+                      setConfettiTrigger(prev => prev + 1);
+                      addLog('system', `🏆 ${attackerClass.name} wins!`);
+                    } else {
+                      const nextTurn = player === 'player1' ? 'player2' : 'player1';
+                      setTimeout(() => {
+                        setCurrentTurn(nextTurn);
+                        setIsMoveInProgress(false);
+                      }, 450);
+                    }
+                  }
+                ]
+              );
+            },
+            undefined, // onComplete
+            cardRotation,
+            undefined, // delay
+            projectileType
           );
         } else {
-          // Miss - show MISS on attacker's card
-          showFloatingNumbers(
-            [{ value: 'MISS', type: 'miss', targetPlayer: player }],
-            createMissVisualEffects(player, attackerClass),
-            [
-              () => {
-                addLog('attack', `❌ ${attackerClass.name} misses!`);
-                addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} but misses.`));
-                const nextTurn = player === 'player1' ? 'player2' : 'player1';
-                setTimeout(() => {
-                  setCurrentTurn(nextTurn);
-                  setIsMoveInProgress(false);
-                }, 650);
-              }
-            ]
+          // Miss - show projectile effect that misses the target
+          showProjectileEffect(
+            player,
+            defender,
+            false, // isHit
+            undefined, // onHit
+            () => {
+              // After projectile misses, show miss effects
+              showFloatingNumbers(
+                [{ value: 'MISS', type: 'miss', targetPlayer: player }],
+                createMissVisualEffects(player, attackerClass),
+                [
+                  () => {
+                    addLog('attack', `❌ ${attackerClass.name} misses!`);
+                    addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} but misses.`));
+                    const nextTurn = player === 'player1' ? 'player2' : 'player1';
+                    setTimeout(() => {
+                      setCurrentTurn(nextTurn);
+                      setIsMoveInProgress(false);
+                    }, 650);
+                  }
+                ]
+              );
+            },
+            cardRotation,
+            undefined, // delay
+            projectileType
           );
         }
       } else {
@@ -851,32 +1001,54 @@ export default function DnDTestPage() {
           attackAbility.bonusDamageDice
         );
         const newHP = Math.max(0, defenderClass.hitPoints - damage);
-        const visualEffects = createHitVisualEffects(player, defender, damage, defenderClass, attackerClass);
         
-        // Show floating damage number immediately
-        showFloatingNumbers(
-          [{ value: damage, type: 'damage', targetPlayer: defender }],
-          visualEffects,
-          [
-            () => updatePlayerHP(defender, newHP),
-            () => {
-              addLog('attack', `⚔️ ${attackerClass.name} deals ${damage} damage!`);
-              addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} and deals ${damage} damage.`));
-              
-              if (newHP <= 0) {
-                setDefeatedPlayer(defender);
-                setVictorPlayer(player);
-                setConfettiTrigger(prev => prev + 1);
-                addLog('system', `🏆 ${attackerClass.name} wins!`);
-              } else {
-                const nextTurn = player === 'player1' ? 'player2' : 'player1';
-                setTimeout(() => {
-                  setCurrentTurn(nextTurn);
-                  setIsMoveInProgress(false);
-                }, 450);
-              }
+        // Create visual effects, but exclude shake (will be triggered by projectile hit)
+        const visualEffects = createHitVisualEffects(player, defender, damage, defenderClass, attackerClass)
+          .filter(effect => effect.type !== 'shake'); // Remove shake, will be triggered on projectile hit
+        
+        // Show projectile effect
+        showProjectileEffect(
+          player,
+          defender,
+          true, // isHit
+          () => {
+            // On projectile hit: trigger shake and show damage
+            const shakeEffect = createHitVisualEffects(player, defender, damage, defenderClass, attackerClass)
+              .find(effect => effect.type === 'shake');
+            if (shakeEffect) {
+              applyVisualEffect(shakeEffect);
             }
-          ]
+            
+            // Show floating damage number when projectile hits
+            showFloatingNumbers(
+              [{ value: damage, type: 'damage', targetPlayer: defender }],
+              visualEffects, // Other effects (hit, cast) shown immediately
+              [
+                () => updatePlayerHP(defender, newHP),
+                () => {
+                  addLog('attack', `⚔️ ${attackerClass.name} deals ${damage} damage!`);
+                  addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} and deals ${damage} damage.`));
+                  
+                  if (newHP <= 0) {
+                    setDefeatedPlayer(defender);
+                    setVictorPlayer(player);
+                    setConfettiTrigger(prev => prev + 1);
+                    addLog('system', `🏆 ${attackerClass.name} wins!`);
+                  } else {
+                    const nextTurn = player === 'player1' ? 'player2' : 'player1';
+                    setTimeout(() => {
+                      setCurrentTurn(nextTurn);
+                      setIsMoveInProgress(false);
+                    }, 450);
+                  }
+                }
+              ]
+            );
+          },
+          undefined, // onComplete
+          cardRotation,
+          undefined, // delay
+          projectileType
         );
       }
     }
@@ -915,8 +1087,6 @@ export default function DnDTestPage() {
     setSparkleTrigger({ player1: 0, player2: 0 });
     setMissTrigger({ player1: 0, player2: 0 });
     setHitTrigger({ player1: 0, player2: 0 });
-    setSurprisedPlayer(null);
-    setSurpriseTrigger({ player1: 0, player2: 0 });
     setCastingPlayer(null);
     setCastTrigger({ player1: 0, player2: 0 });
     setShakeIntensity({ player1: 0, player2: 0 });
@@ -928,6 +1098,10 @@ export default function DnDTestPage() {
     setIsOpponentAutoPlaying(false);
     // Clear floating numbers
     setFloatingNumbers([]);
+    // Clear projectile effects
+    setProjectileEffects([]);
+    // Clear projectile tracking ref
+    lastProjectileTimeRef.current = {};
     // Note: We don't reset monster IDs here - they should persist with the selected character
     aiOpponentCleanup.cleanup();
     addLog('system', '🔄 Test reset');
@@ -950,10 +1124,6 @@ export default function DnDTestPage() {
     setHittingPlayer(null);
   }, []);
 
-  const handlePlayer1SurpriseComplete = useCallback(() => {
-    setSurprisedPlayer(null);
-  }, []);
-
   const handlePlayer2ShakeComplete = useCallback(() => {
     setShakingPlayer(null);
   }, []);
@@ -968,10 +1138,6 @@ export default function DnDTestPage() {
 
   const handlePlayer2HitComplete = useCallback(() => {
     setHittingPlayer(null);
-  }, []);
-
-  const handlePlayer2SurpriseComplete = useCallback(() => {
-    setSurprisedPlayer(null);
   }, []);
 
   const handlePlayer1CastComplete = useCallback(() => {
@@ -996,6 +1162,26 @@ export default function DnDTestPage() {
           targetCardRef={number.targetPlayer === 'player1' ? player1CardRef : player2CardRef}
           onComplete={() => handleFloatingNumberComplete(number.id)}
           persistent={number.persistent}
+        />
+      ))}
+      
+      {/* Projectile Effects */}
+      {projectileEffects.map((projectile) => (
+        <ProjectileEffect
+          key={projectile.id}
+          fromCardRef={projectile.fromPlayer === 'player1' ? player1CardRef : player2CardRef}
+          toCardRef={projectile.toPlayer === 'player1' ? player1CardRef : player2CardRef}
+          isHit={projectile.isHit}
+          onHit={projectile.onHit}
+          onComplete={() => {
+            if (projectile.onComplete) {
+              projectile.onComplete();
+            }
+            removeProjectileEffect(projectile.id);
+          }}
+          fromCardRotation={projectile.fromCardRotation}
+          delay={projectile.delay}
+          projectileType={projectile.projectileType}
         />
       ))}
       
@@ -1238,14 +1424,12 @@ export default function DnDTestPage() {
                 shouldSparkle={sparklingPlayer === 'player1'}
                 shouldMiss={missingPlayer === 'player1'}
                 shouldHit={hittingPlayer === 'player1'}
-                shouldSurprise={surprisedPlayer === 'player1'}
                 shouldCast={castingPlayer === 'player1'}
                 castTrigger={castTrigger.player1}
                 shakeTrigger={shakeTrigger.player1}
                 sparkleTrigger={sparkleTrigger.player1}
                 missTrigger={missTrigger.player1}
                 hitTrigger={hitTrigger.player1}
-                surpriseTrigger={surpriseTrigger.player1}
                 shakeIntensity={shakeIntensity.player1}
                 sparkleIntensity={sparkleIntensity.player1}
                 isActive={currentTurn === 'player1'}
@@ -1256,7 +1440,6 @@ export default function DnDTestPage() {
                 onSparkleComplete={handlePlayer1SparkleComplete}
                 onMissComplete={handlePlayer1MissComplete}
                 onHitComplete={handlePlayer1HitComplete}
-                onSurpriseComplete={handlePlayer1SurpriseComplete}
                 onCastComplete={handlePlayer1CastComplete}
                 allowAllTurns={!isAIModeActive}
               />
@@ -1333,14 +1516,12 @@ export default function DnDTestPage() {
                 shouldSparkle={sparklingPlayer === 'player2'}
                 shouldMiss={missingPlayer === 'player2'}
                 shouldHit={hittingPlayer === 'player2'}
-                shouldSurprise={surprisedPlayer === 'player2'}
                 shouldCast={castingPlayer === 'player2'}
                 castTrigger={castTrigger.player2}
                 shakeTrigger={shakeTrigger.player2}
                 sparkleTrigger={sparkleTrigger.player2}
                 missTrigger={missTrigger.player2}
                 hitTrigger={hitTrigger.player2}
-                surpriseTrigger={surpriseTrigger.player2}
                 shakeIntensity={shakeIntensity.player2}
                 sparkleIntensity={sparkleIntensity.player2}
                 isActive={currentTurn === 'player2'}
@@ -1351,7 +1532,6 @@ export default function DnDTestPage() {
                 onSparkleComplete={handlePlayer2SparkleComplete}
                 onMissComplete={handlePlayer2MissComplete}
                 onHitComplete={handlePlayer2HitComplete}
-                onSurpriseComplete={handlePlayer2SurpriseComplete}
                 onCastComplete={handlePlayer2CastComplete}
                 allowAllTurns={!isAIModeActive}
               />
@@ -1411,6 +1591,84 @@ export default function DnDTestPage() {
                   ❌ Test Miss
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* Projectile Type Test Buttons */}
+          <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-4 shadow-2xl">
+            <h3 className="text-lg font-bold mb-3 text-amber-100 text-center" style={{ fontFamily: 'serif' }}>
+              Test Projectile Types
+            </h3>
+            <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-8 gap-2">
+              {(['fire', 'ice', 'water', 'earth', 'air', 'poison', 'psychic', 'necrotic', 'radiant', 'lightning', 'acid', 'melee', 'ranged', 'magic', 'shadow'] as ProjectileType[]).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => {
+                    const attacker = 'player1';
+                    const defender = 'player2';
+                    const cardRotation = attacker === 'player1' ? -5 : 5;
+                    showProjectileEffect(
+                      attacker,
+                      defender,
+                      true, // isHit
+                      () => {
+                        const damage = 5;
+                        const defenderClass = player2Class;
+                        const newHP = Math.max(0, defenderClass.hitPoints - damage);
+                        const shakeEffect = createHitVisualEffects(attacker, defender, damage, defenderClass, player1Class)
+                          .find(effect => effect.type === 'shake');
+                        if (shakeEffect) {
+                          applyVisualEffect(shakeEffect);
+                        }
+                        showFloatingNumbers(
+                          [{ value: damage, type: 'damage', targetPlayer: defender }],
+                          createHitVisualEffects(attacker, defender, damage, defenderClass, player1Class)
+                            .filter(effect => effect.type !== 'shake'),
+                          [
+                            () => updatePlayerHP(defender, newHP),
+                            () => addLog('system', `🧪 Test ${type} projectile`)
+                          ]
+                        );
+                      },
+                      undefined, // onComplete
+                      cardRotation,
+                      undefined, // delay
+                      type
+                    );
+                  }}
+                  className="py-2 px-3 bg-amber-800 hover:bg-amber-700 text-white text-xs font-semibold rounded border border-amber-600 transition-all capitalize"
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2 justify-center">
+              <button
+                onClick={() => {
+                  const attacker = 'player1';
+                  const defender = 'player2';
+                  const cardRotation = attacker === 'player1' ? -5 : 5;
+                  showProjectileEffect(
+                    attacker,
+                    defender,
+                    false, // isHit - miss
+                    undefined, // onHit
+                    () => {
+                      showFloatingNumbers(
+                        [{ value: 'MISS', type: 'miss', targetPlayer: attacker }],
+                        createMissVisualEffects(attacker, player1Class),
+                        [() => addLog('system', '🧪 Test projectile miss')]
+                      );
+                    },
+                    cardRotation,
+                    undefined, // delay
+                    'magic'
+                  );
+                }}
+                className="py-2 px-4 bg-gray-700 hover:bg-gray-600 text-white text-xs font-semibold rounded border border-gray-500 transition-all"
+              >
+                Test Miss
+              </button>
             </div>
           </div>
 

@@ -98,14 +98,12 @@ interface CharacterCardProps {
   shouldSparkle?: boolean;
   shouldMiss?: boolean;
   shouldHit?: boolean;
-  shouldSurprise?: boolean;
   shouldCast?: boolean;
   castTrigger?: number;
   shakeTrigger?: number;
   sparkleTrigger?: number;
   missTrigger?: number;
   hitTrigger?: number;
-  surpriseTrigger?: number;
   shakeIntensity?: number;
   sparkleIntensity?: number;
   // Status props
@@ -118,7 +116,6 @@ interface CharacterCardProps {
   onSparkleComplete?: () => void;
   onMissComplete?: () => void;
   onHitComplete?: () => void;
-  onSurpriseComplete?: () => void;
   onCastComplete?: () => void;
   // Action buttons (optional - for battle/test pages)
   onAttack?: (attackType?: 'melee' | 'ranged') => void;
@@ -150,14 +147,12 @@ function CharacterCardComponent({
   shouldSparkle = false,
   shouldMiss = false,
   shouldHit = false,
-  shouldSurprise = false,
   shouldCast = false,
   castTrigger = 0,
   shakeTrigger = 0,
   sparkleTrigger = 0,
   missTrigger = 0,
   hitTrigger = 0,
-  surpriseTrigger = 0,
   shakeIntensity = 0,
   sparkleIntensity = 0,
   isActive = false,
@@ -168,7 +163,6 @@ function CharacterCardComponent({
   onSparkleComplete,
   onMissComplete,
   onHitComplete,
-  onSurpriseComplete,
   onCastComplete,
   onAttack,
   onUseAbility,
@@ -253,16 +247,6 @@ function CharacterCardComponent({
       return () => clearTimeout(timer);
     }
   }, [shouldHit, hitTrigger, onHitComplete]);
-
-  // Apply surprise animation
-  useEffect(() => {
-    if (shouldSurprise && surpriseTrigger > 0) {
-      const timer = setTimeout(() => {
-        onSurpriseComplete?.();
-      }, 1200);
-      return () => clearTimeout(timer);
-    }
-  }, [shouldSurprise, surpriseTrigger, onSurpriseComplete]);
 
   // Apply cast animation
   useEffect(() => {
