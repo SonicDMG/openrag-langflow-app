@@ -661,16 +661,18 @@ function CharacterCardComponent({
         {/* Central pixel art image in frame - slightly darker beige */}
         <div 
           ref={characterImageRef}
-          className="rounded-lg flex justify-center items-center overflow-hidden mx-auto relative"
+          className="rounded-lg flex justify-center items-center overflow-hidden relative"
           style={{ 
             backgroundColor: '#E8E0D6', // Slightly darker beige frame
             border: isCompact ? '1.5px solid #D4C4B0' : '2px solid #D4C4B0',
             borderRadius: isCompact ? '6px' : '8px',
             padding: '0', // Remove padding so image fills the container
-            width: imageWidth, // Scaled width
+            width: `calc(100% + ${padding} + ${padding})`, // Extend beyond padding on both sides to reach full card width
             height: imageHeight, // Scaled height
             aspectRatio: '280/200', // Match the actual image aspect ratio (1.4:1)
-            marginBottom: isCompact ? '0.5rem' : '0.75rem'
+            marginBottom: isCompact ? '0.5rem' : '0.75rem',
+            marginLeft: `-${padding}`, // Negative margin to counteract parent padding
+            marginRight: `-${padding}`, // Negative margin to counteract parent padding
           }}
         >
           {monsterImageUrl && !imageError ? (
