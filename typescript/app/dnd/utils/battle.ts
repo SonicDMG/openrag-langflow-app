@@ -56,8 +56,8 @@ export function createHitVisualEffects(
     { type: 'shake', player: defender, intensity: damage }
   ];
   
-  // Add cast effect for spell-casting classes or dragons (for fire breath)
-  if (attackerClass && shouldShowCastEffectForClass(attackerClass.name)) {
+  // Add cast effect for all classes on attacks
+  if (attackerClass) {
     visualEffects.push({ type: 'cast', player: attacker });
   }
   
@@ -73,8 +73,8 @@ export function createMissVisualEffects(
 ): PendingVisualEffect[] {
   const visualEffects: PendingVisualEffect[] = [{ type: 'miss', player: attacker }];
   
-  // Add cast effect for spell-casting classes or dragons (they're still casting even on a miss)
-  if (attackerClass && shouldShowCastEffectForClass(attackerClass.name)) {
+  // Add cast effect for all classes on misses (attacks that miss)
+  if (attackerClass) {
     visualEffects.push({ type: 'cast', player: attacker });
   }
   
@@ -91,10 +91,7 @@ export function createHealingVisualEffects(
 ): PendingVisualEffect[] {
   const visualEffects: PendingVisualEffect[] = [{ type: 'sparkle', player: target, intensity: healAmount }];
   
-  // Add cast effect for spell-casting classes or dragons (for healing glow)
-  if (casterClass && shouldShowCastEffectForClass(casterClass.name)) {
-    visualEffects.push({ type: 'cast', player: target });
-  }
+  // No cast effect for healing (only for attacks)
   
   return visualEffects;
 }

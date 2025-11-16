@@ -77,6 +77,10 @@ export default function DnDBattle() {
   const [confettiTrigger, setConfettiTrigger] = useState(0);
   const [castingPlayer, setCastingPlayer] = useState<'player1' | 'player2' | null>(null);
   const [castTrigger, setCastTrigger] = useState({ player1: 0, player2: 0 });
+  const [flashingPlayer, setFlashingPlayer] = useState<'player1' | 'player2' | null>(null);
+  const [flashTrigger, setFlashTrigger] = useState({ player1: 0, player2: 0 });
+  const [flashProjectileType, setFlashProjectileType] = useState<{ player1: ProjectileType | null; player2: ProjectileType | null }>({ player1: null, player2: null });
+  const [castProjectileType, setCastProjectileType] = useState<{ player1: ProjectileType | null; player2: ProjectileType | null }>({ player1: null, player2: null });
   const [selectionSyncTrigger, setSelectionSyncTrigger] = useState(0);
   
   // Floating numbers state - replaces dice roll system
@@ -360,8 +364,21 @@ export default function DnDBattle() {
     }
   }, []);
 
+  // Helper function to trigger flash effect on attacking card
+  const triggerFlashEffect = useCallback((attacker: 'player1' | 'player2', projectileType?: ProjectileType) => {
+    setFlashingPlayer(attacker);
+    setFlashTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
+    if (projectileType) {
+      setFlashProjectileType(prev => ({ ...prev, [attacker]: projectileType }));
+      setCastProjectileType(prev => ({ ...prev, [attacker]: projectileType }));
+    }
+  }, []);
+
   // Ref to track recent projectile creations to prevent duplicates
   const lastProjectileTimeRef = useRef<{ [key: string]: number }>({});
+  
+  // Flag to disable particle effects (projectiles) - set to true to disable
+  const PARTICLE_EFFECTS_DISABLED = true;
   
   // Helper function to show projectile effect
   const showProjectileEffect = useCallback((
@@ -374,6 +391,24 @@ export default function DnDBattle() {
     delay?: number,
     projectileType?: ProjectileType
   ) => {
+    // If particle effects are disabled, execute callbacks immediately without showing projectile
+    if (PARTICLE_EFFECTS_DISABLED) {
+      // Execute onHit callback immediately for hits
+      if (isHit && onHit) {
+        // Small delay to maintain timing feel
+        setTimeout(() => {
+          onHit();
+        }, 50);
+      }
+      // Execute onComplete callback
+      if (onComplete) {
+        setTimeout(() => {
+          onComplete();
+        }, isHit ? 100 : 150);
+      }
+      return;
+    }
+    
     // Create a unique key for this attack (fromPlayer + toPlayer + delay)
     // This prevents duplicate projectiles for the same attack within 200ms
     const attackKey = `${fromPlayer}-${toPlayer}-${delay || 0}`;
@@ -400,6 +435,26 @@ export default function DnDBattle() {
       projectileType,
     }]);
   }, []);
+  
+  // New effect function - flash/glow effect on attacking card
+  // This will be separate from particle effects
+  const showAlternativeEffect = useCallback((
+    fromPlayer: 'player1' | 'player2',
+    toPlayer: 'player1' | 'player2',
+    isHit: boolean,
+    effectType?: string,
+    onComplete?: () => void
+  ) => {
+    // Trigger flash effect on the attacking card
+    triggerFlashEffect(fromPlayer);
+    
+    // Execute callback if provided
+    if (onComplete) {
+      setTimeout(() => {
+        onComplete();
+      }, 500); // Match flash animation duration
+    }
+  }, [triggerFlashEffect]);
 
   // Helper function to remove projectile effect
   const removeProjectileEffect = useCallback((id: string) => {
@@ -701,6 +756,10 @@ export default function DnDBattle() {
     setCastingPlayer(null);
   }, []);
 
+  const handleFlashComplete = useCallback(() => {
+    setFlashingPlayer(null);
+  }, []);
+
   // Note: Load functionality has been moved to /dnd/load-data page
 
   const startBattle = async () => {
@@ -824,6 +883,11 @@ export default function DnDBattle() {
     const attackTypeLabel = attackType === 'melee' ? 'melee' : attackType === 'ranged' ? 'ranged' : '';
     const attackDescription = attackTypeLabel ? `${attackTypeLabel} attack` : 'attack';
 
+    // Get projectile type for flash effect
+    const projectileType = getProjectileType(null, attackType, attackerClass.name);
+    // Trigger flash effect on attacking card with projectile type
+    triggerFlashEffect(attacker, projectileType);
+
     if (attackRoll >= defenderClass.armorClass) {
       // Hit! Show projectile effect first, then damage on impact
       const damage = rollDice(damageDie);
@@ -835,7 +899,6 @@ export default function DnDBattle() {
       
       // Show projectile effect with card rotation angle
       const cardRotation = attacker === 'player1' ? -5 : 5;
-      const projectileType = getProjectileType(null, attackType, attackerClass.name);
       showProjectileEffect(
         attacker,
         defender,
@@ -1272,6 +1335,10 @@ export default function DnDBattle() {
       return;
     } else if (ability.type === 'attack') {
       const attackAbility = ability as AttackAbility;
+      // Get projectile type for flash effect
+      const projectileType = getProjectileType(attackAbility, undefined, attackerClass.name);
+      // Trigger flash effect on attacking card with projectile type
+      triggerFlashEffect(attacker, projectileType);
       const numAttacks = attackAbility.attacks || 1;
       
       if (numAttacks > 1) {
@@ -1387,6 +1454,10 @@ export default function DnDBattle() {
     setHitTrigger({ player1: 0, player2: 0 });
     setCastingPlayer(null);
     setCastTrigger({ player1: 0, player2: 0 });
+    setFlashingPlayer(null);
+    setFlashTrigger({ player1: 0, player2: 0 });
+    setFlashProjectileType({ player1: null, player2: null });
+    setCastProjectileType({ player1: null, player2: null });
     setIsOpponentAutoPlaying(false);
     // Clear floating numbers
     setFloatingNumbers([]);
@@ -1731,7 +1802,11 @@ export default function DnDBattle() {
                   shouldMiss={missingPlayer === 'player1'}
                   shouldHit={hittingPlayer === 'player1'}
                   shouldCast={castingPlayer === 'player1'}
+                  shouldFlash={flashingPlayer === 'player1'}
                   castTrigger={castTrigger.player1}
+                  flashTrigger={flashTrigger.player1}
+                  flashProjectileType={flashProjectileType.player1}
+                  castProjectileType={castProjectileType.player1}
                   shakeTrigger={shakeTrigger.player1}
                   sparkleTrigger={sparkleTrigger.player1}
                   missTrigger={missTrigger.player1}
@@ -1748,6 +1823,7 @@ export default function DnDBattle() {
                   onMissComplete={handleMissComplete}
                   onHitComplete={handleHitComplete}
                   onCastComplete={handleCastComplete}
+                  onFlashComplete={handleFlashComplete}
                 />
               </div>
               {/* VS Graphic */}
@@ -1778,7 +1854,11 @@ export default function DnDBattle() {
                   shouldMiss={missingPlayer === 'player2'}
                   shouldHit={hittingPlayer === 'player2'}
                   shouldCast={castingPlayer === 'player2'}
+                  shouldFlash={flashingPlayer === 'player2'}
                   castTrigger={castTrigger.player2}
+                  flashTrigger={flashTrigger.player2}
+                  flashProjectileType={flashProjectileType.player2}
+                  castProjectileType={castProjectileType.player2}
                   shakeTrigger={shakeTrigger.player2}
                   sparkleTrigger={sparkleTrigger.player2}
                   missTrigger={missTrigger.player2}
@@ -1795,6 +1875,7 @@ export default function DnDBattle() {
                   onMissComplete={handleMissComplete}
                   onHitComplete={handleHitComplete}
                   onCastComplete={handleCastComplete}
+                  onFlashComplete={handleFlashComplete}
                   isOpponent={true}
                 />
               </div>

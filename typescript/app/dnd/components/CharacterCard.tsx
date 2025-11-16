@@ -99,11 +99,15 @@ interface CharacterCardProps {
   shouldMiss?: boolean;
   shouldHit?: boolean;
   shouldCast?: boolean;
+  shouldFlash?: boolean;
   castTrigger?: number;
   shakeTrigger?: number;
   sparkleTrigger?: number;
   missTrigger?: number;
   hitTrigger?: number;
+  flashTrigger?: number;
+  flashProjectileType?: string | null;
+  castProjectileType?: string | null;
   shakeIntensity?: number;
   sparkleIntensity?: number;
   // Status props
@@ -117,6 +121,7 @@ interface CharacterCardProps {
   onMissComplete?: () => void;
   onHitComplete?: () => void;
   onCastComplete?: () => void;
+  onFlashComplete?: () => void;
   // Action buttons (optional - for battle/test pages)
   onAttack?: (attackType?: 'melee' | 'ranged') => void;
   onUseAbility?: (index: number) => void;
@@ -148,11 +153,15 @@ function CharacterCardComponent({
   shouldMiss = false,
   shouldHit = false,
   shouldCast = false,
+  shouldFlash = false,
   castTrigger = 0,
   shakeTrigger = 0,
   sparkleTrigger = 0,
   missTrigger = 0,
   hitTrigger = 0,
+  flashTrigger = 0,
+  flashProjectileType = null,
+  castProjectileType = null,
   shakeIntensity = 0,
   sparkleIntensity = 0,
   isActive = false,
@@ -164,6 +173,7 @@ function CharacterCardComponent({
   onMissComplete,
   onHitComplete,
   onCastComplete,
+  onFlashComplete,
   onAttack,
   onUseAbility,
   isMoveInProgress = false,
@@ -183,6 +193,8 @@ function CharacterCardComponent({
   const cutOutCharacterRef = useRef<HTMLImageElement>(null);
   const effectiveIsActive = allowAllTurns ? !isDefeated : isActive;
   const isDisabled = (effectiveIsActive && isMoveInProgress) || isDefeated;
+  // Only disable opponent abilities if allowAllTurns is false (i.e., it's actually auto-playing)
+  const shouldDisableOpponent = isOpponent && !allowAllTurns;
   const [imageError, setImageError] = useState(false);
   const [cutOutImageError, setCutOutImageError] = useState(false);
   const [mainImageLoaded, setMainImageLoaded] = useState(false);
@@ -257,6 +269,16 @@ function CharacterCardComponent({
       return () => clearTimeout(timer);
     }
   }, [shouldCast, castTrigger, onCastComplete]);
+
+  // Apply flash animation
+  useEffect(() => {
+    if (shouldFlash && flashTrigger > 0) {
+      const timer = setTimeout(() => {
+        onFlashComplete?.();
+      }, 500); // Match flash animation duration
+      return () => clearTimeout(timer);
+    }
+  }, [shouldFlash, flashTrigger, onFlashComplete]);
 
   // Apply pulse animation for selected cards - restart animation to sync with other selected cards
   useEffect(() => {
@@ -365,7 +387,8 @@ function CharacterCardComponent({
           repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0, 0, 0, 0.1) 2px, rgba(0, 0, 0, 0.1) 4px)
         `,
         backgroundSize: '100% 100%, 100% 100%, 4px 4px, 4px 4px',
-        position: 'relative'
+        position: 'relative',
+        overflow: 'visible' // Allow cast effect to extend outside card
       }}
     >
       {/* Dust particles effect when card slams down */}
@@ -449,7 +472,7 @@ function CharacterCardComponent({
           <div className="card-dust-container">
             {particles.map((particle, i) => {
               // Set initial position based on side
-              const initialStyle: React.CSSProperties = {
+              const initialStyle: React.CSSProperties & { [key: `--${string}`]: string } = {
                 '--dust-delay': `${particle.delay}s`,
                 '--dust-duration': `${particle.duration}s`,
                 '--dust-horizontal-offset': `${particle.horizontalOffset}px`,
@@ -500,6 +523,15 @@ function CharacterCardComponent({
           mixBlendMode: 'overlay'
         }}
       />
+      
+      {/* Cast effect - must be outside inner card to avoid overflow clipping */}
+      {shouldCast && castTrigger > 0 && (
+        <div 
+          className={`${isOpponent ? 'card-cast-left' : 'card-cast-right'} ${castProjectileType ? `card-cast-${castProjectileType}` : ''}`}
+          key={`cast-${castTrigger}`}
+        />
+      )}
+
       {/* Inner card with rounded corners */}
       <div 
         className={`relative overflow-hidden ${isDefeated ? 'card-inner-damaged' : ''}`}
@@ -561,6 +593,15 @@ function CharacterCardComponent({
             key={sparkleTrigger} 
             trigger={sparkleTrigger} 
             count={sparkleIntensity > 0 ? Math.max(1, Math.ceil(sparkleIntensity * 0.6)) : 12}
+          />
+        )}
+
+        {/* Flash/glow effect for attack initiation - appears on side facing opponent */}
+        {shouldFlash && flashTrigger > 0 && (
+          <div 
+            className={`${isOpponent ? 'card-flash-left' : 'card-flash-right'} ${flashProjectileType ? `card-flash-${flashProjectileType}` : ''}`}
+            key={`flash-${flashTrigger}`}
+            style={{ position: 'absolute' }}
           />
         )}
 
@@ -746,7 +787,7 @@ function CharacterCardComponent({
                   <>
                     <button
                       onClick={() => onAttack('melee')}
-                      disabled={isOpponent || isDisabled}
+                      disabled={shouldDisableOpponent || isDisabled}
                       className="disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-opacity-80"
                       style={{ 
                         color: '#000000',
@@ -754,7 +795,7 @@ function CharacterCardComponent({
                         border: '1px solid #D4C4B0',
                         borderRadius: '6px',
                         padding: abilityButtonPadding,
-                        cursor: (isOpponent || isDisabled) ? 'not-allowed' : 'pointer',
+                        cursor: (shouldDisableOpponent || isDisabled) ? 'not-allowed' : 'pointer',
                         whiteSpace: 'nowrap',
                         fontFamily: 'serif',
                         fontWeight: 'bold',
@@ -774,7 +815,7 @@ function CharacterCardComponent({
                     </button>
                     <button
                       onClick={() => onAttack('ranged')}
-                      disabled={isOpponent || isDisabled}
+                      disabled={shouldDisableOpponent || isDisabled}
                       className="disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-opacity-80"
                       style={{ 
                         color: '#000000',
@@ -782,7 +823,7 @@ function CharacterCardComponent({
                         border: '1px solid #D4C4B0',
                         borderRadius: '6px',
                         padding: abilityButtonPadding,
-                        cursor: (isOpponent || isDisabled) ? 'not-allowed' : 'pointer',
+                        cursor: (shouldDisableOpponent || isDisabled) ? 'not-allowed' : 'pointer',
                         whiteSpace: 'nowrap',
                         fontFamily: 'serif',
                         fontWeight: 'bold',
@@ -822,7 +863,7 @@ function CharacterCardComponent({
                 return (
                   <button
                     onClick={() => onAttack()}
-                    disabled={isOpponent || isDisabled}
+                    disabled={shouldDisableOpponent || isDisabled}
                     className="disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-opacity-80"
                     style={{ 
                       color: '#000000',
@@ -830,7 +871,7 @@ function CharacterCardComponent({
                       border: '1px solid #D4C4B0',
                       borderRadius: '6px',
                       padding: abilityButtonPadding,
-                      cursor: (isOpponent || isDisabled) ? 'not-allowed' : 'pointer',
+                      cursor: (shouldDisableOpponent || isDisabled) ? 'not-allowed' : 'pointer',
                       whiteSpace: 'nowrap',
                       fontFamily: 'serif',
                       fontWeight: 'bold',
@@ -856,8 +897,8 @@ function CharacterCardComponent({
               const isTestHeal = ability.name === 'Test Heal';
               const testMissButton = testButtons.find(btn => btn.label.includes('Test Miss'));
               
-              // For non-interactive mode (opponents or preview), show as disabled buttons
-              if (isOpponent || !onUseAbility) {
+              // For non-interactive mode (auto-playing opponents or preview), show as disabled buttons
+              if (shouldDisableOpponent || !onUseAbility) {
                 return (
                   <button
                     key={idx}

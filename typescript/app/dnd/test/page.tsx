@@ -150,6 +150,10 @@ export default function DnDTestPage() {
   const [hitTrigger, setHitTrigger] = useState({ player1: 0, player2: 0 });
   const [castingPlayer, setCastingPlayer] = useState<'player1' | 'player2' | null>(null);
   const [castTrigger, setCastTrigger] = useState({ player1: 0, player2: 0 });
+  const [flashingPlayer, setFlashingPlayer] = useState<'player1' | 'player2' | null>(null);
+  const [flashTrigger, setFlashTrigger] = useState({ player1: 0, player2: 0 });
+  const [flashProjectileType, setFlashProjectileType] = useState<{ player1: ProjectileType | null; player2: ProjectileType | null }>({ player1: null, player2: null });
+  const [castProjectileType, setCastProjectileType] = useState<{ player1: ProjectileType | null; player2: ProjectileType | null }>({ player1: null, player2: null });
   const [shakeIntensity, setShakeIntensity] = useState<{ player1: number; player2: number }>({ player1: 0, player2: 0 });
   const [sparkleIntensity, setSparkleIntensity] = useState<{ player1: number; player2: number }>({ player1: 0, player2: 0 });
   const [defeatedPlayer, setDefeatedPlayer] = useState<'player1' | 'player2' | null>(null);
@@ -189,6 +193,13 @@ export default function DnDTestPage() {
   const [isAIModeActive, setIsAIModeActive] = useState(false);
   const [isOpponentAutoPlaying, setIsOpponentAutoPlaying] = useState(false);
   const [isMoveInProgress, setIsMoveInProgress] = useState(false);
+  const [particleEffectsEnabled, setParticleEffectsEnabled] = useState(true);
+  const [flashEffectsEnabled, setFlashEffectsEnabled] = useState(true);
+  const [shakeEffectsEnabled, setShakeEffectsEnabled] = useState(true);
+  const [sparkleEffectsEnabled, setSparkleEffectsEnabled] = useState(true);
+  const [hitEffectsEnabled, setHitEffectsEnabled] = useState(true);
+  const [missEffectsEnabled, setMissEffectsEnabled] = useState(true);
+  const [castEffectsEnabled, setCastEffectsEnabled] = useState(true);
   
   // Load custom heroes and monsters from database
   useEffect(() => {
@@ -308,10 +319,30 @@ export default function DnDTestPage() {
     }
   }, []);
   
-  // Helper function to apply a visual effect
+  // Helper function to trigger flash effect on attacking card
+  const triggerFlashEffect = useCallback((attacker: 'player1' | 'player2', projectileType?: ProjectileType) => {
+    if (!flashEffectsEnabled) {
+      console.log('[TestPage] Flash effects disabled, skipping flash trigger');
+      return;
+    }
+    console.log('[TestPage] Triggering flash effect for', attacker, 'with type', projectileType);
+    setFlashingPlayer(attacker);
+    setFlashTrigger(prev => {
+      const newValue = prev[attacker] + 1;
+      console.log('[TestPage] Flash trigger updated:', { attacker, newValue });
+      return { ...prev, [attacker]: newValue };
+    });
+    if (projectileType) {
+      setFlashProjectileType(prev => ({ ...prev, [attacker]: projectileType }));
+      setCastProjectileType(prev => ({ ...prev, [attacker]: projectileType }));
+    }
+  }, [flashEffectsEnabled]);
+
+  // Helper function to apply a visual effect (respects effect toggles)
   const applyVisualEffect = useCallback((effect: PendingVisualEffect) => {
     switch (effect.type) {
       case 'shake':
+        if (!shakeEffectsEnabled) return;
         setShakingPlayer(effect.player);
         setShakeTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
         if (effect.intensity !== undefined) {
@@ -319,6 +350,7 @@ export default function DnDTestPage() {
         }
         break;
       case 'sparkle':
+        if (!sparkleEffectsEnabled) return;
         setSparklingPlayer(effect.player);
         setSparkleTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
         if (effect.intensity !== undefined) {
@@ -326,19 +358,22 @@ export default function DnDTestPage() {
         }
         break;
       case 'miss':
+        if (!missEffectsEnabled) return;
         setMissingPlayer(effect.player);
         setMissTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
         break;
       case 'hit':
+        if (!hitEffectsEnabled) return;
         setHittingPlayer(effect.player);
         setHitTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
         break;
       case 'cast':
+        if (!castEffectsEnabled) return;
         setCastingPlayer(effect.player);
         setCastTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
         break;
     }
-  }, []);
+  }, [shakeEffectsEnabled, sparkleEffectsEnabled, missEffectsEnabled, hitEffectsEnabled, castEffectsEnabled]);
   
   // Helper function to show floating numbers and apply effects immediately
   const showFloatingNumbers = useCallback((
@@ -385,6 +420,24 @@ export default function DnDTestPage() {
     delay?: number,
     projectileType?: ProjectileType
   ) => {
+    // If particle effects are disabled, execute callbacks immediately without showing projectile
+    if (!particleEffectsEnabled) {
+      // Execute onHit callback immediately for hits
+      if (isHit && onHit) {
+        // Small delay to maintain timing feel
+        setTimeout(() => {
+          onHit();
+        }, 50);
+      }
+      // Execute onComplete callback
+      if (onComplete) {
+        setTimeout(() => {
+          onComplete();
+        }, isHit ? 100 : 150);
+      }
+      return;
+    }
+    
     // Create a unique key for this attack (fromPlayer + toPlayer + delay)
     // This prevents duplicate projectiles for the same attack within 200ms
     const attackKey = `${fromPlayer}-${toPlayer}-${delay || 0}`;
@@ -410,7 +463,7 @@ export default function DnDTestPage() {
       delay,
       projectileType,
     }]);
-  }, []);
+  }, [particleEffectsEnabled]);
 
   // Helper function to remove projectile effect
   const removeProjectileEffect = useCallback((id: string) => {
@@ -436,6 +489,22 @@ export default function DnDTestPage() {
     const defenderClass = attacker === 'player1' ? player2Class : player1Class;
     const defender = getOpponent(attacker);
     
+    // Get projectile type for flash effect
+    const projectileType = getProjectileType(null, undefined, attackerClass.name);
+    // Trigger flash effect on attacking card with projectile type
+    triggerFlashEffect(attacker, projectileType);
+    
+    // Create visual effects to check for cast effect
+    const allVisualEffects = createHitVisualEffects(attacker, defender, 0, defenderClass, attackerClass);
+    // Trigger cast effect immediately if present
+    const castEffect = allVisualEffects.find(effect => effect.type === 'cast');
+    if (castEffect) {
+      console.log('[TestPage] Triggering cast effect for', attacker, 'castEffect:', castEffect);
+      applyVisualEffect(castEffect);
+    } else {
+      console.log('[TestPage] No cast effect for', attacker, 'attackerClass:', attackerClass.name);
+    }
+    
     console.log('[TestPage] Attacker:', attackerClass.name, 'Defender:', defenderClass.name);
     
     const d20Roll = rollDice('d20');
@@ -454,7 +523,7 @@ export default function DnDTestPage() {
     
     // Show projectile effect with card rotation angle
     const cardRotation = attacker === 'player1' ? -5 : 5;
-    const projectileType = getProjectileType(null, undefined, attackerClass.name);
+    // projectileType already defined above for flash effect
     showProjectileEffect(
       attacker,
       defender,
@@ -515,6 +584,14 @@ export default function DnDTestPage() {
     );
   };
   
+  const testCast = (attacker: 'player1' | 'player2') => {
+    console.log('[TestPage] testCast called for', attacker);
+    // Directly trigger cast effect
+    setCastingPlayer(attacker);
+    setCastTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
+    addLog('system', `🔮 Cast effect triggered for ${attacker === 'player1' ? player1Class.name : player2Class.name}`);
+  };
+
   const testAttackMiss = (attacker: 'player1' | 'player2') => {
     const attackerClass = attacker === 'player1' ? player1Class : player2Class;
     const defenderClass = attacker === 'player1' ? player2Class : player1Class;
@@ -525,9 +602,20 @@ export default function DnDTestPage() {
     
     addLog('roll', `🎲 ${attackerClass.name} rolls ${d20Roll} + ${attackerClass.attackBonus} = ${attackRoll} (misses AC ${defenderClass.armorClass})`);
     
+    // Get projectile type for flash effect
+    const projectileType = getProjectileType(null, undefined, attackerClass.name);
+    // Trigger flash effect on attacking card with projectile type
+    triggerFlashEffect(attacker, projectileType);
+    
+    // Trigger cast effect immediately if present
+    const missVisualEffects = createMissVisualEffects(attacker, attackerClass);
+    const castEffect = missVisualEffects.find(effect => effect.type === 'cast');
+    if (castEffect) {
+      applyVisualEffect(castEffect);
+    }
+    
     // Show projectile effect that misses the target
     const cardRotation = attacker === 'player1' ? -5 : 5;
-    const projectileType = getProjectileType(null, undefined, attackerClass.name);
     showProjectileEffect(
       attacker,
       defender,
@@ -759,6 +847,15 @@ export default function DnDTestPage() {
       const defender = getOpponent(player);
       const cardRotation = player === 'player1' ? -5 : 5;
       const projectileType = getProjectileType(attackAbility, undefined, attackerClass.name);
+      
+      // Trigger flash and cast effects for attack abilities only
+      triggerFlashEffect(player, projectileType);
+      // Trigger cast effect immediately for attacks
+      const attackVisualEffects = createHitVisualEffects(player, defender, 0, defenderClass, attackerClass);
+      const castEffect = attackVisualEffects.find(effect => effect.type === 'cast');
+      if (castEffect) {
+        applyVisualEffect(castEffect);
+      }
       
       if (numAttacks > 1) {
         // Handle multi-attack
@@ -1089,6 +1186,10 @@ export default function DnDTestPage() {
     setHitTrigger({ player1: 0, player2: 0 });
     setCastingPlayer(null);
     setCastTrigger({ player1: 0, player2: 0 });
+    setFlashingPlayer(null);
+    setFlashTrigger({ player1: 0, player2: 0 });
+    setFlashProjectileType({ player1: null, player2: null });
+    setCastProjectileType({ player1: null, player2: null });
     setShakeIntensity({ player1: 0, player2: 0 });
     setSparkleIntensity({ player1: 0, player2: 0 });
     setManualEmotion1(null);
@@ -1146,6 +1247,14 @@ export default function DnDTestPage() {
 
   const handlePlayer2CastComplete = useCallback(() => {
     setCastingPlayer(null);
+  }, []);
+
+  const handlePlayer1FlashComplete = useCallback(() => {
+    setFlashingPlayer(null);
+  }, []);
+
+  const handlePlayer2FlashComplete = useCallback(() => {
+    setFlashingPlayer(null);
   }, []);
   
   return (
@@ -1398,7 +1507,7 @@ export default function DnDTestPage() {
               }}
             />
             {/* Left Card - Rotated counter-clockwise (outward) */}
-            <div ref={player1CardRef} className="relative z-10 space-y-3" style={{ transform: 'rotate(-5deg)' }}>
+            <div ref={player1CardRef} className="relative z-10 space-y-3" style={{ transform: 'rotate(-5deg)', overflow: 'visible' }}>
               <CharacterCard
                 playerClass={player1Class}
                 characterName={player1Name || 'Loading...'}
@@ -1419,13 +1528,18 @@ export default function DnDTestPage() {
                 onUseAbility={(index) => {
                   testUseAbility('player1', index);
                 }}
+                isOpponent={false}
                 isMoveInProgress={isMoveInProgress}
                 shouldShake={shakingPlayer === 'player1'}
                 shouldSparkle={sparklingPlayer === 'player1'}
                 shouldMiss={missingPlayer === 'player1'}
                 shouldHit={hittingPlayer === 'player1'}
                 shouldCast={castingPlayer === 'player1'}
+                shouldFlash={flashingPlayer === 'player1'}
                 castTrigger={castTrigger.player1}
+                flashTrigger={flashTrigger.player1}
+                flashProjectileType={flashProjectileType.player1}
+                castProjectileType={castProjectileType.player1}
                 shakeTrigger={shakeTrigger.player1}
                 sparkleTrigger={sparkleTrigger.player1}
                 missTrigger={missTrigger.player1}
@@ -1441,6 +1555,7 @@ export default function DnDTestPage() {
                 onMissComplete={handlePlayer1MissComplete}
                 onHitComplete={handlePlayer1HitComplete}
                 onCastComplete={handlePlayer1CastComplete}
+                onFlashComplete={handlePlayer1FlashComplete}
                 allowAllTurns={!isAIModeActive}
               />
               {/* Test buttons for Player 1 */}
@@ -1478,6 +1593,12 @@ export default function DnDTestPage() {
                 >
                   ❌ Test Miss
                 </button>
+                <button
+                  onClick={() => testCast('player1')}
+                  className="px-2 py-1 bg-purple-800 hover:bg-purple-700 text-purple-100 text-xs rounded border border-purple-600 transition-all"
+                >
+                  🔮 Test Cast
+                </button>
               </div>
             </div>
             {/* VS Graphic */}
@@ -1487,7 +1608,7 @@ export default function DnDTestPage() {
               </span>
             </div>
             {/* Right Card - Rotated clockwise (outward) */}
-            <div ref={player2CardRef} className="relative z-10 space-y-3" style={{ transform: 'rotate(5deg)' }}>
+            <div ref={player2CardRef} className="relative z-10 space-y-3" style={{ transform: 'rotate(5deg)', overflow: 'visible' }}>
               <CharacterCard
                 playerClass={player2Class}
                 characterName={player2Name || 'Loading...'}
@@ -1510,14 +1631,18 @@ export default function DnDTestPage() {
                   if (isAIModeActive) return; // Don't allow manual control in AI mode
                   testUseAbility('player2', index);
                 }}
-                isOpponent={isAIModeActive}
+                isOpponent={true}
                 isMoveInProgress={isMoveInProgress}
                 shouldShake={shakingPlayer === 'player2'}
                 shouldSparkle={sparklingPlayer === 'player2'}
                 shouldMiss={missingPlayer === 'player2'}
                 shouldHit={hittingPlayer === 'player2'}
                 shouldCast={castingPlayer === 'player2'}
+                shouldFlash={flashingPlayer === 'player2'}
                 castTrigger={castTrigger.player2}
+                flashTrigger={flashTrigger.player2}
+                flashProjectileType={flashProjectileType.player2}
+                castProjectileType={castProjectileType.player2}
                 shakeTrigger={shakeTrigger.player2}
                 sparkleTrigger={sparkleTrigger.player2}
                 missTrigger={missTrigger.player2}
@@ -1533,6 +1658,7 @@ export default function DnDTestPage() {
                 onMissComplete={handlePlayer2MissComplete}
                 onHitComplete={handlePlayer2HitComplete}
                 onCastComplete={handlePlayer2CastComplete}
+                onFlashComplete={handlePlayer2FlashComplete}
                 allowAllTurns={!isAIModeActive}
               />
               {/* Test buttons for Player 2 */}
@@ -1590,15 +1716,135 @@ export default function DnDTestPage() {
                 >
                   ❌ Test Miss
                 </button>
+                <button
+                  onClick={() => {
+                    if (isAIModeActive) return;
+                    testCast('player2');
+                  }}
+                  disabled={isAIModeActive}
+                  className={`px-2 py-1 bg-purple-800 hover:bg-purple-700 text-purple-100 text-xs rounded border border-purple-600 transition-all ${isAIModeActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  🔮 Test Cast
+                </button>
               </div>
             </div>
           </div>
 
           {/* Projectile Type Test Buttons */}
           <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-4 shadow-2xl">
-            <h3 className="text-lg font-bold mb-3 text-amber-100 text-center" style={{ fontFamily: 'serif' }}>
-              Test Projectile Types
-            </h3>
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
+              <h3 className="text-lg font-bold text-amber-100" style={{ fontFamily: 'serif' }}>
+                Test Projectile Types
+              </h3>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="text-xs text-amber-200 font-semibold">Effects:</label>
+                {/* Particle Effects Toggle */}
+                <button
+                  onClick={() => {
+                    setParticleEffectsEnabled(!particleEffectsEnabled);
+                    addLog('system', `🎨 Particle effects ${!particleEffectsEnabled ? 'enabled' : 'disabled'}`);
+                  }}
+                  className={`px-3 py-1 text-xs font-semibold rounded border-2 transition-all ${
+                    particleEffectsEnabled
+                      ? 'bg-green-600 text-white border-green-500 hover:bg-green-700'
+                      : 'bg-gray-500 text-white border-gray-400 hover:bg-gray-600'
+                  }`}
+                  title="Particle Effects"
+                >
+                  Particle: {particleEffectsEnabled ? 'ON' : 'OFF'}
+                </button>
+                {/* Flash Effects Toggle */}
+                <button
+                  onClick={() => {
+                    setFlashEffectsEnabled(!flashEffectsEnabled);
+                    addLog('system', `⚡ Flash effects ${!flashEffectsEnabled ? 'enabled' : 'disabled'}`);
+                  }}
+                  className={`px-3 py-1 text-xs font-semibold rounded border-2 transition-all ${
+                    flashEffectsEnabled
+                      ? 'bg-green-600 text-white border-green-500 hover:bg-green-700'
+                      : 'bg-gray-500 text-white border-gray-400 hover:bg-gray-600'
+                  }`}
+                  title="Flash/Glow Effects"
+                >
+                  Flash: {flashEffectsEnabled ? 'ON' : 'OFF'}
+                </button>
+                {/* Shake Effects Toggle */}
+                <button
+                  onClick={() => {
+                    setShakeEffectsEnabled(!shakeEffectsEnabled);
+                    addLog('system', `💥 Shake effects ${!shakeEffectsEnabled ? 'enabled' : 'disabled'}`);
+                  }}
+                  className={`px-3 py-1 text-xs font-semibold rounded border-2 transition-all ${
+                    shakeEffectsEnabled
+                      ? 'bg-green-600 text-white border-green-500 hover:bg-green-700'
+                      : 'bg-gray-500 text-white border-gray-400 hover:bg-gray-600'
+                  }`}
+                  title="Shake Effects"
+                >
+                  Shake: {shakeEffectsEnabled ? 'ON' : 'OFF'}
+                </button>
+                {/* Sparkle Effects Toggle */}
+                <button
+                  onClick={() => {
+                    setSparkleEffectsEnabled(!sparkleEffectsEnabled);
+                    addLog('system', `✨ Sparkle effects ${!sparkleEffectsEnabled ? 'enabled' : 'disabled'}`);
+                  }}
+                  className={`px-3 py-1 text-xs font-semibold rounded border-2 transition-all ${
+                    sparkleEffectsEnabled
+                      ? 'bg-green-600 text-white border-green-500 hover:bg-green-700'
+                      : 'bg-gray-500 text-white border-gray-400 hover:bg-gray-600'
+                  }`}
+                  title="Sparkle Effects"
+                >
+                  Sparkle: {sparkleEffectsEnabled ? 'ON' : 'OFF'}
+                </button>
+                {/* Hit Effects Toggle */}
+                <button
+                  onClick={() => {
+                    setHitEffectsEnabled(!hitEffectsEnabled);
+                    addLog('system', `⚔️ Hit effects ${!hitEffectsEnabled ? 'enabled' : 'disabled'}`);
+                  }}
+                  className={`px-3 py-1 text-xs font-semibold rounded border-2 transition-all ${
+                    hitEffectsEnabled
+                      ? 'bg-green-600 text-white border-green-500 hover:bg-green-700'
+                      : 'bg-gray-500 text-white border-gray-400 hover:bg-gray-600'
+                  }`}
+                  title="Hit Effects"
+                >
+                  Hit: {hitEffectsEnabled ? 'ON' : 'OFF'}
+                </button>
+                {/* Miss Effects Toggle */}
+                <button
+                  onClick={() => {
+                    setMissEffectsEnabled(!missEffectsEnabled);
+                    addLog('system', `❌ Miss effects ${!missEffectsEnabled ? 'enabled' : 'disabled'}`);
+                  }}
+                  className={`px-3 py-1 text-xs font-semibold rounded border-2 transition-all ${
+                    missEffectsEnabled
+                      ? 'bg-green-600 text-white border-green-500 hover:bg-green-700'
+                      : 'bg-gray-500 text-white border-gray-400 hover:bg-gray-600'
+                  }`}
+                  title="Miss Effects"
+                >
+                  Miss: {missEffectsEnabled ? 'ON' : 'OFF'}
+                </button>
+                {/* Cast Effects Toggle */}
+                <button
+                  onClick={() => {
+                    setCastEffectsEnabled(!castEffectsEnabled);
+                    addLog('system', `🔮 Cast effects ${!castEffectsEnabled ? 'enabled' : 'disabled'}`);
+                  }}
+                  className={`px-3 py-1 text-xs font-semibold rounded border-2 transition-all ${
+                    castEffectsEnabled
+                      ? 'bg-green-600 text-white border-green-500 hover:bg-green-700'
+                      : 'bg-gray-500 text-white border-gray-400 hover:bg-gray-600'
+                  }`}
+                  title="Cast Effects"
+                >
+                  Cast: {castEffectsEnabled ? 'ON' : 'OFF'}
+                </button>
+              </div>
+            </div>
             <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-8 gap-2">
               {(['fire', 'ice', 'water', 'earth', 'air', 'poison', 'psychic', 'necrotic', 'radiant', 'lightning', 'acid', 'melee', 'ranged', 'magic', 'shadow'] as ProjectileType[]).map((type) => (
                 <button
@@ -1607,6 +1853,14 @@ export default function DnDTestPage() {
                     const attacker = 'player1';
                     const defender = 'player2';
                     const cardRotation = attacker === 'player1' ? -5 : 5;
+                    // Trigger flash effect on attacking card with projectile type
+                    triggerFlashEffect(attacker, type);
+                    // Trigger cast effect for spell-casting classes
+                    const visualEffects = createHitVisualEffects(attacker, defender, 5, player2Class, player1Class);
+                    const castEffect = visualEffects.find(effect => effect.type === 'cast');
+                    if (castEffect) {
+                      applyVisualEffect(castEffect);
+                    }
                     showProjectileEffect(
                       attacker,
                       defender,
@@ -1648,6 +1902,8 @@ export default function DnDTestPage() {
                   const attacker = 'player1';
                   const defender = 'player2';
                   const cardRotation = attacker === 'player1' ? -5 : 5;
+                  // Trigger flash effect on attacking card with projectile type
+                  triggerFlashEffect(attacker, 'magic');
                   showProjectileEffect(
                     attacker,
                     defender,

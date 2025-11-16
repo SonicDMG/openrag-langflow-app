@@ -110,7 +110,7 @@ export function FloatingNumber({ value, type, targetCardRef, onComplete, persist
             '0 0 40px rgba(220, 38, 38, 0.6), ' +
             '0 0 60px rgba(220, 38, 38, 0.4)',
           letterSpacing: '0.1em',
-          textTransform: 'uppercase',
+          textTransform: 'uppercase' as const,
         };
       default:
         return {
