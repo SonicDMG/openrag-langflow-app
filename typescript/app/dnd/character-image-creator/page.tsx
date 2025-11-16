@@ -504,7 +504,14 @@ export default function MonsterCreatorPage() {
                               display: 'block',
                             }}
                             onError={(e) => {
-                              console.warn('Background-only image not found');
+                              const target = e.target as HTMLImageElement;
+                              // Fallback to placeholder if image fails to load (avoid infinite loop)
+                              const placeholderUrl = '/cdn/placeholder.png';
+                              if (!target.src.includes('placeholder.png')) {
+                                console.warn('Background-only image not found, using placeholder');
+                                target.onerror = null; // Prevent infinite loop
+                                target.src = placeholderUrl;
+                              }
                             }}
                           />
                         </div>
@@ -581,7 +588,14 @@ export default function MonsterCreatorPage() {
                               zIndex: 1,
                             }}
                             onError={(e) => {
-                              console.warn('Cut-out image not found:', `/cdn/monsters/${createdMonsterData.monsterId}/280x200-cutout.png`);
+                              const target = e.target as HTMLImageElement;
+                              // Fallback to placeholder if image fails to load (avoid infinite loop)
+                              const placeholderUrl = '/cdn/placeholder.png';
+                              if (!target.src.includes('placeholder.png')) {
+                                console.warn('Cut-out image not found, using placeholder:', `/cdn/monsters/${createdMonsterData.monsterId}/280x200-cutout.png`);
+                                target.onerror = null; // Prevent infinite loop
+                                target.src = placeholderUrl;
+                              }
                             }}
                           />
                         </div>
@@ -718,7 +732,7 @@ export default function MonsterCreatorPage() {
                           className="w-20 h-20 object-cover rounded border-2 border-amber-600"
                           style={{ imageRendering: 'pixelated' as const }}
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src = '/placeholder.png';
+                            (e.target as HTMLImageElement).src = '/cdn/placeholder.png';
                           }}
                         />
                         <div className="flex-1 min-w-0">

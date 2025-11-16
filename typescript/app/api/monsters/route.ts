@@ -185,54 +185,146 @@ export async function POST(req: NextRequest) {
 
         await saveMonsterBundle(bundle);
       } catch (error) {
-        console.warn('Failed to generate skipped placeholder, creating without cutout/background images:', error);
-        // Fallback: create bundle without cutout/background images if placeholder generation fails
-        const rig = {
-          meta: {
-            imageW: 256,
-            imageH: 256,
+        console.warn('Failed to generate skipped placeholder, using fallback placeholder.png:', error);
+        // Fallback: use existing placeholder.png file if "SKIPPED" placeholder generation fails
+        try {
+          const placeholderPath = join(process.cwd(), 'public', 'cdn', 'placeholder.png');
+          let placeholderBuffer: Buffer;
+          try {
+            placeholderBuffer = await fs.readFile(placeholderPath);
+          } catch {
+            // If placeholder.png doesn't exist, create a simple colored placeholder
+            console.warn('placeholder.png not found, creating simple placeholder');
+            placeholderBuffer = await sharp({
+              create: {
+                width: 1024,
+                height: 576,
+                channels: 4,
+                background: { r: 200, g: 200, b: 200, alpha: 1 }
+              }
+            })
+              .png()
+              .toBuffer();
+          }
+          
+          // Ensure 16:9 aspect ratio and process
+          let processedPlaceholder = await ensure16x9AspectRatio(placeholderBuffer);
+          
+          // Pixelize the placeholder
+          const placeholderPixelized = await pixelize(processedPlaceholder, {
+            base: 256,
+            colors: 32,
+          });
+          
+          const rig = {
+            meta: {
+              imageW: 256,
+              imageH: 256,
+              monsterId,
+              class: klass,
+              seed,
+              animationConfig: animationConfig || undefined,
+              weaponPart: animationConfig?.weaponPart || undefined,
+              skipCutout: true,
+            },
+            bones: [],
+            slots: [],
+            parts: {},
+            expressions: {
+              neutral: {},
+            },
+          };
+
+          const bundle: MonsterBundle = {
             monsterId,
-            class: klass,
+            klass,
             seed,
-            animationConfig: animationConfig || undefined,
-            weaponPart: animationConfig?.weaponPart || undefined,
-            skipCutout: true,
-          },
-          bones: [],
-          slots: [],
-          parts: {},
-          expressions: {
-            neutral: {},
-          },
-        };
+            prompt,
+            stats: stats || {
+              hitPoints: 30,
+              maxHitPoints: 30,
+              armorClass: 14,
+              attackBonus: 4,
+              damageDie: 'd8',
+              description: `A ${klass} monster`,
+            },
+            palette,
+            rig,
+            images: {
+              png128,
+              png200,
+              png280x200,
+              png256,
+              png512,
+            },
+            // Use fallback placeholder images for both cutout and background-only
+            cutOutImages: {
+              png128: placeholderPixelized.png128,
+              png200: placeholderPixelized.png200,
+              png280x200: placeholderPixelized.png280x200,
+              png256: placeholderPixelized.png256,
+              png512: placeholderPixelized.png512,
+            },
+            backgroundOnlyImages: {
+              png128: placeholderPixelized.png128,
+              png200: placeholderPixelized.png200,
+              png280x200: placeholderPixelized.png280x200,
+              png256: placeholderPixelized.png256,
+              png512: placeholderPixelized.png512,
+            },
+          };
 
-        const bundle: MonsterBundle = {
-          monsterId,
-          klass,
-          seed,
-          prompt,
-          stats: stats || {
-            hitPoints: 30,
-            maxHitPoints: 30,
-            armorClass: 14,
-            attackBonus: 4,
-            damageDie: 'd8',
-            description: `A ${klass} monster`,
-          },
-          palette,
-          rig,
-          images: {
-            png128,
-            png200,
-            png280x200,
-            png256,
-            png512,
-          },
-          cutOutImages: undefined,
-          backgroundOnlyImages: undefined,
-        };
+          await saveMonsterBundle(bundle);
+        } catch (fallbackError) {
+          console.error('Failed to use fallback placeholder, creating without cutout/background images:', fallbackError);
+          // Last resort: create bundle without cutout/background images
+          const rig = {
+            meta: {
+              imageW: 256,
+              imageH: 256,
+              monsterId,
+              class: klass,
+              seed,
+              animationConfig: animationConfig || undefined,
+              weaponPart: animationConfig?.weaponPart || undefined,
+              skipCutout: true,
+            },
+            bones: [],
+            slots: [],
+            parts: {},
+            expressions: {
+              neutral: {},
+            },
+          };
 
-        await saveMonsterBundle(bundle);
+          const bundle: MonsterBundle = {
+            monsterId,
+            klass,
+            seed,
+            prompt,
+            stats: stats || {
+              hitPoints: 30,
+              maxHitPoints: 30,
+              armorClass: 14,
+              attackBonus: 4,
+              damageDie: 'd8',
+              description: `A ${klass} monster`,
+            },
+            palette,
+            rig,
+            images: {
+              png128,
+              png200,
+              png280x200,
+              png256,
+              png512,
+            },
+            cutOutImages: undefined,
+            backgroundOnlyImages: undefined,
+          };
+
+          await saveMonsterBundle(bundle);
+        }
       }
 
       return NextResponse.json({

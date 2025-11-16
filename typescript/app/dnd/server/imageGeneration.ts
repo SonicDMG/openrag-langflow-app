@@ -1,6 +1,8 @@
 // Image generation service using EverArt SDK
 import sharp from 'sharp';
 import EverArt from 'everart';
+import { promises as fs } from 'fs';
+import { join } from 'path';
 
 export interface ImageGenerationOptions {
   prompt: string;
@@ -135,12 +137,24 @@ let skippedPlaceholderCache: Buffer | null = null;
 /**
  * Generate a "skipped" placeholder image using EverArt
  * Used when skipCutout is true to indicate that cutout/background images were skipped
- * The image is cached after first generation to avoid unnecessary API calls
+ * The image is cached in memory and persisted to disk to avoid regenerating it
  */
 export async function generateSkippedPlaceholder(): Promise<Buffer> {
   // Return cached version if available
   if (skippedPlaceholderCache) {
     return skippedPlaceholderCache;
+  }
+
+  // Try to load from disk first
+  const skippedPlaceholderPath = join(process.cwd(), 'public', 'cdn', 'skipped-placeholder.png');
+  try {
+    const cachedBuffer = await fs.readFile(skippedPlaceholderPath);
+    skippedPlaceholderCache = cachedBuffer;
+    console.log('Loaded "SKIPPED" placeholder from disk cache');
+    return cachedBuffer;
+  } catch {
+    // File doesn't exist, need to generate it
+    console.log('Generating new "SKIPPED" placeholder image...');
   }
 
   const apiKey = process.env.EVERART_API_KEY;
@@ -187,8 +201,18 @@ export async function generateSkippedPlaceholder(): Promise<Buffer> {
   const { ensureTransparentBackground } = await import('./backgroundRemoval');
   buffer = await ensureTransparentBackground(buffer);
 
-  // Cache the result for future use
+  // Cache in memory
   skippedPlaceholderCache = buffer;
+  
+  // Persist to disk for future use
+  try {
+    const cdnDir = join(process.cwd(), 'public', 'cdn');
+    await fs.mkdir(cdnDir, { recursive: true });
+    await fs.writeFile(skippedPlaceholderPath, buffer);
+    console.log(`✅ "SKIPPED" placeholder saved to ${skippedPlaceholderPath}`);
+  } catch (error) {
+    console.warn('Failed to save "SKIPPED" placeholder to disk (will regenerate on next restart):', error);
+  }
   
   return buffer;
 }
