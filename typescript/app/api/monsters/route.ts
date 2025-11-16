@@ -20,7 +20,7 @@ function formatErrorResponse(error: unknown): { error: string } {
 
 export async function POST(req: NextRequest) {
   try {
-    const { klass, prompt, seed = Math.floor(Math.random() * 1000000), stats, imageUrl, animationConfig, skipCutout = false } = await req.json();
+    const { klass, prompt, seed = Math.floor(Math.random() * 1000000), stats, imageUrl, animationConfig, skipCutout = true } = await req.json();
 
     if (!klass || !prompt) {
       return NextResponse.json(

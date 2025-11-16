@@ -22,12 +22,11 @@ function buildBasePrompt(userPrompt: string = '', transparentBackground: boolean
   
   if (transparentBackground) {
     // For transparent background, focus on isolated character only - no background references
-    return `32-bit pixel art with clearly visible chunky pixel clusters, crisp sprite outlines, dithered shading, low-resolution retro fantasy aesthetic. ${description}, isolated character sprite, no background scene, no environment, no setting. Rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, no modern objects or technology. Centered composition, transparent background. --style raw`;
+    return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro fantasy aesthetic. ${description}, isolated character sprite, no background scene, no environment, no setting. Rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, no modern objects or technology. Centered composition, transparent background. --style raw`;
   }
   
   // Original prompt with background (for reference, though we now always use transparent)
-  const backgroundScene = 'a medieval high-fantasy setting';
-  return `32-bit pixel art with clearly visible chunky pixel clusters, crisp sprite outlines, dithered shading, low-resolution retro fantasy aesthetic. ${description}, depicted in a distinctly medieval high-fantasy world. Placed in ${backgroundScene}, rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, no modern objects or technology. Cinematic composition. --style raw`;
+  return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro fantasy aesthetic. ${description}, depicted in a distinctly medieval high-fantasy world. Placed in a expansive medieval high-fantasy setting, rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Position the character in the lower third of the frame, (facing the camera), viewed from a pulled-back wide-angle perspective showing expansive landscape surrounding them. The character should occupy only 60-70% of the composition, with dominant landscape and sky filling the remainder. Retro SNES/Genesis style, no modern objects or technology. --style raw`;
 }
 
 export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps) {
@@ -41,7 +40,7 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [model, setModel] = useState('5000');
-  const [skipCutout, setSkipCutout] = useState(false);
+  const [skipCutout, setSkipCutout] = useState(true);
 
   const [customHeroes, setCustomHeroes] = useState<DnDClass[]>([]);
   const [customMonsters, setCustomMonsters] = useState<DnDClass[]>([]);

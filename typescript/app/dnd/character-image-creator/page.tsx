@@ -415,8 +415,8 @@ export default function MonsterCreatorPage() {
       
       {/* Header */}
       <PageHeader
-        title="Character"
-        title2="Image Creator"
+        title="Image"
+        title2="Creator"
         decalImageUrl="/cdn/decals/character-image-creator.png"
       />
       
