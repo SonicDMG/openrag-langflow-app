@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { DnDClass, BattleLog, CharacterEmotion, Ability, AttackAbility } from '../types';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS, isMonster } from '../constants';
 import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../utils/dice';
-import { generateCharacterName } from '../utils/names';
+import { generateCharacterName, generateDeterministicCharacterName } from '../utils/names';
 import { createHitVisualEffects, createMissVisualEffects, createHealingVisualEffects, getOpponent, buildDamageDiceArray, getProjectileType, type PendingVisualEffect, type ProjectileType } from '../utils/battle';
 import { FloatingNumber, FloatingNumberType } from '../components/FloatingNumber';
 import { CharacterCard } from '../components/CharacterCard';
@@ -72,7 +72,11 @@ export default function DnDTestPage() {
   const findAssociatedMonster = useCallback((className: string): (DnDClass & { monsterId: string; imageUrl: string }) | null => {
     // Find the most recently created monster associated with this class/monster type
     const associated = createdMonsters
-      .filter(m => m.name === className)
+      .filter(m => {
+        // For created monsters, match by klass field; for regular monsters, match by name
+        const monsterKlass = (m as any).klass;
+        return monsterKlass ? monsterKlass === className : m.name === className;
+      })
       .sort((a, b) => {
         // Sort by monsterId (UUIDs) - most recent first (assuming newer UUIDs are later in sort)
         return b.monsterId.localeCompare(a.monsterId);
@@ -84,16 +88,29 @@ export default function DnDTestPage() {
   const handlePlayer1Select = useCallback((entity: DnDClass & { monsterId?: string; imageUrl?: string }) => {
     const testEntity = createTestEntity(entity);
     setPlayer1Class(testEntity);
-    // For monsters, use the monster type name directly; for classes, generate a name
+    // Use the same logic as selection cards:
+    // - Created monsters: entity.name is already the character name
+    // - Custom heroes: entity.name is already the character name
+    // - Regular monsters: entity.name is the monster type name (use directly)
+    // - Regular classes: generate a deterministic name
+    const isCreatedMonster = !!(entity as any).klass && !!(entity as any).monsterId;
+    const isCustomHero = !isCreatedMonster && !isMonster(entity.name) && !FALLBACK_CLASSES.some(fc => fc.name === entity.name);
     const entityIsMonster = isMonster(entity.name);
-    setPlayer1Name(entityIsMonster ? entity.name : generateCharacterName(entity.name));
+    const nameToUse = isCreatedMonster || isCustomHero
+      ? entity.name // Created monsters and custom heroes already have the character name
+      : (entityIsMonster 
+          ? entity.name // Regular monsters use their type name
+          : generateDeterministicCharacterName(entity.name)); // Regular classes get generated name
+    setPlayer1Name(nameToUse);
     
     // Check if this entity already has a monsterId (explicitly selected created monster)
     if (testEntity.monsterId) {
       setPlayer1MonsterId(testEntity.monsterId);
     } else {
       // Otherwise, check if there's an associated monster for this class/monster type
-      const associatedMonster = findAssociatedMonster(entity.name);
+      // For created monsters, use klass to find associated monster; for regular classes, use name
+      const lookupName = isCreatedMonster ? (entity as any).klass : entity.name;
+      const associatedMonster = findAssociatedMonster(lookupName);
       if (associatedMonster) {
         setPlayer1MonsterId(associatedMonster.monsterId);
       } else {
@@ -106,16 +123,29 @@ export default function DnDTestPage() {
   const handlePlayer2Select = useCallback((entity: DnDClass & { monsterId?: string; imageUrl?: string }) => {
     const testEntity = createTestEntity(entity);
     setPlayer2Class(testEntity);
-    // For monsters, use the monster type name directly; for classes, generate a name
+    // Use the same logic as selection cards:
+    // - Created monsters: entity.name is already the character name
+    // - Custom heroes: entity.name is already the character name
+    // - Regular monsters: entity.name is the monster type name (use directly)
+    // - Regular classes: generate a deterministic name
+    const isCreatedMonster = !!(entity as any).klass && !!(entity as any).monsterId;
+    const isCustomHero = !isCreatedMonster && !isMonster(entity.name) && !FALLBACK_CLASSES.some(fc => fc.name === entity.name);
     const entityIsMonster = isMonster(entity.name);
-    setPlayer2Name(entityIsMonster ? entity.name : generateCharacterName(entity.name));
+    const nameToUse = isCreatedMonster || isCustomHero
+      ? entity.name // Created monsters and custom heroes already have the character name
+      : (entityIsMonster 
+          ? entity.name // Regular monsters use their type name
+          : generateDeterministicCharacterName(entity.name)); // Regular classes get generated name
+    setPlayer2Name(nameToUse);
     
     // Check if this entity already has a monsterId (explicitly selected created monster)
     if (testEntity.monsterId) {
       setPlayer2MonsterId(testEntity.monsterId);
     } else {
       // Otherwise, check if there's an associated monster for this class/monster type
-      const associatedMonster = findAssociatedMonster(entity.name);
+      // For created monsters, use klass to find associated monster; for regular classes, use name
+      const lookupName = isCreatedMonster ? (entity as any).klass : entity.name;
+      const associatedMonster = findAssociatedMonster(lookupName);
       if (associatedMonster) {
         setPlayer2MonsterId(associatedMonster.monsterId);
       } else {
@@ -130,11 +160,26 @@ export default function DnDTestPage() {
   const [player2Name, setPlayer2Name] = useState<string | null>(null);
   
   // Generate names only on client side to avoid hydration mismatch
+  // Use deterministic names so they match what's shown in selection cards
+  // Use the same logic as selection cards and selection handlers
   useEffect(() => {
-    const isP1Monster = isMonster(player1Class.name);
-    const isP2Monster = isMonster(player2Class.name);
-    setPlayer1Name(isP1Monster ? player1Class.name : generateCharacterName(player1Class.name));
-    setPlayer2Name(isP2Monster ? player2Class.name : generateCharacterName(player2Class.name));
+    // Player 1
+    const p1IsCreatedMonster = !!(player1Class as any).klass && !!(player1Class as any).monsterId;
+    const p1IsCustomHero = !p1IsCreatedMonster && !isMonster(player1Class.name) && !FALLBACK_CLASSES.some(fc => fc.name === player1Class.name);
+    const p1IsMonster = isMonster(player1Class.name);
+    const p1Name = p1IsCreatedMonster || p1IsCustomHero
+      ? player1Class.name
+      : (p1IsMonster ? player1Class.name : generateDeterministicCharacterName(player1Class.name));
+    setPlayer1Name(p1Name);
+    
+    // Player 2
+    const p2IsCreatedMonster = !!(player2Class as any).klass && !!(player2Class as any).monsterId;
+    const p2IsCustomHero = !p2IsCreatedMonster && !isMonster(player2Class.name) && !FALLBACK_CLASSES.some(fc => fc.name === player2Class.name);
+    const p2IsMonster = isMonster(player2Class.name);
+    const p2Name = p2IsCreatedMonster || p2IsCustomHero
+      ? player2Class.name
+      : (p2IsMonster ? player2Class.name : generateDeterministicCharacterName(player2Class.name));
+    setPlayer2Name(p2Name);
   }, [player1Class.name, player2Class.name]);
   const [battleLog, setBattleLog] = useState<BattleLog[]>([]);
   const [currentTurn, setCurrentTurn] = useState<'player1' | 'player2'>('player1');
@@ -260,11 +305,47 @@ export default function DnDTestPage() {
             // Prefer custom over fallback
             const character = custom || fallback;
             
+            // Extract character name from prompt if available
+            // The prompt format is usually: "CharacterName: description" or "CharacterName ClassName: description"
+            // or "ClassName RaceName: description"
+            let characterName = m.klass; // Default to klass
+            if (m.prompt) {
+              // Try to extract name from prompt - look for pattern like "Name:" or "Name ClassName:"
+              // First, try to find the part before the first colon
+              const colonIndex = m.prompt.indexOf(':');
+              if (colonIndex > 0) {
+                const beforeColon = m.prompt.substring(0, colonIndex).trim();
+                const parts = beforeColon.split(/\s+/);
+                
+                // Check if the klass appears in the parts
+                const klassIndex = parts.findIndex(p => p === m.klass);
+                
+                if (klassIndex > 0) {
+                  // Pattern like "Onyx Champion" - extract "Onyx" (everything before klass)
+                  characterName = parts.slice(0, klassIndex).join(' ');
+                } else if (klassIndex === -1 && parts.length > 0) {
+                  // Klass not found in parts - check if first part is different from klass
+                  if (parts[0] !== m.klass && parts.length === 1) {
+                    // Single word that's not the klass - likely the character name
+                    characterName = parts[0];
+                  } else if (parts.length === 2 && parts[0] === m.klass) {
+                    // Pattern like "Champion Human" - klass is first, so use klass as name
+                    characterName = m.klass;
+                  } else if (parts.length > 1 && parts[0] !== m.klass) {
+                    // Multiple words, first is not klass - might be "Name Race" or "Name Class"
+                    // Use first word as character name
+                    characterName = parts[0];
+                  }
+                }
+                // If klassIndex === 0, then klass is first word, so use klass as name (already set)
+              }
+            }
+            
             // Construct imageUrl from monsterId if not provided
             const imageUrl = m.imageUrl || `/cdn/monsters/${m.monsterId}/280x200.png`;
             
             return {
-              name: m.klass,
+              name: characterName, // Use extracted character name instead of klass
               hitPoints: m.stats?.hitPoints || character?.hitPoints || 30,
               maxHitPoints: m.stats?.maxHitPoints || m.stats?.hitPoints || character?.maxHitPoints || 30,
               armorClass: m.stats?.armorClass || character?.armorClass || 14,
@@ -277,7 +358,9 @@ export default function DnDTestPage() {
               imageUrl: imageUrl.replace('/256.png', '/280x200.png').replace('/200.png', '/280x200.png'),
               hasCutout: m.hasCutout ?? false, // Preserve hasCutout flag from API
               lastAssociatedAt: m.lastAssociatedAt, // Preserve last association time
-            } as DnDClass & { monsterId: string; imageUrl: string; hasCutout?: boolean; lastAssociatedAt?: string };
+              // Store the klass separately so we can use it for class type display
+              klass: m.klass,
+            } as DnDClass & { monsterId: string; imageUrl: string; hasCutout?: boolean; lastAssociatedAt?: string; klass?: string };
           });
           setCreatedMonsters(convertedMonsters);
         }
@@ -1369,7 +1452,7 @@ export default function DnDTestPage() {
                         setPlayer2Type('class');
                         const firstClass = FALLBACK_CLASSES[1];
                         setPlayer2Class(createTestEntity(firstClass));
-                        setPlayer2Name(generateCharacterName(firstClass.name));
+                        setPlayer2Name(generateDeterministicCharacterName(firstClass.name));
                       }}
                       className={`px-3 py-1 text-xs rounded border transition-all ${
                         player2Type === 'class'
@@ -1434,7 +1517,10 @@ export default function DnDTestPage() {
                       >
                         {[...FALLBACK_MONSTERS, ...customMonsters].map((monster, index) => {
                           const isSelected = player2Class?.name === monster.name;
-                          const associatedMonster = findAssociatedMonster(monster.name);
+                          // For created monsters, use klass to find associated monster; for regular monsters, use name
+                          const isCreatedMonster = !!(monster as any).klass && !!(monster as any).monsterId;
+                          const lookupName = isCreatedMonster ? (monster as any).klass : monster.name;
+                          const associatedMonster = findAssociatedMonster(lookupName);
                           const monsterImageUrl = associatedMonster 
                             ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
                             : undefined;

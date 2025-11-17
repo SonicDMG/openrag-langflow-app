@@ -3,6 +3,8 @@
 import { useRef } from 'react';
 import { DnDClass } from '../types';
 import { CharacterCard } from './CharacterCard';
+import { generateDeterministicCharacterName } from '../utils/names';
+import { isMonster, FALLBACK_CLASSES } from '../constants';
 
 interface ClassSelectionProps {
   title: string;
@@ -19,7 +21,11 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
   // Helper to find associated monster for a class
   const findAssociatedMonster = (className: string): (DnDClass & { monsterId: string; imageUrl: string }) | null => {
     const associated = createdMonsters
-      .filter(m => m.name === className)
+      .filter(m => {
+        // For created monsters, match by klass field; for regular monsters, match by name
+        const monsterKlass = (m as any).klass;
+        return monsterKlass ? monsterKlass === className : m.name === className;
+      })
       .sort((a, b) => {
         // Sort by lastAssociatedAt (most recently associated first), then by createdAt (newest first)
         const aTime = (a as any).lastAssociatedAt || (a as any).createdAt || '';
@@ -74,7 +80,10 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
           }}
         >
           {availableClasses.map((dndClass, index) => {
-            const associatedMonster = findAssociatedMonster(dndClass.name);
+            // For created monsters, use klass to find associated monster; for regular classes, use name
+            const isCreatedMonster = !!(dndClass as any).klass && !!(dndClass as any).monsterId;
+            const lookupName = isCreatedMonster ? (dndClass as any).klass : dndClass.name;
+            const associatedMonster = findAssociatedMonster(lookupName);
             const monsterImageUrl = associatedMonster 
               ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
               : undefined;
@@ -88,6 +97,19 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
             
             const isSelected = selectedClass?.name === dndClass.name;
             
+            // Generate character name for display (deterministic so it matches what will be generated on selection)
+            // For created monsters, dndClass.name is already the character name and dndClass.klass is the class type
+            // For custom heroes (not in FALLBACK_CLASSES), dndClass.name is already the character name
+            // For regular classes/monsters, check if it's a monster or generate a name
+            const isCustomHero = !isCreatedMonster && !isMonster(dndClass.name) && !FALLBACK_CLASSES.some(fc => fc.name === dndClass.name);
+            const displayName = isCreatedMonster
+              ? dndClass.name // Created monsters already have the character name in the name field
+              : isCustomHero
+                ? dndClass.name // Custom heroes already have the character name in the name field
+                : (isMonster(dndClass.name) 
+                    ? dndClass.name 
+                    : generateDeterministicCharacterName(dndClass.name));
+            
             return (
               <div
                 key={dndClass.name}
@@ -100,7 +122,7 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
               >
                 <CharacterCard
                   playerClass={{ ...dndClass, hitPoints: dndClass.maxHitPoints }}
-                  characterName={dndClass.name}
+                  characterName={displayName}
                   monsterImageUrl={monsterImageUrl}
                   monsterCutOutImageUrl={monsterCutOutImageUrl}
                   size="compact"

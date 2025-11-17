@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { DnDClass, BattleLog } from '../types';
-import { generateCharacterName } from '../utils/names';
-import { isMonster } from '../constants';
+import { generateCharacterName, generateDeterministicCharacterName } from '../utils/names';
+import { isMonster, FALLBACK_CLASSES } from '../constants';
 
 export function useBattleState() {
   // Player states
@@ -65,11 +65,23 @@ export function useBattleState() {
     setClass(dndClass);
     
     // Set name if provided, otherwise generate it
+    // Use the same logic as selection cards:
+    // - Created monsters: dndClass.name is already the character name
+    // - Custom heroes: dndClass.name is already the character name
+    // - Regular monsters: dndClass.name is the monster type name (use directly)
+    // - Regular classes: generate a deterministic name
     if (name) {
       setName(name);
     } else {
+      const isCreatedMonster = !!(dndClass as any).klass && !!(dndClass as any).monsterId;
+      const isCustomHero = !isCreatedMonster && !isMonster(dndClass.name) && !FALLBACK_CLASSES.some(fc => fc.name === dndClass.name);
       const isMonsterCheck = isMonster(dndClass.name);
-      setName(isMonsterCheck ? dndClass.name : generateCharacterName(dndClass.name));
+      const nameToUse = isCreatedMonster || isCustomHero
+        ? dndClass.name // Created monsters and custom heroes already have the character name
+        : (isMonsterCheck 
+            ? dndClass.name // Regular monsters use their type name
+            : generateDeterministicCharacterName(dndClass.name)); // Regular classes get generated name
+      setName(nameToUse);
     }
     
     // Check if this entity already has a monsterId (explicitly selected created monster)
@@ -77,7 +89,10 @@ export function useBattleState() {
       setMonsterId(dndClass.monsterId);
     } else if (findAssociatedMonster) {
       // Otherwise, check if there's an associated monster for this class/monster type
-      const associatedMonster = findAssociatedMonster(dndClass.name);
+      // For created monsters, use klass to find associated monster; for regular classes, use name
+      const isCreatedMonster = !!(dndClass as any).klass && !!(dndClass as any).monsterId;
+      const lookupName = isCreatedMonster ? (dndClass as any).klass : dndClass.name;
+      const associatedMonster = findAssociatedMonster(lookupName);
       if (associatedMonster) {
         setMonsterId(associatedMonster.monsterId);
       } else {

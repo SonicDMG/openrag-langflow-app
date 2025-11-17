@@ -76,7 +76,7 @@ function buildPixelArtPrompt(userPrompt: string, transparentBackground: boolean 
  */
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, seed, model = '5000', image_count = 1, transparentBackground = true, aspectRatio, setting = DEFAULT_SETTING } = await req.json();
+    const { prompt, seed, model = '5000', image_count = 1, transparentBackground = true, aspectRatio, setting = DEFAULT_SETTING, pixelize = false } = await req.json();
 
     if (!prompt) {
       return NextResponse.json(
@@ -112,6 +112,7 @@ export async function POST(req: NextRequest) {
             !enhancedPrompt.toLowerCase().includes('no background')) {
           enhancedPrompt = enhancedPrompt + ', transparent background, isolated character, no background scene, no environment';
         }
+        // If transparentBackground is false, use prompt exactly as-is (don't modify it)
       }
     } else {
       // Build new prompt with transparent background if requested
@@ -124,6 +125,11 @@ export async function POST(req: NextRequest) {
       const aspectRatioHint = `, ${aspectRatio} aspect ratio`;
       enhancedPrompt = enhancedPrompt + aspectRatioHint;
     }
+
+    // Log the final prompt being sent to EverArt
+    console.log('=== FINAL PROMPT SENT TO EVERART ===');
+    console.log(enhancedPrompt);
+    console.log('=== END FINAL PROMPT ===');
 
     const apiKey = process.env.EVERART_API_KEY;
     if (!apiKey) {
@@ -188,25 +194,107 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // If transparent background was requested, process the image to remove background
+      // Process the image based on requirements
       let finalImageUrl = imageUrl;
-      if (transparentBackground) {
+      let imageBuffer: Buffer | null = null;
+
+      if (transparentBackground || pixelize) {
         try {
-          console.log('Removing background from generated image...');
-          const imageBuffer = await downloadImage(imageUrl);
-          const processedBuffer = await removeBackground(imageBuffer, {
-            threshold: 30,
-            useEdgeDetection: true,
-            preserveAntiAliasing: true,
-          });
+          imageBuffer = await downloadImage(imageUrl);
+          
+          // Remove background if requested
+          if (transparentBackground) {
+            console.log('Removing background from generated image...');
+            imageBuffer = await removeBackground(imageBuffer, {
+              threshold: 30,
+              useEdgeDetection: true,
+              preserveAntiAliasing: true,
+            });
+          }
+
+          // Pixelize if requested
+          if (pixelize) {
+            console.log('Pixelizing image to match app style...');
+            const { ensure16x9AspectRatio } = await import('@/app/dnd/server/imageGeneration');
+            const sharp = (await import('sharp')).default;
+            const IQ = await import('image-q');
+            
+            // Ensure 16:9 aspect ratio first
+            imageBuffer = await ensure16x9AspectRatio(imageBuffer);
+            
+            // Pixelize the image - for 16:9 images, we'll use a custom approach
+            // Target size: 1024x576 (16:9)
+            const targetWidth = 1024;
+            const targetHeight = 576;
+            const smallHeight = 180; // Downscale to this for pixelization
+            const smallWidth = Math.round(smallHeight * (16 / 9)); // 320
+            
+            // Downscale aggressively
+            const smallBuf = await sharp(imageBuffer)
+              .resize(smallWidth, smallHeight, { kernel: sharp.kernel.lanczos3 })
+              .png()
+              .toBuffer();
+            
+            // Upscale with nearest neighbor
+            const nearest = await sharp(smallBuf)
+              .resize(targetWidth, targetHeight, { kernel: sharp.kernel.nearest })
+              .png()
+              .toBuffer();
+            
+            // Reduce color palette to 32 colors using image-q (same approach as pixelize.ts)
+            const img = sharp(nearest);
+            const { data, info } = await img.raw().toBuffer({ resolveWithObject: true });
+            
+            // Use image-q for quantization (matching pixelize.ts implementation)
+            const pointContainer = IQ.utils.PointContainer.fromUint8Array(
+              data,
+              info.width,
+              info.height
+            );
+            
+            const distance = new IQ.distance.EuclideanBT709();
+            const paletteQuantizer = new IQ.palette.NeuQuant(distance, 32);
+            paletteQuantizer.sample(pointContainer);
+            const palette = paletteQuantizer.quantizeSync();
+            
+            const quantizer = new IQ.image.NearestColor(distance);
+            const out = quantizer.quantize(pointContainer, palette);
+            
+            if (!out) {
+              throw new Error('Quantization failed');
+            }
+            
+            // Convert quantized result to buffer
+            let outBuf: Buffer | undefined;
+            if (out instanceof IQ.utils.PointContainer) {
+              outBuf = Buffer.from(out.toUint8Array());
+            } else {
+              // Fallback to sharp quantization
+              console.warn('image-q quantization failed, using sharp quantization fallback');
+              imageBuffer = await sharp(nearest)
+                .png({ colors: 32, dither: 1 })
+                .toBuffer();
+            }
+            
+            if (outBuf) {
+              const quantizedImage = await sharp(outBuf, {
+                raw: { width: info.width, height: info.height, channels: 4 },
+              })
+                .png()
+                .toBuffer();
+              
+              imageBuffer = quantizedImage;
+            }
+            
+            console.log('Image pixelized successfully');
+          }
           
           // Convert to base64 data URL for immediate use
-          const base64 = processedBuffer.toString('base64');
+          const base64 = imageBuffer.toString('base64');
           finalImageUrl = `data:image/png;base64,${base64}`;
-          console.log('Background removed successfully, returning as data URL');
         } catch (error) {
-          console.warn('Failed to remove background, using original image:', error);
-          // Continue with original imageUrl if background removal fails
+          console.warn('Failed to process image:', error);
+          // Continue with original imageUrl if processing fails
         }
       }
 

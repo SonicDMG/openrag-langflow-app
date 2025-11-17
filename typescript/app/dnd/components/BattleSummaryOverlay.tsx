@@ -13,6 +13,8 @@ type BattleSummaryOverlayProps = {
   victorName: string;
   defeatedName: string;
   isLoading?: boolean;
+  battleEndingImageUrl?: string | null;
+  isGeneratingImage?: boolean;
 };
 
 export function BattleSummaryOverlay({
@@ -24,6 +26,8 @@ export function BattleSummaryOverlay({
   victorName,
   defeatedName,
   isLoading = false,
+  battleEndingImageUrl = null,
+  isGeneratingImage = false,
 }: BattleSummaryOverlayProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -250,7 +254,7 @@ export function BattleSummaryOverlay({
       {/* Parchment Overlay */}
       <div
         ref={overlayRef}
-        className="battle-summary-overlay fixed right-0 top-0 h-full w-full max-w-2xl p-8 overflow-y-auto"
+        className="battle-summary-overlay fixed right-0 top-0 h-full w-full max-w-2xl overflow-y-auto"
         style={{ 
           zIndex: 2101,
           transform: isDragging 
@@ -268,28 +272,28 @@ export function BattleSummaryOverlay({
         onTouchEnd={handleTouchEnd}
         onMouseDown={handleMouseDown}
       >
-        <div className="parchment-paper h-full p-8 md:p-12">
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 md:top-6 md:right-6 w-10 h-10 md:w-12 md:h-12 rounded-full bg-amber-800/80 hover:bg-amber-900 text-amber-100 flex items-center justify-center transition-all shadow-lg hover:shadow-xl z-10"
-            aria-label="Close summary"
+        {/* Close button - fixed to overlay container */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 md:top-6 md:right-6 w-10 h-10 md:w-12 md:h-12 rounded-full bg-amber-800/80 hover:bg-amber-900 text-amber-100 flex items-center justify-center transition-all shadow-lg hover:shadow-xl z-20"
+          aria-label="Close summary"
+        >
+          <svg
+            className="w-6 h-6 md:w-7 md:h-7"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            <svg
-              className="w-6 h-6 md:w-7 md:h-7"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+        
+        <div className="parchment-paper min-h-full p-8 md:p-12 relative">
           {/* Title */}
           <div className="text-center mb-6 md:mb-8">
             <h2
@@ -327,8 +331,6 @@ export function BattleSummaryOverlay({
               opacity: 1, 
               position: 'relative', 
               zIndex: 10,
-              maxHeight: 'calc(100vh - 400px)',
-              overflowY: 'auto',
               overflowX: 'hidden'
             }}
           >
@@ -459,6 +461,58 @@ export function BattleSummaryOverlay({
               </div>
             )}
           </div>
+
+          {/* Battle Ending Image */}
+          {(battleEndingImageUrl || isGeneratingImage) && summary && (
+            <>
+              {/* Decorative line */}
+              <div
+                className="h-px mt-8 md:mt-10 mb-6 md:mb-8"
+                style={{
+                  background: 'linear-gradient(to right, transparent, #8B6F47, transparent)',
+                }}
+              />
+              
+              <div className="text-center mb-4">
+                <h3
+                  className="text-xl md:text-2xl font-bold mb-4"
+                  style={{
+                    fontFamily: 'serif',
+                    color: '#2A1810',
+                    textShadow: '1px 1px 2px rgba(0,0,0,0.2)',
+                    opacity: 1,
+                  }}
+                >
+                  The Final Moment
+                </h3>
+                
+                {isGeneratingImage && !battleEndingImageUrl && (
+                  <div className="py-8">
+                    <div className="inline-block">
+                      <span className="text-base md:text-lg italic chronicle-waiting-text" style={{ color: '#4A2F1F', fontFamily: 'serif' }}>
+                        Painting the final scene...
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
+                {battleEndingImageUrl && (
+                  <div className="relative w-full max-w-4xl mx-auto">
+                    <img
+                      src={battleEndingImageUrl}
+                      alt={`${victorName} victorious over ${defeatedName}`}
+                      className="w-full h-auto rounded-lg border-4 shadow-2xl"
+                      style={{
+                        borderColor: '#8B6F47',
+                        maxHeight: '60vh',
+                        objectFit: 'contain',
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           {/* Action buttons section */}
           {summary && (

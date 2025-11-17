@@ -6,10 +6,10 @@ import { useRef, useCallback, useEffect, useState } from 'react';
 import { DnDClass } from '../dnd/types';
 
 // Constants
-import { FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, selectRandomAbilities, isMonster } from '../dnd/constants';
+import { FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, FALLBACK_CLASSES, selectRandomAbilities, isMonster } from '../dnd/constants';
 
 // Utilities
-import { generateCharacterName } from '../dnd/utils/names';
+import { generateCharacterName, generateDeterministicCharacterName } from '../dnd/utils/names';
 import { getOpponent } from '../dnd/utils/battle';
 
 // Hooks
@@ -22,7 +22,7 @@ import { useBattleNarrative } from '../dnd/hooks/useBattleNarrative';
 import { useBattleActions } from '../dnd/hooks/useBattleActions';
 
 // Services
-import { getBattleSummary } from '../dnd/services/apiService';
+import { getBattleSummary, generateBattleEndingImage } from '../dnd/services/apiService';
 
 // Components
 import { ClassSelection } from '../dnd/components/ClassSelection';
@@ -153,11 +153,17 @@ export default function DnDBattle() {
   const [battleSummary, setBattleSummary] = useState<string>('');
   const [isSummaryVisible, setIsSummaryVisible] = useState(false);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [battleEndingImageUrl, setBattleEndingImageUrl] = useState<string | null>(null);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
   // Helper to find associated monster for a class/monster type
   const findAssociatedMonster = useCallback((className: string): (DnDClass & { monsterId: string; imageUrl: string }) | null => {
     const associated = createdMonsters
-      .filter(m => m.name === className)
+      .filter(m => {
+        // For created monsters, match by klass field; for regular monsters, match by name
+        const monsterKlass = (m as any).klass;
+        return monsterKlass ? monsterKlass === className : m.name === className;
+      })
       .sort((a, b) => {
         const aTime = (a as any).lastAssociatedAt || (a as any).createdAt || '';
         const bTime = (b as any).lastAssociatedAt || (b as any).createdAt || '';
@@ -199,6 +205,36 @@ export default function DnDBattle() {
     await switchTurnBase(attacker, defeatedPlayer, async () => {});
   }, [switchTurnBase, defeatedPlayer]);
 
+  // Helper function to get character name using the same logic as selection cards
+  // - Created monsters: playerName is already the character name, dndClass.name is the character name, dndClass.klass is the class type
+  // - Custom heroes: playerName is already the character name, dndClass.name is also the character name
+  // - Regular classes: playerName might be generated, dndClass.name is the class name
+  // - Regular monsters: playerName is the monster type name, dndClass.name is also the monster type name
+  const getCharacterName = useCallback((playerName: string, dndClass: DnDClass | null): string => {
+    if (!dndClass) {
+      return playerName || 'Unknown';
+    }
+    
+    // Check if it's a created monster (has klass and monsterId)
+    const isCreatedMonster = !!(dndClass as any).klass && !!(dndClass as any).monsterId;
+    // Check if it's a custom hero (not in FALLBACK_CLASSES, not a monster, not a created monster)
+    const isCustomHero = !isCreatedMonster && !isMonster(dndClass.name) && !FALLBACK_CLASSES.some((fc: DnDClass) => fc.name === dndClass.name);
+    
+    // For created monsters and custom heroes, playerName is already the character name
+    if (isCreatedMonster || isCustomHero) {
+      return playerName || dndClass.name;
+    }
+    
+    // For regular classes, if playerName equals className, generate a name
+    // Otherwise, playerName is the actual character name
+    if (playerName === dndClass.name && !isMonster(dndClass.name)) {
+      return generateDeterministicCharacterName(dndClass.name);
+    }
+    
+    // Otherwise, use playerName (which should already be set correctly)
+    return playerName || (isMonster(dndClass.name) ? dndClass.name : generateDeterministicCharacterName(dndClass.name));
+  }, []);
+
   // Helper function to handle victory condition
   const handleVictory = useCallback(async (
     attackerClass: DnDClass,
@@ -228,14 +264,40 @@ export default function DnDBattle() {
     
     // Generate battle summary with streaming
     setIsGeneratingSummary(true);
+    let finalSummary = '';
     try {
-      const victorName = victor === 'player1' ? (player1Name || attackerClass.name) : (player2Name || attackerClass.name);
-      const defeatedName = defender === 'player1' ? (player1Name || defenderClass.name) : (player2Name || defenderClass.name);
+      // Get the correct victor and defeated classes and names from state
+      const victorClass = victor === 'player1' ? player1Class : player2Class;
+      const defeatedClass = defender === 'player1' ? player1Class : player2Class;
       
-      await getBattleSummary(
+      // Debug: Log all the values we're working with
+      console.log('=== VICTORY HANDLER DEBUG ===');
+      console.log('Victor player:', victor);
+      console.log('Defender player:', defender);
+      console.log('player1Name:', player1Name);
+      console.log('player2Name:', player2Name);
+      console.log('player1Class?.name:', player1Class?.name);
+      console.log('player2Class?.name:', player2Class?.name);
+      console.log('attackerClass.name:', attackerClass.name);
+      console.log('defenderClass.name:', defenderClass.name);
+      console.log('=== END VICTORY HANDLER DEBUG ===');
+      
+      const victorName = victor === 'player1' 
+        ? getCharacterName(player1Name || '', victorClass)
+        : getCharacterName(player2Name || '', victorClass);
+      
+      const defeatedName = defender === 'player1'
+        ? getCharacterName(player1Name || '', defeatedClass)
+        : getCharacterName(player2Name || '', defeatedClass);
+      
+      if (!victorClass || !defeatedClass) {
+        throw new Error('Missing class information for battle summary');
+      }
+      
+      finalSummary = await getBattleSummary(
         battleLog,
-        attackerClass,
-        { ...defenderClass, hitPoints: 0 },
+        victorClass,
+        { ...defeatedClass, hitPoints: 0 },
         attackerDetails,
         defenderDetails,
         victorName,
@@ -245,10 +307,34 @@ export default function DnDBattle() {
           setBattleSummary(chunk);
         }
       );
+      
+      // Generate battle ending image after summary is complete
+      if (finalSummary) {
+        setIsGeneratingImage(true);
+        try {
+          const imageUrl = await generateBattleEndingImage(
+            victorClass,
+            { ...defeatedClass, hitPoints: 0 },
+            victorName,
+            defeatedName,
+            finalSummary,
+            attackerDetails,
+            defenderDetails
+          );
+          setBattleEndingImageUrl(imageUrl);
+        } catch (imageError) {
+          console.error('Error generating battle ending image:', imageError);
+          // Don't fail the whole flow if image generation fails
+        } finally {
+          setIsGeneratingImage(false);
+        }
+      }
     } catch (error) {
       console.error('Error generating battle summary:', error);
       addLog('system', 'Failed to generate battle summary.');
-      setBattleSummary('The battle concluded with a decisive victory.');
+      const fallbackSummary = 'The battle concluded with a decisive victory.';
+      setBattleSummary(fallbackSummary);
+      // Don't generate image if summary generation failed
     } finally {
       setIsGeneratingSummary(false);
     }
@@ -398,7 +484,7 @@ export default function DnDBattle() {
       
       if (!player1Name) {
         const isP1Monster = isMonster(p1.name);
-        setPlayer1Name(isP1Monster ? p1.name : generateCharacterName(p1.name));
+        setPlayer1Name(isP1Monster ? p1.name : generateDeterministicCharacterName(p1.name));
         const associatedMonster = findAssociatedMonster(p1.name);
         if (associatedMonster) {
           setPlayer1MonsterId(associatedMonster.monsterId);
@@ -407,8 +493,8 @@ export default function DnDBattle() {
       
       const isP1Monster = isMonster(p1.name);
       const isP2Monster = isMonster(p2.name);
-      const finalP1Name = player1Name || (isP1Monster ? p1.name : generateCharacterName(p1.name));
-      const finalP2Name = player2Name || (isP2Monster ? p2.name : generateCharacterName(p2.name));
+      const finalP1Name = player1Name || (isP1Monster ? p1.name : generateDeterministicCharacterName(p1.name));
+      const finalP2Name = player2Name || (isP2Monster ? p2.name : generateDeterministicCharacterName(p2.name));
       
       setIsBattleActive(true);
       setBattleLog([]);
@@ -433,6 +519,8 @@ export default function DnDBattle() {
     setBattleSummary('');
     setIsSummaryVisible(false);
     setIsGeneratingSummary(false);
+    setBattleEndingImageUrl(null);
+    setIsGeneratingImage(false);
   };
 
   // Start a new random battle with the same hero (stays on battle screen)
@@ -451,6 +539,8 @@ export default function DnDBattle() {
     aiOpponentCleanup.cleanup();
     setBattleSummary('');
     setIsGeneratingSummary(false);
+    setBattleEndingImageUrl(null);
+    setIsGeneratingImage(false);
     setDefeatedPlayer(null);
     setVictorPlayer(null);
     setBattleLog([]);
@@ -535,8 +625,8 @@ export default function DnDBattle() {
         
         const isP1Monster = isMonster(p1.name);
         const isP2Monster = isMonster(p2.name);
-        const finalP1Name = player1Name || (isP1Monster ? p1.name : generateCharacterName(p1.name));
-        const finalP2Name = player2Name || (isP2Monster ? p2.name : generateCharacterName(p2.name));
+        const finalP1Name = player1Name || (isP1Monster ? p1.name : generateDeterministicCharacterName(p1.name));
+        const finalP2Name = player2Name || (isP2Monster ? p2.name : generateDeterministicCharacterName(p2.name));
         
         // Keep battle active - ensure it stays on battle screen
         setIsBattleActive(true);
@@ -766,15 +856,17 @@ export default function DnDBattle() {
           onReset={resetBattle}
           victorName={
             defeatedPlayer === 'player1'
-              ? (player2Name || player2Class.name)
-              : (player1Name || player1Class.name)
+              ? getCharacterName(player2Name || '', player2Class)
+              : getCharacterName(player1Name || '', player1Class)
           }
           defeatedName={
             defeatedPlayer === 'player1'
-              ? (player1Name || player1Class.name)
-              : (player2Name || player2Class.name)
+              ? getCharacterName(player1Name || '', player1Class)
+              : getCharacterName(player2Name || '', player2Class)
           }
           isLoading={isGeneratingSummary}
+          battleEndingImageUrl={battleEndingImageUrl}
+          isGeneratingImage={isGeneratingImage}
         />
       )}
     </div>

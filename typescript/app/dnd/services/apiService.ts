@@ -1,5 +1,5 @@
-import { DnDClass, Ability } from '../types';
-import { CLASS_COLORS, FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, getPlayerClassNames, isMonster } from '../constants';
+import { DnDClass, Ability, CardSetting } from '../types';
+import { CLASS_COLORS, FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, getPlayerClassNames, isMonster, CARD_SETTINGS, DEFAULT_SETTING } from '../constants';
 import { extractJsonFromResponse, parseSSEResponse } from '../utils/api';
 
 /**
@@ -881,6 +881,140 @@ Examples:
   } catch (error) {
     console.error('Error getting battle summary:', error);
     return 'The battle concluded with a decisive victory.';
+  }
+}
+
+// Helper function to detect setting from character description
+function detectSettingFromDescription(description: string): CardSetting {
+  const descLower = description.toLowerCase();
+  
+  // Check for cyberpunk keywords
+  if (descLower.includes('cyberpunk') || descLower.includes('neon') || descLower.includes('cybernetics') || 
+      descLower.includes('holographic') || descLower.includes('neural interface') || descLower.includes('megacorporation')) {
+    return 'cyberpunk';
+  }
+  
+  // Check for futuristic/sci-fi keywords
+  if (descLower.includes('futuristic') || descLower.includes('starship') || descLower.includes('space station') ||
+      descLower.includes('alien') || descLower.includes('laser') || descLower.includes('plasma') ||
+      descLower.includes('energy weapon') || descLower.includes('sci-fi')) {
+    return 'futuristic';
+  }
+  
+  // Check for steampunk keywords
+  if (descLower.includes('steampunk') || descLower.includes('steam-powered') || descLower.includes('brass') ||
+      descLower.includes('airship') || descLower.includes('clockwork') || descLower.includes('victorian')) {
+    return 'steampunk';
+  }
+  
+  // Check for post-apocalyptic keywords
+  if (descLower.includes('post-apocalyptic') || descLower.includes('wasteland') || descLower.includes('ruins') ||
+      descLower.includes('scavenged') || descLower.includes('desolate')) {
+    return 'post-apocalyptic';
+  }
+  
+  // Check for modern keywords
+  if (descLower.includes('modern') || descLower.includes('contemporary') || descLower.includes('urban') ||
+      descLower.includes('cityscape') || descLower.includes('smartphone') || descLower.includes('vehicle')) {
+    return 'modern';
+  }
+  
+  // Check for fantasy keywords (but not medieval-specific)
+  if (descLower.includes('magical') || descLower.includes('enchanted') || descLower.includes('mystical')) {
+    return 'fantasy';
+  }
+  
+  // Default to medieval for classic fantasy
+  return 'medieval';
+}
+
+// Generate a battle ending image depicting the conclusion of the battle
+export async function generateBattleEndingImage(
+  victorClass: DnDClass,
+  defeatedClass: DnDClass,
+  victorName: string,
+  defeatedName: string,
+  battleSummary: string,
+  victorDetails: string = '',
+  defeatedDetails: string = ''
+): Promise<string | null> {
+  try {
+    const victorIsMonster = isMonster(victorClass.name);
+    const defeatedIsMonster = isMonster(defeatedClass.name);
+    const victorType = victorIsMonster ? 'monster' : 'class';
+    const defeatedType = defeatedIsMonster ? 'monster' : 'class';
+
+    // Build character descriptions
+    const victorDescription = victorClass.description || '';
+    const defeatedDescription = defeatedClass.description || '';
+
+    // Detect setting from victor's description (use victor's style for the scene)
+    const victorSetting = detectSettingFromDescription(victorDescription + ' ' + victorDetails);
+    const settingConfig = CARD_SETTINGS[victorSetting] || CARD_SETTINGS[DEFAULT_SETTING];
+
+    // Debug logging to check name/class values
+    console.log('=== BATTLE ENDING IMAGE DEBUG ===');
+    console.log('Victor Name:', victorName);
+    console.log('Victor Class Name:', victorClass.name);
+    console.log('Victor Type:', victorType);
+    console.log('Victor Setting:', victorSetting);
+    console.log('Defeated Name:', defeatedName);
+    console.log('Defeated Class Name:', defeatedClass.name);
+    console.log('Defeated Type:', defeatedType);
+    console.log('=== END DEBUG ===');
+
+    // Build a comprehensive prompt that includes character descriptions and image requirements
+    const prompt = `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. 
+
+CHARACTER DESCRIPTIONS:
+
+${victorName}, a ${victorClass.name} ${victorType} - THE VICTOR:
+${victorDescription ? `Description: ${victorDescription}` : `A ${victorClass.name} ${victorType}`}
+${victorDetails ? `Additional details: ${victorDetails}` : ''}
+
+${defeatedName}, a ${defeatedClass.name} ${defeatedType} - THE DEFEATED:
+${defeatedDescription ? `Description: ${defeatedDescription}` : `A ${defeatedClass.name} ${defeatedType}`}
+${defeatedDetails ? `Additional details: ${defeatedDetails}` : ''}
+
+IMAGE REQUIREMENTS:
+Create a dramatic battle conclusion scene that accurately depicts the characters described above. The scene should show ${victorName} standing victorious over ${defeatedName} who has been defeated. The characters must match their descriptions - their appearance, weapons, armor, and features should reflect the character descriptions provided. ${victorName} should be shown in a triumphant pose (standing tall, possibly with weapon raised), while ${defeatedName} is shown defeated (on the ground or in a fallen position). The setting should be a ${settingConfig.backgroundPhrase} with dramatic lighting. Use warm earth tones with vibrant accents palette. Retro SNES/Genesis style, ${settingConfig.technologyLevel}, cinematic composition, 16:9 aspect ratio. The image should feel like the final frame of an epic battle, accurately showing both characters as they are described above. --ar 16:9 --style raw`;
+
+    // Log the prompt for debugging
+    console.log('=== BATTLE ENDING IMAGE GENERATION PROMPT ===');
+    console.log(prompt);
+    console.log('=== END PROMPT ===');
+
+    // Generate image and pixelize it
+    const response = await fetch('/api/generate-image', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt,
+        model: '5000',
+        image_count: 1,
+        transparentBackground: false, // We want a background scene for the ending
+        aspectRatio: '16:9',
+        pixelize: true, // Pixelize to match app style
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.error) {
+      console.error('Error generating battle ending image:', data.error);
+      return null;
+    }
+
+    return data.imageUrl || null;
+  } catch (error) {
+    console.error('Error generating battle ending image:', error);
+    return null;
   }
 }
 

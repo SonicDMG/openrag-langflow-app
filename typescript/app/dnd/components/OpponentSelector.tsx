@@ -4,6 +4,8 @@ import { useRef } from 'react';
 import { DnDClass } from '../types';
 import { CharacterCard } from './CharacterCard';
 import { ClassSelection } from './ClassSelection';
+import { generateDeterministicCharacterName } from '../utils/names';
+import { isMonster } from '../constants';
 
 type OpponentSelectorProps = {
   opponentType: 'class' | 'monster';
@@ -128,7 +130,10 @@ export function OpponentSelector({
                   }}
                 >
                   {availableMonsters.map((monster, index) => {
-                    const associatedMonster = findAssociatedMonster(monster.name);
+                    // For created monsters, use klass to find associated monster; for regular monsters, use name
+                    const isCreatedMonster = !!(monster as any).klass && !!(monster as any).monsterId;
+                    const lookupName = isCreatedMonster ? (monster as any).klass : monster.name;
+                    const associatedMonster = findAssociatedMonster(lookupName);
                     const monsterImageUrl = associatedMonster 
                       ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
                       : undefined;
@@ -138,6 +143,12 @@ export function OpponentSelector({
                       : undefined;
                     
                     const isSelected = player2Class?.name === monster.name;
+                    
+                    // For created monsters, monster.name is already the character name and monster.klass is the class type
+                    // For regular monsters, use the name directly
+                    const displayName = isCreatedMonster
+                      ? monster.name // Created monsters already have the character name in the name field
+                      : monster.name; // Regular monsters use their type name as their character name
                     
                     return (
                       <div
@@ -153,7 +164,7 @@ export function OpponentSelector({
                       >
                         <CharacterCard
                           playerClass={{ ...monster, hitPoints: monster.maxHitPoints }}
-                          characterName={monster.name}
+                          characterName={displayName}
                           monsterImageUrl={monsterImageUrl}
                           monsterCutOutImageUrl={monsterCutOutImageUrl}
                           size="compact"
