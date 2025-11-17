@@ -143,6 +143,8 @@ interface CharacterCardProps {
   isSelected?: boolean;
   // Selection sync trigger - when this changes, all selected cards restart their pulse animation
   selectionSyncTrigger?: number;
+  // Custom image margin-bottom override
+  imageMarginBottom?: string;
 }
 
 function CharacterCardComponent({
@@ -187,6 +189,7 @@ function CharacterCardComponent({
   totalCards,
   isSelected = false,
   selectionSyncTrigger = 0,
+  imageMarginBottom,
 }: CharacterCardProps) {
   const animationRef = useRef<HTMLDivElement>(null);
   const characterImageRef = useRef<HTMLDivElement>(null);
@@ -670,7 +673,7 @@ function CharacterCardComponent({
             width: `calc(100% + ${padding} + ${padding})`, // Extend beyond padding on both sides to reach full card width
             height: imageHeight, // Scaled height
             aspectRatio: '280/200', // Match the actual image aspect ratio (1.4:1)
-            marginBottom: isCompact ? '0.5rem' : '0.75rem',
+            marginBottom: imageMarginBottom || (isCompact ? '1.5rem' : '0.75rem'),
             marginLeft: `-${padding}`, // Negative margin to counteract parent padding
             marginRight: `-${padding}`, // Negative margin to counteract parent padding
           }}

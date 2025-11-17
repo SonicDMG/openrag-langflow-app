@@ -1557,6 +1557,7 @@ export default function DnDTestPage() {
                 onCastComplete={handlePlayer1CastComplete}
                 onFlashComplete={handlePlayer1FlashComplete}
                 allowAllTurns={!isAIModeActive}
+                imageMarginBottom="1.75rem"
               />
               {/* Test buttons for Player 1 */}
               <div 
@@ -1660,6 +1661,7 @@ export default function DnDTestPage() {
                 onCastComplete={handlePlayer2CastComplete}
                 onFlashComplete={handlePlayer2FlashComplete}
                 allowAllTurns={!isAIModeActive}
+                imageMarginBottom="1.75rem"
               />
               {/* Test buttons for Player 2 */}
               <div 
