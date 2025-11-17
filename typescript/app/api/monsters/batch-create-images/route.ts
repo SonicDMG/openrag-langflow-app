@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAllMonsters } from '../../../../lib/db/astra';
 import { promises as fs } from 'fs';
 import { join } from 'path';
+import { CARD_SETTINGS, DEFAULT_SETTING } from '@/app/dnd/constants';
+import { CardSetting } from '@/app/dnd/types';
 
 const MONSTERS_DIR = join(process.cwd(), 'public', 'cdn', 'monsters');
 
@@ -9,19 +11,20 @@ const MONSTERS_DIR = join(process.cwd(), 'public', 'cdn', 'monsters');
  * Builds the base pixel art prompt template with user's description
  * Matches the logic from MonsterCreator component
  */
-function buildBasePrompt(userPrompt: string = '', transparentBackground: boolean = false): string {
+function buildBasePrompt(userPrompt: string = '', transparentBackground: boolean = false, setting: CardSetting = DEFAULT_SETTING as CardSetting): string {
   const paletteDescription = 'warm earth tones with vibrant accents';
+  const settingConfig = CARD_SETTINGS[setting] || CARD_SETTINGS[DEFAULT_SETTING];
   
   // Use the user's prompt/description
   const description = userPrompt.trim() || 'a fantasy character';
   
   if (transparentBackground) {
     // For transparent background, focus on isolated character only - no background references
-    return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro fantasy aesthetic. ${description}, isolated character sprite, no background scene, no environment, no setting. Rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, no modern objects or technology. Centered composition, transparent background. --style raw`;
+    return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. ${description}, isolated character sprite, no background scene, no environment, no setting. Rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, ${settingConfig.technologyLevel}. Centered composition, transparent background. --style raw`;
   }
   
-  // Original prompt with background (for reference, though we now always use transparent)
-  return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro fantasy aesthetic. ${description}, depicted in a distinctly medieval high-fantasy world. Placed in a expansive medieval high-fantasy setting, rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Position the character in the lower third of the frame, (facing the camera), viewed from a pulled-back wide-angle perspective showing expansive landscape surrounding them. The character should occupy only 60-70% of the composition, with dominant landscape and sky filling the remainder. Retro SNES/Genesis style, no modern objects or technology. --style raw`;
+  // Prompt with background
+  return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. ${description}, depicted in a distinctly ${settingConfig.settingPhrase} world. Placed in a expansive ${settingConfig.settingPhrase} setting, rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Position the character in the lower third of the frame, (facing the camera), viewed from a pulled-back wide-angle perspective showing expansive landscape surrounding them. The character should occupy only 60-70% of the composition, with dominant landscape and sky filling the remainder. Retro SNES/Genesis style, ${settingConfig.technologyLevel}. --style raw`;
 }
 
 /**
@@ -119,7 +122,7 @@ export async function POST(req: NextRequest) {
         // Build prompt from monster name and description
         // When skipCutout is true, we generate character directly on background (not transparent)
         const userPrompt = `${monster.name}: ${monster.description || 'a fantasy creature'}`;
-        const prompt = buildBasePrompt(userPrompt, false); // false = with background (for skipCutout)
+        const prompt = buildBasePrompt(userPrompt, false, DEFAULT_SETTING as CardSetting); // false = with background (for skipCutout)
 
         // Call the monster creation API
         // Use the request URL to construct the API endpoint

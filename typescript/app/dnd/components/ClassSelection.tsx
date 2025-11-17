@@ -65,7 +65,7 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
         {/* Scrollable container */}
         <div
           ref={scrollContainerRef}
-          className="flex gap-2 sm:gap-3 md:gap-4 overflow-x-auto scrollbar-hide pb-2 sm:pb-3 md:pb-4 pt-2 sm:pt-3 md:pt-4 px-6 sm:px-8 md:px-10"
+          className="flex gap-2 sm:gap-3 md:gap-4 overflow-x-auto scrollbar-hide pb-2 sm:pb-2 md:pb-3 pt-2 sm:pt-2 md:pt-3 px-6 sm:px-8 md:px-10"
           style={{
             scrollbarWidth: 'none',
             msOverflowStyle: 'none',

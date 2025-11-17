@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { FALLBACK_CLASSES, FALLBACK_MONSTERS, getRandomRace } from '../constants';
-import { DnDClass } from '../types';
+import { FALLBACK_CLASSES, FALLBACK_MONSTERS, getRandomRace, CARD_SETTINGS, DEFAULT_SETTING } from '../constants';
+import { DnDClass, CardSetting } from '../types';
 import { SearchableSelect } from './SearchableSelect';
 
 interface MonsterCreatorProps {
@@ -13,20 +13,22 @@ interface MonsterCreatorProps {
  * Builds the base pixel art prompt template with user's description
  * @param userPrompt - The user's character description
  * @param transparentBackground - If true, removes background references from prompt
+ * @param setting - The card setting/theme (medieval, futuristic, etc.)
  */
-function buildBasePrompt(userPrompt: string = '', transparentBackground: boolean = false): string {
+function buildBasePrompt(userPrompt: string = '', transparentBackground: boolean = false, setting: CardSetting = DEFAULT_SETTING as CardSetting): string {
   const paletteDescription = 'warm earth tones with vibrant accents';
+  const settingConfig = CARD_SETTINGS[setting] || CARD_SETTINGS[DEFAULT_SETTING];
   
   // Use the user's prompt/description
   const description = userPrompt.trim() || 'a fantasy character';
   
   if (transparentBackground) {
     // For transparent background, focus on isolated character only - no background references
-    return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro fantasy aesthetic. ${description}, isolated character sprite, no background scene, no environment, no setting. Rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, no modern objects or technology. Centered composition, transparent background. --style raw`;
+    return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. ${description}, isolated character sprite, no background scene, no environment, no setting. Rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, ${settingConfig.technologyLevel}. Centered composition, transparent background. --style raw`;
   }
   
-  // Original prompt with background (for reference, though we now always use transparent)
-  return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro fantasy aesthetic. ${description}, depicted in a distinctly medieval high-fantasy world. Placed in a expansive medieval high-fantasy setting, rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Position the character in the lower third of the frame, (facing the camera), viewed from a pulled-back wide-angle perspective showing expansive landscape surrounding them. The character should occupy only 60-70% of the composition, with dominant landscape and sky filling the remainder. Retro SNES/Genesis style, no modern objects or technology. --style raw`;
+  // Prompt with background
+  return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. ${description}, depicted in a distinctly ${settingConfig.settingPhrase} world. Placed in a expansive ${settingConfig.settingPhrase} setting, rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Position the character in the lower third of the frame, (facing the camera), viewed from a pulled-back wide-angle perspective showing expansive landscape surrounding them. The character should occupy only 60-70% of the composition, with dominant landscape and sky filling the remainder. Retro SNES/Genesis style, ${settingConfig.technologyLevel}. --style raw`;
 }
 
 export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps) {
@@ -41,6 +43,7 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
   const [success, setSuccess] = useState<string | null>(null);
   const [model, setModel] = useState('5000');
   const [skipCutout, setSkipCutout] = useState(true);
+  const [setting, setSetting] = useState<CardSetting>(DEFAULT_SETTING as CardSetting);
 
   const [customHeroes, setCustomHeroes] = useState<DnDClass[]>([]);
   const [customMonsters, setCustomMonsters] = useState<DnDClass[]>([]);
@@ -130,18 +133,18 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
     }
   }, [klass, selectedDescription, isClass]); // Update when klass changes
 
-  // Update full prompt when userPrompt or skipCutout changes
+  // Update full prompt when userPrompt, skipCutout, or setting changes
   // Use different base prompts based on skipCutout option
   useEffect(() => {
     if (userPrompt.trim()) {
       // If skipCutout is true, use background prompt (character on background)
       // If skipCutout is false, use cutout prompt (transparent background, isolated character)
-      const basePrompt = buildBasePrompt(userPrompt, !skipCutout); // !skipCutout = transparent background when false
+      const basePrompt = buildBasePrompt(userPrompt, !skipCutout, setting); // !skipCutout = transparent background when false
       setFullPrompt(basePrompt);
     } else {
       setFullPrompt('');
     }
-  }, [userPrompt, skipCutout]);
+  }, [userPrompt, skipCutout, setting]);
 
   const handleGenerateImage = async () => {
     if (!fullPrompt) {
@@ -170,11 +173,13 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
             .replace(/no environment[,\s]*/gi, '')
             .replace(/no setting[,\s]*/gi, '')
             .trim();
-          characterPrompt = `${description}, depicted in a medieval high-fantasy setting with atmospheric background, ancient ruins, mystical lighting`;
+          const settingConfig = CARD_SETTINGS[setting] || CARD_SETTINGS[DEFAULT_SETTING];
+          characterPrompt = `${description}, depicted in a ${settingConfig.backgroundPhrase}`;
         } else if (!characterPrompt.toLowerCase().includes('background') && 
                    !characterPrompt.toLowerCase().includes('setting')) {
           // Add background if not present
-          characterPrompt = `${characterPrompt}, medieval high-fantasy background scene with atmospheric lighting`;
+          const settingConfig = CARD_SETTINGS[setting] || CARD_SETTINGS[DEFAULT_SETTING];
+          characterPrompt = `${characterPrompt}, ${settingConfig.backgroundPhrase}`;
         }
       } else {
         // Generate character with transparent background (no background scene)
@@ -183,9 +188,9 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
             fullPrompt.includes('Placed in a medieval high-fantasy setting')) {
           // Extract the character description from the existing prompt
           // Try to extract the description part (between the style description and "depicted")
-          const match = fullPrompt.match(/retro fantasy aesthetic\.\s*(.+?)(?:,\s*depicted|$)/i);
+          const match = fullPrompt.match(/retro .+? aesthetic\.\s*(.+?)(?:,\s*depicted|$)/i);
           const description = match ? match[1].trim() : userPrompt || 'a fantasy character';
-          characterPrompt = buildBasePrompt(description, true); // true = transparent background
+          characterPrompt = buildBasePrompt(description, true, setting); // true = transparent background
         } else {
           // Custom prompt - just ensure transparent background is requested
           if (!characterPrompt.toLowerCase().includes('transparent') && 
@@ -206,6 +211,7 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
           model,
           transparentBackground: !skipCutout, // Generate with transparent background only if skipCutout is false
           aspectRatio: '16:9', // 16:9 aspect ratio for perfect fit
+          setting, // Include setting in the request
         }),
       });
 
@@ -251,6 +257,7 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
           seed,
           imageUrl,
           skipCutout,
+          setting,
           stats: {
             hitPoints: 30,
             maxHitPoints: 30,
@@ -324,6 +331,26 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
           />
           <p className="text-xs text-amber-300 mt-1">
             This is the complete prompt that will be sent to the image generator. It includes the base pixel art style template and your description. You can edit it directly to customize the image generation.
+          </p>
+        </label>
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-amber-100">
+          Setting/Theme
+          <select
+            value={setting}
+            onChange={(e) => setSetting(e.target.value as CardSetting)}
+            className="mt-1 w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100"
+          >
+            {Object.entries(CARD_SETTINGS).map(([key, config]) => (
+              <option key={key} value={key}>
+                {config.name}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-amber-300 mt-1">
+            {CARD_SETTINGS[setting]?.description || 'Select the setting/theme for your card generation'}
           </p>
         </label>
       </div>

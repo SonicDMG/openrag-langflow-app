@@ -1,4 +1,4 @@
-import { DnDClass, Ability } from './types';
+import { DnDClass, Ability, SettingConfig } from './types';
 
 /**
  * Randomly selects up to 5 abilities from available abilities, ensuring a mix of attack and healing abilities.
@@ -1389,3 +1389,65 @@ export const DND_PLAYER_RACES: Array<{ name: string; description: string }> = [
 export function getRandomRace(): { name: string; description: string } {
   return DND_PLAYER_RACES[Math.floor(Math.random() * DND_PLAYER_RACES.length)];
 }
+
+// Card setting configurations for different genres
+export const CARD_SETTINGS: Record<string, SettingConfig> = {
+  medieval: {
+    name: 'Medieval Fantasy',
+    description: 'Classic medieval high-fantasy setting with castles, magic, and ancient ruins',
+    settingPhrase: 'medieval high-fantasy',
+    backgroundPhrase: 'medieval high-fantasy setting with atmospheric background, ancient ruins, mystical lighting',
+    technologyLevel: 'no modern objects or technology',
+  },
+  futuristic: {
+    name: 'Futuristic Sci-Fi',
+    description: 'Advanced futuristic setting with starships, advanced technology, and space stations',
+    settingPhrase: 'futuristic sci-fi',
+    backgroundPhrase: 'futuristic sci-fi setting with advanced technology, starships, space stations, and alien landscapes',
+    technologyLevel: 'advanced technology, holographic displays, energy weapons',
+  },
+  modern: {
+    name: 'Modern Day',
+    description: 'Contemporary setting with modern cities, technology, and everyday life',
+    settingPhrase: 'modern contemporary',
+    backgroundPhrase: 'modern contemporary setting with urban environments, modern architecture, and cityscapes',
+    technologyLevel: 'modern technology, smartphones, vehicles, contemporary objects',
+  },
+  cyberpunk: {
+    name: 'Cyberpunk',
+    description: 'High-tech, low-life setting with neon cities, cybernetics, and corporate dystopia',
+    settingPhrase: 'cyberpunk',
+    backgroundPhrase: 'cyberpunk setting with neon-lit cities, towering megacorporations, and dark urban landscapes',
+    technologyLevel: 'advanced cybernetics, neural interfaces, holographic technology',
+  },
+  steampunk: {
+    name: 'Steampunk',
+    description: 'Victorian-era setting with steam-powered technology, brass gears, and airships',
+    settingPhrase: 'steampunk',
+    backgroundPhrase: 'steampunk setting with Victorian architecture, steam-powered machinery, and brass gears',
+    technologyLevel: 'steam-powered technology, mechanical devices, clockwork mechanisms',
+  },
+  'post-apocalyptic': {
+    name: 'Post-Apocalyptic',
+    description: 'Wasteland setting after a major disaster, with ruins, scavenging, and survival',
+    settingPhrase: 'post-apocalyptic wasteland',
+    backgroundPhrase: 'post-apocalyptic wasteland setting with ruins, desolate landscapes, and remnants of civilization',
+    technologyLevel: 'scavenged technology, makeshift weapons, broken machinery',
+  },
+  fantasy: {
+    name: 'High Fantasy',
+    description: 'General fantasy setting with magic, mythical creatures, and enchanted realms',
+    settingPhrase: 'high-fantasy',
+    backgroundPhrase: 'high-fantasy setting with magical landscapes, enchanted forests, and mystical realms',
+    technologyLevel: 'magical technology, enchanted objects, no modern technology',
+  },
+  'sci-fi': {
+    name: 'Science Fiction',
+    description: 'General sci-fi setting with space exploration, alien worlds, and advanced science',
+    settingPhrase: 'sci-fi',
+    backgroundPhrase: 'sci-fi setting with alien planets, space stations, and advanced technological environments',
+    technologyLevel: 'advanced science, space technology, alien artifacts',
+  },
+};
+
+export const DEFAULT_SETTING: string = 'medieval';

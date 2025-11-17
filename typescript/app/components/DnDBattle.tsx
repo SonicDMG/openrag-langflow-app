@@ -476,14 +476,14 @@ export default function DnDBattle() {
         decalImageUrl="/cdn/decals/battle-arena.png"
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-0">
-        <div className="space-y-6 overflow-visible">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 md:py-4 pb-0">
+        <div className="space-y-3 md:space-y-4 overflow-visible">
           {/* Character Selection */}
           {!isBattleActive && (
-            <div className="space-y-8">
+            <div className="space-y-4 md:space-y-5">
               {/* Main Title */}
               <div className="text-center">
-                <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-2" style={{ 
+                <h2 className="text-4xl sm:text-5xl md:text-5xl lg:text-6xl font-bold mb-1 md:mb-2" style={{ 
                   fontFamily: 'serif', 
                   color: '#E4DDCD', 
                   textTransform: 'uppercase', 
@@ -510,7 +510,7 @@ export default function DnDBattle() {
 
               {!isLoadingClasses && !isLoadingMonsters && (
                 <>
-                  <div className="space-y-8">
+                  <div className="space-y-4 md:space-y-5">
                     <ClassSelection
                       title=""
                       availableClasses={availableClasses}
@@ -536,18 +536,18 @@ export default function DnDBattle() {
                   </div>
 
                   {/* Begin Battle and Reset Buttons */}
-                  <div className="mt-8 flex gap-4">
+                  <div className="mt-4 md:mt-5 flex gap-4">
                     <button
                       onClick={startBattle}
                       disabled={!player1Class || !player2Class || isLoadingClassDetails || isBattleActive}
-                      className="flex-1 py-4 px-6 bg-red-900 hover:bg-red-800 text-white font-bold text-xl rounded-lg border-4 border-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-2xl"
+                      className="flex-1 py-3 md:py-4 px-6 bg-red-900 hover:bg-red-800 text-white font-bold text-lg md:text-xl rounded-lg border-4 border-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-2xl"
                       style={{ fontFamily: 'serif' }}
                     >
                       {isLoadingClassDetails ? 'Starting Battle...' : 'Begin Battle! ⚔️'}
                     </button>
                     <button
                       onClick={resetBattle}
-                      className="flex items-center gap-2 px-6 py-4 text-gray-700 hover:text-gray-900 transition-colors font-semibold text-lg border-2 border-gray-400 rounded-lg"
+                      className="flex items-center gap-2 px-6 py-3 md:py-4 text-gray-700 hover:text-gray-900 transition-colors font-semibold text-base md:text-lg border-2 border-gray-400 rounded-lg"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />

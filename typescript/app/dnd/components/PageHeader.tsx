@@ -52,10 +52,10 @@ export function PageHeader({
   const displayBreadcrumbs = breadcrumbs || ALL_PAGES.filter(page => page.path !== pathname);
 
   return (
-    <div className="px-2 sm:px-4 md:px-6 py-3 sm:py-4">
+    <div className="px-2 sm:px-4 md:px-6 py-2 sm:py-3 md:py-3">
       <div className="max-w-7xl mx-auto relative">
         {/* Grid layout to keep title centered - responsive */}
-        <div className="grid grid-cols-3 items-center gap-2 sm:gap-4">
+        <div className="grid grid-cols-3 items-center gap-2 sm:gap-3 md:gap-4">
           {/* Left Column - Back Button */}
           <div className="flex justify-start min-w-0">
             <button

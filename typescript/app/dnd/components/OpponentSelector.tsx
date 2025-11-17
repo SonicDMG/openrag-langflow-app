@@ -38,9 +38,9 @@ export function OpponentSelector({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-2 md:mb-3">
         <div className="flex items-center gap-3">
-          <h3 className="text-xl font-semibold" style={{ fontFamily: 'serif', color: '#5C4033' }}>Opponent (Auto-Play)</h3>
+          <h3 className="text-lg md:text-xl font-semibold" style={{ fontFamily: 'serif', color: '#5C4033' }}>Opponent (Auto-Play)</h3>
           {player2Class && (
             <>
               {(() => {
@@ -101,8 +101,7 @@ export function OpponentSelector({
         <>
           {/* Standard Monsters */}
           {availableMonsters.length > 0 ? (
-            <div className="mt-3">
-              <h3 className="text-lg font-semibold mb-3" style={{ fontFamily: 'serif', color: '#5C4033' }}>Select Monster Opponent</h3>
+            <div className="mt-2 md:mt-3">
               <div className="relative">
                 {/* Left scroll button */}
                 <button
@@ -191,7 +190,7 @@ export function OpponentSelector({
           )}
         </>
       ) : (
-        <div className="mt-4">
+        <div className="mt-2 md:mt-3">
           <ClassSelection
             title=""
             availableClasses={availableClasses}

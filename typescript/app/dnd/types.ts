@@ -42,3 +42,14 @@ export interface BattleLog {
 // Emotion types for character expressions
 export type CharacterEmotion = 'happy' | 'sad' | 'hurt' | 'laughing' | 'rage' | 'determined' | 'worried' | 'frustrated' | 'dead' | 'victorious' | 'excited' | 'confident' | 'surprised' | 'triumphant';
 
+// Card setting/theme types for different genres
+export type CardSetting = 'medieval' | 'futuristic' | 'modern' | 'cyberpunk' | 'steampunk' | 'post-apocalyptic' | 'fantasy' | 'sci-fi';
+
+export interface SettingConfig {
+  name: string;
+  description: string;
+  settingPhrase: string; // Phrase to use in prompts (e.g., "medieval high-fantasy", "futuristic sci-fi")
+  backgroundPhrase: string; // Phrase for background generation
+  technologyLevel: string; // Description of technology level
+}
+

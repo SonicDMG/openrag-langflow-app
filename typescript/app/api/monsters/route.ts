@@ -8,6 +8,8 @@ import { saveMonsterBundle } from '@/app/dnd/server/storage';
 import { generateReferenceImage, downloadImage, ensure16x9AspectRatio, generateSkippedPlaceholder } from '@/app/dnd/server/imageGeneration';
 import { removeBackground, ensureTransparentBackground } from '@/app/dnd/server/backgroundRemoval';
 import { MonsterBundle } from '@/app/dnd/utils/monsterTypes';
+import { CARD_SETTINGS, DEFAULT_SETTING } from '@/app/dnd/constants';
+import { CardSetting } from '@/app/dnd/types';
 
 const MONSTERS_DIR = join(process.cwd(), 'public', 'cdn', 'monsters');
 
@@ -20,7 +22,7 @@ function formatErrorResponse(error: unknown): { error: string } {
 
 export async function POST(req: NextRequest) {
   try {
-    const { klass, prompt, seed = Math.floor(Math.random() * 1000000), stats, imageUrl, animationConfig, skipCutout = true } = await req.json();
+    const { klass, prompt, seed = Math.floor(Math.random() * 1000000), stats, imageUrl, animationConfig, skipCutout = true, setting = DEFAULT_SETTING } = await req.json();
 
     if (!klass || !prompt) {
       return NextResponse.json(
@@ -75,11 +77,13 @@ export async function POST(req: NextRequest) {
               .replace(/no environment[,\s]*/gi, '')
               .replace(/no setting[,\s]*/gi, '')
               .trim();
-            characterPrompt = `${description}, depicted in a medieval high-fantasy setting with atmospheric background, ancient ruins, mystical lighting`;
+            const settingConfig = CARD_SETTINGS[setting as CardSetting] || CARD_SETTINGS[DEFAULT_SETTING];
+            characterPrompt = `${description}, depicted in a ${settingConfig.backgroundPhrase}`;
           } else if (!characterPrompt.toLowerCase().includes('background') && 
                      !characterPrompt.toLowerCase().includes('setting')) {
             // Add background if not present
-            characterPrompt = `${characterPrompt}, medieval high-fantasy background scene with atmospheric lighting`;
+            const settingConfig = CARD_SETTINGS[setting as CardSetting] || CARD_SETTINGS[DEFAULT_SETTING];
+            characterPrompt = `${characterPrompt}, ${settingConfig.backgroundPhrase}`;
           }
           
           const characterImage = await generateReferenceImage({
@@ -395,7 +399,9 @@ export async function POST(req: NextRequest) {
 
       // 2) Generate a new atmospheric background and composite character on top
       console.log('Generating new background scene...');
-      const backgroundPrompt = `32-bit pixel art with clearly visible chunky pixel clusters, crisp sprite outlines, dithered shading, low-resolution retro fantasy aesthetic. An atmospheric medieval high-fantasy background scene with ancient ruins, mystical lighting, and dramatic atmosphere. EMPTY scene with ABSOLUTELY NO characters, NO creatures, NO people, NO beings, NO figures, NO entities, NO living things - ONLY the environment, architecture, landscape, ruins, lighting, and atmosphere. Completely empty of any characters or creatures. Warm earth tones with vibrant magical accents. Retro SNES/Genesis style, cinematic composition, 16:9 aspect ratio. --ar 16:9 --style raw`;
+      const settingConfig = CARD_SETTINGS[setting as CardSetting] || CARD_SETTINGS[DEFAULT_SETTING];
+      const paletteDescription = 'warm earth tones with vibrant accents';
+      const backgroundPrompt = `32-bit pixel art with clearly visible chunky pixel clusters, crisp sprite outlines, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. An atmospheric ${settingConfig.backgroundPhrase}, and dramatic atmosphere. EMPTY scene with ABSOLUTELY NO characters, NO creatures, NO people, NO beings, NO figures, NO entities, NO living things - ONLY the environment, architecture, landscape, ruins, lighting, and atmosphere. Completely empty of any characters or creatures. ${paletteDescription}. Retro SNES/Genesis style, ${settingConfig.technologyLevel}, cinematic composition, 16:9 aspect ratio. --ar 16:9 --style raw`;
       
       try {
         // Generate background using the utility function

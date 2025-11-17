@@ -11,6 +11,7 @@ interface GeneratedStats {
 }
 
 interface GenerationResult {
+  name?: string;
   stats: GeneratedStats | null;
   abilities: Ability[];
 }
@@ -26,13 +27,14 @@ export async function generateCharacterStats(
   try {
     const typeLabel = characterType === 'hero' ? 'hero' : 'monster';
     
-    // Generate stats
+    // Generate name and stats
     const statsQuery = `Create a D&D ${typeLabel} character based on this description: "${description}"
 
-${name ? `Character name: ${name}` : ''}
+${name ? `Character name: ${name}` : 'Generate an appropriate name for this character.'}
 
 Provide the following information in JSON format:
 {
+  "name": string (${name ? 'use the provided name' : 'generate an appropriate fantasy name fitting the description'}),
   "hitPoints": number (typical HP for a ${characterType === 'hero' ? 'level 1-3 character, around 20-35' : 'challenging encounter, 25-50'}),
   "armorClass": number (typical AC, between ${characterType === 'hero' ? '12-18' : '10-20'}),
   "attackBonus": number (typical attack bonus modifier, between ${characterType === 'hero' ? '3-5' : '2-8'}),
@@ -67,14 +69,22 @@ Return ONLY valid JSON, no other text.`;
     // Extract stats JSON
     const statsJsonString = extractJsonFromResponse(
       statsContent,
-      ['hitPoints', 'armorClass', 'attackBonus', 'damageDie'],
+      ['name', 'hitPoints', 'armorClass', 'attackBonus', 'damageDie'],
       ['search_query']
     );
 
+    let generatedName: string | undefined = undefined;
     let stats: GeneratedStats | null = null;
     if (statsJsonString) {
       try {
         const parsed = JSON.parse(statsJsonString);
+        // Extract name if generated (only if no name was provided)
+        if (parsed.name) {
+          if (!name) {
+            // Only use generated name if no name was provided
+            generatedName = parsed.name;
+          }
+        }
         // Normalize damageDie format
         let damageDie = parsed.damageDie || 'd8';
         if (damageDie.match(/^\d+d\d+$/)) {
@@ -93,11 +103,19 @@ Return ONLY valid JSON, no other text.`;
       } catch (parseError) {
         console.warn('Error parsing stats JSON:', parseError);
         // Try to extract partial data
+        const nameMatch = statsJsonString.match(/"name"\s*:\s*"([^"]*)"/);
         const hitPointsMatch = statsJsonString.match(/"hitPoints"\s*:\s*(\d+)/);
         const armorClassMatch = statsJsonString.match(/"armorClass"\s*:\s*(\d+)/);
         const attackBonusMatch = statsJsonString.match(/"attackBonus"\s*:\s*(\d+)/);
         const damageDieMatch = statsJsonString.match(/"damageDie"\s*:\s*"([^"]+)"/);
         const descriptionMatch = statsJsonString.match(/"description"\s*:\s*"([^"]*)"/);
+
+        if (nameMatch) {
+          if (!name) {
+            // Only use generated name if no name was provided
+            generatedName = nameMatch[1];
+          }
+        }
 
         if (hitPointsMatch || armorClassMatch) {
           let damageDie = damageDieMatch ? damageDieMatch[1] : 'd8';
@@ -229,7 +247,7 @@ Important rules:
       console.error('Extracted JSON string was:', abilitiesJsonString);
     }
 
-    return { stats, abilities };
+    return { name: generatedName, stats, abilities };
   } catch (error) {
     console.error('Error generating character stats:', error);
     throw error;

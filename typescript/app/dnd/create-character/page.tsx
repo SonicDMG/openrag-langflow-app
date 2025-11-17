@@ -115,15 +115,24 @@ function CharacterCreatorPageContent() {
 
     try {
       const result = await generateCharacterStats(
-        formData.name || 'Character',
+        formData.name || '',
         formData.description,
         characterType
       );
+
+      // Update name if generated
+      if (result.name && !formData.name.trim()) {
+        setFormData(prev => ({
+          ...prev,
+          name: result.name || prev.name,
+        }));
+      }
 
       if (result.stats) {
         const stats = result.stats;
         setFormData(prev => ({
           ...prev,
+          name: result.name || prev.name, // Update name here too in case it wasn't set above
           hitPoints: stats.hitPoints || prev.hitPoints,
           maxHitPoints: stats.maxHitPoints || stats.hitPoints || prev.hitPoints,
           armorClass: stats.armorClass || prev.armorClass,
@@ -140,7 +149,7 @@ function CharacterCreatorPageContent() {
         }));
       }
 
-      setSuccess('Stats and abilities generated successfully!');
+      setSuccess(result.name ? 'Name, stats, and abilities generated successfully!' : 'Stats and abilities generated successfully!');
       setTimeout(() => setSuccess(null), 5000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate stats');
@@ -319,20 +328,6 @@ function CharacterCreatorPageContent() {
                 </div>
               </div>
 
-              {/* Name */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-amber-100 mb-2">
-                  Name <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100"
-                  placeholder="Enter character name"
-                />
-              </div>
-
               {/* Description */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-amber-100 mb-2">
@@ -350,8 +345,25 @@ function CharacterCreatorPageContent() {
                   disabled={isGenerating || !formData.description.trim()}
                   className="mt-2 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isGenerating ? 'Generating...' : '🤖 Generate Stats from Description'}
+                  {isGenerating ? 'Generating...' : '🤖 Generate Name & Stats from Description'}
                 </button>
+                <p className="text-xs text-amber-300 mt-1">
+                  Enter a description and click the button to automatically generate a name, stats, and abilities for your character.
+                </p>
+              </div>
+
+              {/* Name */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-amber-100 mb-2">
+                  Name <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100"
+                  placeholder="Enter character name (or generate from description above)"
+                />
               </div>
 
               {/* Stats Grid */}
