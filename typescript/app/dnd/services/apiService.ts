@@ -733,3 +733,154 @@ Provide a brief, dramatic narrative description (2-3 sentences) of this battle e
   }
 }
 
+// Generate a comprehensive battle summary from the entire battle log
+export async function getBattleSummary(
+  battleLog: Array<{ type: string; message: string }>,
+  victorClass: DnDClass,
+  defeatedClass: DnDClass,
+  victorDetails: string = '',
+  defeatedDetails: string = '',
+  victorName: string,
+  defeatedName: string,
+  onChunk?: (content: string) => void
+): Promise<string> {
+  try {
+    const victorIsMonster = isMonster(victorClass.name);
+    const defeatedIsMonster = isMonster(defeatedClass.name);
+    const victorType = victorIsMonster ? 'monster' : 'class';
+    const defeatedType = defeatedIsMonster ? 'monster' : 'class';
+
+    // Include ALL battle log entries (excluding narrative since we're generating a new one)
+    const fullBattleLog = battleLog
+      .filter(log => log.type !== 'narrative') // Exclude old narrative entries
+      .map(log => log.message);
+
+    // Analyze battle log to determine if it was a close/struggling battle
+    const logText = fullBattleLog.join(' ');
+    const healingCount = (logText.match(/healing|heals|cure wounds|sith healing/gi) || []).length;
+    const missCount = (logText.match(/misses|miss!/gi) || []).length;
+    const hitCount = (logText.match(/hits|hits for/gi) || []).length;
+    const bothSidesHit = logText.includes(victorName) && logText.includes(defeatedName) && hitCount > 2;
+    const wasCloseBattle = healingCount >= 2 || (missCount > hitCount && bothSidesHit) || victorClass.hitPoints < victorClass.maxHitPoints * 0.5;
+
+    // Build comprehensive character information
+    const victorAbilities = victorClass.abilities?.map(ability => {
+      const name = ability.name;
+      const description = ability.description;
+      if (ability.type === 'attack') {
+        return `- ${name}: ${description} (Damage: ${ability.damageDice}${ability.attacks && ability.attacks > 1 ? `, ${ability.attacks} attacks` : ''}${ability.attackRoll ? ', requires attack roll' : ', automatic damage'})`;
+      } else if (ability.type === 'healing') {
+        return `- ${name}: ${description} (Healing: ${ability.healingDice})`;
+      }
+      // Fallback for any other ability types (shouldn't happen but TypeScript needs this)
+      return `- ${name}: ${description}`;
+    }).join('\n') || 'None';
+
+    const defeatedAbilities = defeatedClass.abilities?.map(ability => {
+      const name = ability.name;
+      const description = ability.description;
+      if (ability.type === 'attack') {
+        return `- ${name}: ${description} (Damage: ${ability.damageDice}${ability.attacks && ability.attacks > 1 ? `, ${ability.attacks} attacks` : ''}${ability.attackRoll ? ', requires attack roll' : ', automatic damage'})`;
+      } else if (ability.type === 'healing') {
+        return `- ${name}: ${description} (Healing: ${ability.healingDice})`;
+      }
+      // Fallback for any other ability types (shouldn't happen but TypeScript needs this)
+      return `- ${name}: ${description}`;
+    }).join('\n') || 'None';
+
+    const prompt = `A D&D battle has concluded between ${victorName} (a ${victorClass.name} ${victorType}) and ${defeatedName} (a ${defeatedClass.name} ${defeatedType}).
+
+=== ${victorName} (${victorClass.name} ${victorType}) - VICTOR ===
+Class Description: ${victorClass.description || 'N/A'}
+Stats:
+- Hit Points: ${victorClass.hitPoints}/${victorClass.maxHitPoints} (final HP)
+- Armor Class: ${victorClass.armorClass}
+- Attack Bonus: ${victorClass.attackBonus}
+- Damage Die: ${victorClass.damageDie}${victorClass.meleeDamageDie ? ` (Melee: ${victorClass.meleeDamageDie})` : ''}${victorClass.rangedDamageDie ? ` (Ranged: ${victorClass.rangedDamageDie})` : ''}
+
+Abilities:
+${victorAbilities}
+
+${victorDetails ? `Additional Information:\n${victorDetails}` : ''}
+
+=== ${defeatedName} (${defeatedClass.name} ${defeatedType}) - DEFEATED ===
+Class Description: ${defeatedClass.description || 'N/A'}
+Stats:
+- Hit Points: 0/${defeatedClass.maxHitPoints} (defeated)
+- Armor Class: ${defeatedClass.armorClass}
+- Attack Bonus: ${defeatedClass.attackBonus}
+- Damage Die: ${defeatedClass.damageDie}${defeatedClass.meleeDamageDie ? ` (Melee: ${defeatedClass.meleeDamageDie})` : ''}${defeatedClass.rangedDamageDie ? ` (Ranged: ${defeatedClass.rangedDamageDie})` : ''}
+
+Abilities:
+${defeatedAbilities}
+
+${defeatedDetails ? `Additional Information:\n${defeatedDetails}` : ''}
+
+=== COMPLETE BATTLE LOG ===
+The following is the complete chronological record of the battle:
+
+${fullBattleLog.join('\n')}
+
+=== BATTLE ANALYSIS ===
+${wasCloseBattle ? `⚠️ CLOSE BATTLE DETECTED: This was a hard-fought, evenly matched battle. Both sides used healing (${healingCount} times), there were many missed attacks, and both combatants landed hits. The victor finished with ${victorClass.hitPoints}/${victorClass.maxHitPoints} HP - ${victorClass.hitPoints < victorClass.maxHitPoints * 0.3 ? 'barely survived' : victorClass.hitPoints < victorClass.maxHitPoints * 0.5 ? 'survived but was badly wounded' : 'took significant damage'}. The narrative should reflect this struggle and close call.` : 'This battle had a clear winner with less back-and-forth.'}
+
+=== INSTRUCTIONS ===
+Write a brief, punchy, character-driven narrative summary (just 2-3 sentences) of this battle. Use the character details, abilities, and battle log above to understand what happened, but keep it very short and entertaining.
+
+**CRITICAL LENGTH CONSTRAINT**: Your response must be NO MORE than 400 characters total (including spaces and markdown formatting). This is a hard limit to ensure the text fits properly on screen.
+
+The narrative should:
+- Be extremely concise (just 2-3 sentences total, MAX 400 characters)
+- **CRITICAL**: Always use the actual character/monster names (${victorName} and ${defeatedName}) throughout the narrative. Do not refer to them generically as "the victor", "the defeated", "the warrior", "the fighter", "the combatant", etc. Use their specific names to make it personal and engaging. For example, say "${victorName} defeated ${defeatedName}" not "the victor defeated the opponent".
+- Use character names and details to shape the outcome
+- Include playful wordplay, rhythmic wording, or clever turns of phrase
+- Feel epic but brief - like a memorable one-liner about the battle's conclusion
+- Reference key abilities or moments naturally, but don't list stats or dice rolls
+- Use **bold markdown** to emphasize important words like character names, key actions, or dramatic moments (e.g., **${victorName}** struck with their **ability name**)
+- Avoid repetitive introductions - don't start every sentence with the same character name or phrase. Vary the sentence structure and openings.
+- **CRITICAL**: Reflect the actual flow of the battle. If the defeated opponent landed good blows, had successful attacks, or there was a back-and-forth exchange, include that! Don't make it one-sided unless the battle log clearly shows it was one-sided. Show the ebb and flow, the struggle, the moments where both combatants had their successes before the final outcome.
+- **IF THIS WAS A CLOSE BATTLE** (see analysis above): Emphasize the struggle! Show how both combatants fought hard, how healing was used, how it was back-and-forth, and how the victor barely made it through. Use varied, creative language to convey the narrow victory - avoid clichés and repetitive phrases. Make it clear this was NOT an easy win through vivid, character-specific descriptions.
+
+Think of it like a memorable quote or tagline about how the battle ended. Make it punchy, characterful, and fun to read. If there was a back-and-forth, capture that tension. Remember: MAX 400 characters total. 
+
+Examples:
+- Easy win: "**Vespara Darkblade** easily ended the short life of **Gandalf the Grey**. Too bad he couldn't withstand her **force blade**."
+- Back-and-forth: "**Gandalf** landed several powerful strikes, but **Vespara's** relentless **force blade** attacks eventually overwhelmed his defenses."
+- Close battle: "**Vespara** and **Gandalf** traded blow for blow, both using healing to stay in the fight. **Vespara's** **force blade** found its mark just as her own defenses were about to fail, securing a narrow victory."`;
+
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: prompt,
+        previousResponseId: null, // Start fresh for summary
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+
+    if (!reader) {
+      throw new Error('No response body');
+    }
+
+    const { content: accumulatedResponse } = await parseSSEResponse(
+      reader,
+      onChunk ? (content: string) => {
+        // Stream chunks as they arrive
+        onChunk(content);
+      } : undefined
+    );
+
+    return accumulatedResponse || 'The battle concluded with a decisive victory.';
+  } catch (error) {
+    console.error('Error getting battle summary:', error);
+    return 'The battle concluded with a decisive victory.';
+  }
+}
+

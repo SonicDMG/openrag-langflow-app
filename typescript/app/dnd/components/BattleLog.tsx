@@ -12,6 +12,8 @@ type BattleLogProps = {
   onResetBattle: () => void;
   onTriggerDropAnimation: () => void;
   battleLogRef: React.RefObject<HTMLDivElement | null>;
+  onOpenSummary?: () => void;
+  hasSummary?: boolean;
 };
 
 export function BattleLog({
@@ -21,6 +23,8 @@ export function BattleLog({
   onResetBattle,
   onTriggerDropAnimation,
   battleLogRef,
+  onOpenSummary,
+  hasSummary,
 }: BattleLogProps) {
   return (
     <div 
@@ -44,6 +48,16 @@ export function BattleLog({
           Battle Log
         </h2>
         <div className="flex items-center gap-2">
+          {hasSummary && onOpenSummary && (
+            <button
+              onClick={onOpenSummary}
+              className="px-4 py-2 bg-amber-800 hover:bg-amber-700 text-white font-semibold rounded-lg border-2 border-amber-700 transition-all shadow-md"
+              title="View battle summary"
+              style={{ fontFamily: 'serif' }}
+            >
+              📜 Battle Chronicle
+            </button>
+          )}
           <button
             onClick={onResetBattle}
             className="px-4 py-2 bg-red-900 hover:bg-red-800 text-white font-semibold rounded-lg border-2 border-red-700 transition-all shadow-md"

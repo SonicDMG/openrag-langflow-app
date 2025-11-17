@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect, useState } from 'react';
 
 // Types
 import { DnDClass } from '../dnd/types';
@@ -22,7 +22,7 @@ import { useBattleNarrative } from '../dnd/hooks/useBattleNarrative';
 import { useBattleActions } from '../dnd/hooks/useBattleActions';
 
 // Services
-import { getBattleNarrative } from '../dnd/services/apiService';
+import { getBattleSummary } from '../dnd/services/apiService';
 
 // Components
 import { ClassSelection } from '../dnd/components/ClassSelection';
@@ -33,6 +33,7 @@ import { ProjectileEffect } from '../dnd/components/ProjectileEffect';
 import { BattleArena } from '../dnd/components/BattleArena';
 import { BattleLog } from '../dnd/components/BattleLog';
 import { OpponentSelector } from '../dnd/components/OpponentSelector';
+import { BattleSummaryOverlay } from '../dnd/components/BattleSummaryOverlay';
 
 export default function DnDBattle() {
   // Data loading hook
@@ -137,19 +138,21 @@ export default function DnDBattle() {
     clearProjectileTracking,
   } = useProjectileEffects();
 
-  // Narrative hook
+  // Narrative hook (kept for compatibility, but not used for play-by-play)
   const narrative = useBattleNarrative(addLog);
   const {
     battleResponseId,
     setBattleResponseId,
     isWaitingForAgent,
     setIsWaitingForAgent,
-    generateAndLogNarrative,
-    processNarrativeQueue: processNarrativeQueueBase,
-    queueNarrativeEvent,
     clearNarrativeQueue,
     resetNarrative,
   } = narrative;
+
+  // Battle summary overlay state
+  const [battleSummary, setBattleSummary] = useState<string>('');
+  const [isSummaryVisible, setIsSummaryVisible] = useState(false);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
   // Helper to find associated monster for a class/monster type
   const findAssociatedMonster = useCallback((className: string): (DnDClass & { monsterId: string; imageUrl: string }) | null => {
@@ -191,16 +194,10 @@ export default function DnDBattle() {
     setPlayerClassWithMonster(player, dndClass, name, findAssociatedMonster);
   }, [setPlayerClassWithMonster, findAssociatedMonster]);
 
-  // Enhanced switchTurn that includes narrative processing
+  // Enhanced switchTurn - no narrative processing during battle
   const switchTurn = useCallback(async (attacker: 'player1' | 'player2') => {
-    const processQueue = async () => {
-      await processNarrativeQueueBase(
-        currentPlayer1ClassRef.current,
-        currentPlayer2ClassRef.current
-      );
-    };
-    await switchTurnBase(attacker, defeatedPlayer, processQueue);
-  }, [switchTurnBase, defeatedPlayer, processNarrativeQueueBase]);
+    await switchTurnBase(attacker, defeatedPlayer, async () => {});
+  }, [switchTurnBase, defeatedPlayer]);
 
   // Helper function to handle victory condition
   const handleVictory = useCallback(async (
@@ -223,15 +220,39 @@ export default function DnDBattle() {
       []
     );
     
-    await generateAndLogNarrative(
-      eventDescription,
-      attackerClass,
-      { ...defenderClass, hitPoints: 0 },
-      attackerDetails,
-      defenderDetails
-    );
     addLog('system', `🏆 ${attackerClass.name} wins! ${defenderClass.name} has been defeated!`);
-  }, [generateAndLogNarrative, addLog, showFloatingNumbers, setDefeatedPlayer, setVictorPlayer, setConfettiTrigger]);
+    
+    // Show overlay immediately
+    setIsSummaryVisible(true);
+    setBattleSummary(''); // Start with empty summary
+    
+    // Generate battle summary with streaming
+    setIsGeneratingSummary(true);
+    try {
+      const victorName = victor === 'player1' ? (player1Name || attackerClass.name) : (player2Name || attackerClass.name);
+      const defeatedName = defender === 'player1' ? (player1Name || defenderClass.name) : (player2Name || defenderClass.name);
+      
+      await getBattleSummary(
+        battleLog,
+        attackerClass,
+        { ...defenderClass, hitPoints: 0 },
+        attackerDetails,
+        defenderDetails,
+        victorName,
+        defeatedName,
+        (chunk: string) => {
+          // Stream the summary as it arrives
+          setBattleSummary(chunk);
+        }
+      );
+    } catch (error) {
+      console.error('Error generating battle summary:', error);
+      addLog('system', 'Failed to generate battle summary.');
+      setBattleSummary('The battle concluded with a decisive victory.');
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  }, [addLog, showFloatingNumbers, setDefeatedPlayer, setVictorPlayer, setConfettiTrigger, battleLog, player1Name, player2Name]);
 
   // Battle actions hook
   const battleActions = useBattleActions({
@@ -249,8 +270,6 @@ export default function DnDBattle() {
     showFloatingNumbers,
     showProjectileEffect,
     clearProjectileTracking,
-    queueNarrativeEvent,
-    generateAndLogNarrative,
     switchTurn,
     handleVictory,
   });
@@ -398,21 +417,8 @@ export default function DnDBattle() {
       previousTurnRef.current = null;
       clearNarrativeQueue();
       
-      setIsWaitingForAgent(true);
-      try {
-        const { narrative: openingNarrative, responseId } = await getBattleNarrative(
-          `The battle begins between ${finalP1Name} (${p1.name}) and ${finalP2Name} (${p2.name}). Both combatants are at full health and ready to fight.`,
-          p1,
-          p2,
-          '',
-          '',
-          null
-        );
-        setBattleResponseId(responseId);
-        addLog('narrative', openingNarrative);
-      } finally {
-        setIsWaitingForAgent(false);
-      }
+      // No opening narrative - battle log will show dice rolls and actions
+      addLog('system', `⚔️ The battle begins between ${finalP1Name} (${p1.name}) and ${finalP2Name} (${p2.name})!`);
     } finally {
       setIsLoadingClassDetails(false);
     }
@@ -424,7 +430,129 @@ export default function DnDBattle() {
     resetNarrative();
     clearProjectileTracking();
     aiOpponentCleanup.cleanup();
+    setBattleSummary('');
+    setIsSummaryVisible(false);
+    setIsGeneratingSummary(false);
   };
+
+  // Start a new random battle with the same hero (stays on battle screen)
+  const startNewBattle = useCallback(async () => {
+    if (!player1Class) {
+      return;
+    }
+
+    // Close the overlay first
+    setIsSummaryVisible(false);
+    
+    // Reset battle state but keep player1 and stay on battle screen
+    resetEffects();
+    resetNarrative();
+    clearProjectileTracking();
+    aiOpponentCleanup.cleanup();
+    setBattleSummary('');
+    setIsGeneratingSummary(false);
+    setDefeatedPlayer(null);
+    setVictorPlayer(null);
+    setBattleLog([]);
+    setCurrentTurn('player1');
+    previousTurnRef.current = null;
+    clearNarrativeQueue();
+    // Reset player2 name so new opponent gets a fresh name
+    setPlayer2Name('');
+    setPlayer2MonsterId(null);
+
+    // Select a different random opponent from BOTH monsters and classes
+    // Exclude the current opponent to ensure it's different
+    const currentOpponentName = player2Class?.name;
+    let randomOpponent: DnDClass | null = null;
+    
+    // Combine all available opponents (monsters and classes)
+    const allAvailableOpponents: DnDClass[] = [
+      ...availableMonsters.filter(m => m.name !== currentOpponentName),
+      ...availableClasses.filter(cls => cls.name !== player1Class.name && cls.name !== currentOpponentName)
+    ];
+    
+    if (allAvailableOpponents.length > 0) {
+      // Randomly select from combined pool
+      randomOpponent = allAvailableOpponents[Math.floor(Math.random() * allAvailableOpponents.length)];
+    } else {
+      // Fallback: try including current opponent if no other options
+      const fallbackOpponents: DnDClass[] = [
+        ...availableMonsters,
+        ...availableClasses.filter(cls => cls.name !== player1Class.name)
+      ];
+      if (fallbackOpponents.length > 0) {
+        randomOpponent = fallbackOpponents[Math.floor(Math.random() * fallbackOpponents.length)];
+      }
+    }
+
+    if (!randomOpponent) {
+      addLog('system', 'No opponents available!');
+      return;
+    }
+
+    // Store the selected opponent to use in setTimeout (avoid stale closure)
+    const selectedOpponent = randomOpponent;
+
+    // Set the opponent
+    setPlayerClassWithMonsterEnhanced('player2', selectedOpponent);
+
+    // Wait a moment for state to update, then start battle directly
+    setTimeout(async () => {
+      if (!player1Class || !selectedOpponent) {
+        return;
+      }
+
+      setIsLoadingClassDetails(true);
+
+      try {
+        const p1IsMonster = isMonster(player1Class.name);
+        const p2IsMonster = isMonster(selectedOpponent.name);
+        const p1AvailableAbilities = player1Class.abilities || (p1IsMonster ? FALLBACK_MONSTER_ABILITIES[player1Class.name] : FALLBACK_ABILITIES[player1Class.name]) || [];
+        const p2AvailableAbilities = selectedOpponent.abilities || (p2IsMonster ? FALLBACK_MONSTER_ABILITIES[selectedOpponent.name] : FALLBACK_ABILITIES[selectedOpponent.name]) || [];
+        
+        const p1Abilities = selectRandomAbilities(p1AvailableAbilities);
+        const p2Abilities = selectRandomAbilities(p2AvailableAbilities);
+        
+        setClassDetails({
+          [player1Class.name]: '',
+          [selectedOpponent.name]: '',
+        });
+
+        const p1 = { 
+          ...player1Class, 
+          hitPoints: player1Class.maxHitPoints,
+          abilities: p1Abilities,
+        };
+        const p2 = { 
+          ...selectedOpponent, 
+          hitPoints: selectedOpponent.maxHitPoints,
+          abilities: p2Abilities,
+        };
+        
+        setPlayer1Class(p1);
+        setPlayerClassWithMonsterEnhanced('player2', p2);
+        
+        const isP1Monster = isMonster(p1.name);
+        const isP2Monster = isMonster(p2.name);
+        const finalP1Name = player1Name || (isP1Monster ? p1.name : generateCharacterName(p1.name));
+        const finalP2Name = player2Name || (isP2Monster ? p2.name : generateCharacterName(p2.name));
+        
+        // Keep battle active - ensure it stays on battle screen
+        setIsBattleActive(true);
+        setBattleLog([]);
+        setCurrentTurn('player1');
+        
+        previousTurnRef.current = null;
+        clearNarrativeQueue();
+        
+        // No opening narrative - battle log will show dice rolls and actions
+        addLog('system', `⚔️ The battle begins between ${finalP1Name} (${p1.name}) and ${finalP2Name} (${p2.name})!`);
+      } finally {
+        setIsLoadingClassDetails(false);
+      }
+    }, 100);
+  }, [player1Class, player1Name, player2Class, opponentType, availableClasses, availableMonsters, setPlayerClassWithMonsterEnhanced, resetEffects, resetNarrative, clearProjectileTracking, aiOpponentCleanup, setBattleSummary, setIsSummaryVisible, setIsGeneratingSummary, setDefeatedPlayer, setVictorPlayer, setIsBattleActive, setBattleLog, setCurrentTurn, clearNarrativeQueue, addLog, setIsLoadingClassDetails, setClassDetails, setPlayer1Class, findAssociatedMonster]);
 
   const handleClearOpponentSelection = useCallback(() => {
     setPlayer2Class(null);
@@ -615,16 +743,40 @@ export default function DnDBattle() {
           {isBattleActive && (
             <BattleLog
               battleLog={battleLog}
-              isWaitingForAgent={isWaitingForAgent}
+              isWaitingForAgent={isWaitingForAgent || isGeneratingSummary}
               isLoadingClassDetails={isLoadingClassDetails}
               onResetBattle={resetBattle}
               onTriggerDropAnimation={triggerDropAnimation}
               battleLogRef={battleLogRef}
+              onOpenSummary={() => setIsSummaryVisible(true)}
+              hasSummary={!!battleSummary && !!defeatedPlayer}
             />
           )}
 
         </div>
       </div>
+
+      {/* Battle Summary Overlay - Show immediately when battle ends, can be reopened */}
+      {defeatedPlayer && player1Class && player2Class && (isSummaryVisible || isGeneratingSummary) && (
+        <BattleSummaryOverlay
+          summary={battleSummary}
+          isVisible={isSummaryVisible || isGeneratingSummary}
+          onClose={() => setIsSummaryVisible(false)}
+          onNewBattle={startNewBattle}
+          onReset={resetBattle}
+          victorName={
+            defeatedPlayer === 'player1'
+              ? (player2Name || player2Class.name)
+              : (player1Name || player1Class.name)
+          }
+          defeatedName={
+            defeatedPlayer === 'player1'
+              ? (player1Name || player1Class.name)
+              : (player2Name || player2Class.name)
+          }
+          isLoading={isGeneratingSummary}
+        />
+      )}
     </div>
   );
 }

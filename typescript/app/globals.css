@@ -10,6 +10,7 @@
 @import "./styles/effects/flash-effects.css";
 @import "./styles/effects/cast-effects.css";
 @import "./styles/effects/card-effects.css";
+@import "./styles/effects/battle-summary.css";
 
 :root {
   --background: #ffffff;

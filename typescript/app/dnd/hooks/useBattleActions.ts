@@ -47,22 +47,6 @@ type BattleActionsDependencies = {
   ) => void;
   clearProjectileTracking: () => void;
   
-  // Narrative
-  queueNarrativeEvent: (event: {
-    eventDescription: string;
-    attackerClass: DnDClass;
-    defenderClass: DnDClass;
-    attackerDetails: string;
-    defenderDetails: string;
-  }) => void;
-  generateAndLogNarrative: (
-    eventDescription: string,
-    attackerClass: DnDClass,
-    defenderClass: DnDClass,
-    attackerDetails?: string,
-    defenderDetails?: string
-  ) => Promise<void>;
-  
   // Turn management
   switchTurn: (attacker: 'player1' | 'player2') => Promise<void>;
   
@@ -94,8 +78,6 @@ export function useBattleActions(deps: BattleActionsDependencies) {
     showFloatingNumbers,
     showProjectileEffect,
     clearProjectileTracking,
-    queueNarrativeEvent,
-    generateAndLogNarrative,
     switchTurn,
     handleVictory,
   } = deps;
@@ -137,19 +119,13 @@ export function useBattleActions(deps: BattleActionsDependencies) {
           defender
         );
       } else {
-        queueNarrativeEvent({
-          eventDescription: eventDescription,
-          attackerClass: attackerClass,
-          defenderClass: { ...defenderClass, hitPoints: newHP },
-          attackerDetails,
-          defenderDetails
-        });
+        // No narrative during battle - only generate summary at the end
       }
       await switchTurn(attacker);
       setIsMoveInProgress(false);
       clearProjectileTracking();
     };
-  }, [handleVictory, switchTurn, queueNarrativeEvent, setIsMoveInProgress, clearProjectileTracking]);
+  }, [handleVictory, switchTurn, setIsMoveInProgress, clearProjectileTracking]);
 
   // Factory function to create post-miss callback
   const createPostMissCallback = useCallback((
@@ -161,18 +137,12 @@ export function useBattleActions(deps: BattleActionsDependencies) {
     attacker: 'player1' | 'player2'
   ) => {
     return async () => {
-      queueNarrativeEvent({
-        eventDescription: eventDescription,
-        attackerClass: attackerClass,
-        defenderClass: defenderClass,
-        attackerDetails,
-        defenderDetails
-      });
+      // No narrative during battle - only generate summary at the end
       await switchTurn(attacker);
       setIsMoveInProgress(false);
       clearProjectileTracking();
     };
-  }, [switchTurn, queueNarrativeEvent, setIsMoveInProgress, clearProjectileTracking]);
+  }, [switchTurn, setIsMoveInProgress, clearProjectileTracking]);
 
   // Factory function to create post-healing callback
   const createPostHealingCallback = useCallback((
@@ -184,18 +154,12 @@ export function useBattleActions(deps: BattleActionsDependencies) {
     attacker: 'player1' | 'player2'
   ) => {
     return async () => {
-      queueNarrativeEvent({
-        eventDescription: eventDescription,
-        attackerClass: attackerClass,
-        defenderClass: defenderClass,
-        attackerDetails,
-        defenderDetails
-      });
+      // No narrative during battle - only generate summary at the end
       await switchTurn(attacker);
       setIsMoveInProgress(false);
       clearProjectileTracking();
     };
-  }, [switchTurn, queueNarrativeEvent, setIsMoveInProgress, clearProjectileTracking]);
+  }, [switchTurn, setIsMoveInProgress, clearProjectileTracking]);
 
   // Helper function to handle healing abilities
   const handleHealingAbility = useCallback(async (

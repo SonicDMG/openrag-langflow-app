@@ -644,9 +644,6 @@ function CharacterCardComponent({
             }}
           >
             {characterName}
-            {isActive && ' ⚡'}
-            {isVictor && ' 🏆'}
-            {isOpponent && ' 🤖'}
           </h3>
 
           {/* Character type - smaller, lighter brown */}
