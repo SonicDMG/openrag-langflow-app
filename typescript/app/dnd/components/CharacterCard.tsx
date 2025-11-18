@@ -195,6 +195,7 @@ function CharacterCardComponent({
   const animationRef = useRef<HTMLDivElement>(null);
   const characterImageRef = useRef<HTMLDivElement>(null);
   const cutOutCharacterRef = useRef<HTMLImageElement>(null);
+  const nameRef = useRef<HTMLHeadingElement>(null);
   const effectiveIsActive = allowAllTurns ? !isDefeated : isActive;
   const isDisabled = (effectiveIsActive && isMoveInProgress) || isDefeated;
   // Only disable opponent abilities if allowAllTurns is false (i.e., it's actually auto-playing)
@@ -340,6 +341,54 @@ function CharacterCardComponent({
       setCutOutImageError(false);
     }
   }, [monsterCutOutImageUrl]);
+
+  // Adjust font size for long names to prevent wrapping
+  useEffect(() => {
+    const adjustFontSize = () => {
+      if (!nameRef.current) return;
+      
+      const element = nameRef.current;
+      const parent = element.parentElement;
+      if (!parent) return;
+      
+      const isCompact = size === 'compact';
+      
+      // Get available width (parent width minus padding and icon space)
+      const parentWidth = parent.offsetWidth;
+      const paddingRight = isCompact ? 24 : 48; // 1.5rem = 24px, 3rem = 48px
+      const availableWidth = parentWidth - paddingRight;
+      
+      // Reset to default size first to measure accurately
+      element.style.fontSize = '';
+      element.style.whiteSpace = 'nowrap';
+      
+      // Measure text width
+      const textWidth = element.scrollWidth;
+      
+      // If text is too wide, calculate and apply smaller font size
+      if (textWidth > availableWidth) {
+        const baseFontSize = isCompact ? 16 : 20; // text-base = 16px, text-xl = 20px
+        const scaleFactor = availableWidth / textWidth;
+        const newFontSize = Math.max(baseFontSize * scaleFactor * 0.95, baseFontSize * 0.6); // Scale down, but not below 60% of base
+        element.style.fontSize = `${newFontSize}px`;
+      } else {
+        // Reset to default if it fits
+        element.style.fontSize = '';
+      }
+    };
+    
+    // Use requestAnimationFrame to ensure layout is complete
+    requestAnimationFrame(() => {
+      requestAnimationFrame(adjustFontSize);
+    });
+    
+    // Also handle window resize
+    window.addEventListener('resize', adjustFontSize);
+    
+    return () => {
+      window.removeEventListener('resize', adjustFontSize);
+    };
+  }, [characterName, size]);
 
   // Size scaling - compact is 60% of normal
   const isCompact = size === 'compact';
@@ -636,12 +685,16 @@ function CharacterCardComponent({
 
           {/* Character name - bold, dark brown */}
           <h3 
+            ref={nameRef}
             className={`${titleSize} font-bold mb-1`}
             style={{ 
               fontFamily: 'serif',
               color: '#5C4033', // Dark brown
               fontWeight: 'bold',
-              paddingRight: isCompact ? '1.5rem' : '3rem'
+              paddingRight: isCompact ? '1.5rem' : '3rem',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
             }}
           >
             {characterName}
