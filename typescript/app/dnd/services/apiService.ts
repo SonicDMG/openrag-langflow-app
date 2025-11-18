@@ -761,7 +761,20 @@ export async function getBattleSummary(
     const missCount = (logText.match(/misses|miss!/gi) || []).length;
     const hitCount = (logText.match(/hits|hits for/gi) || []).length;
     const bothSidesHit = logText.includes(victorName) && logText.includes(defeatedName) && hitCount > 2;
-    const wasCloseBattle = healingCount >= 2 || (missCount > hitCount && bothSidesHit) || victorClass.hitPoints < victorClass.maxHitPoints * 0.5;
+    
+    // Calculate HP percentages
+    const victorHPRatio = victorClass.hitPoints / victorClass.maxHitPoints;
+    const defeatedHPRatio = 0; // Defeated always has 0 HP
+    
+    // A battle is only "close" if:
+    // 1. The victor took significant damage (less than 50% HP remaining), AND
+    // 2. There was actual back-and-forth (healing used, both sides hit, etc.)
+    // If victor has >80% HP remaining, it's clearly one-sided regardless of healing/misses
+    const isOneSidedVictory = victorHPRatio > 0.8;
+    const victorTookSignificantDamage = victorHPRatio < 0.5;
+    const hasBackAndForth = healingCount >= 2 || (missCount > hitCount && bothSidesHit);
+    
+    const wasCloseBattle = victorTookSignificantDamage && hasBackAndForth && !isOneSidedVictory;
 
     // Build comprehensive character information
     const victorAbilities = victorClass.abilities?.map(ability => {
@@ -822,7 +835,7 @@ The following is the complete chronological record of the battle:
 ${fullBattleLog.join('\n')}
 
 === BATTLE ANALYSIS ===
-${wasCloseBattle ? `⚠️ CLOSE BATTLE DETECTED: This was a hard-fought, evenly matched battle. Both sides used healing (${healingCount} times), there were many missed attacks, and both combatants landed hits. The victor finished with ${victorClass.hitPoints}/${victorClass.maxHitPoints} HP - ${victorClass.hitPoints < victorClass.maxHitPoints * 0.3 ? 'barely survived' : victorClass.hitPoints < victorClass.maxHitPoints * 0.5 ? 'survived but was badly wounded' : 'took significant damage'}. The narrative should reflect this struggle and close call.` : 'This battle had a clear winner with less back-and-forth.'}
+${isOneSidedVictory ? `⚠️ ONE-SIDED VICTORY: ${victorName} dominated this battle, finishing with ${victorClass.hitPoints}/${victorClass.maxHitPoints} HP (${Math.round(victorHPRatio * 100)}% remaining) while ${defeatedName} was completely defeated (0 HP). Despite any healing or missed attacks in the log, the final outcome shows ${victorName} barely took any damage. The narrative should reflect this decisive, one-sided victory - ${victorName} overwhelmed ${defeatedName}, not a close struggle. Use descriptive language like "barely scratched" or "completely unscathed" - DO NOT mention HP numbers or percentages in the narrative.` : wasCloseBattle ? `⚠️ CLOSE BATTLE DETECTED: This was a hard-fought, evenly matched battle. Both sides used healing (${healingCount} times), there were many missed attacks, and both combatants landed hits. The victor finished with ${victorClass.hitPoints}/${victorClass.maxHitPoints} HP (${Math.round(victorHPRatio * 100)}% remaining) - ${victorClass.hitPoints < victorClass.maxHitPoints * 0.3 ? 'barely survived' : victorClass.hitPoints < victorClass.maxHitPoints * 0.5 ? 'survived but was badly wounded' : 'took significant damage'}. The narrative should reflect this struggle and close call. Use descriptive language like "badly wounded" or "on death's door" - DO NOT mention HP numbers or percentages in the narrative.` : `This battle had a clear winner. ${victorName} finished with ${victorClass.hitPoints}/${victorClass.maxHitPoints} HP (${Math.round(victorHPRatio * 100)}% remaining) while ${defeatedName} was defeated. The narrative should reflect the actual outcome based on the final HP states. Use descriptive language - DO NOT mention HP numbers or percentages in the narrative.`}
 
 === INSTRUCTIONS ===
 Write a brief, punchy, character-driven narrative summary (just 2-3 sentences) of this battle. Use the character details, abilities, and battle log above to understand what happened, but keep it very short and entertaining.
@@ -832,21 +845,26 @@ Write a brief, punchy, character-driven narrative summary (just 2-3 sentences) o
 The narrative should:
 - Be extremely concise (just 2-3 sentences total, MAX 400 characters)
 - **CRITICAL**: Always use the actual character/monster names (${victorName} and ${defeatedName}) throughout the narrative. Do not refer to them generically as "the victor", "the defeated", "the warrior", "the fighter", "the combatant", etc. Use their specific names to make it personal and engaging. For example, say "${victorName} defeated ${defeatedName}" not "the victor defeated the opponent".
+- **CRITICAL - NO STATS**: Do NOT mention any stats, hit points, HP percentages, health percentages, numerical values, or game mechanics in the narrative. Use descriptive language instead (e.g., "barely scratched", "badly wounded", "on death's door", "barely breathing", "completely unscathed"). Never say things like "100/110 HP", "86% health", "hit points were", etc.
 - Use character names and details to shape the outcome
 - Include playful wordplay, rhythmic wording, or clever turns of phrase
 - Feel epic but brief - like a memorable one-liner about the battle's conclusion
 - Reference key abilities or moments naturally, but don't list stats or dice rolls
 - Use **bold markdown** to emphasize important words like character names, key actions, or dramatic moments (e.g., **${victorName}** struck with their **ability name**)
 - Avoid repetitive introductions - don't start every sentence with the same character name or phrase. Vary the sentence structure and openings.
-- **CRITICAL**: Reflect the actual flow of the battle. If the defeated opponent landed good blows, had successful attacks, or there was a back-and-forth exchange, include that! Don't make it one-sided unless the battle log clearly shows it was one-sided. Show the ebb and flow, the struggle, the moments where both combatants had their successes before the final outcome.
+- **CRITICAL**: Always check the FINAL HP STATES in the character stats above (for your understanding only - do NOT mention these numbers in the narrative). The final HP ratio is the most important indicator of how the battle actually went:
+  * If ${victorName} finished with >80% HP (${victorClass.hitPoints}/${victorClass.maxHitPoints} = ${Math.round(victorHPRatio * 100)}%) and ${defeatedName} has 0 HP, this was a ONE-SIDED VICTORY. ${victorName} dominated and barely took damage. Don't describe it as close or struggling - describe ${victorName} overwhelming ${defeatedName}. Use descriptive language like "barely scratched", "completely unscathed", "untouched" to convey this.
+  * If ${victorName} finished with <50% HP and there was back-and-forth, this was a CLOSE BATTLE. Show the struggle, the healing, the narrow victory. Use descriptive language like "badly wounded", "on death's door", "barely standing" to convey this.
+  * If ${victorName} finished with 50-80% HP, it was a moderate battle - not one-sided, but not extremely close either. Use descriptive language like "took significant damage", "wounded but victorious" to convey this.
+- **IF THIS WAS A ONE-SIDED VICTORY** (see analysis above): Emphasize ${victorName}'s dominance! Show how ${victorName} overwhelmed ${defeatedName} with minimal damage taken. Even if the battle log shows some hits or healing attempts by ${defeatedName}, the final outcome shows it was decisive. Don't describe it as close or struggling. Use descriptive language, NOT numbers or percentages.
 - **IF THIS WAS A CLOSE BATTLE** (see analysis above): Emphasize the struggle! Show how both combatants fought hard, how healing was used, how it was back-and-forth, and how the victor barely made it through. Use varied, creative language to convey the narrow victory - avoid clichés and repetitive phrases. Make it clear this was NOT an easy win through vivid, character-specific descriptions.
 
 Think of it like a memorable quote or tagline about how the battle ended. Make it punchy, characterful, and fun to read. If there was a back-and-forth, capture that tension. Remember: MAX 400 characters total. 
 
 Examples:
-- Easy win: "**Vespara Darkblade** easily ended the short life of **Gandalf the Grey**. Too bad he couldn't withstand her **force blade**."
-- Back-and-forth: "**Gandalf** landed several powerful strikes, but **Vespara's** relentless **force blade** attacks eventually overwhelmed his defenses."
-- Close battle: "**Vespara** and **Gandalf** traded blow for blow, both using healing to stay in the fight. **Vespara's** **force blade** found its mark just as her own defenses were about to fail, securing a narrow victory."`;
+- One-sided victory (victor >80% HP): "**Barbed Devil** completely overwhelmed **Vespera Darkblade**, barely taking a scratch while her lightsabers fell silent. The Devil's brutal attacks left no room for recovery."
+- Moderate battle (victor 50-80% HP): "**Gandalf** landed several powerful strikes, but **Vespara's** relentless **force blade** attacks eventually overwhelmed his defenses."
+- Close battle (victor <50% HP, back-and-forth): "**Vespara** and **Gandalf** traded blow for blow, both using healing to stay in the fight. **Vespara's** **force blade** found its mark just as her own defenses were about to fail, securing a narrow victory."`;
 
     const response = await fetch('/api/chat', {
       method: 'POST',
