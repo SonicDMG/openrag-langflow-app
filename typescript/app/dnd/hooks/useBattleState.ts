@@ -11,10 +11,15 @@ export function useBattleState() {
   const [player2Name, setPlayer2Name] = useState<string>('');
   const [player1MonsterId, setPlayer1MonsterId] = useState<string | null>(null);
   const [player2MonsterId, setPlayer2MonsterId] = useState<string | null>(null);
+  
+  // Support heroes (for when fighting high HP monsters)
+  const [supportHeroes, setSupportHeroes] = useState<Array<{ class: DnDClass; name: string; monsterId: string | null }>>([]);
+  const [supportHeroNames, setSupportHeroNames] = useState<string[]>([]);
+  const [supportHeroMonsterIds, setSupportHeroMonsterIds] = useState<(string | null)[]>([]);
 
   // Battle state
   const [isBattleActive, setIsBattleActive] = useState(false);
-  const [currentTurn, setCurrentTurn] = useState<'player1' | 'player2'>('player1');
+  const [currentTurn, setCurrentTurn] = useState<'player1' | 'player2' | 'support1' | 'support2'>('player1');
   const [isMoveInProgress, setIsMoveInProgress] = useState(false);
   const [battleLog, setBattleLog] = useState<BattleLog[]>([]);
   const [isOpponentAutoPlaying, setIsOpponentAutoPlaying] = useState(false);
@@ -43,11 +48,42 @@ export function useBattleState() {
   }, []);
 
   // Helper function to update player HP
-  const updatePlayerHP = useCallback((player: 'player1' | 'player2', newHP: number) => {
+  // Can accept either a new HP value directly, or damage to subtract from current HP
+  const updatePlayerHP = useCallback((player: 'player1' | 'player2' | 'support1' | 'support2', newHPOrDamage: number, isDamage: boolean = false) => {
     if (player === 'player1') {
-      setPlayer1Class((current) => current ? { ...current, hitPoints: newHP } : current);
-    } else {
-      setPlayer2Class((current) => current ? { ...current, hitPoints: newHP } : current);
+      setPlayer1Class((current) => {
+        if (!current) return current;
+        // If isDamage is true, subtract from current HP; otherwise use the value directly
+        const newHP = isDamage ? Math.max(0, current.hitPoints - newHPOrDamage) : newHPOrDamage;
+        // Ensure HP never exceeds maxHitPoints
+        const cappedHP = Math.min(newHP, current.maxHitPoints);
+        return { ...current, hitPoints: cappedHP };
+      });
+    } else if (player === 'player2') {
+      setPlayer2Class((current) => {
+        if (!current) return current;
+        // If isDamage is true, subtract from current HP; otherwise use the value directly
+        const newHP = isDamage ? Math.max(0, current.hitPoints - newHPOrDamage) : newHPOrDamage;
+        // Ensure HP never exceeds maxHitPoints
+        const cappedHP = Math.min(newHP, current.maxHitPoints);
+        return { ...current, hitPoints: cappedHP };
+      });
+    } else if (player === 'support1' || player === 'support2') {
+      const index = player === 'support1' ? 0 : 1;
+      setSupportHeroes((current) => {
+        const updated = [...current];
+        if (updated[index]) {
+          // If isDamage is true, subtract from current HP; otherwise use the value directly
+          const newHP = isDamage ? Math.max(0, updated[index].class.hitPoints - newHPOrDamage) : newHPOrDamage;
+          // Ensure HP never exceeds maxHitPoints
+          const cappedHP = Math.min(newHP, updated[index].class.maxHitPoints);
+          updated[index] = {
+            ...updated[index],
+            class: { ...updated[index].class, hitPoints: cappedHP }
+          };
+        }
+        return updated;
+      });
     }
   }, []);
 
@@ -103,19 +139,70 @@ export function useBattleState() {
 
   // Helper function to switch turns
   const switchTurn = useCallback(async (
-    currentAttacker: 'player1' | 'player2',
+    currentAttacker: 'player1' | 'player2' | 'support1' | 'support2',
     defeatedPlayer: 'player1' | 'player2' | null,
     processNarrativeQueue?: () => Promise<void>
   ) => {
-    const nextPlayer = currentAttacker === 'player1' ? 'player2' : 'player1';
-    // Don't switch to a defeated player - battle is over
+    // Determine next player in turn order: player1 -> support1 -> support2 -> player2 -> player1...
+    const getNextPlayer = (current: 'player1' | 'player2' | 'support1' | 'support2'): 'player1' | 'player2' | 'support1' | 'support2' => {
+      const hasSupportHeroes = supportHeroes.length > 0;
+      
+      if (!hasSupportHeroes) {
+        // No support heroes, just alternate between player1 and player2
+        return current === 'player1' ? 'player2' : 'player1';
+      }
+      
+      // With support heroes: player1 -> support1 -> support2 -> player2 -> player1...
+      if (current === 'player1') {
+        return 'support1';
+      } else if (current === 'support1') {
+        return supportHeroes.length > 1 ? 'support2' : 'player2';
+      } else if (current === 'support2') {
+        return 'player2';
+      } else {
+        return 'player1';
+      }
+    };
+    
+    // Helper to check if a player is defeated
+    const isPlayerDefeated = (player: 'player1' | 'player2' | 'support1' | 'support2'): boolean => {
+      if (player === 'player1') {
+        return player1Class ? player1Class.hitPoints <= 0 : false;
+      } else if (player === 'player2') {
+        return player2Class ? player2Class.hitPoints <= 0 : false;
+      } else if (player === 'support1') {
+        return supportHeroes.length > 0 ? supportHeroes[0].class.hitPoints <= 0 : true;
+      } else if (player === 'support2') {
+        return supportHeroes.length > 1 ? supportHeroes[1].class.hitPoints <= 0 : true;
+      }
+      return false;
+    };
+    
+    // Find next non-defeated player
+    let nextPlayer = getNextPlayer(currentAttacker);
+    let attempts = 0;
+    const maxAttempts = 10; // Safety limit
+    
+    while (isPlayerDefeated(nextPlayer) && attempts < maxAttempts) {
+      // Skip defeated players
+      nextPlayer = getNextPlayer(nextPlayer);
+      attempts++;
+    }
+    
+    // Don't switch to a defeated main player - skip to next
     if (defeatedPlayer === nextPlayer) {
+      const nextNextPlayer = getNextPlayer(nextPlayer);
+      if (defeatedPlayer === nextNextPlayer) {
+        // Both next players defeated, battle is over
+        return;
+      }
+      setCurrentTurn(nextNextPlayer);
       return;
     }
-
+    
     // Check if we've completed a full round (player2 just moved → switching to player1)
-    // This means both players have made their moves in this round
-    const isFullRoundComplete = currentAttacker === 'player2' && nextPlayer === 'player1';
+    // This means all players have made their moves in this round
+    const isFullRoundComplete = currentAttacker === 'player2';
     
     // Update the previous turn reference
     previousTurnRef.current = currentAttacker;
@@ -126,7 +213,7 @@ export function useBattleState() {
     }
     
     setCurrentTurn(nextPlayer);
-  }, []);
+  }, [supportHeroes, player1Class, player2Class]);
 
   // Reset battle state
   const resetBattle = useCallback(() => {
@@ -138,6 +225,9 @@ export function useBattleState() {
     setPlayer2Name('');
     setPlayer1MonsterId(null);
     setPlayer2MonsterId(null);
+    setSupportHeroes([]);
+    setSupportHeroNames([]);
+    setSupportHeroMonsterIds([]);
     setClassDetails({});
     setIsMoveInProgress(false);
     setIsOpponentAutoPlaying(false);
@@ -159,6 +249,14 @@ export function useBattleState() {
     setPlayer1MonsterId,
     setPlayer2MonsterId,
     setPlayerClassWithMonster,
+    
+    // Support heroes
+    supportHeroes,
+    setSupportHeroes,
+    supportHeroNames,
+    setSupportHeroNames,
+    supportHeroMonsterIds,
+    setSupportHeroMonsterIds,
     
     // Battle state
     isBattleActive,

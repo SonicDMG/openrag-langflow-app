@@ -12,9 +12,10 @@ type BattleArenaProps = {
   player2Name: string;
   player1MonsterId: string | null;
   player2MonsterId: string | null;
+  supportHeroes?: Array<{ class: DnDClass; name: string; monsterId: string | null }>;
   findAssociatedMonster: (className: string) => (DnDClass & { monsterId: string; imageUrl: string }) | null;
-  onAttack: (player: 'player1' | 'player2') => void;
-  onUseAbility: (player: 'player1' | 'player2', abilityIndex: number) => void;
+  onAttack: (player: 'player1' | 'player2' | 'support1' | 'support2') => void;
+  onUseAbility: (player: 'player1' | 'player2' | 'support1' | 'support2', abilityIndex: number) => void;
   // Visual effects
   shakingPlayer: 'player1' | 'player2' | null;
   sparklingPlayer: 'player1' | 'player2' | null;
@@ -33,7 +34,7 @@ type BattleArenaProps = {
   shakeIntensity: { player1: number; player2: number };
   sparkleIntensity: { player1: number; player2: number };
   isMoveInProgress: boolean;
-  currentTurn: 'player1' | 'player2';
+  currentTurn: 'player1' | 'player2' | 'support1' | 'support2';
   defeatedPlayer: 'player1' | 'player2' | null;
   victorPlayer: 'player1' | 'player2' | null;
   confettiTrigger: number;
@@ -48,6 +49,8 @@ type BattleArenaProps = {
   player2CardRef: React.RefObject<HTMLDivElement | null>;
   battleCardsRef: React.RefObject<HTMLDivElement | null>;
   triggerDropAnimation: () => void;
+  // Callback to set support hero refs
+  onSupportHeroRefsReady?: (refs: { support1: React.RefObject<HTMLDivElement | null>; support2: React.RefObject<HTMLDivElement | null> }) => void;
 };
 
 export function BattleArena({
@@ -57,6 +60,7 @@ export function BattleArena({
   player2Name,
   player1MonsterId,
   player2MonsterId,
+  supportHeroes = [],
   findAssociatedMonster,
   onAttack,
   onUseAbility,
@@ -91,7 +95,24 @@ export function BattleArena({
   player2CardRef,
   battleCardsRef,
   triggerDropAnimation,
+  onSupportHeroRefsReady,
 }: BattleArenaProps) {
+  // Create refs for support hero cards
+  const support1CardRef = useRef<HTMLDivElement | null>(null);
+  const support2CardRef = useRef<HTMLDivElement | null>(null);
+  
+  // Debug: Log support heroes
+  useEffect(() => {
+    console.log('[BattleArena] Support heroes updated:', { supportHeroes, length: supportHeroes?.length, hasSupportHeroes: supportHeroes && supportHeroes.length > 0 });
+  }, [supportHeroes]);
+  
+  // Notify parent when refs are ready
+  useEffect(() => {
+    if (onSupportHeroRefsReady && supportHeroes.length > 0) {
+      onSupportHeroRefsReady({ support1: support1CardRef, support2: support2CardRef });
+    }
+  }, [onSupportHeroRefsReady, supportHeroes.length]);
+  
   // Trigger drop animation when component mounts (battle starts)
   useEffect(() => {
     triggerDropAnimation();
@@ -111,8 +132,109 @@ export function BattleArena({
           width: 'calc(100% + 120px)',
         }}
       />
+      
+      {/* Support Heroes - Small cards to the left of player1 */}
+      {supportHeroes && supportHeroes.length > 0 && (
+        <div className="relative z-20 flex flex-col gap-3 mr-4" style={{ minWidth: '120px', backgroundColor: 'rgba(255,0,0,0.1)' }}>
+          {/* Debug: Support heroes count: {supportHeroes.length} */}
+          {supportHeroes.map((supportHero, index) => {
+            const supportPlayer = index === 0 ? 'support1' : 'support2';
+            const isActive = currentTurn === supportPlayer;
+            const isDefeated = supportHero.class.hitPoints <= 0;
+            
+            return (
+              <div
+                key={`support-${index}-${supportHero.name}`}
+                ref={index === 0 ? support1CardRef : support2CardRef}
+                className="relative"
+                style={{
+                  transform: `rotate(${-5 + index * 2}deg) scale(0.65)`,
+                  opacity: isDefeated ? 0.5 : 1,
+                }}
+              >
+                {/* Turn indicator for support heroes */}
+                {isActive && !isDefeated && (
+                  <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-20 bg-yellow-400 text-black px-2 py-1 rounded-md text-xs font-bold shadow-lg animate-pulse">
+                    YOUR TURN
+                  </div>
+                )}
+                <div
+                  className={`transition-all duration-300 ${
+                    isActive && !isDefeated
+                      ? 'ring-4 ring-yellow-400 ring-opacity-75 shadow-2xl shadow-yellow-400/50'
+                      : ''
+                  }`}
+                  style={{
+                    borderRadius: '8px',
+                  }}
+                >
+                  <CharacterCard
+                  playerClass={supportHero.class}
+                  characterName={supportHero.name}
+                  monsterImageUrl={supportHero.monsterId ? `/cdn/monsters/${supportHero.monsterId}/280x200.png` : undefined}
+                  monsterCutOutImageUrl={(() => {
+                    if (!supportHero.monsterId || !supportHero.class) return undefined;
+                    const associatedMonster = findAssociatedMonster(supportHero.class.name);
+                    const hasCutout = (associatedMonster as any)?.hasCutout;
+                    return associatedMonster && hasCutout !== false
+                      ? `/cdn/monsters/${supportHero.monsterId}/280x200-cutout.png`
+                      : undefined;
+                  })()}
+                  onAttack={() => onAttack(supportPlayer)}
+                  onUseAbility={(idx) => onUseAbility(supportPlayer, idx)}
+                  shouldShake={false}
+                  shouldSparkle={false}
+                  shouldMiss={false}
+                  shouldHit={false}
+                  shouldCast={false}
+                  shouldFlash={false}
+                  castTrigger={{ player1: 0, player2: 0 }}
+                  flashTrigger={{ player1: 0, player2: 0 }}
+                  flashProjectileType={{ player1: null, player2: null }}
+                  castProjectileType={{ player1: null, player2: null }}
+                  shakeTrigger={{ player1: 0, player2: 0 }}
+                  sparkleTrigger={{ player1: 0, player2: 0 }}
+                  missTrigger={{ player1: 0, player2: 0 }}
+                  hitTrigger={{ player1: 0, player2: 0 }}
+                  shakeIntensity={{ player1: 0, player2: 0 }}
+                  sparkleIntensity={{ player1: 0, player2: 0 }}
+                  isMoveInProgress={isMoveInProgress}
+                  isActive={isActive}
+                  isDefeated={isDefeated}
+                  isVictor={false}
+                  confettiTrigger={0}
+                  onShakeComplete={() => {}}
+                  onSparkleComplete={() => {}}
+                  onMissComplete={() => {}}
+                  onHitComplete={() => {}}
+                  onCastComplete={() => {}}
+                  onFlashComplete={() => {}}
+                  isOpponent={false}
+                  allowAllTurns={false}
+                />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      
       {/* Left Card - Rotated counter-clockwise (outward) */}
-      <div ref={player1CardRef} className="relative z-10" style={{ transform: 'rotate(-5deg)' }}>
+      <div 
+        ref={player1CardRef} 
+        className={`relative z-10 transition-all duration-300 ${
+          currentTurn === 'player1' && defeatedPlayer !== 'player1'
+            ? 'ring-4 ring-yellow-400 ring-opacity-75 shadow-2xl shadow-yellow-400/50'
+            : ''
+        }`}
+        style={{ transform: 'rotate(-5deg)', borderRadius: '8px' }}
+      >
+        {/* Turn indicator for player1 */}
+        {currentTurn === 'player1' && defeatedPlayer !== 'player1' && (
+          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-20 bg-yellow-400 text-black px-3 py-1 rounded-md text-sm font-bold shadow-lg animate-pulse">
+            YOUR TURN
+          </div>
+        )}
         <CharacterCard
           playerClass={player1Class}
           characterName={player1Name || 'Loading...'}
@@ -163,7 +285,21 @@ export function BattleArena({
         </span>
       </div>
       {/* Right Card - Rotated clockwise (outward) */}
-      <div ref={player2CardRef} className="relative z-10" style={{ transform: 'rotate(5deg)' }}>
+      <div 
+        ref={player2CardRef} 
+        className={`relative z-10 transition-all duration-300 ${
+          currentTurn === 'player2' && defeatedPlayer !== 'player2'
+            ? 'ring-4 ring-yellow-400 ring-opacity-75 shadow-2xl shadow-yellow-400/50'
+            : ''
+        }`}
+        style={{ transform: 'rotate(5deg)', borderRadius: '8px' }}
+      >
+        {/* Turn indicator for player2 (monster) */}
+        {currentTurn === 'player2' && defeatedPlayer !== 'player2' && (
+          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-20 bg-yellow-400 text-black px-3 py-1 rounded-md text-sm font-bold shadow-lg animate-pulse">
+            MONSTER'S TURN
+          </div>
+        )}
         <CharacterCard
           playerClass={player2Class}
           characterName={player2Name || 'Loading...'}

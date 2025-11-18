@@ -11,6 +11,10 @@ import { FloatingNumber, FloatingNumberType } from '../components/FloatingNumber
 import { CharacterCard } from '../components/CharacterCard';
 import { ClassSelection } from '../components/ClassSelection';
 import { useAIOpponent } from '../hooks/useAIOpponent';
+import { useBattleState } from '../hooks/useBattleState';
+import { useBattleEffects } from '../hooks/useBattleEffects';
+import { useBattleActions } from '../hooks/useBattleActions';
+import { useProjectileEffects } from '../hooks/useProjectileEffects';
 import { PageHeader } from '../components/PageHeader';
 import { LandscapePrompt } from '../components/LandscapePrompt';
 import { ProjectileEffect } from '../components/ProjectileEffect';
@@ -84,6 +88,20 @@ export default function DnDTestPage() {
     return associated.length > 0 ? associated[0] : null;
   }, [createdMonsters]);
 
+  // Initialize names as null to prevent hydration mismatch
+  // Names will be generated on the client side only
+  // Declare these before handlePlayer1Select and handlePlayer2Select so they can be used
+  const [player1Name, setPlayer1Name] = useState<string | null>(null);
+  const [player2Name, setPlayer2Name] = useState<string | null>(null);
+  
+  // Initialize battleLog early so addLog can be defined before handlers
+  const [battleLog, setBattleLog] = useState<BattleLog[]>([]);
+  
+  // Define addLog early so it can be used in handlePlayer2Select
+  const addLog = useCallback((type: BattleLog['type'], message: string) => {
+    setBattleLog((prev) => [...prev, { type, message, timestamp: Date.now() }]);
+  }, []);
+
   // Handle player 1 selection
   const handlePlayer1Select = useCallback((entity: DnDClass & { monsterId?: string; imageUrl?: string }) => {
     const testEntity = createTestEntity(entity);
@@ -94,8 +112,10 @@ export default function DnDTestPage() {
     // - Regular monsters: entity.name is the monster type name (use directly)
     // - Regular classes: generate a deterministic name
     const isCreatedMonster = !!(entity as any).klass && !!(entity as any).monsterId;
-    const isCustomHero = !isCreatedMonster && !isMonster(entity.name) && !FALLBACK_CLASSES.some(fc => fc.name === entity.name);
-    const entityIsMonster = isMonster(entity.name);
+    // Combine FALLBACK_MONSTERS and customMonsters for isMonster() check
+    const availableMonsters = [...FALLBACK_MONSTERS, ...customMonsters];
+    const isCustomHero = !isCreatedMonster && !isMonster(entity.name, availableMonsters) && !FALLBACK_CLASSES.some(fc => fc.name === entity.name);
+    const entityIsMonster = isMonster(entity.name, availableMonsters);
     const nameToUse = isCreatedMonster || isCustomHero
       ? entity.name // Created monsters and custom heroes already have the character name
       : (entityIsMonster 
@@ -129,8 +149,10 @@ export default function DnDTestPage() {
     // - Regular monsters: entity.name is the monster type name (use directly)
     // - Regular classes: generate a deterministic name
     const isCreatedMonster = !!(entity as any).klass && !!(entity as any).monsterId;
-    const isCustomHero = !isCreatedMonster && !isMonster(entity.name) && !FALLBACK_CLASSES.some(fc => fc.name === entity.name);
-    const entityIsMonster = isMonster(entity.name);
+    // Combine FALLBACK_MONSTERS and customMonsters for isMonster() check
+    const availableMonsters = [...FALLBACK_MONSTERS, ...customMonsters];
+    const isCustomHero = !isCreatedMonster && !isMonster(entity.name, availableMonsters) && !FALLBACK_CLASSES.some(fc => fc.name === entity.name);
+    const entityIsMonster = isMonster(entity.name, availableMonsters);
     const nameToUse = isCreatedMonster || isCustomHero
       ? entity.name // Created monsters and custom heroes already have the character name
       : (entityIsMonster 
@@ -152,12 +174,58 @@ export default function DnDTestPage() {
         setPlayer2MonsterId(null);
       }
     }
-  }, [createTestEntity, findAssociatedMonster]);
-  
-  // Initialize names as null to prevent hydration mismatch
-  // Names will be generated on the client side only
-  const [player1Name, setPlayer1Name] = useState<string | null>(null);
-  const [player2Name, setPlayer2Name] = useState<string | null>(null);
+    
+    // Check if we need support heroes (monster with HP > 50)
+    // Reuse availableMonsters from above (already defined in this function scope)
+    const entityIsMonsterWithAvailable = entityIsMonster;
+    const needsSupportHeroes = entityIsMonsterWithAvailable && testEntity.maxHitPoints > 50;
+    if (needsSupportHeroes) {
+      // Select 2 random support heroes from available classes (excluding player1's class)
+      const allAvailableClasses = [...FALLBACK_CLASSES, ...customHeroes];
+      const availableSupportClasses = allAvailableClasses.filter(
+        cls => cls.name !== player1Class.name && !isMonster(cls.name, availableMonsters)
+      );
+      
+      if (availableSupportClasses.length >= 2) {
+        // Shuffle and pick 2
+        const shuffled = [...availableSupportClasses].sort(() => Math.random() - 0.5);
+        const selectedSupportClasses = shuffled.slice(0, 2);
+        
+        const newSupportHeroes = selectedSupportClasses.map((supportClass) => {
+          const supportHero = createTestEntity(supportClass);
+          const supportName = generateDeterministicCharacterName(supportClass.name);
+          const associatedMonster = findAssociatedMonster(supportClass.name);
+          const supportMonsterId = associatedMonster ? associatedMonster.monsterId : null;
+          
+          return {
+            class: supportHero,
+            name: supportName,
+            monsterId: supportMonsterId,
+          };
+        });
+        
+        setSupportHeroes(newSupportHeroes);
+        addLog('system', `🛡️ ${newSupportHeroes[0].name} (${newSupportHeroes[0].class.name}) and ${newSupportHeroes[1].name} (${newSupportHeroes[1].class.name}) join the battle to support ${player1Name || player1Class.name}!`);
+      } else if (availableSupportClasses.length === 1) {
+        // Only one support hero available
+        const supportClass = availableSupportClasses[0];
+        const supportHero = createTestEntity(supportClass);
+        const supportName = generateDeterministicCharacterName(supportClass.name);
+        const associatedMonster = findAssociatedMonster(supportClass.name);
+        const supportMonsterId = associatedMonster ? associatedMonster.monsterId : null;
+        
+        setSupportHeroes([{
+          class: supportHero,
+          name: supportName,
+          monsterId: supportMonsterId,
+        }]);
+        addLog('system', `🛡️ ${supportName} (${supportClass.name}) joins the battle to support ${player1Name || player1Class.name}!`);
+      }
+    } else {
+      // Clear support heroes if not needed
+      setSupportHeroes([]);
+    }
+  }, [createTestEntity, findAssociatedMonster, player1Class, player1Name, customHeroes, customMonsters, addLog]);
   
   // Generate names only on client side to avoid hydration mismatch
   // Use deterministic names so they match what's shown in selection cards
@@ -165,8 +233,10 @@ export default function DnDTestPage() {
   useEffect(() => {
     // Player 1
     const p1IsCreatedMonster = !!(player1Class as any).klass && !!(player1Class as any).monsterId;
-    const p1IsCustomHero = !p1IsCreatedMonster && !isMonster(player1Class.name) && !FALLBACK_CLASSES.some(fc => fc.name === player1Class.name);
-    const p1IsMonster = isMonster(player1Class.name);
+    // Combine FALLBACK_MONSTERS and customMonsters for isMonster() check
+    const availableMonsters = [...FALLBACK_MONSTERS, ...customMonsters];
+    const p1IsCustomHero = !p1IsCreatedMonster && !isMonster(player1Class.name, availableMonsters) && !FALLBACK_CLASSES.some(fc => fc.name === player1Class.name);
+    const p1IsMonster = isMonster(player1Class.name, availableMonsters);
     const p1Name = p1IsCreatedMonster || p1IsCustomHero
       ? player1Class.name
       : (p1IsMonster ? player1Class.name : generateDeterministicCharacterName(player1Class.name));
@@ -174,19 +244,25 @@ export default function DnDTestPage() {
     
     // Player 2
     const p2IsCreatedMonster = !!(player2Class as any).klass && !!(player2Class as any).monsterId;
-    const p2IsCustomHero = !p2IsCreatedMonster && !isMonster(player2Class.name) && !FALLBACK_CLASSES.some(fc => fc.name === player2Class.name);
-    const p2IsMonster = isMonster(player2Class.name);
+    // Combine FALLBACK_MONSTERS and customMonsters for isMonster() check (reuse from above if in same scope)
+    const p2IsCustomHero = !p2IsCreatedMonster && !isMonster(player2Class.name, availableMonsters) && !FALLBACK_CLASSES.some(fc => fc.name === player2Class.name);
+    const p2IsMonster = isMonster(player2Class.name, availableMonsters);
     const p2Name = p2IsCreatedMonster || p2IsCustomHero
       ? player2Class.name
       : (p2IsMonster ? player2Class.name : generateDeterministicCharacterName(player2Class.name));
     setPlayer2Name(p2Name);
-  }, [player1Class.name, player2Class.name]);
-  const [battleLog, setBattleLog] = useState<BattleLog[]>([]);
-  const [currentTurn, setCurrentTurn] = useState<'player1' | 'player2'>('player1');
+  }, [player1Class.name, player2Class.name, customMonsters]);
+  const [currentTurn, setCurrentTurn] = useState<'player1' | 'player2' | 'support1' | 'support2'>('player1');
+  
+  // Monster target selection (for testing focused attacks)
+  const [monsterTarget, setMonsterTarget] = useState<'player1' | 'support1' | 'support2' | null>(null);
+  
+  // Support heroes (for when fighting high HP monsters)
+  const [supportHeroes, setSupportHeroes] = useState<Array<{ class: DnDClass; name: string; monsterId: string | null }>>([]);
   
   // Visual effect states
-  const [shakingPlayer, setShakingPlayer] = useState<'player1' | 'player2' | null>(null);
-  const [shakeTrigger, setShakeTrigger] = useState({ player1: 0, player2: 0 });
+  const [shakingPlayer, setShakingPlayer] = useState<'player1' | 'player2' | 'support1' | 'support2' | null>(null);
+  const [shakeTrigger, setShakeTrigger] = useState({ player1: 0, player2: 0, support1: 0, support2: 0 });
   const [sparklingPlayer, setSparklingPlayer] = useState<'player1' | 'player2' | null>(null);
   const [sparkleTrigger, setSparkleTrigger] = useState({ player1: 0, player2: 0 });
   const [missingPlayer, setMissingPlayer] = useState<'player1' | 'player2' | null>(null);
@@ -199,7 +275,7 @@ export default function DnDTestPage() {
   const [flashTrigger, setFlashTrigger] = useState({ player1: 0, player2: 0 });
   const [flashProjectileType, setFlashProjectileType] = useState<{ player1: ProjectileType | null; player2: ProjectileType | null }>({ player1: null, player2: null });
   const [castProjectileType, setCastProjectileType] = useState<{ player1: ProjectileType | null; player2: ProjectileType | null }>({ player1: null, player2: null });
-  const [shakeIntensity, setShakeIntensity] = useState<{ player1: number; player2: number }>({ player1: 0, player2: 0 });
+  const [shakeIntensity, setShakeIntensity] = useState<{ player1: number; player2: number; support1: number; support2: number }>({ player1: 0, player2: 0, support1: 0, support2: 0 });
   const [sparkleIntensity, setSparkleIntensity] = useState<{ player1: number; player2: number }>({ player1: 0, player2: 0 });
   const [defeatedPlayer, setDefeatedPlayer] = useState<'player1' | 'player2' | null>(null);
   const [victorPlayer, setVictorPlayer] = useState<'player1' | 'player2' | null>(null);
@@ -232,6 +308,8 @@ export default function DnDTestPage() {
   // Refs for character cards to position floating numbers
   const player1CardRef = useRef<HTMLDivElement | null>(null);
   const player2CardRef = useRef<HTMLDivElement | null>(null);
+  const support1CardRef = useRef<HTMLDivElement | null>(null);
+  const support2CardRef = useRef<HTMLDivElement | null>(null);
   
   const [manualEmotion1, setManualEmotion1] = useState<CharacterEmotion | null>(null);
   const [manualEmotion2, setManualEmotion2] = useState<CharacterEmotion | null>(null);
@@ -245,6 +323,313 @@ export default function DnDTestPage() {
   const [hitEffectsEnabled, setHitEffectsEnabled] = useState(true);
   const [missEffectsEnabled, setMissEffectsEnabled] = useState(true);
   const [castEffectsEnabled, setCastEffectsEnabled] = useState(true);
+  
+  // ===== BATTLE HOOKS - Replace duplicated battle logic =====
+  // Note: The test page currently has local state that duplicates hook state.
+  // We'll migrate to using hooks while maintaining compatibility with test-specific features.
+  
+  // Battle state hook - manages player classes, support heroes, turn order, etc.
+  // For test page, we need to sync local state with hook state initially
+  // TODO: Eventually remove local state and use hook state directly
+  const battleState = useBattleState();
+  const {
+    player1Class: hookPlayer1Class,
+    player2Class: hookPlayer2Class,
+    player1Name: hookPlayer1Name,
+    player2Name: hookPlayer2Name,
+    player1MonsterId: hookPlayer1MonsterId,
+    player2MonsterId: hookPlayer2MonsterId,
+    setPlayer1Class: setHookPlayer1Class,
+    setPlayer2Class: setHookPlayer2Class,
+    setPlayer1Name: setHookPlayer1Name,
+    setPlayer2Name: setHookPlayer2Name,
+    setPlayer1MonsterId: setHookPlayer1MonsterId,
+    setPlayer2MonsterId: setHookPlayer2MonsterId,
+    supportHeroes: hookSupportHeroes,
+    setSupportHeroes: setHookSupportHeroes,
+    isBattleActive: hookIsBattleActive,
+    setIsBattleActive: setHookIsBattleActive,
+    currentTurn: hookCurrentTurn,
+    setCurrentTurn: setHookCurrentTurn,
+    isMoveInProgress: hookIsMoveInProgress,
+    setIsMoveInProgress: setHookIsMoveInProgress,
+    battleLog: hookBattleLog,
+    setBattleLog: setHookBattleLog,
+    addLog: hookAddLog,
+    updatePlayerHP: hookUpdatePlayerHP,
+    switchTurn: hookSwitchTurn,
+  } = battleState;
+  
+  // Sync local state with hook state for player classes (test page uses local state for selection)
+  // When local state changes, update hook state
+  useEffect(() => {
+    if (player1Class && player1Class !== hookPlayer1Class) {
+      setHookPlayer1Class(player1Class);
+    }
+  }, [player1Class, hookPlayer1Class, setHookPlayer1Class]);
+  
+  useEffect(() => {
+    if (player2Class && player2Class !== hookPlayer2Class) {
+      setHookPlayer2Class(player2Class);
+    }
+  }, [player2Class, hookPlayer2Class, setHookPlayer2Class]);
+  
+  // Sync currentTurn: hook state is source of truth (from switchTurn)
+  // Only sync local -> hook when manually changed (rare, for test controls)
+  // Always sync hook -> local to keep UI in sync
+  useEffect(() => {
+    // Hook state is source of truth - always sync hook -> local
+    if (hookCurrentTurn !== currentTurn) {
+      setCurrentTurn(hookCurrentTurn);
+    }
+  }, [hookCurrentTurn]); // Only depend on hookCurrentTurn to avoid loops
+  
+  // Only sync local -> hook if manually changed (not from hook update)
+  // This is mainly for test controls that might set turn directly
+  const prevHookCurrentTurnRef = useRef(hookCurrentTurn);
+  useEffect(() => {
+    // If hook state hasn't changed but local state has, it's a manual change
+    if (prevHookCurrentTurnRef.current === hookCurrentTurn && currentTurn !== hookCurrentTurn) {
+      setHookCurrentTurn(currentTurn);
+    }
+    prevHookCurrentTurnRef.current = hookCurrentTurn;
+  }, [currentTurn, hookCurrentTurn, setHookCurrentTurn]);
+  
+  // Also sync supportHeroes
+  useEffect(() => {
+    if (supportHeroes.length !== hookSupportHeroes.length || 
+        supportHeroes.some((sh, idx) => sh.class.name !== hookSupportHeroes[idx]?.class.name)) {
+      setHookSupportHeroes(supportHeroes);
+    }
+  }, [supportHeroes, hookSupportHeroes, setHookSupportHeroes]);
+  
+  // Use hook state for battle-active state
+  // For test page, we'll use local state to control when battle is "active" for hooks
+  // But sync it with hook state
+  const [localIsBattleActive, setLocalIsBattleActive] = useState(false);
+  const isBattleActive = localIsBattleActive || hookIsBattleActive || false;
+  
+  // Sync local battle active state with hook state
+  useEffect(() => {
+    if (localIsBattleActive && !hookIsBattleActive) {
+      setHookIsBattleActive(true);
+    }
+  }, [localIsBattleActive, hookIsBattleActive, setHookIsBattleActive]);
+  
+  // Battle effects hook - manages visual effects
+  const battleEffects = useBattleEffects();
+  const {
+    shakingPlayer: hookShakingPlayer,
+    shakeTrigger: hookShakeTrigger,
+    shakeIntensity: hookShakeIntensity,
+    sparklingPlayer: hookSparklingPlayer,
+    sparkleTrigger: hookSparkleTrigger,
+    sparkleIntensity: hookSparkleIntensity,
+    missingPlayer: hookMissingPlayer,
+    missTrigger: hookMissTrigger,
+    hittingPlayer: hookHittingPlayer,
+    hitTrigger: hookHitTrigger,
+    castingPlayer: hookCastingPlayer,
+    castTrigger: hookCastTrigger,
+    flashingPlayer: hookFlashingPlayer,
+    flashTrigger: hookFlashTrigger,
+    flashProjectileType: hookFlashProjectileType,
+    castProjectileType: hookCastProjectileType,
+    defeatedPlayer: hookDefeatedPlayer,
+    victorPlayer: hookVictorPlayer,
+    confettiTrigger: hookConfettiTrigger,
+    floatingNumbers: hookFloatingNumbers,
+    setDefeatedPlayer: setHookDefeatedPlayer,
+    setVictorPlayer: setHookVictorPlayer,
+    setConfettiTrigger: setHookConfettiTrigger,
+    applyVisualEffect: hookApplyVisualEffect,
+    triggerFlashEffect: hookTriggerFlashEffect,
+    showFloatingNumbers: hookShowFloatingNumbers,
+    handleFloatingNumberComplete: hookHandleFloatingNumberComplete,
+    handleShakeComplete: hookHandleShakeComplete,
+    handleSparkleComplete: hookHandleSparkleComplete,
+    handleMissComplete: hookHandleMissComplete,
+    handleHitComplete: hookHandleHitComplete,
+    handleCastComplete: hookHandleCastComplete,
+    handleFlashComplete: hookHandleFlashComplete,
+    resetEffects: hookResetEffects,
+  } = battleEffects;
+  
+  // Projectile effects hook
+  const {
+    projectileEffects: hookProjectileEffects,
+    showProjectileEffect: hookShowProjectileEffect,
+    removeProjectileEffect: hookRemoveProjectileEffect,
+    clearProjectileTracking: hookClearProjectileTracking,
+  } = useProjectileEffects();
+  
+  // Use hook values for visual effects (test page can override with local state if needed for testing)
+  const visualShakingPlayer = shakingPlayer || hookShakingPlayer;
+  const visualShakeTrigger = shakeTrigger.player1 > 0 || shakeTrigger.player2 > 0 ? shakeTrigger : hookShakeTrigger;
+  const visualSparklingPlayer = sparklingPlayer || hookSparklingPlayer;
+  const visualSparkleTrigger = sparkleTrigger.player1 > 0 || sparkleTrigger.player2 > 0 ? sparkleTrigger : hookSparkleTrigger;
+  const visualMissingPlayer = missingPlayer || hookMissingPlayer;
+  const visualMissTrigger = missTrigger.player1 > 0 || missTrigger.player2 > 0 ? missTrigger : hookMissTrigger;
+  const visualHittingPlayer = hittingPlayer || hookHittingPlayer;
+  const visualHitTrigger = hitTrigger.player1 > 0 || hitTrigger.player2 > 0 ? hitTrigger : hookHitTrigger;
+  const visualCastingPlayer = castingPlayer || hookCastingPlayer;
+  const visualCastTrigger = castTrigger.player1 > 0 || castTrigger.player2 > 0 ? castTrigger : hookCastTrigger;
+  const visualFlashingPlayer = flashingPlayer || hookFlashingPlayer;
+  const visualFlashTrigger = flashTrigger.player1 > 0 || flashTrigger.player2 > 0 ? flashTrigger : hookFlashTrigger;
+  
+  // Use hook defeated/victor state
+  const visualDefeatedPlayer = defeatedPlayer || hookDefeatedPlayer;
+  const visualVictorPlayer = victorPlayer || hookVictorPlayer;
+  const visualConfettiTrigger = confettiTrigger > 0 ? confettiTrigger : hookConfettiTrigger;
+  
+  // Create handleVictory function for test page (simplified version without summary generation)
+  const handleVictory = useCallback(async (
+    attackerClass: DnDClass,
+    defenderClass: DnDClass,
+    damage: number,
+    attackerDetails: string = '',
+    defenderDetails: string = '',
+    eventDescription: string,
+    defender: 'player1' | 'player2'
+  ): Promise<void> => {
+    setHookDefeatedPlayer(defender);
+    const victor = defender === 'player1' ? 'player2' : 'player1';
+    setHookVictorPlayer(victor);
+    setHookConfettiTrigger(prev => prev + 1);
+    
+    hookShowFloatingNumbers(
+      [{ value: 'DEFEATED!', type: 'defeated', targetPlayer: defender, persistent: true }],
+      [],
+      []
+    );
+    
+    addLog('system', `🏆 ${attackerClass.name} wins! ${defenderClass.name} has been defeated!`);
+  }, [setHookDefeatedPlayer, setHookVictorPlayer, setHookConfettiTrigger, hookShowFloatingNumbers, addLog]);
+  
+  // Battle actions hook - provides performAttack and useAbility functions
+  // Use hook state for isMoveInProgress to ensure consistency with AI opponent
+  const battleActions = useBattleActions({
+    player1Class: player1Class || null,
+    player2Class: player2Class || null,
+    supportHeroes: supportHeroes,
+    isBattleActive: isBattleActive,
+    isMoveInProgress: hookIsMoveInProgress,
+    classDetails: {},
+    defeatedPlayer: visualDefeatedPlayer,
+    monsterTarget: monsterTarget || undefined,
+    setIsMoveInProgress: (value: boolean) => {
+      setIsMoveInProgress(value);
+      setHookIsMoveInProgress(value);
+    },
+    updatePlayerHP: (player, newHPOrDamage, isDamage) => {
+      // Update local state
+      if (player === 'player1') {
+        setPlayer1Class((current) => {
+          if (!current) return current;
+          const newHP = isDamage ? Math.max(0, current.hitPoints - newHPOrDamage) : newHPOrDamage;
+          return { ...current, hitPoints: Math.min(newHP, current.maxHitPoints) };
+        });
+      } else if (player === 'player2') {
+        setPlayer2Class((current) => {
+          if (!current) return current;
+          const newHP = isDamage ? Math.max(0, current.hitPoints - newHPOrDamage) : newHPOrDamage;
+          return { ...current, hitPoints: Math.min(newHP, current.maxHitPoints) };
+        });
+      } else if (player === 'support1' && supportHeroes.length > 0) {
+        setSupportHeroes((prev) => {
+          if (prev.length === 0) return prev;
+          const newHP = isDamage ? Math.max(0, prev[0].class.hitPoints - newHPOrDamage) : newHPOrDamage;
+          return [{
+            ...prev[0],
+            class: { ...prev[0].class, hitPoints: Math.min(newHP, prev[0].class.maxHitPoints) }
+          }, ...prev.slice(1)];
+        });
+      } else if (player === 'support2' && supportHeroes.length > 1) {
+        setSupportHeroes((prev) => {
+          if (prev.length < 2) return prev;
+          const newHP = isDamage ? Math.max(0, prev[1].class.hitPoints - newHPOrDamage) : newHPOrDamage;
+          return [prev[0], {
+            ...prev[1],
+            class: { ...prev[1].class, hitPoints: Math.min(newHP, prev[1].class.maxHitPoints) }
+          }];
+        });
+      }
+    },
+    addLog: addLog,
+    applyVisualEffect: (effect) => {
+      // Apply visual effect using hook
+      hookApplyVisualEffect(effect);
+      // Also apply to local state if test page needs it
+      if (effect.type === 'shake') {
+        setShakingPlayer(effect.player);
+        setShakeTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
+      } else if (effect.type === 'sparkle') {
+        setSparklingPlayer(effect.player);
+        setSparkleTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
+      } else if (effect.type === 'miss') {
+        setMissingPlayer(effect.player);
+        setMissTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
+      } else if (effect.type === 'hit') {
+        setHittingPlayer(effect.player);
+        setHitTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
+      } else if (effect.type === 'cast') {
+        setCastingPlayer(effect.player);
+        setCastTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
+      }
+    },
+    triggerFlashEffect: (attacker, projectileType) => {
+      hookTriggerFlashEffect(attacker, projectileType);
+      setFlashingPlayer(attacker);
+      setFlashTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
+      if (projectileType) {
+        setFlashProjectileType(prev => ({ ...prev, [attacker]: projectileType }));
+      }
+    },
+    showFloatingNumbers: (numbers, visualEffects, callbacks) => {
+      hookShowFloatingNumbers(numbers, visualEffects, callbacks);
+      // Also add to local state for test page rendering
+      const numberData = numbers.map((n, idx) => ({
+        id: `${Date.now()}-${idx}`,
+        ...n,
+        targetPlayer: n.targetPlayer as 'player1' | 'player2', // Type assertion for compatibility
+      }));
+      setFloatingNumbers(prev => [...prev, ...numberData]);
+    },
+    showProjectileEffect: (fromPlayer, toPlayer, isHit, onHit, onComplete, fromCardRotation, delay, projectileType) => {
+      hookShowProjectileEffect(fromPlayer, toPlayer, isHit, onHit, onComplete, fromCardRotation, delay, projectileType);
+      // Also add to local state for test page rendering
+      if (particleEffectsEnabled) {
+        const projectileId = `projectile-${Date.now()}-${Math.random()}`;
+        setProjectileEffects(prev => [...prev, {
+          id: projectileId,
+          fromPlayer: fromPlayer as 'player1' | 'player2',
+          toPlayer: toPlayer as 'player1' | 'player2',
+          isHit,
+          onHit,
+          onComplete,
+          fromCardRotation,
+          delay,
+          projectileType,
+        }]);
+      }
+    },
+    clearProjectileTracking: () => {
+      hookClearProjectileTracking();
+      setProjectileEffects([]);
+    },
+    switchTurn: async (attacker) => {
+      // Use hook's switchTurn which calculates the next turn correctly
+      // The hook will update hookCurrentTurn, and our sync effect will update local currentTurn
+      await hookSwitchTurn(attacker, visualDefeatedPlayer);
+    },
+    handleVictory: handleVictory,
+    setDefeatedPlayer: (player) => {
+      setHookDefeatedPlayer(player);
+      setDefeatedPlayer(player);
+    },
+  });
+  
+  const { performAttack, useAbility } = battleActions;
   
   // Load custom heroes and monsters from database
   useEffect(() => {
@@ -389,47 +774,78 @@ export default function DnDTestPage() {
     }
   }, [createdMonsters, player1Class, player2Class, player1MonsterId, player2MonsterId, findAssociatedMonster]);
   
-  
-  const addLog = useCallback((type: BattleLog['type'], message: string) => {
-    setBattleLog((prev) => [...prev, { type, message, timestamp: Date.now() }]);
-  }, []);
-  
-  const updatePlayerHP = useCallback((player: 'player1' | 'player2', newHP: number) => {
+  // Helper function to update player HP
+  // Can accept either a new HP value directly, or damage to subtract from current HP
+  const updatePlayerHP = useCallback((player: 'player1' | 'player2' | 'support1' | 'support2', newHPOrDamage: number, isDamage: boolean = false) => {
     if (player === 'player1') {
-      setPlayer1Class((current) => current ? { ...current, hitPoints: newHP } : current);
-    } else {
-      setPlayer2Class((current) => current ? { ...current, hitPoints: newHP } : current);
+      setPlayer1Class((current) => {
+        if (!current) return current;
+        // If isDamage is true, subtract from current HP; otherwise use the value directly
+        const newHP = isDamage ? Math.max(0, current.hitPoints - newHPOrDamage) : newHPOrDamage;
+        // Ensure HP never exceeds maxHitPoints
+        const cappedHP = Math.min(newHP, current.maxHitPoints);
+        return { ...current, hitPoints: cappedHP };
+      });
+    } else if (player === 'player2') {
+      setPlayer2Class((current) => {
+        if (!current) return current;
+        // If isDamage is true, subtract from current HP; otherwise use the value directly
+        const newHP = isDamage ? Math.max(0, current.hitPoints - newHPOrDamage) : newHPOrDamage;
+        // Ensure HP never exceeds maxHitPoints
+        const cappedHP = Math.min(newHP, current.maxHitPoints);
+        return { ...current, hitPoints: cappedHP };
+      });
+    } else if (player === 'support1' || player === 'support2') {
+      const index = player === 'support1' ? 0 : 1;
+      setSupportHeroes((current) => {
+        const updated = [...current];
+        if (updated[index]) {
+          // If isDamage is true, subtract from current HP; otherwise use the value directly
+          const newHP = isDamage ? Math.max(0, updated[index].class.hitPoints - newHPOrDamage) : newHPOrDamage;
+          // Ensure HP never exceeds maxHitPoints
+          const cappedHP = Math.min(newHP, updated[index].class.maxHitPoints);
+          updated[index] = {
+            ...updated[index],
+            class: { ...updated[index].class, hitPoints: cappedHP }
+          };
+        }
+        return updated;
+      });
     }
   }, []);
   
   // Helper function to trigger flash effect on attacking card
-  const triggerFlashEffect = useCallback((attacker: 'player1' | 'player2', projectileType?: ProjectileType) => {
+  // Support heroes map to player1's side for visual effects
+  const triggerFlashEffect = useCallback((attacker: 'player1' | 'player2' | 'support1' | 'support2', projectileType?: ProjectileType) => {
+    const visualPlayer: 'player1' | 'player2' = (attacker === 'player1' || attacker === 'support1' || attacker === 'support2') ? 'player1' : 'player2';
     if (!flashEffectsEnabled) {
       console.log('[TestPage] Flash effects disabled, skipping flash trigger');
       return;
     }
     console.log('[TestPage] Triggering flash effect for', attacker, 'with type', projectileType);
-    setFlashingPlayer(attacker);
+    setFlashingPlayer(visualPlayer);
     setFlashTrigger(prev => {
-      const newValue = prev[attacker] + 1;
-      console.log('[TestPage] Flash trigger updated:', { attacker, newValue });
-      return { ...prev, [attacker]: newValue };
+      const newValue = prev[visualPlayer] + 1;
+      console.log('[TestPage] Flash trigger updated:', { attacker: visualPlayer, newValue });
+      return { ...prev, [visualPlayer]: newValue };
     });
     if (projectileType) {
-      setFlashProjectileType(prev => ({ ...prev, [attacker]: projectileType }));
-      setCastProjectileType(prev => ({ ...prev, [attacker]: projectileType }));
+      setFlashProjectileType(prev => ({ ...prev, [visualPlayer]: projectileType }));
+      setCastProjectileType(prev => ({ ...prev, [visualPlayer]: projectileType }));
     }
   }, [flashEffectsEnabled]);
 
   // Helper function to apply a visual effect (respects effect toggles)
-  const applyVisualEffect = useCallback((effect: PendingVisualEffect) => {
+  const applyVisualEffect = useCallback((effect: PendingVisualEffect, customPlayer?: 'player1' | 'player2' | 'support1' | 'support2') => {
     switch (effect.type) {
       case 'shake':
         if (!shakeEffectsEnabled) return;
-        setShakingPlayer(effect.player);
-        setShakeTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
+        // Use customPlayer if provided (for support heroes), otherwise use effect.player
+        const shakeTarget = customPlayer || effect.player;
+        setShakingPlayer(shakeTarget as 'player1' | 'player2' | 'support1' | 'support2');
+        setShakeTrigger(prev => ({ ...prev, [shakeTarget]: (prev[shakeTarget as keyof typeof prev] || 0) + 1 }));
         if (effect.intensity !== undefined) {
-          setShakeIntensity(prev => ({ ...prev, [effect.player]: effect.intensity! }));
+          setShakeIntensity(prev => ({ ...prev, [shakeTarget]: effect.intensity! }));
         }
         break;
       case 'sparkle':
@@ -458,17 +874,23 @@ export default function DnDTestPage() {
     }
   }, [shakeEffectsEnabled, sparkleEffectsEnabled, missEffectsEnabled, hitEffectsEnabled, castEffectsEnabled]);
   
+  // Counter for unique floating number IDs
+  const floatingNumberCounterRef = useRef(0);
+  
   // Helper function to show floating numbers and apply effects immediately
   const showFloatingNumbers = useCallback((
-    numbers: Array<{ value: number | string; type: FloatingNumberType; targetPlayer: 'player1' | 'player2'; persistent?: boolean }>,
+    numbers: Array<{ value: number | string; type: FloatingNumberType; targetPlayer: 'player1' | 'player2' | 'support1' | 'support2'; persistent?: boolean }>,
     visualEffects: PendingVisualEffect[] = [],
     callbacks: (() => void)[] = []
   ) => {
     // Show floating numbers immediately
-    const numberData: FloatingNumberData[] = numbers.map((n, idx) => ({
-      id: `${Date.now()}-${idx}`,
-      ...n,
-    }));
+    const numberData: FloatingNumberData[] = numbers.map((n, idx) => {
+      floatingNumberCounterRef.current += 1;
+      return {
+        id: `${Date.now()}-${floatingNumberCounterRef.current}-${idx}`,
+        ...n,
+      };
+    });
     setFloatingNumbers(prev => [...prev, ...numberData]);
     
     // Apply visual effects immediately
@@ -493,8 +915,9 @@ export default function DnDTestPage() {
   const lastProjectileTimeRef = useRef<{ [key: string]: number }>({});
   
   // Helper function to show projectile effect
+  // Support heroes map to player1's side for visual effects
   const showProjectileEffect = useCallback((
-    fromPlayer: 'player1' | 'player2',
+    fromPlayer: 'player1' | 'player2' | 'support1' | 'support2',
     toPlayer: 'player1' | 'player2',
     isHit: boolean,
     onHit?: () => void,
@@ -503,6 +926,7 @@ export default function DnDTestPage() {
     delay?: number,
     projectileType?: ProjectileType
   ) => {
+    const visualFromPlayer: 'player1' | 'player2' = (fromPlayer === 'player1' || fromPlayer === 'support1' || fromPlayer === 'support2') ? 'player1' : 'player2';
     // If particle effects are disabled, execute callbacks immediately without showing projectile
     if (!particleEffectsEnabled) {
       // Execute onHit callback immediately for hits
@@ -537,7 +961,7 @@ export default function DnDTestPage() {
     const projectileId = `projectile-${now}-${Math.random()}`;
     setProjectileEffects(prev => [...prev, {
       id: projectileId,
-      fromPlayer,
+      fromPlayer: visualFromPlayer,
       toPlayer,
       isHit,
       onHit,
@@ -566,19 +990,104 @@ export default function DnDTestPage() {
     addLog('system', '🎲 Test floating numbers triggered');
   };
   
-  const testAttackHit = (attacker: 'player1' | 'player2') => {
+  // Helper to get attacker class based on player ID
+  const getAttackerClass = useCallback((attacker: 'player1' | 'player2' | 'support1' | 'support2'): DnDClass | null => {
+    if (attacker === 'player1') return player1Class;
+    if (attacker === 'player2') return player2Class;
+    if (attacker === 'support1' && supportHeroes.length > 0) return supportHeroes[0].class;
+    if (attacker === 'support2' && supportHeroes.length > 1) return supportHeroes[1].class;
+    return null;
+  }, [player1Class, player2Class, supportHeroes]);
+  
+  // Helper to get defender class based on target ID
+  const getDefenderClass = useCallback((target: 'player1' | 'player2' | 'support1' | 'support2'): DnDClass | null => {
+    if (target === 'player1') return player1Class;
+    if (target === 'player2') return player2Class;
+    if (target === 'support1' && supportHeroes.length > 0) return supportHeroes[0].class;
+    if (target === 'support2' && supportHeroes.length > 1) return supportHeroes[1].class;
+    return null;
+  }, [player1Class, player2Class, supportHeroes]);
+  
+  // Helper to get available targets for monster (non-defeated heroes)
+  const getAvailableTargets = useCallback((): Array<'player1' | 'support1' | 'support2'> => {
+    const targets: Array<'player1' | 'support1' | 'support2'> = [];
+    
+    // Add player1 if not defeated
+    if (player1Class && player1Class.hitPoints > 0) {
+      targets.push('player1');
+    }
+    
+    // Add support heroes if not defeated
+    if (supportHeroes.length > 0 && supportHeroes[0].class.hitPoints > 0) {
+      targets.push('support1');
+    }
+    if (supportHeroes.length > 1 && supportHeroes[1].class.hitPoints > 0) {
+      targets.push('support2');
+    }
+    
+    return targets;
+  }, [player1Class, supportHeroes]);
+  
+  // Replace testAttackHit with performAttack from useBattleActions hook
+  const testAttackHit = (attacker: 'player1' | 'player2' | 'support1' | 'support2') => {
     console.log('[TestPage] testAttackHit called for', attacker);
-    const attackerClass = attacker === 'player1' ? player1Class : player2Class;
-    const defenderClass = attacker === 'player1' ? player2Class : player1Class;
-    const defender = getOpponent(attacker);
+    // Ensure battle is active for hooks to work
+    if (!isBattleActive) {
+      setLocalIsBattleActive(true);
+    }
+    // Use the shared performAttack function from useBattleActions hook
+    performAttack(attacker);
+    return;
+    
+    // OLD IMPLEMENTATION BELOW - KEPT FOR REFERENCE BUT NOT USED
+    /* eslint-disable */
+    const attackerClass = getAttackerClass(attacker);
+    if (!attackerClass) return;
+    
+    // Determine target: heroes/support attack monster, monster attacks a selected hero/support
+    let defender: 'player1' | 'player2' | 'support1' | 'support2';
+    let defenderClass: DnDClass;
+    
+    if (attacker === 'player2') {
+      // Monster's turn - choose target
+      const availableTargets = getAvailableTargets();
+      if (availableTargets.length === 0) {
+        // No targets available
+        console.log('[TestPage] No available targets for monster attack');
+        return;
+      }
+      
+      // Use selected target or choose randomly
+      if (monsterTarget && availableTargets.includes(monsterTarget)) {
+        defender = monsterTarget;
+      } else {
+        defender = availableTargets[Math.floor(Math.random() * availableTargets.length)];
+      }
+      
+      defenderClass = getDefenderClass(defender);
+      if (!defenderClass) {
+        console.log('[TestPage] Could not get defender class for', defender);
+        return;
+      }
+    } else {
+      // Hero/support turn - always attack monster
+      defender = 'player2';
+      defenderClass = player2Class;
+    }
     
     // Get projectile type for flash effect
     const projectileType = getProjectileType(null, undefined, attackerClass.name);
     // Trigger flash effect on attacking card with projectile type
     triggerFlashEffect(attacker, projectileType);
     
+    // Use actual player IDs for visual effects (don't map support heroes to player1)
+    const visualDefender: 'player1' | 'player2' | 'support1' | 'support2' = defender;
+    // For visual effects that only support player1/player2, map support heroes to player1
+    const visualDefenderForEffects: 'player1' | 'player2' = (defender === 'player1' || defender === 'support1' || defender === 'support2') ? 'player1' : 'player2';
+    const visualAttackerForEffects: 'player1' | 'player2' = (attacker === 'player1' || attacker === 'support1' || attacker === 'support2') ? 'player1' : 'player2';
+    
     // Create visual effects to check for cast effect
-    const allVisualEffects = createHitVisualEffects(attacker, defender, 0, defenderClass, attackerClass);
+    const allVisualEffects = createHitVisualEffects(visualAttackerForEffects, visualDefenderForEffects, 0, defenderClass, attackerClass);
     // Trigger cast effect immediately if present
     const castEffect = allVisualEffects.find(effect => effect.type === 'cast');
     if (castEffect) {
@@ -601,32 +1110,34 @@ export default function DnDTestPage() {
     const newHP = Math.max(0, defenderClass.hitPoints - damage);
     
     // Create visual effects, but exclude shake (will be triggered by projectile hit)
-    const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass)
+    const visualEffects = createHitVisualEffects(visualAttackerForEffects, visualDefenderForEffects, damage, defenderClass, attackerClass)
       .filter(effect => effect.type !== 'shake'); // Remove shake, will be triggered on projectile hit
     
     // Show projectile effect with card rotation angle
-    const cardRotation = attacker === 'player1' ? -5 : 5;
+    const cardRotation = (attacker === 'player1' || attacker === 'support1' || attacker === 'support2') ? -5 : 5;
     // projectileType already defined above for flash effect
     showProjectileEffect(
       attacker,
-      defender,
+      visualDefender,
       true, // isHit
       () => {
         // On projectile hit: trigger shake and show damage
-        const shakeEffect = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass)
+        const shakeEffect = createHitVisualEffects(visualAttackerForEffects, visualDefenderForEffects, damage, defenderClass, attackerClass)
           .find(effect => effect.type === 'shake');
         if (shakeEffect) {
-          applyVisualEffect(shakeEffect);
+          // For support heroes, pass the actual defender so shake appears on the support card
+          applyVisualEffect(shakeEffect, (defender === 'support1' || defender === 'support2') ? defender : undefined);
         }
         
         // Show floating damage number when projectile hits
         showFloatingNumbers(
-          [{ value: damage, type: 'damage', targetPlayer: defender }],
+          [{ value: damage, type: 'damage', targetPlayer: visualDefender }],
           visualEffects, // Other effects (hit, cast) shown immediately
           [
             () => {
-              console.log('[TestPage] HP update callback for', defender, 'newHP:', newHP);
-              updatePlayerHP(defender, newHP);
+              console.log('[TestPage] HP update callback for', defender, 'damage:', damage);
+              // Pass damage to updatePlayerHP, which will calculate from current state
+              updatePlayerHP(defender, damage, true);
             },
             () => {
               console.log('[TestPage] Attack complete callback for', attacker);
@@ -634,21 +1145,199 @@ export default function DnDTestPage() {
               addLog('narrative', mockBattleNarrative(`${attackerClass.name} attacks ${defenderClass.name} and deals ${damage} damage.`));
               
               if (newHP <= 0) {
-                setDefeatedPlayer(defender);
-                setVictorPlayer(attacker);
-                setConfettiTrigger(prev => prev + 1);
-                
-                // Show floating "DEFEATED!" text (persistent - stays on card)
-                showFloatingNumbers(
-                  [{ value: 'DEFEATED!', type: 'defeated', targetPlayer: defender, persistent: true }],
-                  [],
-                  []
-                );
-                
-                addLog('system', `🏆 ${attackerClass.name} wins!`);
+                // Check if defender is a support hero or main hero
+                if (defender === 'support1' || defender === 'support2') {
+                  // Support hero knocked out - show knocked out effect on the support card
+                  showFloatingNumbers(
+                    [{ value: 'KNOCKED OUT!', type: 'knocked-out', targetPlayer: defender, persistent: true }],
+                    [],
+                    []
+                  );
+                  addLog('system', `💀 ${defenderClass.name} has been knocked out!`);
+                  
+                  // Check if all heroes are defeated
+                  // Note: This is for a support hero knockout, so check player1's current HP state
+                  const allHeroesDefeated = (!player1Class || player1Class.hitPoints <= 0) &&
+                    supportHeroes.every(sh => sh.class.hitPoints <= 0);
+                  
+                  if (allHeroesDefeated) {
+                    // All heroes defeated, monster wins
+                    setDefeatedPlayer('player1');
+                    setVictorPlayer('player2');
+                    setConfettiTrigger(prev => prev + 1);
+                    addLog('system', `🏆 ${player2Class.name} wins!`);
+                    setTimeout(() => {
+                      setIsMoveInProgress(false);
+                    }, 450);
+                    return; // End battle
+                  }
+                  
+                  // Not all heroes defeated - continue battle and switch turns
+                  // Turn order: player1 -> support1 -> support2 -> player2 -> player1...
+                  // Skip knocked-out heroes
+                  const getNextTurn = (current: 'player1' | 'player2' | 'support1' | 'support2'): 'player1' | 'player2' | 'support1' | 'support2' => {
+                    const availableTargets = getAvailableTargets();
+                    const hasPlayer1 = availableTargets.includes('player1');
+                    const hasSupport1 = availableTargets.includes('support1');
+                    const hasSupport2 = availableTargets.includes('support2');
+                    
+                    // If no heroes available, it's player2's turn (monster)
+                    if (availableTargets.length === 0) {
+                      return 'player2';
+                    }
+                    
+                    // Turn order logic, skipping defeated heroes
+                    if (current === 'player1') {
+                      if (hasSupport1) return 'support1';
+                      if (hasSupport2) return 'support2';
+                      return 'player2';
+                    }
+                    if (current === 'support1') {
+                      if (hasSupport2) return 'support2';
+                      return 'player2';
+                    }
+                    if (current === 'support2') {
+                      return 'player2';
+                    }
+                    // player2's turn - next is first available hero
+                    if (hasPlayer1) return 'player1';
+                    if (hasSupport1) return 'support1';
+                    if (hasSupport2) return 'support2';
+                    return 'player2'; // Fallback
+                  };
+                  const nextTurn = getNextTurn(attacker);
+                  console.log('[TestPage] Switching turn from', attacker, 'to', nextTurn);
+                  setTimeout(() => {
+                    setCurrentTurn(nextTurn);
+                    setIsMoveInProgress(false);
+                  }, 450);
+                  return; // Early return to prevent double execution
+                } else {
+                  // Main hero or monster defeated
+                  const isTeamBattle = supportHeroes.length > 0;
+                  
+                  if (defender === 'player1' && isTeamBattle) {
+                    // Team battle - check if all heroes are defeated
+                    // Use newHP <= 0 to know player1 is defeated (state might not be updated yet)
+                    const player1Defeated = newHP <= 0;
+                    const allHeroesDefeated = player1Defeated &&
+                      supportHeroes.every(sh => sh.class.hitPoints <= 0);
+                    
+                    if (allHeroesDefeated) {
+                      // All heroes defeated, monster wins
+                      setDefeatedPlayer('player1');
+                      setVictorPlayer('player2');
+                      setConfettiTrigger(prev => prev + 1);
+                      showFloatingNumbers(
+                        [{ value: 'DEFEATED!', type: 'defeated', targetPlayer: 'player1', persistent: true }],
+                        [],
+                        []
+                      );
+                      addLog('system', `🏆 ${player2Class.name} wins!`);
+                      setTimeout(() => {
+                        setIsMoveInProgress(false);
+                      }, 450);
+                      return; // End battle
+                    }
+                    
+                    // Player1 knocked out but support heroes are still alive - continue battle
+                    showFloatingNumbers(
+                      [{ value: 'KNOCKED OUT!', type: 'knocked-out', targetPlayer: 'player1', persistent: true }],
+                      [],
+                      []
+                    );
+                    addLog('system', `💀 ${defenderClass.name} has been knocked out! Support heroes continue the fight!`);
+                    
+                    // Switch turns
+                    const getNextTurn = (current: 'player1' | 'player2' | 'support1' | 'support2'): 'player1' | 'player2' | 'support1' | 'support2' => {
+                      const availableTargets = getAvailableTargets();
+                      const hasPlayer1 = availableTargets.includes('player1');
+                      const hasSupport1 = availableTargets.includes('support1');
+                      const hasSupport2 = availableTargets.includes('support2');
+                      
+                      if (availableTargets.length === 0) {
+                        return 'player2';
+                      }
+                      
+                      if (current === 'player1') {
+                        if (hasSupport1) return 'support1';
+                        if (hasSupport2) return 'support2';
+                        return 'player2';
+                      }
+                      if (current === 'support1') {
+                        if (hasSupport2) return 'support2';
+                        return 'player2';
+                      }
+                      if (current === 'support2') {
+                        return 'player2';
+                      }
+                      if (hasPlayer1) return 'player1';
+                      if (hasSupport1) return 'support1';
+                      if (hasSupport2) return 'support2';
+                      return 'player2';
+                    };
+                    const nextTurn = getNextTurn(attacker);
+                    console.log('[TestPage] Switching turn from', attacker, 'to', nextTurn);
+                    setTimeout(() => {
+                      setCurrentTurn(nextTurn);
+                      setIsMoveInProgress(false);
+                    }, 450);
+                    return; // Early return to prevent double execution
+                  } else {
+                    // One-on-one battle or monster defeated - end battle
+                    setDefeatedPlayer(defender);
+                    setVictorPlayer(attacker);
+                    setConfettiTrigger(prev => prev + 1);
+                    
+                    // Show floating "DEFEATED!" text (persistent - stays on card)
+                    showFloatingNumbers(
+                      [{ value: 'DEFEATED!', type: 'defeated', targetPlayer: defender, persistent: true }],
+                      [],
+                      []
+                    );
+                    
+                    addLog('system', `🏆 ${attackerClass.name} wins!`);
+                    setTimeout(() => {
+                      setIsMoveInProgress(false);
+                    }, 450);
+                    return; // End battle
+                  }
+                }
               } else {
                 // Switch turns after attack completes
-                const nextTurn = attacker === 'player1' ? 'player2' : 'player1';
+                // Turn order: player1 -> support1 -> support2 -> player2 -> player1...
+                // Skip knocked-out heroes
+                const getNextTurn = (current: 'player1' | 'player2' | 'support1' | 'support2'): 'player1' | 'player2' | 'support1' | 'support2' => {
+                  const availableTargets = getAvailableTargets();
+                  const hasPlayer1 = availableTargets.includes('player1');
+                  const hasSupport1 = availableTargets.includes('support1');
+                  const hasSupport2 = availableTargets.includes('support2');
+                  
+                  // If no heroes available, it's player2's turn (monster)
+                  if (availableTargets.length === 0) {
+                    return 'player2';
+                  }
+                  
+                  // Turn order logic, skipping defeated heroes
+                  if (current === 'player1') {
+                    if (hasSupport1) return 'support1';
+                    if (hasSupport2) return 'support2';
+                    return 'player2';
+                  }
+                  if (current === 'support1') {
+                    if (hasSupport2) return 'support2';
+                    return 'player2';
+                  }
+                  if (current === 'support2') {
+                    return 'player2';
+                  }
+                  // player2's turn - next is first available hero
+                  if (hasPlayer1) return 'player1';
+                  if (hasSupport1) return 'support1';
+                  if (hasSupport2) return 'support2';
+                  return 'player2'; // Fallback
+                };
+                const nextTurn = getNextTurn(attacker);
                 console.log('[TestPage] Switching turn from', attacker, 'to', nextTurn);
                 setTimeout(() => {
                   setCurrentTurn(nextTurn);
@@ -729,8 +1418,9 @@ export default function DnDTestPage() {
     );
   };
   
-  const testHeal = (player: 'player1' | 'player2') => {
-    const playerClass = player === 'player1' ? player1Class : player2Class;
+  const testHeal = (player: 'player1' | 'player2' | 'support1' | 'support2') => {
+    const playerClass = getAttackerClass(player);
+    if (!playerClass) return;
     
     const heal = rollDiceWithNotation('1d8+3');
     
@@ -738,20 +1428,33 @@ export default function DnDTestPage() {
     
     const newHP = Math.min(playerClass.maxHitPoints, playerClass.hitPoints + heal);
     
+    // For support heroes, use player1 as the target player for visual effects (they're on player1's side)
+    const visualTargetPlayer: 'player1' | 'player2' = (player === 'player1' || player === 'support1' || player === 'support2') ? 'player1' : 'player2';
+    
     // Build visual effects array using the proper helper function (includes cast effect for spell-casting classes)
-    const visualEffects = createHealingVisualEffects(player, heal, playerClass);
+    const visualEffects = createHealingVisualEffects(visualTargetPlayer, heal, playerClass);
     
     // Show floating healing number immediately
     showFloatingNumbers(
-      [{ value: heal, type: 'healing', targetPlayer: player }],
+      [{ value: heal, type: 'healing', targetPlayer: visualTargetPlayer }],
       visualEffects,
       [
         () => updatePlayerHP(player, newHP),
         () => {
           addLog('ability', `💚 ${playerClass.name} heals for ${heal} HP!`);
           addLog('narrative', mockBattleNarrative(`${playerClass.name} uses Test Heal and recovers ${heal} HP.`));
-          // Switch turns after heal
-          const nextTurn = player === 'player1' ? 'player2' : 'player1';
+          // Turn order: player1 -> support1 -> support2 -> player2 -> player1...
+          const getNextTurn = (current: 'player1' | 'player2' | 'support1' | 'support2'): 'player1' | 'player2' | 'support1' | 'support2' => {
+            const hasSupportHeroes = supportHeroes.length > 0;
+            if (!hasSupportHeroes) {
+              return current === 'player1' ? 'player2' : 'player1';
+            }
+            if (current === 'player1') return 'support1';
+            if (current === 'support1') return supportHeroes.length > 1 ? 'support2' : 'player2';
+            if (current === 'support2') return 'player2';
+            return 'player1';
+          };
+          const nextTurn = getNextTurn(player);
           setTimeout(() => {
             setCurrentTurn(nextTurn);
             setIsMoveInProgress(false);
@@ -861,8 +1564,9 @@ export default function DnDTestPage() {
     );
   };
   
-  const testFullHeal = (player: 'player1' | 'player2') => {
-    const playerClass = player === 'player1' ? player1Class : player2Class;
+  const testFullHeal = (player: 'player1' | 'player2' | 'support1' | 'support2') => {
+    const playerClass = getAttackerClass(player);
+    if (!playerClass) return;
     const healAmount = playerClass.maxHitPoints - playerClass.hitPoints;
     
     if (healAmount <= 0) {
@@ -872,10 +1576,13 @@ export default function DnDTestPage() {
     
     addLog('roll', `✨ ${playerClass.name} uses Full Heal!`);
     
+    // For support heroes, use player1 as the target player for visual effects (they're on player1's side)
+    const visualTargetPlayer: 'player1' | 'player2' = (player === 'player1' || player === 'support1' || player === 'support2') ? 'player1' : 'player2';
+    
     // Show floating healing number immediately
     showFloatingNumbers(
-      [{ value: healAmount, type: 'healing', targetPlayer: player }],
-      [{ type: 'sparkle', player, intensity: healAmount }],
+      [{ value: healAmount, type: 'healing', targetPlayer: visualTargetPlayer }],
+      [{ type: 'sparkle', player: visualTargetPlayer, intensity: healAmount }],
       [
         () => updatePlayerHP(player, playerClass.maxHitPoints),
         () => {
@@ -886,13 +1593,30 @@ export default function DnDTestPage() {
     );
   };
 
-  // Test ability handler - handles all ability types
-  const testUseAbility = (player: 'player1' | 'player2', abilityIndex: number) => {
+  // Replace testUseAbility with useAbility from useBattleActions hook
+  const testUseAbility = (player: 'player1' | 'player2' | 'support1' | 'support2', abilityIndex: number) => {
+    console.log('[TestPage] testUseAbility called for', player, 'ability', abilityIndex);
+    // Ensure battle is active for hooks to work
+    if (!isBattleActive) {
+      setLocalIsBattleActive(true);
+    }
+    // Use the shared useAbility function from useBattleActions hook
+    useAbility(player, abilityIndex);
+    return;
+    
+    // OLD IMPLEMENTATION BELOW - KEPT FOR REFERENCE BUT NOT USED
+    /* eslint-disable */
     if (isMoveInProgress) return;
     
     setIsMoveInProgress(true);
-    const attackerClass = player === 'player1' ? player1Class : player2Class;
-    const defenderClass = player === 'player1' ? player2Class : player1Class;
+    const attackerClass = getAttackerClass(player);
+    if (!attackerClass) {
+      setIsMoveInProgress(false);
+      return;
+    }
+    
+    // Support heroes always target player2 (the monster) for attacks, or themselves for healing
+    const defenderClass = (player === 'player1' || player === 'support1' || player === 'support2') ? player2Class : player1Class;
     const ability = attackerClass.abilities[abilityIndex];
     
     if (!ability) {
@@ -907,16 +1631,30 @@ export default function DnDTestPage() {
       const heal = rollDiceWithNotation(ability.healingDice);
       const newHP = Math.min(attackerClass.maxHitPoints, attackerClass.hitPoints + heal);
       
+      // For support heroes, use player1 as the target player for visual effects (they're on player1's side)
+      const visualTargetPlayer: 'player1' | 'player2' = (player === 'player1' || player === 'support1' || player === 'support2') ? 'player1' : 'player2';
+      
       // Show floating healing number immediately
       showFloatingNumbers(
-        [{ value: heal, type: 'healing', targetPlayer: player }],
-        createHealingVisualEffects(player, heal, attackerClass),
+        [{ value: heal, type: 'healing', targetPlayer: visualTargetPlayer }],
+        createHealingVisualEffects(visualTargetPlayer, heal, attackerClass),
         [
           () => updatePlayerHP(player, newHP),
           () => {
             addLog('ability', `💚 ${attackerClass.name} heals for ${heal} HP!`);
             addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} and heals for ${heal} HP.`));
-            const nextTurn = player === 'player1' ? 'player2' : 'player1';
+            // Turn order: player1 -> support1 -> support2 -> player2 -> player1...
+            const getNextTurn = (current: 'player1' | 'player2' | 'support1' | 'support2'): 'player1' | 'player2' | 'support1' | 'support2' => {
+              const hasSupportHeroes = supportHeroes.length > 0;
+              if (!hasSupportHeroes) {
+                return current === 'player1' ? 'player2' : 'player1';
+              }
+              if (current === 'player1') return 'support1';
+              if (current === 'support1') return supportHeroes.length > 1 ? 'support2' : 'player2';
+              if (current === 'support2') return 'player2';
+              return 'player1';
+            };
+            const nextTurn = getNextTurn(player);
             setTimeout(() => {
               setCurrentTurn(nextTurn);
               setIsMoveInProgress(false);
@@ -927,8 +1665,9 @@ export default function DnDTestPage() {
     } else if (ability.type === 'attack') {
       const attackAbility = ability as AttackAbility;
       const numAttacks = attackAbility.attacks || 1;
-      const defender = getOpponent(player);
-      const cardRotation = player === 'player1' ? -5 : 5;
+      // Support heroes always attack player2 (the monster)
+      const defender: 'player1' | 'player2' = (player === 'player1' || player === 'support1' || player === 'support2') ? 'player2' : 'player1';
+      const cardRotation = (player === 'player1' || player === 'support1' || player === 'support2') ? -5 : 5;
       const projectileType = getProjectileType(attackAbility, undefined, attackerClass.name);
       
       // Trigger flash and cast effects for attack abilities only
@@ -1006,7 +1745,7 @@ export default function DnDTestPage() {
                     damageNumbers,
                     visualEffects,
                     [
-                      () => updatePlayerHP(defender, newHP),
+                      () => updatePlayerHP(defender, totalDamage, true),
                       () => {
                         addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
                         const hitDetails = hits.map((hit, i) => 
@@ -1016,6 +1755,7 @@ export default function DnDTestPage() {
                         addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. Total damage: ${totalDamage}.`));
                         
                         if (newHP <= 0) {
+                          // Main hero or monster defeated - end battle
                           setDefeatedPlayer(defender);
                           setVictorPlayer(player);
                           setConfettiTrigger(prev => prev + 1);
@@ -1028,8 +1768,39 @@ export default function DnDTestPage() {
                           );
                           
                           addLog('system', `🏆 ${attackerClass.name} wins!`);
+                          setTimeout(() => {
+                            setIsMoveInProgress(false);
+                          }, 450);
                         } else {
-                          const nextTurn = player === 'player1' ? 'player2' : 'player1';
+                          // Switch turns, skipping knocked-out heroes
+                          const getNextTurn = (current: 'player1' | 'player2' | 'support1' | 'support2'): 'player1' | 'player2' | 'support1' | 'support2' => {
+                            const availableTargets = getAvailableTargets();
+                            const hasPlayer1 = availableTargets.includes('player1');
+                            const hasSupport1 = availableTargets.includes('support1');
+                            const hasSupport2 = availableTargets.includes('support2');
+                            
+                            if (availableTargets.length === 0) {
+                              return 'player2';
+                            }
+                            
+                            if (current === 'player1') {
+                              if (hasSupport1) return 'support1';
+                              if (hasSupport2) return 'support2';
+                              return 'player2';
+                            }
+                            if (current === 'support1') {
+                              if (hasSupport2) return 'support2';
+                              return 'player2';
+                            }
+                            if (current === 'support2') {
+                              return 'player2';
+                            }
+                            if (hasPlayer1) return 'player1';
+                            if (hasSupport1) return 'support1';
+                            if (hasSupport2) return 'support2';
+                            return 'player2';
+                          };
+                          const nextTurn = getNextTurn(player);
                           setTimeout(() => {
                             setCurrentTurn(nextTurn);
                             setIsMoveInProgress(false);
@@ -1116,18 +1887,50 @@ export default function DnDTestPage() {
                 [{ value: damage, type: 'damage', targetPlayer: defender }],
                 visualEffects, // Other effects (hit, cast) shown immediately
                 [
-                  () => updatePlayerHP(defender, newHP),
+                  () => updatePlayerHP(defender, damage, true),
                   () => {
                     addLog('attack', `⚔️ ${attackerClass.name} hits for ${damage} damage!`);
                     addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} and hits for ${damage} damage.`));
                     
                     if (newHP <= 0) {
+                      // Main hero or monster defeated - end battle
                       setDefeatedPlayer(defender);
                       setVictorPlayer(player);
                       setConfettiTrigger(prev => prev + 1);
                       addLog('system', `🏆 ${attackerClass.name} wins!`);
+                      setTimeout(() => {
+                        setIsMoveInProgress(false);
+                      }, 450);
                     } else {
-                      const nextTurn = player === 'player1' ? 'player2' : 'player1';
+                      // Switch turns, skipping knocked-out heroes
+                      const getNextTurn = (current: 'player1' | 'player2' | 'support1' | 'support2'): 'player1' | 'player2' | 'support1' | 'support2' => {
+                        const availableTargets = getAvailableTargets();
+                        const hasPlayer1 = availableTargets.includes('player1');
+                        const hasSupport1 = availableTargets.includes('support1');
+                        const hasSupport2 = availableTargets.includes('support2');
+                        
+                        if (availableTargets.length === 0) {
+                          return 'player2';
+                        }
+                        
+                        if (current === 'player1') {
+                          if (hasSupport1) return 'support1';
+                          if (hasSupport2) return 'support2';
+                          return 'player2';
+                        }
+                        if (current === 'support1') {
+                          if (hasSupport2) return 'support2';
+                          return 'player2';
+                        }
+                        if (current === 'support2') {
+                          return 'player2';
+                        }
+                        if (hasPlayer1) return 'player1';
+                        if (hasSupport1) return 'support1';
+                        if (hasSupport2) return 'support2';
+                        return 'player2';
+                      };
+                      const nextTurn = getNextTurn(player);
                       setTimeout(() => {
                         setCurrentTurn(nextTurn);
                         setIsMoveInProgress(false);
@@ -1158,7 +1961,18 @@ export default function DnDTestPage() {
                   () => {
                     addLog('attack', `❌ ${attackerClass.name} misses!`);
                     addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} but misses.`));
-                    const nextTurn = player === 'player1' ? 'player2' : 'player1';
+                    // Turn order: player1 -> support1 -> support2 -> player2 -> player1...
+                    const getNextTurn = (current: 'player1' | 'player2' | 'support1' | 'support2'): 'player1' | 'player2' | 'support1' | 'support2' => {
+                      const hasSupportHeroes = supportHeroes.length > 0;
+                      if (!hasSupportHeroes) {
+                        return current === 'player1' ? 'player2' : 'player1';
+                      }
+                      if (current === 'player1') return 'support1';
+                      if (current === 'support1') return supportHeroes.length > 1 ? 'support2' : 'player2';
+                      if (current === 'support2') return 'player2';
+                      return 'player1';
+                    };
+                    const nextTurn = getNextTurn(player);
                     setTimeout(() => {
                       setCurrentTurn(nextTurn);
                       setIsMoveInProgress(false);
@@ -1204,18 +2018,50 @@ export default function DnDTestPage() {
               [{ value: damage, type: 'damage', targetPlayer: defender }],
               visualEffects, // Other effects (hit, cast) shown immediately
               [
-                () => updatePlayerHP(defender, newHP),
+                () => updatePlayerHP(defender, damage, true),
                 () => {
                   addLog('attack', `⚔️ ${attackerClass.name} deals ${damage} damage!`);
                   addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} and deals ${damage} damage.`));
                   
                   if (newHP <= 0) {
+                    // Main hero or monster defeated - end battle
                     setDefeatedPlayer(defender);
                     setVictorPlayer(player);
                     setConfettiTrigger(prev => prev + 1);
                     addLog('system', `🏆 ${attackerClass.name} wins!`);
+                    setTimeout(() => {
+                      setIsMoveInProgress(false);
+                    }, 450);
                   } else {
-                    const nextTurn = player === 'player1' ? 'player2' : 'player1';
+                    // Switch turns, skipping knocked-out heroes
+                    const getNextTurn = (current: 'player1' | 'player2' | 'support1' | 'support2'): 'player1' | 'player2' | 'support1' | 'support2' => {
+                      const availableTargets = getAvailableTargets();
+                      const hasPlayer1 = availableTargets.includes('player1');
+                      const hasSupport1 = availableTargets.includes('support1');
+                      const hasSupport2 = availableTargets.includes('support2');
+                      
+                      if (availableTargets.length === 0) {
+                        return 'player2';
+                      }
+                      
+                      if (current === 'player1') {
+                        if (hasSupport1) return 'support1';
+                        if (hasSupport2) return 'support2';
+                        return 'player2';
+                      }
+                      if (current === 'support1') {
+                        if (hasSupport2) return 'support2';
+                        return 'player2';
+                      }
+                      if (current === 'support2') {
+                        return 'player2';
+                      }
+                      if (hasPlayer1) return 'player1';
+                      if (hasSupport1) return 'support1';
+                      if (hasSupport2) return 'support2';
+                      return 'player2';
+                    };
+                    const nextTurn = getNextTurn(player);
                     setTimeout(() => {
                       setCurrentTurn(nextTurn);
                       setIsMoveInProgress(false);
@@ -1234,13 +2080,15 @@ export default function DnDTestPage() {
     }
   };
   
-  // Use AI opponent hook
+  // Use AI opponent hook for player2 (monster)
+  // Use hookCurrentTurn since performAttack uses hook's switchTurn which updates hookCurrentTurn
   const aiOpponentCleanup = useAIOpponent({
-    isActive: isAIModeActive,
-    currentTurn,
-    isMoveInProgress,
-    defeatedPlayer,
+    isActive: isAIModeActive && isBattleActive,
+    currentTurn: hookCurrentTurn,
+    isMoveInProgress: hookIsMoveInProgress,
+    defeatedPlayer: visualDefeatedPlayer,
     opponentClass: player2Class,
+    playerId: 'player2',
     callbacks: {
       onAttack: () => testAttackHit('player2'),
       onUseAbility: (abilityIndex: number) => {
@@ -1249,21 +2097,95 @@ export default function DnDTestPage() {
       onHeal: () => testHeal('player2'),
     },
     onStateChange: setIsOpponentAutoPlaying,
-    onMoveInProgressChange: setIsMoveInProgress,
+    onMoveInProgressChange: setHookIsMoveInProgress,
+    debugLog: (message: string) => console.log(message),
+  });
+  
+  // Use AI opponent hooks for support heroes (they auto-play)
+  // Use hookCurrentTurn since performAttack uses hook's switchTurn which updates hookCurrentTurn
+  const supportHero1Cleanup = useAIOpponent({
+    isActive: isAIModeActive && isBattleActive && supportHeroes.length > 0,
+    currentTurn: hookCurrentTurn,
+    isMoveInProgress: hookIsMoveInProgress,
+    defeatedPlayer: visualDefeatedPlayer,
+    opponentClass: supportHeroes.length > 0 ? supportHeroes[0].class : null,
+    playerId: 'support1',
+    callbacks: {
+      onAttack: () => testAttackHit('support1'),
+      onUseAbility: (abilityIndex: number) => {
+        testUseAbility('support1', abilityIndex);
+      },
+      onHeal: () => testHeal('support1'),
+    },
+    onStateChange: () => {},
+    onMoveInProgressChange: setHookIsMoveInProgress,
+    debugLog: (message: string) => console.log(message),
+  });
+  
+  const supportHero2Cleanup = useAIOpponent({
+    isActive: isAIModeActive && isBattleActive && supportHeroes.length > 1,
+    currentTurn: hookCurrentTurn,
+    isMoveInProgress: hookIsMoveInProgress,
+    defeatedPlayer: visualDefeatedPlayer,
+    opponentClass: supportHeroes.length > 1 ? supportHeroes[1].class : null,
+    playerId: 'support2',
+    callbacks: {
+      onAttack: () => testAttackHit('support2'),
+      onUseAbility: (abilityIndex: number) => {
+        testUseAbility('support2', abilityIndex);
+      },
+      onHeal: () => testHeal('support2'),
+    },
+    onStateChange: () => {},
+    onMoveInProgressChange: setHookIsMoveInProgress,
     debugLog: (message: string) => console.log(message),
   });
 
   const resetTest = () => {
+    // Reset HP for all players
     setPlayer1Class(prev => ({ ...prev, hitPoints: prev.maxHitPoints }));
     setPlayer2Class(prev => ({ ...prev, hitPoints: prev.maxHitPoints }));
+    // Reset support heroes HP
+    setSupportHeroes(prev => prev.map(sh => ({
+      ...sh,
+      class: { ...sh.class, hitPoints: sh.class.maxHitPoints }
+    })));
+    
+    // Reset hook battle state
+    setHookPlayer1Class(prev => prev ? { ...prev, hitPoints: prev.maxHitPoints } : null);
+    setHookPlayer2Class(prev => prev ? { ...prev, hitPoints: prev.maxHitPoints } : null);
+    setHookSupportHeroes(prev => prev.map(sh => ({
+      ...sh,
+      class: { ...sh.class, hitPoints: sh.class.maxHitPoints }
+    })));
+    
+    // Reset battle state
     setBattleLog([]);
+    setHookBattleLog([]);
+    setCurrentTurn('player1');
+    setHookCurrentTurn('player1');
+    setIsMoveInProgress(false);
+    setHookIsMoveInProgress(false);
+    setLocalIsBattleActive(false);
+    setHookIsBattleActive(false);
+    
+    // Reset AI mode
+    setIsAIModeActive(false);
+    setIsOpponentAutoPlaying(false);
+    
+    // Reset defeat/victory state
     setDefeatedPlayer(null);
     setVictorPlayer(null);
+    setHookDefeatedPlayer(null);
+    setHookVictorPlayer(null);
+    setHookConfettiTrigger(0);
+    
+    // Reset local visual effect states
     setShakingPlayer(null);
     setSparklingPlayer(null);
     setMissingPlayer(null);
     setHittingPlayer(null);
-    setShakeTrigger({ player1: 0, player2: 0 });
+    setShakeTrigger({ player1: 0, player2: 0, support1: 0, support2: 0 });
     setSparkleTrigger({ player1: 0, player2: 0 });
     setMissTrigger({ player1: 0, player2: 0 });
     setHitTrigger({ player1: 0, player2: 0 });
@@ -1273,21 +2195,29 @@ export default function DnDTestPage() {
     setFlashTrigger({ player1: 0, player2: 0 });
     setFlashProjectileType({ player1: null, player2: null });
     setCastProjectileType({ player1: null, player2: null });
-    setShakeIntensity({ player1: 0, player2: 0 });
+    setShakeIntensity({ player1: 0, player2: 0, support1: 0, support2: 0 });
     setSparkleIntensity({ player1: 0, player2: 0 });
     setManualEmotion1(null);
     setManualEmotion2(null);
-    setCurrentTurn('player1');
-    setIsMoveInProgress(false);
-    setIsOpponentAutoPlaying(false);
-    // Clear floating numbers
+    
+    // Reset hook visual effects
+    hookResetEffects();
+    
+    // Clear floating numbers (both local and hook)
     setFloatingNumbers([]);
-    // Clear projectile effects
+    
+    // Clear projectile effects (both local and hook)
     setProjectileEffects([]);
+    hookClearProjectileTracking();
+    
     // Clear projectile tracking ref
     lastProjectileTimeRef.current = {};
-    // Note: We don't reset monster IDs here - they should persist with the selected character
+    
+    // Cleanup AI opponents
     aiOpponentCleanup.cleanup();
+    supportHero1Cleanup.cleanup();
+    supportHero2Cleanup.cleanup();
+    
     addLog('system', '🔄 Test reset');
   };
 
@@ -1309,6 +2239,10 @@ export default function DnDTestPage() {
   }, []);
 
   const handlePlayer2ShakeComplete = useCallback(() => {
+    setShakingPlayer(null);
+  }, []);
+  
+  const handleSupportShakeComplete = useCallback(() => {
     setShakingPlayer(null);
   }, []);
 
@@ -1346,16 +2280,34 @@ export default function DnDTestPage() {
       <LandscapePrompt />
       
       {/* Floating Numbers */}
-      {floatingNumbers.map((number) => (
-        <FloatingNumber
-          key={number.id}
-          value={number.value}
-          type={number.type}
-          targetCardRef={number.targetPlayer === 'player1' ? player1CardRef : player2CardRef}
-          onComplete={() => handleFloatingNumberComplete(number.id)}
-          persistent={number.persistent}
-        />
-      ))}
+      {floatingNumbers.map((number) => {
+        // Determine which ref to use based on target player
+        let targetRef: React.RefObject<HTMLDivElement | null> = player1CardRef;
+        if (number.targetPlayer === 'player2') {
+          targetRef = player2CardRef;
+        } else if (number.targetPlayer === 'support1') {
+          // Always try to use support1 ref, even if not available yet (will retry)
+          targetRef = support1CardRef.current 
+            ? { current: support1CardRef.current } as React.RefObject<HTMLDivElement | null>
+            : player1CardRef; // Fallback to player1 if support ref not ready
+        } else if (number.targetPlayer === 'support2') {
+          // Always try to use support2 ref, even if not available yet (will retry)
+          targetRef = support2CardRef.current 
+            ? { current: support2CardRef.current } as React.RefObject<HTMLDivElement | null>
+            : player1CardRef; // Fallback to player1 if support ref not ready
+        }
+        
+        return (
+          <FloatingNumber
+            key={number.id}
+            value={number.value}
+            type={number.type}
+            targetCardRef={targetRef}
+            onComplete={() => handleFloatingNumberComplete(number.id)}
+            persistent={number.persistent}
+          />
+        );
+      })}
       
       {/* Projectile Effects */}
       {projectileEffects.map((projectile) => (
@@ -1397,8 +2349,21 @@ export default function DnDTestPage() {
               </button>
               <button
                 onClick={() => {
-                  setIsAIModeActive(!isAIModeActive);
-                  addLog('system', isAIModeActive ? '🤖 AI mode disabled' : '🤖 AI mode enabled - Player 2 will auto-play');
+                  const newAIModeState = !isAIModeActive;
+                  console.log('[TestPage] AI Mode button clicked:', {
+                    currentState: isAIModeActive,
+                    newState: newAIModeState,
+                    isBattleActive,
+                    currentTurn: hookCurrentTurn,
+                    player2Class: player2Class?.name
+                  });
+                  setIsAIModeActive(newAIModeState);
+                  // Ensure battle is active when AI mode is enabled
+                  if (newAIModeState && !isBattleActive) {
+                    console.log('[TestPage] Activating battle for AI mode');
+                    setLocalIsBattleActive(true);
+                  }
+                  addLog('system', newAIModeState ? '🤖 AI mode enabled - Player 2 will auto-play' : '🤖 AI mode disabled');
                 }}
                 className={`py-2 px-4 font-semibold rounded-lg border-2 transition-all ${
                   isAIModeActive
@@ -1592,6 +2557,80 @@ export default function DnDTestPage() {
                 width: 'calc(100% + 120px)',
               }}
             />
+            
+            {/* Support Heroes - Small cards to the left of player1 */}
+            {supportHeroes.length > 0 && (
+              <div className="relative z-10 flex flex-col gap-2">
+                {supportHeroes.map((supportHero, index) => {
+                  const supportPlayer = index === 0 ? 'support1' : 'support2';
+                  const isActive = currentTurn === supportPlayer;
+                  const isDefeated = supportHero.class.hitPoints <= 0;
+                  
+                  return (
+                    <div
+                      key={index}
+                      ref={index === 0 ? support1CardRef : support2CardRef}
+                      className="relative"
+                      style={{
+                        transform: `rotate(${-5 + index * 2}deg) scale(0.6)`,
+                        opacity: isDefeated ? 0.5 : 1,
+                      }}
+                    >
+                      <CharacterCard
+                        playerClass={supportHero.class}
+                        characterName={supportHero.name}
+                        monsterImageUrl={supportHero.monsterId ? `/cdn/monsters/${supportHero.monsterId}/280x200.png` : undefined}
+                        monsterCutOutImageUrl={(() => {
+                          if (!supportHero.monsterId || !supportHero.class) return undefined;
+                          const associatedMonster = findAssociatedMonster(supportHero.class.name);
+                          const hasCutout = (associatedMonster as any)?.hasCutout;
+                          return associatedMonster && hasCutout !== false
+                            ? `/cdn/monsters/${supportHero.monsterId}/280x200-cutout.png`
+                            : undefined;
+                        })()}
+                        onAttack={() => {
+                          setIsMoveInProgress(true);
+                          testAttackHit(supportPlayer);
+                        }}
+                        onUseAbility={(idx) => {
+                          testUseAbility(supportPlayer, idx);
+                        }}
+                        shouldShake={shakingPlayer === supportPlayer}
+                        shouldSparkle={false}
+                        shouldMiss={false}
+                        shouldHit={false}
+                        shouldCast={false}
+                        shouldFlash={false}
+                        castTrigger={{ player1: 0, player2: 0 }}
+                        flashTrigger={{ player1: 0, player2: 0 }}
+                        flashProjectileType={{ player1: null, player2: null }}
+                        castProjectileType={{ player1: null, player2: null }}
+                        shakeTrigger={shakeTrigger[supportPlayer]}
+                        sparkleTrigger={0}
+                        missTrigger={0}
+                        hitTrigger={0}
+                        shakeIntensity={shakeIntensity[supportPlayer]}
+                        sparkleIntensity={0}
+                        isMoveInProgress={isMoveInProgress}
+                        isActive={isActive}
+                        isDefeated={isDefeated}
+                        isVictor={false}
+                        confettiTrigger={0}
+                        onShakeComplete={handleSupportShakeComplete}
+                        onSparkleComplete={() => {}}
+                        onMissComplete={() => {}}
+                        onHitComplete={() => {}}
+                        onCastComplete={() => {}}
+                        onFlashComplete={() => {}}
+                        isOpponent={false}
+                        allowAllTurns={!isAIModeActive}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            
             {/* Left Card - Rotated counter-clockwise (outward) */}
             <div ref={player1CardRef} className="relative z-10 space-y-3" style={{ transform: 'rotate(-5deg)', overflow: 'visible' }}>
               <CharacterCard
@@ -1932,6 +2971,58 @@ export default function DnDTestPage() {
                   Cast: {castEffectsEnabled ? 'ON' : 'OFF'}
                 </button>
               </div>
+              {/* Monster Target Selection Buttons */}
+              {supportHeroes.length > 0 && (
+                <div className="mt-2 space-y-2">
+                  <div className="text-xs font-semibold text-gray-700 mb-1">Monster Target:</div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setMonsterTarget(monsterTarget === 'player1' ? null : 'player1')}
+                      className={`px-2 py-1 text-xs rounded border transition-all ${
+                        monsterTarget === 'player1'
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-500'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-700 border-gray-400'
+                      }`}
+                    >
+                      🎯 Target Hero
+                    </button>
+                    {supportHeroes.length > 0 && (
+                      <button
+                        onClick={() => setMonsterTarget(monsterTarget === 'support1' ? null : 'support1')}
+                        className={`px-2 py-1 text-xs rounded border transition-all ${
+                          monsterTarget === 'support1'
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-500'
+                            : 'bg-gray-200 hover:bg-gray-300 text-gray-700 border-gray-400'
+                        }`}
+                      >
+                        🎯 Target Support 1
+                      </button>
+                    )}
+                    {supportHeroes.length > 1 && (
+                      <button
+                        onClick={() => setMonsterTarget(monsterTarget === 'support2' ? null : 'support2')}
+                        className={`px-2 py-1 text-xs rounded border transition-all ${
+                          monsterTarget === 'support2'
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-500'
+                            : 'bg-gray-200 hover:bg-gray-300 text-gray-700 border-gray-400'
+                        }`}
+                      >
+                        🎯 Target Support 2
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setMonsterTarget(null)}
+                      className={`px-2 py-1 text-xs rounded border transition-all ${
+                        monsterTarget === null
+                          ? 'bg-gray-600 hover:bg-gray-700 text-white border-gray-500'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-700 border-gray-400'
+                      }`}
+                    >
+                      🎲 Random
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-8 gap-2">
               {(['fire', 'ice', 'water', 'earth', 'air', 'poison', 'psychic', 'necrotic', 'radiant', 'lightning', 'acid', 'melee', 'ranged', 'magic', 'shadow'] as ProjectileType[]).map((type) => (
@@ -1967,7 +3058,7 @@ export default function DnDTestPage() {
                           createHitVisualEffects(attacker, defender, damage, defenderClass, player1Class)
                             .filter(effect => effect.type !== 'shake'),
                           [
-                            () => updatePlayerHP(defender, newHP),
+                            () => updatePlayerHP(defender, damage, true),
                             () => addLog('system', `🧪 Test ${type} projectile`)
                           ]
                         );

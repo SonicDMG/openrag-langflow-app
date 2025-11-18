@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-export type FloatingNumberType = 'damage' | 'healing' | 'miss' | 'attack-roll' | 'defeated';
+export type FloatingNumberType = 'damage' | 'healing' | 'miss' | 'attack-roll' | 'defeated' | 'knocked-out';
 
 interface FloatingNumberProps {
   value: number | string;
@@ -40,8 +40,8 @@ export function FloatingNumber({ value, type, targetCardRef, onComplete, persist
       return () => clearTimeout(timer);
     }
 
-    // For persistent defeated text, update position continuously
-    if (persistent && type === 'defeated') {
+    // For persistent defeated/knocked-out text, update position continuously
+    if (persistent && (type === 'defeated' || type === 'knocked-out')) {
       const handleUpdate = () => updatePosition();
       const interval = setInterval(handleUpdate, 100); // Update every 100ms
       window.addEventListener('scroll', handleUpdate, true);
@@ -56,8 +56,8 @@ export function FloatingNumber({ value, type, targetCardRef, onComplete, persist
 
   useEffect(() => {
     if (isVisible && !persistent) {
-      // Animation duration matches CSS animation (2s for normal, 3s for defeated)
-      const duration = type === 'defeated' ? 3000 : 2000;
+      // Animation duration matches CSS animation (2s for normal, 3s for defeated/knocked-out)
+      const duration = (type === 'defeated' || type === 'knocked-out') ? 3000 : 2000;
       const timer = setTimeout(() => {
         setIsVisible(false);
         onComplete?.();
@@ -112,6 +112,18 @@ export function FloatingNumber({ value, type, targetCardRef, onComplete, persist
           letterSpacing: '0.1em',
           textTransform: 'uppercase' as const,
         };
+      case 'knocked-out':
+        return {
+          color: '#DC2626', // red-600
+          fontSize: '2.5rem',
+          fontWeight: 900,
+          textShadow: 
+            '2px 2px 4px rgba(0, 0, 0, 0.8), ' +
+            '0 0 15px rgba(220, 38, 38, 0.7), ' +
+            '0 0 30px rgba(220, 38, 38, 0.5)',
+          letterSpacing: '0.05em',
+          textTransform: 'uppercase' as const,
+        };
       default:
         return {
           color: '#FFFFFF',
@@ -129,6 +141,8 @@ export function FloatingNumber({ value, type, targetCardRef, onComplete, persist
     ? 'MISS' 
     : type === 'defeated'
     ? 'DEFEATED!'
+    : type === 'knocked-out'
+    ? 'KNOCKED OUT!'
     : type === 'attack-roll' 
     ? String(value) 
     : type === 'healing'
@@ -137,7 +151,7 @@ export function FloatingNumber({ value, type, targetCardRef, onComplete, persist
 
   return (
     <div
-      className={type === 'defeated' ? (persistent ? 'floating-number-defeated-persistent' : 'floating-number-defeated') : 'floating-number'}
+      className={(type === 'defeated' || type === 'knocked-out') ? (persistent ? 'floating-number-defeated-persistent' : 'floating-number-defeated') : 'floating-number'}
       style={{
         position: 'fixed',
         left: `${position.x}px`,

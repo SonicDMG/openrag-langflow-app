@@ -64,6 +64,12 @@ export default function DnDBattle() {
     setPlayer1MonsterId,
     setPlayer2MonsterId,
     setPlayerClassWithMonster,
+    supportHeroes,
+    setSupportHeroes,
+    supportHeroNames,
+    setSupportHeroNames,
+    supportHeroMonsterIds,
+    setSupportHeroMonsterIds,
     isBattleActive,
     setIsBattleActive,
     currentTurn,
@@ -201,7 +207,7 @@ export default function DnDBattle() {
   }, [setPlayerClassWithMonster, findAssociatedMonster]);
 
   // Enhanced switchTurn - no narrative processing during battle
-  const switchTurn = useCallback(async (attacker: 'player1' | 'player2') => {
+  const switchTurn = useCallback(async (attacker: 'player1' | 'player2' | 'support1' | 'support2') => {
     await switchTurnBase(attacker, defeatedPlayer, async () => {});
   }, [switchTurnBase, defeatedPlayer]);
 
@@ -344,6 +350,7 @@ export default function DnDBattle() {
   const battleActions = useBattleActions({
     player1Class,
     player2Class,
+    supportHeroes,
     isBattleActive,
     isMoveInProgress,
     classDetails,
@@ -358,14 +365,23 @@ export default function DnDBattle() {
     clearProjectileTracking,
     switchTurn,
     handleVictory,
+    setDefeatedPlayer,
   });
   const { performAttack, useAbility } = battleActions;
 
   // Refs for character cards and battle elements
   const player1CardRef = useRef<HTMLDivElement | null>(null);
   const player2CardRef = useRef<HTMLDivElement | null>(null);
+  const support1CardRef = useRef<HTMLDivElement | null>(null);
+  const support2CardRef = useRef<HTMLDivElement | null>(null);
   const battleCardsRef = useRef<HTMLDivElement | null>(null);
   const battleLogRef = useRef<HTMLDivElement | null>(null);
+  
+  // Callback to receive support hero refs from BattleArena
+  const handleSupportHeroRefsReady = useCallback((refs: { support1: React.RefObject<HTMLDivElement | null>; support2: React.RefObject<HTMLDivElement | null> }) => {
+    support1CardRef.current = refs.support1.current;
+    support2CardRef.current = refs.support2.current;
+  }, []);
 
   // Function to trigger drop animation manually (for testing)
   const triggerDropAnimation = useCallback(() => {
@@ -401,18 +417,53 @@ export default function DnDBattle() {
     triggerDropAnimation();
   }, [isBattleActive, triggerDropAnimation]);
 
-  // Use AI opponent hook
+  // Use AI opponent hook for player2 (monster)
   const aiOpponentCleanup = useAIOpponent({
     isActive: isBattleActive,
     currentTurn,
     isMoveInProgress,
     defeatedPlayer,
     opponentClass: player2Class,
+    playerId: 'player2',
     callbacks: {
       onAttack: () => performAttack('player2'),
       onUseAbility: (abilityIndex: number) => useAbility('player2', abilityIndex),
     },
     onStateChange: setIsOpponentAutoPlaying,
+    onMoveInProgressChange: setIsMoveInProgress,
+  });
+  
+  // Use AI opponent hooks for support heroes (they auto-play after a delay to allow manual control)
+  // Increased delay to 2000ms to give user time to manually click abilities
+  const supportHero1Cleanup = useAIOpponent({
+    isActive: isBattleActive && supportHeroes.length > 0,
+    currentTurn,
+    isMoveInProgress,
+    defeatedPlayer,
+    opponentClass: supportHeroes.length > 0 ? supportHeroes[0].class : null,
+    playerId: 'support1',
+    callbacks: {
+      onAttack: () => performAttack('support1'),
+      onUseAbility: (abilityIndex: number) => useAbility('support1', abilityIndex),
+    },
+    delay: 2000, // 2 second delay to allow manual control
+    onStateChange: () => {},
+    onMoveInProgressChange: setIsMoveInProgress,
+  });
+  
+  const supportHero2Cleanup = useAIOpponent({
+    isActive: isBattleActive && supportHeroes.length > 1,
+    currentTurn,
+    isMoveInProgress,
+    defeatedPlayer,
+    opponentClass: supportHeroes.length > 1 ? supportHeroes[1].class : null,
+    playerId: 'support2',
+    callbacks: {
+      onAttack: () => performAttack('support2'),
+      onUseAbility: (abilityIndex: number) => useAbility('support2', abilityIndex),
+    },
+    delay: 2000, // 2 second delay to allow manual control
+    onStateChange: () => {},
     onMoveInProgressChange: setIsMoveInProgress,
   });
 
@@ -455,8 +506,8 @@ export default function DnDBattle() {
     setIsLoadingClassDetails(true);
 
     try {
-      const p1IsMonster = isMonster(player1Class.name);
-      const p2IsMonster = isMonster(player2Class.name);
+      const p1IsMonster = isMonster(player1Class.name, availableMonsters);
+      const p2IsMonster = isMonster(player2Class.name, availableMonsters);
       const p1AvailableAbilities = player1Class.abilities || (p1IsMonster ? FALLBACK_MONSTER_ABILITIES[player1Class.name] : FALLBACK_ABILITIES[player1Class.name]) || [];
       const p2AvailableAbilities = player2Class.abilities || (p2IsMonster ? FALLBACK_MONSTER_ABILITIES[player2Class.name] : FALLBACK_ABILITIES[player2Class.name]) || [];
       
@@ -491,10 +542,93 @@ export default function DnDBattle() {
         }
       }
       
-      const isP1Monster = isMonster(p1.name);
-      const isP2Monster = isMonster(p2.name);
+      const isP1Monster = isMonster(p1.name, availableMonsters);
+      const isP2Monster = isMonster(p2.name, availableMonsters);
       const finalP1Name = player1Name || (isP1Monster ? p1.name : generateDeterministicCharacterName(p1.name));
       const finalP2Name = player2Name || (isP2Monster ? p2.name : generateDeterministicCharacterName(p2.name));
+      
+      // Check if we need support heroes (monster with HP > 50)
+      const needsSupportHeroes = isP2Monster && p2.maxHitPoints > 50;
+      console.log('[DnDBattle] Support heroes check:', { isP2Monster, maxHitPoints: p2.maxHitPoints, needsSupportHeroes });
+      let newSupportHeroes: Array<{ class: DnDClass; name: string; monsterId: string | null }> = [];
+      
+      if (needsSupportHeroes) {
+        // Select 2 random support heroes from available classes (excluding player1's class)
+        const availableSupportClasses = availableClasses.filter(
+          cls => cls.name !== p1.name && !isMonster(cls.name, availableMonsters)
+        );
+        
+        if (availableSupportClasses.length >= 2) {
+          // Shuffle and pick 2
+          const shuffled = [...availableSupportClasses].sort(() => Math.random() - 0.5);
+          const selectedSupportClasses = shuffled.slice(0, 2);
+          
+          newSupportHeroes = selectedSupportClasses.map((supportClass) => {
+            const supportIsMonster = isMonster(supportClass.name, availableMonsters);
+            const supportAvailableAbilities = supportClass.abilities || (supportIsMonster ? FALLBACK_MONSTER_ABILITIES[supportClass.name] : FALLBACK_ABILITIES[supportClass.name]) || [];
+            const supportAbilities = selectRandomAbilities(supportAvailableAbilities);
+            
+            const supportHero = {
+              ...supportClass,
+              hitPoints: supportClass.maxHitPoints,
+              abilities: supportAbilities,
+            };
+            
+            const supportName = generateDeterministicCharacterName(supportClass.name);
+            const associatedMonster = findAssociatedMonster(supportClass.name);
+            const supportMonsterId = associatedMonster ? associatedMonster.monsterId : null;
+            
+            // Add to class details
+            setClassDetails(prev => ({
+              ...prev,
+              [supportClass.name]: '',
+            }));
+            
+            return {
+              class: supportHero,
+              name: supportName,
+              monsterId: supportMonsterId,
+            };
+          });
+          
+          setSupportHeroes(newSupportHeroes);
+          console.log('[DnDBattle] Setting support heroes:', newSupportHeroes.length, newSupportHeroes);
+          addLog('system', `🛡️ ${newSupportHeroes[0].name} (${newSupportHeroes[0].class.name}) and ${newSupportHeroes[1].name} (${newSupportHeroes[1].class.name}) join the battle to support ${finalP1Name}!`);
+        } else if (availableSupportClasses.length === 1) {
+          // Only one support hero available
+          const supportClass = availableSupportClasses[0];
+          const supportIsMonster = isMonster(supportClass.name);
+          const supportAvailableAbilities = supportClass.abilities || (supportIsMonster ? FALLBACK_MONSTER_ABILITIES[supportClass.name] : FALLBACK_ABILITIES[supportClass.name]) || [];
+          const supportAbilities = selectRandomAbilities(supportAvailableAbilities);
+          
+          const supportHero = {
+            ...supportClass,
+            hitPoints: supportClass.maxHitPoints,
+            abilities: supportAbilities,
+          };
+          
+          const supportName = generateDeterministicCharacterName(supportClass.name);
+          const associatedMonster = findAssociatedMonster(supportClass.name);
+          const supportMonsterId = associatedMonster ? associatedMonster.monsterId : null;
+          
+          setClassDetails(prev => ({
+            ...prev,
+            [supportClass.name]: '',
+          }));
+          
+          newSupportHeroes = [{
+            class: supportHero,
+            name: supportName,
+            monsterId: supportMonsterId,
+          }];
+          
+          setSupportHeroes(newSupportHeroes);
+          addLog('system', `🛡️ ${supportName} (${supportClass.name}) joins the battle to support ${finalP1Name}!`);
+        }
+      } else {
+        // Clear support heroes if not needed
+        setSupportHeroes([]);
+      }
       
       setIsBattleActive(true);
       setBattleLog([]);
@@ -504,7 +638,10 @@ export default function DnDBattle() {
       clearNarrativeQueue();
       
       // No opening narrative - battle log will show dice rolls and actions
-      addLog('system', `⚔️ The battle begins between ${finalP1Name} (${p1.name}) and ${finalP2Name} (${p2.name})!`);
+      const supportText = newSupportHeroes.length > 0 
+        ? ` along with ${newSupportHeroes.map(sh => sh.name).join(' and ')}`
+        : '';
+      addLog('system', `⚔️ The battle begins between ${finalP1Name} (${p1.name})${supportText} and ${finalP2Name} (${p2.name})!`);
     } finally {
       setIsLoadingClassDetails(false);
     }
@@ -516,6 +653,8 @@ export default function DnDBattle() {
     resetNarrative();
     clearProjectileTracking();
     aiOpponentCleanup.cleanup();
+    supportHero1Cleanup.cleanup();
+    supportHero2Cleanup.cleanup();
     setBattleSummary('');
     setIsSummaryVisible(false);
     setIsGeneratingSummary(false);
@@ -537,6 +676,8 @@ export default function DnDBattle() {
     resetNarrative();
     clearProjectileTracking();
     aiOpponentCleanup.cleanup();
+    supportHero1Cleanup.cleanup();
+    supportHero2Cleanup.cleanup();
     setBattleSummary('');
     setIsGeneratingSummary(false);
     setBattleEndingImageUrl(null);
@@ -545,11 +686,14 @@ export default function DnDBattle() {
     setVictorPlayer(null);
     setBattleLog([]);
     setCurrentTurn('player1');
+    setIsMoveInProgress(false); // Reset move in progress to unlock buttons
     previousTurnRef.current = null;
     clearNarrativeQueue();
     // Reset player2 name so new opponent gets a fresh name
     setPlayer2Name('');
     setPlayer2MonsterId(null);
+    // Clear support heroes - they'll be re-added if needed
+    setSupportHeroes([]);
 
     // Select a different random opponent from BOTH monsters and classes
     // Exclude the current opponent to ensure it's different
@@ -596,8 +740,8 @@ export default function DnDBattle() {
       setIsLoadingClassDetails(true);
 
       try {
-        const p1IsMonster = isMonster(player1Class.name);
-        const p2IsMonster = isMonster(selectedOpponent.name);
+        const p1IsMonster = isMonster(player1Class.name, availableMonsters);
+        const p2IsMonster = isMonster(selectedOpponent.name, availableMonsters);
         const p1AvailableAbilities = player1Class.abilities || (p1IsMonster ? FALLBACK_MONSTER_ABILITIES[player1Class.name] : FALLBACK_ABILITIES[player1Class.name]) || [];
         const p2AvailableAbilities = selectedOpponent.abilities || (p2IsMonster ? FALLBACK_MONSTER_ABILITIES[selectedOpponent.name] : FALLBACK_ABILITIES[selectedOpponent.name]) || [];
         
@@ -623,10 +767,91 @@ export default function DnDBattle() {
         setPlayer1Class(p1);
         setPlayerClassWithMonsterEnhanced('player2', p2);
         
-        const isP1Monster = isMonster(p1.name);
-        const isP2Monster = isMonster(p2.name);
+        const isP1Monster = isMonster(p1.name, availableMonsters);
+        const isP2Monster = isMonster(p2.name, availableMonsters);
         const finalP1Name = player1Name || (isP1Monster ? p1.name : generateDeterministicCharacterName(p1.name));
         const finalP2Name = player2Name || (isP2Monster ? p2.name : generateDeterministicCharacterName(p2.name));
+        
+        // Check if we need support heroes (monster with HP > 50)
+        const needsSupportHeroes = isP2Monster && p2.maxHitPoints > 50;
+        let newSupportHeroes: Array<{ class: DnDClass; name: string; monsterId: string | null }> = [];
+        
+        if (needsSupportHeroes) {
+          // Select 2 random support heroes from available classes (excluding player1's class)
+          const availableSupportClasses = availableClasses.filter(
+            cls => cls.name !== p1.name && !isMonster(cls.name)
+          );
+          
+          if (availableSupportClasses.length >= 2) {
+            // Shuffle and pick 2
+            const shuffled = [...availableSupportClasses].sort(() => Math.random() - 0.5);
+            const selectedSupportClasses = shuffled.slice(0, 2);
+            
+            newSupportHeroes = selectedSupportClasses.map((supportClass) => {
+              const supportIsMonster = isMonster(supportClass.name, availableMonsters);
+              const supportAvailableAbilities = supportClass.abilities || (supportIsMonster ? FALLBACK_MONSTER_ABILITIES[supportClass.name] : FALLBACK_ABILITIES[supportClass.name]) || [];
+              const supportAbilities = selectRandomAbilities(supportAvailableAbilities);
+              
+              const supportHero = {
+                ...supportClass,
+                hitPoints: supportClass.maxHitPoints,
+                abilities: supportAbilities,
+              };
+              
+              const supportName = generateDeterministicCharacterName(supportClass.name);
+              const associatedMonster = findAssociatedMonster(supportClass.name);
+              const supportMonsterId = associatedMonster ? associatedMonster.monsterId : null;
+              
+              // Add to class details
+              setClassDetails(prev => ({
+                ...prev,
+                [supportClass.name]: '',
+              }));
+              
+              return {
+                class: supportHero,
+                name: supportName,
+                monsterId: supportMonsterId,
+              };
+            });
+            
+            setSupportHeroes(newSupportHeroes);
+            addLog('system', `🛡️ ${newSupportHeroes[0].name} (${newSupportHeroes[0].class.name}) and ${newSupportHeroes[1].name} (${newSupportHeroes[1].class.name}) join the battle to support ${finalP1Name}!`);
+          } else if (availableSupportClasses.length === 1) {
+            // Only one support hero available
+            const supportClass = availableSupportClasses[0];
+            const supportIsMonster = isMonster(supportClass.name, availableMonsters);
+            const supportAvailableAbilities = supportClass.abilities || (supportIsMonster ? FALLBACK_MONSTER_ABILITIES[supportClass.name] : FALLBACK_ABILITIES[supportClass.name]) || [];
+            const supportAbilities = selectRandomAbilities(supportAvailableAbilities);
+            
+            const supportHero = {
+              ...supportClass,
+              hitPoints: supportClass.maxHitPoints,
+              abilities: supportAbilities,
+            };
+            
+            const supportName = generateDeterministicCharacterName(supportClass.name);
+            const associatedMonster = findAssociatedMonster(supportClass.name);
+            const supportMonsterId = associatedMonster ? associatedMonster.monsterId : null;
+            
+            setClassDetails(prev => ({
+              ...prev,
+              [supportClass.name]: '',
+            }));
+            
+            newSupportHeroes = [{
+              class: supportHero,
+              name: supportName,
+              monsterId: supportMonsterId,
+            }];
+            
+            setSupportHeroes(newSupportHeroes);
+            addLog('system', `🛡️ ${supportName} (${supportClass.name}) joins the battle to support ${finalP1Name}!`);
+          }
+        } else {
+          // Clear support heroes if not needed
+          setSupportHeroes([]);
+        }
         
         // Keep battle active - ensure it stays on battle screen
         setIsBattleActive(true);
@@ -637,12 +862,15 @@ export default function DnDBattle() {
         clearNarrativeQueue();
         
         // No opening narrative - battle log will show dice rolls and actions
-        addLog('system', `⚔️ The battle begins between ${finalP1Name} (${p1.name}) and ${finalP2Name} (${p2.name})!`);
+        const supportText = newSupportHeroes.length > 0 
+          ? ` along with ${newSupportHeroes.map(sh => sh.name).join(' and ')}`
+          : '';
+        addLog('system', `⚔️ The battle begins between ${finalP1Name} (${p1.name})${supportText} and ${finalP2Name} (${p2.name})!`);
       } finally {
         setIsLoadingClassDetails(false);
       }
     }, 100);
-  }, [player1Class, player1Name, player2Class, opponentType, availableClasses, availableMonsters, setPlayerClassWithMonsterEnhanced, resetEffects, resetNarrative, clearProjectileTracking, aiOpponentCleanup, setBattleSummary, setIsSummaryVisible, setIsGeneratingSummary, setDefeatedPlayer, setVictorPlayer, setIsBattleActive, setBattleLog, setCurrentTurn, clearNarrativeQueue, addLog, setIsLoadingClassDetails, setClassDetails, setPlayer1Class, findAssociatedMonster]);
+  }, [player1Class, player1Name, player2Class, opponentType, availableClasses, availableMonsters, setPlayerClassWithMonsterEnhanced, resetEffects, resetNarrative, clearProjectileTracking, aiOpponentCleanup, supportHero1Cleanup, supportHero2Cleanup, setBattleSummary, setIsSummaryVisible, setIsGeneratingSummary, setDefeatedPlayer, setVictorPlayer, setIsBattleActive, setBattleLog, setCurrentTurn, clearNarrativeQueue, addLog, setIsLoadingClassDetails, setClassDetails, setPlayer1Class, findAssociatedMonster, setSupportHeroes]);
 
   const handleClearOpponentSelection = useCallback(() => {
     setPlayer2Class(null);
@@ -656,36 +884,75 @@ export default function DnDBattle() {
       <LandscapePrompt />
       
       {/* Floating Numbers */}
-      {floatingNumbers.map((number) => (
-        <FloatingNumber
-          key={number.id}
-          value={number.value}
-          type={number.type}
-          targetCardRef={number.targetPlayer === 'player1' ? player1CardRef : player2CardRef}
-          onComplete={() => handleFloatingNumberComplete(number.id)}
-          persistent={number.persistent}
-        />
-      ))}
+      {floatingNumbers.map((number) => {
+        // Determine which ref to use based on target player
+        let targetRef: React.RefObject<HTMLDivElement | null> = player1CardRef;
+        if (number.targetPlayer === 'player2') {
+          targetRef = player2CardRef;
+        } else if (number.targetPlayer === 'support1') {
+          // Always try to use support1 ref, even if not available yet (will retry)
+          targetRef = support1CardRef.current 
+            ? { current: support1CardRef.current } as React.RefObject<HTMLDivElement | null>
+            : player1CardRef; // Fallback to player1 if support ref not ready
+        } else if (number.targetPlayer === 'support2') {
+          // Always try to use support2 ref, even if not available yet (will retry)
+          targetRef = support2CardRef.current 
+            ? { current: support2CardRef.current } as React.RefObject<HTMLDivElement | null>
+            : player1CardRef; // Fallback to player1 if support ref not ready
+        }
+        
+        return (
+          <FloatingNumber
+            key={number.id}
+            value={number.value}
+            type={number.type}
+            targetCardRef={targetRef}
+            onComplete={() => handleFloatingNumberComplete(number.id)}
+            persistent={number.persistent}
+          />
+        );
+      })}
       
       {/* Projectile Effects */}
-      {projectileEffects.map((projectile) => (
-        <ProjectileEffect
-          key={projectile.id}
-          fromCardRef={projectile.fromPlayer === 'player1' ? player1CardRef : player2CardRef}
-          toCardRef={projectile.toPlayer === 'player1' ? player1CardRef : player2CardRef}
-          isHit={projectile.isHit}
-          onHit={projectile.onHit}
-          onComplete={() => {
-            if (projectile.onComplete) {
-              projectile.onComplete();
-            }
-            removeProjectileEffect(projectile.id);
-          }}
-          fromCardRotation={projectile.fromCardRotation}
-          delay={projectile.delay}
-          projectileType={projectile.projectileType}
-        />
-      ))}
+      {projectileEffects.map((projectile) => {
+        // Determine which refs to use based on from/to players
+        let fromRef = player1CardRef;
+        if (projectile.fromPlayer === 'player2') {
+          fromRef = player2CardRef;
+        } else if (projectile.fromPlayer === 'support1' && support1CardRef.current) {
+          fromRef = { current: support1CardRef.current } as React.RefObject<HTMLDivElement | null>;
+        } else if (projectile.fromPlayer === 'support2' && support2CardRef.current) {
+          fromRef = { current: support2CardRef.current } as React.RefObject<HTMLDivElement | null>;
+        }
+        
+        let toRef = player1CardRef;
+        if (projectile.toPlayer === 'player2') {
+          toRef = player2CardRef;
+        } else if (projectile.toPlayer === 'support1' && support1CardRef.current) {
+          toRef = { current: support1CardRef.current } as React.RefObject<HTMLDivElement | null>;
+        } else if (projectile.toPlayer === 'support2' && support2CardRef.current) {
+          toRef = { current: support2CardRef.current } as React.RefObject<HTMLDivElement | null>;
+        }
+        
+        return (
+          <ProjectileEffect
+            key={projectile.id}
+            fromCardRef={fromRef}
+            toCardRef={toRef}
+            isHit={projectile.isHit}
+            onHit={projectile.onHit}
+            onComplete={() => {
+              if (projectile.onComplete) {
+                projectile.onComplete();
+              }
+              removeProjectileEffect(projectile.id);
+            }}
+            fromCardRotation={projectile.fromCardRotation}
+            delay={projectile.delay}
+            projectileType={projectile.projectileType}
+          />
+        );
+      })}
       
       {/* Header */}
       <PageHeader
@@ -792,6 +1059,7 @@ export default function DnDBattle() {
               player2Name={player2Name || 'Loading...'}
               player1MonsterId={player1MonsterId}
               player2MonsterId={player2MonsterId}
+              supportHeroes={supportHeroes}
               findAssociatedMonster={findAssociatedMonster}
               onAttack={performAttack}
               onUseAbility={useAbility}
@@ -826,6 +1094,7 @@ export default function DnDBattle() {
               player2CardRef={player2CardRef}
               battleCardsRef={battleCardsRef}
               triggerDropAnimation={triggerDropAnimation}
+              onSupportHeroRefsReady={handleSupportHeroRefsReady}
             />
           )}
 

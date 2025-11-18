@@ -9,10 +9,11 @@ export interface AIOpponentCallbacks {
 
 export interface UseAIOpponentOptions {
   isActive: boolean; // Whether AI mode is active (isBattleActive or isAIModeActive)
-  currentTurn: 'player1' | 'player2';
+  currentTurn: 'player1' | 'player2' | 'support1' | 'support2';
   isMoveInProgress: boolean;
   defeatedPlayer: 'player1' | 'player2' | null;
   opponentClass: DnDClass | null;
+  playerId: 'player1' | 'player2' | 'support1' | 'support2'; // Which player this AI controls
   callbacks: AIOpponentCallbacks;
   delay?: number; // Delay before AI acts (default: 800ms)
   onStateChange?: (isAutoPlaying: boolean) => void; // Optional callback for state changes
@@ -31,6 +32,7 @@ export function useAIOpponent(options: UseAIOpponentOptions) {
     isMoveInProgress,
     defeatedPlayer,
     opponentClass,
+    playerId,
     callbacks,
     delay = 800,
     onStateChange,
@@ -42,30 +44,47 @@ export function useAIOpponent(options: UseAIOpponentOptions) {
   const aiTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    // Check if this player is defeated (for support heroes, check their HP)
+    const isDefeated = playerId === 'player1' || playerId === 'player2' 
+      ? defeatedPlayer === playerId
+      : opponentClass?.hitPoints <= 0;
+    
     // Only auto-play if:
     // - AI mode is active
-    // - It's player2's turn
+    // - It's this player's turn
     // - No move is in progress
-    // - Player2 is not defeated
+    // - This player is not defeated
     // - We're not already auto-playing (check ref to avoid dependency issues)
     // - We don't already have a timeout set up
     // - Opponent class is available
     if (
       isActive &&
-      currentTurn === 'player2' &&
+      currentTurn === playerId &&
       !isMoveInProgress &&
-      defeatedPlayer !== 'player2' &&
+      !isDefeated &&
       !isOpponentAutoPlayingRef.current &&
       !aiTimeoutRef.current &&
       opponentClass
     ) {
-      debugLog?.('[AIOpponent] AI auto-play triggered for player2');
+      debugLog?.(`[AIOpponent] AI auto-play triggered for ${playerId}`);
       isOpponentAutoPlayingRef.current = true;
       onStateChange?.(true);
-      onMoveInProgressChange?.(true); // Set move in progress to prevent other actions
+      // Don't set move in progress yet - wait until we actually perform the action
+      // This allows manual control during the delay period
       
-      // Add a small delay to make it feel more natural
+      // Add a delay to make it feel more natural and allow manual control
       aiTimeoutRef.current = setTimeout(() => {
+        // Check if a move is already in progress (user might have clicked manually)
+        if (isMoveInProgress) {
+          debugLog?.(`[AIOpponent] Move already in progress, cancelling AI for ${playerId}`);
+          isOpponentAutoPlayingRef.current = false;
+          onStateChange?.(false);
+          aiTimeoutRef.current = null;
+          return;
+        }
+        
+        // Now set move in progress before performing the action
+        onMoveInProgressChange?.(true);
         debugLog?.(
           `[AIOpponent] AI timeout fired, opponentClass: ${opponentClass.name}, abilities: ${opponentClass.abilities.length}`
         );
@@ -166,10 +185,11 @@ export function useAIOpponent(options: UseAIOpponentOptions) {
     
     // Cleanup: only clear timeout if component unmounts or conditions change significantly
     return () => {
-      // Only clear if we're no longer active or it's no longer player2's turn
-      if (!isActive || currentTurn !== 'player2') {
+      // Only clear if we're no longer active or it's no longer this player's turn
+      // Don't clear if isMoveInProgress changed - that's expected when AI is executing
+      if (!isActive || currentTurn !== playerId) {
         if (aiTimeoutRef.current) {
-          debugLog?.('[AIOpponent] Clearing AI timeout due to condition change');
+          debugLog?.(`[AIOpponent] Clearing AI timeout due to condition change for ${playerId}`);
           clearTimeout(aiTimeoutRef.current);
           aiTimeoutRef.current = null;
           isOpponentAutoPlayingRef.current = false;
@@ -178,7 +198,9 @@ export function useAIOpponent(options: UseAIOpponentOptions) {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive, currentTurn, isMoveInProgress, defeatedPlayer]);
+    // Note: isMoveInProgress is intentionally NOT in deps - we check it in the condition but don't want
+    // the effect to re-run when it changes, as that would cancel the AI action in progress
+  }, [isActive, currentTurn, defeatedPlayer, playerId, opponentClass]);
 
   // Return cleanup function for manual cleanup (e.g., on reset)
   return {

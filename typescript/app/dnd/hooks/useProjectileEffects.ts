@@ -3,8 +3,8 @@ import { ProjectileType } from '../utils/battle';
 
 export type ProjectileData = {
   id: string;
-  fromPlayer: 'player1' | 'player2';
-  toPlayer: 'player1' | 'player2';
+  fromPlayer: 'player1' | 'player2' | 'support1' | 'support2';
+  toPlayer: 'player1' | 'player2' | 'support1' | 'support2';
   isHit: boolean;
   onHit?: () => void;
   onComplete?: () => void;
@@ -21,8 +21,8 @@ export function useProjectileEffects() {
   const lastProjectileTimeRef = useRef<{ [key: string]: number }>({});
 
   const showProjectileEffect = useCallback((
-    fromPlayer: 'player1' | 'player2',
-    toPlayer: 'player1' | 'player2',
+    fromPlayer: 'player1' | 'player2' | 'support1' | 'support2',
+    toPlayer: 'player1' | 'player2' | 'support1' | 'support2',
     isHit: boolean,
     onHit?: () => void,
     onComplete?: () => void,
@@ -30,6 +30,9 @@ export function useProjectileEffects() {
     delay?: number,
     projectileType?: ProjectileType
   ) => {
+    // Keep original player IDs - don't map support heroes to player1
+    const visualFromPlayer: 'player1' | 'player2' | 'support1' | 'support2' = fromPlayer;
+    const visualToPlayer: 'player1' | 'player2' | 'support1' | 'support2' = toPlayer;
     // If particle effects are disabled, execute callbacks immediately without showing projectile
     if (PARTICLE_EFFECTS_DISABLED) {
       // Execute onHit callback immediately for hits
@@ -64,8 +67,8 @@ export function useProjectileEffects() {
     const projectileId = `projectile-${now}-${Math.random()}`;
     setProjectileEffects(prev => [...prev, {
       id: projectileId,
-      fromPlayer,
-      toPlayer,
+      fromPlayer: visualFromPlayer,
+      toPlayer: visualToPlayer,
       isHit,
       onHit,
       onComplete,

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { PendingVisualEffect, ProjectileType } from '../utils/battle';
 import { FloatingNumberType } from '../components/FloatingNumber';
 
@@ -6,11 +6,14 @@ export type FloatingNumberData = {
   id: string;
   value: number | string;
   type: FloatingNumberType;
-  targetPlayer: 'player1' | 'player2';
+  targetPlayer: 'player1' | 'player2' | 'support1' | 'support2';
   persistent?: boolean;
 };
 
 export function useBattleEffects() {
+  // Counter for unique floating number IDs
+  const floatingNumberCounterRef = useRef(0);
+  
   // Visual effect states
   const [shakingPlayer, setShakingPlayer] = useState<'player1' | 'player2' | null>(null);
   const [shakeTrigger, setShakeTrigger] = useState({ player1: 0, player2: 0 });
@@ -76,26 +79,31 @@ export function useBattleEffects() {
   }, []);
 
   // Helper function to trigger flash effect on attacking card
-  const triggerFlashEffect = useCallback((attacker: 'player1' | 'player2', projectileType?: ProjectileType) => {
-    setFlashingPlayer(attacker);
-    setFlashTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
+  // Support heroes map to player1's side for visual effects
+  const triggerFlashEffect = useCallback((attacker: 'player1' | 'player2' | 'support1' | 'support2', projectileType?: ProjectileType) => {
+    const visualPlayer: 'player1' | 'player2' = (attacker === 'player1' || attacker === 'support1' || attacker === 'support2') ? 'player1' : 'player2';
+    setFlashingPlayer(visualPlayer);
+    setFlashTrigger(prev => ({ ...prev, [visualPlayer]: prev[visualPlayer] + 1 }));
     if (projectileType) {
-      setFlashProjectileType(prev => ({ ...prev, [attacker]: projectileType }));
-      setCastProjectileType(prev => ({ ...prev, [attacker]: projectileType }));
+      setFlashProjectileType(prev => ({ ...prev, [visualPlayer]: projectileType }));
+      setCastProjectileType(prev => ({ ...prev, [visualPlayer]: projectileType }));
     }
   }, []);
 
   // Helper function to show floating numbers and apply effects immediately
   const showFloatingNumbers = useCallback((
-    numbers: Array<{ value: number | string; type: FloatingNumberType; targetPlayer: 'player1' | 'player2'; persistent?: boolean }>,
+    numbers: Array<{ value: number | string; type: FloatingNumberType; targetPlayer: 'player1' | 'player2' | 'support1' | 'support2'; persistent?: boolean }>,
     visualEffects: PendingVisualEffect[] = [],
     callbacks: (() => void)[] = []
   ) => {
     // Show floating numbers immediately
-    const numberData: FloatingNumberData[] = numbers.map((n, idx) => ({
-      id: `${Date.now()}-${idx}`,
-      ...n,
-    }));
+    const numberData: FloatingNumberData[] = numbers.map((n, idx) => {
+      floatingNumberCounterRef.current += 1;
+      return {
+        id: `${Date.now()}-${floatingNumberCounterRef.current}-${idx}`,
+        ...n,
+      };
+    });
     setFloatingNumbers(prev => [...prev, ...numberData]);
     
     // Apply visual effects immediately

@@ -1180,9 +1180,19 @@ export const FALLBACK_CLASSES: DnDClass[] = [
 
 /**
  * Helper function to check if a class name is a monster
+ * @param className - The class/monster name to check
+ * @param availableMonsters - Optional array of monsters from database to also check against
  */
-export function isMonster(className: string): boolean {
-  return FALLBACK_MONSTERS.some(monster => monster.name === className);
+export function isMonster(className: string, availableMonsters?: DnDClass[]): boolean {
+  // Check FALLBACK_MONSTERS first (for backward compatibility)
+  if (FALLBACK_MONSTERS.some(monster => monster.name === className)) {
+    return true;
+  }
+  // If availableMonsters is provided, check that too
+  if (availableMonsters && availableMonsters.some(monster => monster.name === className)) {
+    return true;
+  }
+  return false;
 }
 
 /**
