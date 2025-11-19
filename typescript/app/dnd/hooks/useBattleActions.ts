@@ -22,6 +22,7 @@ type BattleActionsDependencies = {
   isMoveInProgress: boolean;
   classDetails: Record<string, string>;
   defeatedPlayer: 'player1' | 'player2' | null;
+  currentTurn: 'player1' | 'player2' | 'support1' | 'support2';
   // Target selection for monster attacks (optional - if not provided, monster targets randomly)
   monsterTarget?: 'player1' | 'support1' | 'support2';
   
@@ -77,6 +78,7 @@ export function useBattleActions(deps: BattleActionsDependencies) {
     isMoveInProgress,
     classDetails,
     defeatedPlayer,
+    currentTurn,
     monsterTarget,
     setIsMoveInProgress,
     updatePlayerHP,
@@ -735,6 +737,27 @@ export function useBattleActions(deps: BattleActionsDependencies) {
     // Check if attacker is knocked out (HP <= 0)
     const attackerClass = getAttackerClass(attacker);
     if (!attackerClass || attackerClass.hitPoints <= 0) {
+      // If it's this player's turn and they're knocked out, switch turn to next available player
+      if (currentTurn === attacker) {
+        // Check if this is a team battle and player1 is knocked out
+        const isTeamBattle = supportHeroes.length > 0;
+        if (attacker === 'player1' && isTeamBattle) {
+          // Check if all heroes are defeated
+          const allHeroesDefeated = checkAllHeroesDefeated('player1', 0);
+          if (allHeroesDefeated) {
+            // All heroes defeated, battle should end
+            setDefeatedPlayer('player1');
+            setIsMoveInProgress(false);
+            return;
+          }
+          // Player1 knocked out but support heroes alive - switch turn to support hero
+          addLog('system', `💀 ${attackerClass?.name || 'Hero'} is knocked out and cannot act. Turn passes to support heroes.`);
+          await switchTurn(attacker);
+        } else {
+          // For other cases (support hero knocked out, or non-team battle), just switch turn
+          await switchTurn(attacker);
+        }
+      }
       setIsMoveInProgress(false);
       return; // Attacker is knocked out, can't attack
     }
@@ -907,6 +930,10 @@ export function useBattleActions(deps: BattleActionsDependencies) {
     getDefenderClass,
     getAvailableTargets,
     monsterTarget,
+    currentTurn,
+    supportHeroes,
+    checkAllHeroesDefeated,
+    setDefeatedPlayer,
   ]);
 
   // Main ability use function
@@ -916,6 +943,27 @@ export function useBattleActions(deps: BattleActionsDependencies) {
     setIsMoveInProgress(true);
     const attackerClass = getAttackerClass(attacker);
     if (!attackerClass || attackerClass.hitPoints <= 0) {
+      // If it's this player's turn and they're knocked out, switch turn to next available player
+      if (currentTurn === attacker) {
+        // Check if this is a team battle and player1 is knocked out
+        const isTeamBattle = supportHeroes.length > 0;
+        if (attacker === 'player1' && isTeamBattle) {
+          // Check if all heroes are defeated
+          const allHeroesDefeated = checkAllHeroesDefeated('player1', 0);
+          if (allHeroesDefeated) {
+            // All heroes defeated, battle should end
+            setDefeatedPlayer('player1');
+            setIsMoveInProgress(false);
+            return;
+          }
+          // Player1 knocked out but support heroes alive - switch turn to support hero
+          addLog('system', `💀 ${attackerClass?.name || 'Hero'} is knocked out and cannot act. Turn passes to support heroes.`);
+          await switchTurn(attacker);
+        } else {
+          // For other cases (support hero knocked out, or non-team battle), just switch turn
+          await switchTurn(attacker);
+        }
+      }
       // Attacker is knocked out, can't use abilities
       setIsMoveInProgress(false);
       return;
@@ -994,6 +1042,10 @@ export function useBattleActions(deps: BattleActionsDependencies) {
     handleSingleAttackAbility,
     handleAutomaticDamageAbility,
     getAttackerClass,
+    currentTurn,
+    supportHeroes,
+    checkAllHeroesDefeated,
+    setDefeatedPlayer,
   ]);
 
   return {

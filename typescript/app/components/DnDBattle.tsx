@@ -373,6 +373,7 @@ export default function DnDBattle() {
     isMoveInProgress,
     classDetails,
     defeatedPlayer,
+    currentTurn,
     setIsMoveInProgress,
     updatePlayerHP,
     addLog,
@@ -434,6 +435,42 @@ export default function DnDBattle() {
     if (!isBattleActive) return;
     triggerDropAnimation();
   }, [isBattleActive, triggerDropAnimation]);
+
+  // Auto-switch turn if current player is knocked out and can't act
+  useEffect(() => {
+    if (!isBattleActive || isMoveInProgress || defeatedPlayer) return;
+    
+    // Check if current turn player is knocked out
+    const isCurrentPlayerKnockedOut = 
+      (currentTurn === 'player1' && player1Class && player1Class.hitPoints <= 0) ||
+      (currentTurn === 'player2' && player2Class && player2Class.hitPoints <= 0) ||
+      (currentTurn === 'support1' && supportHeroes.length > 0 && supportHeroes[0].class.hitPoints <= 0) ||
+      (currentTurn === 'support2' && supportHeroes.length > 1 && supportHeroes[1].class.hitPoints <= 0);
+    
+    if (isCurrentPlayerKnockedOut) {
+      // Check if this is a team battle and player1 is knocked out
+      const isTeamBattle = supportHeroes.length > 0;
+      if (currentTurn === 'player1' && isTeamBattle) {
+        // Check if all heroes are defeated
+        const allHeroesDefeated = 
+          (player1Class?.hitPoints ?? 0) <= 0 &&
+          (supportHeroes.length === 0 || supportHeroes[0].class.hitPoints <= 0) &&
+          (supportHeroes.length <= 1 || supportHeroes[1].class.hitPoints <= 0);
+        
+        if (allHeroesDefeated) {
+          // All heroes defeated, battle should end
+          setDefeatedPlayer('player1');
+          return;
+        }
+        // Player1 knocked out but support heroes alive - switch turn to support hero
+        addLog('system', `💀 ${player1Class?.name || 'Hero'} is knocked out and cannot act. Turn passes to support heroes.`);
+        switchTurn('player1');
+      } else {
+        // For other cases (support hero knocked out, or non-team battle), just switch turn
+        switchTurn(currentTurn);
+      }
+    }
+  }, [isBattleActive, isMoveInProgress, defeatedPlayer, currentTurn, player1Class, player2Class, supportHeroes, switchTurn, addLog, setDefeatedPlayer]);
 
   // Use AI opponent hook for player2 (monster)
   // Reduced delay to 500ms to make monsters hit faster

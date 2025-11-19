@@ -414,6 +414,7 @@ export default function DnDTestPage() {
     isMoveInProgress,
     classDetails,
     defeatedPlayer,
+    currentTurn,
     setIsMoveInProgress,
     updatePlayerHP,
     addLog,
