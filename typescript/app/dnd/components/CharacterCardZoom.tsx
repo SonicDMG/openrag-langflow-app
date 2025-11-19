@@ -114,45 +114,59 @@ export function CharacterCardZoom({
             `,
           }}
         >
-          {/* Close button */}
+          {/* Close button - printed text on card */}
           <button
             onClick={onClose}
-            className="absolute top-2 right-2 z-10 w-10 h-10 flex items-center justify-center rounded-full text-2xl font-bold transition-all"
+            className="absolute right-2 z-10 text-xl font-bold transition-all cursor-pointer"
             style={{
+              top: '0.5rem',
               backgroundColor: 'transparent',
               color: '#5C4033',
+              fontFamily: 'serif',
+              border: 'none',
+              padding: 0,
+              lineHeight: '1',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.color = '#8B6F47';
+              e.currentTarget.style.opacity = '0.7';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.color = '#5C4033';
+              e.currentTarget.style.opacity = '1';
             }}
             aria-label="Close"
           >
             ×
           </button>
 
-          {/* Edit button */}
-          <button
-            onClick={handleEdit}
-            className="absolute top-2 left-2 z-10 px-4 py-2 rounded text-base font-semibold transition-all flex items-center gap-2"
-            style={{
-              backgroundColor: 'transparent',
-              color: '#5C4033',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = '#8B6F47';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = '#5C4033';
-            }}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-            Edit
-          </button>
+          {/* Edit button - printed text on card */}
+          {canEdit && (
+            <button
+              onClick={handleEdit}
+              className="absolute left-2 z-10 text-base font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              style={{
+                top: '0.5rem',
+                backgroundColor: 'transparent',
+                color: '#5C4033',
+                fontFamily: 'serif',
+                border: 'none',
+                padding: 0,
+                lineHeight: '1',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.textDecoration = 'underline';
+                e.currentTarget.style.opacity = '0.8';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.textDecoration = 'none';
+                e.currentTarget.style.opacity = '1';
+              }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Edit
+            </button>
+          )}
           {/* Card Back Header */}
           <div className="text-center mb-2 pb-1.5 border-b-2" style={{ borderColor: '#8B6F47' }}>
             <h2 

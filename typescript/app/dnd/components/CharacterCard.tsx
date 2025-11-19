@@ -449,19 +449,33 @@ function CharacterCardComponent({
         overflow: 'visible' // Allow cast effect to extend outside card
       }}
     >
-      {/* Zoom button - overlay on top right */}
+      {/* Zoom button - printed text on card */}
       {showZoomButton && onZoom && (
         <button
           onClick={(e) => {
             e.stopPropagation();
             onZoom();
           }}
-          className="absolute top-2 right-2 z-30 bg-amber-800/90 hover:bg-amber-700 text-amber-100 p-1.5 rounded-full border-2 border-amber-600 shadow-lg transition-all opacity-75 hover:opacity-100"
+          className="absolute top-2 right-2 z-30 transition-all cursor-pointer"
+          style={{
+            backgroundColor: 'transparent',
+            color: '#5C4033',
+            fontFamily: 'serif',
+            fontWeight: 'bold',
+            border: 'none',
+            padding: 0,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.opacity = '0.7';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.opacity = '1';
+          }}
           title="View details"
           aria-label="View character details"
         >
-          <svg className={isCompact ? 'w-3 h-3' : 'w-4 h-4'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+          <svg className={isCompact ? 'w-3 h-3' : 'w-4 h-4'} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
           </svg>
         </button>
       )}
@@ -684,27 +698,6 @@ function CharacterCardComponent({
         <div className={`h-full flex flex-col relative z-10 ${isDefeated ? 'card-content-damaged' : ''}`} style={{ padding: padding }}>
         {/* Header with name, type, and symbol */}
         <div className="relative" style={{ marginBottom: isCompact ? '0.5rem' : '0.75rem' }}>
-          {/* Purple abstract symbol in top right - flame/swirling design */}
-          <div className={`absolute top-0 right-0 ${iconSize}`}>
-            <svg viewBox="0 0 24 24" className="w-full h-full" style={{ color: '#9333EA' }}>
-              {/* Flame/swirling abstract design */}
-              <path
-                fill="currentColor"
-                d="M12 2c-2.5 0-4.5 1-6 2.5C4.5 6 4 8 4 10c0 2 1 4 2.5 5.5C8 17 10 18 12 18c2 0 4-1 5.5-2.5C19 14 20 12 20 10c0-2-.5-4-2-5.5C16.5 3 14.5 2 12 2z"
-                opacity="0.4"
-              />
-              <path
-                fill="currentColor"
-                d="M12 4c-1.5 0-3 .5-4 1.5C7 6.5 6.5 8 6.5 9.5c0 1.5.5 3 1.5 4C9 15 10.5 15.5 12 15.5c1.5 0 3-.5 4-1.5 1-1 1.5-2.5 1.5-4 0-1.5-.5-3-1.5-4.5C15 4.5 13.5 4 12 4z"
-                opacity="0.6"
-              />
-              <path
-                fill="currentColor"
-                d="M12 6c-1 0-2 .3-2.5 1C9 7.7 8.5 8.5 8.5 9.5c0 1 .3 2 1 2.5.7.5 1.5.5 2.5.5s2 0 2.5-.5c.7-.5 1-1.5 1-2.5 0-1-.5-1.8-1-2.5C14 6.3 13 6 12 6z"
-              />
-            </svg>
-          </div>
-
           {/* Character name - bold, dark brown */}
           <h3 
             ref={nameRef}
@@ -713,7 +706,6 @@ function CharacterCardComponent({
               fontFamily: 'serif',
               color: '#5C4033', // Dark brown
               fontWeight: 'bold',
-              paddingRight: isCompact ? '1.5rem' : '3rem',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis'
