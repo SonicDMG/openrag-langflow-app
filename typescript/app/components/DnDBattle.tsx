@@ -300,6 +300,20 @@ export default function DnDBattle() {
         throw new Error('Missing class information for battle summary');
       }
       
+      // Only include support heroes if they're on the victor's side (support heroes always join player1)
+      const supportHeroesForChronicle = victor === 'player1' ? supportHeroes : undefined;
+      
+      // Get support hero details from classDetails
+      const supportHeroDetails: Record<string, string> = {};
+      if (supportHeroesForChronicle) {
+        supportHeroesForChronicle.forEach(sh => {
+          const details = classDetails[sh.class.name];
+          if (details) {
+            supportHeroDetails[sh.class.name] = details;
+          }
+        });
+      }
+      
       finalSummary = await getBattleSummary(
         battleLog,
         victorClass,
@@ -311,7 +325,9 @@ export default function DnDBattle() {
         (chunk: string) => {
           // Stream the summary as it arrives
           setBattleSummary(chunk);
-        }
+        },
+        supportHeroesForChronicle,
+        supportHeroDetails
       );
       
       // Generate battle ending image after summary is complete
@@ -325,7 +341,9 @@ export default function DnDBattle() {
             defeatedName,
             finalSummary,
             attackerDetails,
-            defenderDetails
+            defenderDetails,
+            supportHeroesForChronicle,
+            supportHeroDetails
           );
           setBattleEndingImageUrl(imageUrl);
         } catch (imageError) {
@@ -344,7 +362,7 @@ export default function DnDBattle() {
     } finally {
       setIsGeneratingSummary(false);
     }
-  }, [addLog, showFloatingNumbers, setDefeatedPlayer, setVictorPlayer, setConfettiTrigger, battleLog, player1Name, player2Name]);
+  }, [addLog, showFloatingNumbers, setDefeatedPlayer, setVictorPlayer, setConfettiTrigger, battleLog, player1Name, player2Name, player1Class, player2Class, supportHeroes, getCharacterName, classDetails]);
 
   // Battle actions hook
   const battleActions = useBattleActions({

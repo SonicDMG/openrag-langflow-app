@@ -24,12 +24,12 @@ describe('useBattleEffects', () => {
     it('should initialize with zero triggers', () => {
       const { result } = renderHook(() => useBattleEffects());
       
-      expect(result.current.shakeTrigger).toEqual({ player1: 0, player2: 0 });
-      expect(result.current.sparkleTrigger).toEqual({ player1: 0, player2: 0 });
-      expect(result.current.missTrigger).toEqual({ player1: 0, player2: 0 });
-      expect(result.current.hitTrigger).toEqual({ player1: 0, player2: 0 });
-      expect(result.current.castTrigger).toEqual({ player1: 0, player2: 0 });
-      expect(result.current.flashTrigger).toEqual({ player1: 0, player2: 0 });
+      expect(result.current.shakeTrigger).toEqual({ player1: 0, player2: 0, support1: 0, support2: 0 });
+      expect(result.current.sparkleTrigger).toEqual({ player1: 0, player2: 0, support1: 0, support2: 0 });
+      expect(result.current.missTrigger).toEqual({ player1: 0, player2: 0, support1: 0, support2: 0 });
+      expect(result.current.hitTrigger).toEqual({ player1: 0, player2: 0, support1: 0, support2: 0 });
+      expect(result.current.castTrigger).toEqual({ player1: 0, player2: 0, support1: 0, support2: 0 });
+      expect(result.current.flashTrigger).toEqual({ player1: 0, player2: 0, support1: 0, support2: 0 });
     });
   });
 
@@ -264,7 +264,7 @@ describe('useBattleEffects', () => {
       expect(result.current.flashProjectileType.player2).toBe('ice');
     });
 
-    it('should map support heroes to player1 for visual effects', () => {
+    it('should handle flash effects for support heroes', () => {
       const { result } = renderHook(() => useBattleEffects());
       
       act(() => {
@@ -272,9 +272,10 @@ describe('useBattleEffects', () => {
         result.current.triggerFlashEffect('support2', 'poison');
       });
       
-      // Both should map to player1
-      expect(result.current.flashingPlayer).toBe('player1');
-      expect(result.current.flashProjectileType.player1).toBe('poison'); // Last one wins
+      // Last one should be active
+      expect(result.current.flashingPlayer).toBe('support2');
+      expect(result.current.flashProjectileType.support1).toBe('lightning');
+      expect(result.current.flashProjectileType.support2).toBe('poison');
     });
 
     it('should handle flash without projectile type', () => {
@@ -470,11 +471,11 @@ describe('useBattleEffects', () => {
       expect(result.current.victorPlayer).toBeNull();
       expect(result.current.floatingNumbers).toEqual([]);
       // Note: resetEffects resets miss, hit, cast, and flash triggers, but not shake/sparkle triggers
-      expect(result.current.missTrigger).toEqual({ player1: 0, player2: 0 });
-      expect(result.current.hitTrigger).toEqual({ player1: 0, player2: 0 });
-      expect(result.current.castTrigger).toEqual({ player1: 0, player2: 0 });
-      expect(result.current.flashTrigger).toEqual({ player1: 0, player2: 0 });
-      expect(result.current.flashProjectileType).toEqual({ player1: null, player2: null });
+      expect(result.current.missTrigger).toEqual({ player1: 0, player2: 0, support1: 0, support2: 0 });
+      expect(result.current.hitTrigger).toEqual({ player1: 0, player2: 0, support1: 0, support2: 0 });
+      expect(result.current.castTrigger).toEqual({ player1: 0, player2: 0, support1: 0, support2: 0 });
+      expect(result.current.flashTrigger).toEqual({ player1: 0, player2: 0, support1: 0, support2: 0 });
+      expect(result.current.flashProjectileType).toEqual({ player1: null, player2: null, support1: null, support2: null });
     });
   });
 });

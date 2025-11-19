@@ -742,7 +742,9 @@ export async function getBattleSummary(
   defeatedDetails: string = '',
   victorName: string,
   defeatedName: string,
-  onChunk?: (content: string) => void
+  onChunk?: (content: string) => void,
+  supportHeroes?: Array<{ class: DnDClass; name: string; monsterId: string | null }>,
+  supportHeroDetails?: Record<string, string>
 ): Promise<string> {
   try {
     const victorIsMonster = isMonster(victorClass.name);
@@ -801,7 +803,43 @@ export async function getBattleSummary(
       return `- ${name}: ${description}`;
     }).join('\n') || 'None';
 
-    const prompt = `A D&D battle has concluded between ${victorName} (a ${victorClass.name} ${victorType}) and ${defeatedName} (a ${defeatedClass.name} ${defeatedType}).
+    // Build support heroes information if they exist
+    let supportHeroesSection = '';
+    if (supportHeroes && supportHeroes.length > 0) {
+      const supportHeroesInfo = supportHeroes.map((supportHero, index) => {
+        const supportIsMonster = isMonster(supportHero.class.name);
+        const supportType = supportIsMonster ? 'monster' : 'class';
+        const supportAbilities = supportHero.class.abilities?.map(ability => {
+          const name = ability.name;
+          const description = ability.description;
+          if (ability.type === 'attack') {
+            return `- ${name}: ${description} (Damage: ${ability.damageDice}${ability.attacks && ability.attacks > 1 ? `, ${ability.attacks} attacks` : ''}${ability.attackRoll ? ', requires attack roll' : ', automatic damage'})`;
+          } else if (ability.type === 'healing') {
+            return `- ${name}: ${description} (Healing: ${ability.healingDice})`;
+          }
+          return `- ${name}: ${description}`;
+        }).join('\n') || 'None';
+
+        const supportHeroDetail = supportHeroDetails?.[supportHero.class.name] || '';
+
+        return `=== ${supportHero.name} (${supportHero.class.name} ${supportType}) - SUPPORT HERO ${index + 1} ===
+Class Description: ${supportHero.class.description || 'N/A'}
+Stats:
+- Hit Points: ${supportHero.class.hitPoints}/${supportHero.class.maxHitPoints} (final HP)
+- Armor Class: ${supportHero.class.armorClass}
+- Attack Bonus: ${supportHero.class.attackBonus}
+- Damage Die: ${supportHero.class.damageDie}${supportHero.class.meleeDamageDie ? ` (Melee: ${supportHero.class.meleeDamageDie})` : ''}${supportHero.class.rangedDamageDie ? ` (Ranged: ${supportHero.class.rangedDamageDie})` : ''}
+
+Abilities:
+${supportAbilities}
+${supportHeroDetail ? `\nVisual/Appearance Details (used for card image generation):\n${supportHeroDetail}` : ''}`;
+      }).join('\n\n');
+
+      supportHeroesSection = `\n\n=== SUPPORT HEROES (Fighting alongside ${victorName}) ===
+${supportHeroesInfo}`;
+    }
+
+    const prompt = `A D&D battle has concluded between ${victorName} (a ${victorClass.name} ${victorType})${supportHeroes && supportHeroes.length > 0 ? ` along with ${supportHeroes.map(sh => sh.name).join(' and ')}` : ''} and ${defeatedName} (a ${defeatedClass.name} ${defeatedType}).
 
 === ${victorName} (${victorClass.name} ${victorType}) - VICTOR ===
 Class Description: ${victorClass.description || 'N/A'}
@@ -814,7 +852,7 @@ Stats:
 Abilities:
 ${victorAbilities}
 
-${victorDetails ? `Additional Information:\n${victorDetails}` : ''}
+${victorDetails ? `Visual/Appearance Details (used for card image generation):\n${victorDetails}` : ''}
 
 === ${defeatedName} (${defeatedClass.name} ${defeatedType}) - DEFEATED ===
 Class Description: ${defeatedClass.description || 'N/A'}
@@ -827,7 +865,8 @@ Stats:
 Abilities:
 ${defeatedAbilities}
 
-${defeatedDetails ? `Additional Information:\n${defeatedDetails}` : ''}
+${defeatedDetails ? `Visual/Appearance Details (used for card image generation):\n${defeatedDetails}` : ''}
+${supportHeroesSection}
 
 === COMPLETE BATTLE LOG ===
 The following is the complete chronological record of the battle:
@@ -844,7 +883,7 @@ Write a brief, punchy, character-driven narrative summary (just 2-3 sentences) o
 
 The narrative should:
 - Be extremely concise (just 2-3 sentences total, MAX 400 characters)
-- **CRITICAL**: Always use the actual character/monster names (${victorName} and ${defeatedName}) throughout the narrative. Do not refer to them generically as "the victor", "the defeated", "the warrior", "the fighter", "the combatant", etc. Use their specific names to make it personal and engaging. For example, say "${victorName} defeated ${defeatedName}" not "the victor defeated the opponent".
+- **CRITICAL**: Always use the actual character/monster names (${victorName}${supportHeroes && supportHeroes.length > 0 ? `, ${supportHeroes.map(sh => sh.name).join(', ')}` : ''} and ${defeatedName}) throughout the narrative. Do not refer to them generically as "the victor", "the defeated", "the warrior", "the fighter", "the combatant", etc. Use their specific names to make it personal and engaging.${supportHeroes && supportHeroes.length > 0 ? ` If support heroes participated, mention them by name when relevant (e.g., "${supportHeroes[0].name} and ${supportHeroes.length > 1 ? supportHeroes[1].name : ''} joined ${victorName} in defeating ${defeatedName}").` : ''} For example, say "${victorName}${supportHeroes && supportHeroes.length > 0 ? ` and ${supportHeroes.map(sh => sh.name).join(' and ')}` : ''} defeated ${defeatedName}" not "the victor defeated the opponent".
 - **CRITICAL - NO STATS**: Do NOT mention any stats, hit points, HP percentages, health percentages, numerical values, or game mechanics in the narrative. Use descriptive language instead (e.g., "barely scratched", "badly wounded", "on death's door", "barely breathing", "completely unscathed"). Never say things like "100/110 HP", "86% health", "hit points were", etc.
 - Use character names and details to shape the outcome
 - Include playful wordplay, rhythmic wording, or clever turns of phrase
@@ -954,7 +993,9 @@ export async function generateBattleEndingImage(
   defeatedName: string,
   battleSummary: string,
   victorDetails: string = '',
-  defeatedDetails: string = ''
+  defeatedDetails: string = '',
+  supportHeroes?: Array<{ class: DnDClass; name: string; monsterId: string | null }>,
+  supportHeroDetails?: Record<string, string>
 ): Promise<string | null> {
   try {
     const victorIsMonster = isMonster(victorClass.name);
@@ -981,6 +1022,21 @@ export async function generateBattleEndingImage(
     console.log('Defeated Type:', defeatedType);
     console.log('=== END DEBUG ===');
 
+    // Build support heroes descriptions if they exist
+    let supportHeroesDescription = '';
+    if (supportHeroes && supportHeroes.length > 0) {
+      const supportDescriptions = supportHeroes.map((supportHero, index) => {
+        const supportIsMonster = isMonster(supportHero.class.name);
+        const supportType = supportIsMonster ? 'monster' : 'class';
+        const supportDescription = supportHero.class.description || '';
+        const supportDetail = supportHeroDetails?.[supportHero.class.name] || '';
+        return `${supportHero.name}, a ${supportHero.class.name} ${supportType} - SUPPORT HERO ${index + 1}:
+${supportDescription ? `Description: ${supportDescription}` : `A ${supportHero.class.name} ${supportType}`}
+${supportDetail ? `Visual/Appearance details: ${supportDetail}` : ''}`;
+      }).join('\n\n');
+      supportHeroesDescription = `\n\n${supportDescriptions}`;
+    }
+
     // Build a comprehensive prompt that includes character descriptions and image requirements
     const prompt = `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. 
 
@@ -988,14 +1044,14 @@ CHARACTER DESCRIPTIONS:
 
 ${victorName}, a ${victorClass.name} ${victorType} - THE VICTOR:
 ${victorDescription ? `Description: ${victorDescription}` : `A ${victorClass.name} ${victorType}`}
-${victorDetails ? `Additional details: ${victorDetails}` : ''}
+${victorDetails ? `Visual/Appearance details: ${victorDetails}` : ''}
 
 ${defeatedName}, a ${defeatedClass.name} ${defeatedType} - THE DEFEATED:
 ${defeatedDescription ? `Description: ${defeatedDescription}` : `A ${defeatedClass.name} ${defeatedType}`}
-${defeatedDetails ? `Additional details: ${defeatedDetails}` : ''}
+${defeatedDetails ? `Visual/Appearance details: ${defeatedDetails}` : ''}${supportHeroesDescription}
 
 IMAGE REQUIREMENTS:
-Create a dramatic battle conclusion scene that accurately depicts the characters described above. The scene should show ${victorName} standing victorious over ${defeatedName} who has been defeated. The characters must match their descriptions - their appearance, weapons, armor, and features should reflect the character descriptions provided. ${victorName} should be shown in a triumphant pose (standing tall, possibly with weapon raised), while ${defeatedName} is shown defeated (on the ground or in a fallen position). The setting should be a ${settingConfig.backgroundPhrase} with dramatic lighting. Use warm earth tones with vibrant accents palette. Retro SNES/Genesis style, ${settingConfig.technologyLevel}, cinematic composition, 16:9 aspect ratio. The image should feel like the final frame of an epic battle, accurately showing both characters as they are described above. --ar 16:9 --style raw`;
+Create a dramatic battle conclusion scene that accurately depicts the characters described above. The scene should show ${victorName}${supportHeroes && supportHeroes.length > 0 ? ` along with ${supportHeroes.map(sh => sh.name).join(' and ')}` : ''} standing victorious over ${defeatedName} who has been defeated. The characters must match their descriptions - their appearance, weapons, armor, and features should reflect the character descriptions and visual details provided. ${victorName}${supportHeroes && supportHeroes.length > 0 ? ` and ${supportHeroes.map(sh => sh.name).join(' and ')}` : ''} should be shown in a triumphant pose (standing tall, possibly with weapon raised), while ${defeatedName} is shown defeated (on the ground or in a fallen position). The setting should be a ${settingConfig.backgroundPhrase} with dramatic lighting. Use warm earth tones with vibrant accents palette. Retro SNES/Genesis style, ${settingConfig.technologyLevel}, cinematic composition, 16:9 aspect ratio. The image should feel like the final frame of an epic battle, accurately showing all characters as they are described above with their specific visual details. --ar 16:9 --style raw`;
 
     // Log the prompt for debugging
     console.log('=== BATTLE ENDING IMAGE GENERATION PROMPT ===');
