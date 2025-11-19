@@ -18,17 +18,47 @@ function formatErrorResponse(error: unknown): { error: string } {
 }
 
 /**
+ * Enhances a character description with race and sex information
+ * @param description - The base character description
+ * @param race - Character race (optional, use "n/a" if not applicable)
+ * @param sex - Character sex (optional, use "n/a" if not applicable)
+ * @returns Enhanced description with race and sex included
+ */
+function enhanceDescriptionWithRaceAndSex(description: string, race?: string, sex?: string): string {
+  const parts: string[] = [];
+  
+  if (race && race !== 'n/a' && race.trim()) {
+    parts.push(race.trim());
+  }
+  
+  if (sex && sex !== 'n/a' && sex.trim()) {
+    parts.push(sex.trim());
+  }
+  
+  if (parts.length > 0) {
+    return `${parts.join(' ')} ${description}`.trim();
+  }
+  
+  return description;
+}
+
+/**
  * Builds the base pixel art prompt template with user's description
  * @param userPrompt - The user's character description
  * @param transparentBackground - If true, removes background references from prompt
  * @param setting - The card setting/theme (medieval, futuristic, etc.)
+ * @param race - Character race (optional, use "n/a" if not applicable)
+ * @param sex - Character sex (optional, use "n/a" if not applicable)
  */
-function buildPixelArtPrompt(userPrompt: string, transparentBackground: boolean = false, setting: CardSetting = DEFAULT_SETTING as CardSetting): string {
+function buildPixelArtPrompt(userPrompt: string, transparentBackground: boolean = false, setting: CardSetting = DEFAULT_SETTING as CardSetting, race?: string, sex?: string): string {
   // Default values for template placeholders
   const creature = 'creature';
   const uniqueFeature = userPrompt.trim() || 'distinctive fantasy appearance';
   const paletteDescription = 'warm earth tones with vibrant accents';
   const settingConfig = CARD_SETTINGS[setting] || CARD_SETTINGS[DEFAULT_SETTING];
+  
+  // Enhance description with race and sex
+  const enhancedFeature = enhanceDescriptionWithRaceAndSex(uniqueFeature, race, sex);
   
   // Try to extract creature type from user prompt (simple heuristic)
   // Look for common creature/class words at the start
@@ -43,11 +73,12 @@ function buildPixelArtPrompt(userPrompt: string, transparentBackground: boolean 
       const creatureTypes = ['wizard', 'warrior', 'rogue', 'cleric', 'ranger', 'dragon', 'goblin', 'orc', 'troll', 'demon', 'angel', 'knight', 'mage', 'sorcerer', 'monk', 'bard', 'paladin', 'barbarian', 'druid', 'warlock'];
       if (creatureTypes.includes(firstWord)) {
         const remainingPrompt = userPrompt.substring(userPrompt.toLowerCase().indexOf(firstWord) + firstWord.length).trim();
-        return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. A ${firstWord}${remainingPrompt ? `: ${remainingPrompt}` : ''}, isolated character sprite, no background scene, no environment, no setting. Rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, ${settingConfig.technologyLevel}. Centered composition, transparent background. --style raw`;
+        const enhancedRemaining = enhanceDescriptionWithRaceAndSex(remainingPrompt, race, sex);
+        return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. A ${firstWord}${enhancedRemaining ? `: ${enhancedRemaining}` : ''}, isolated character sprite, no background scene, no environment, no setting. Rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, ${settingConfig.technologyLevel}. Centered composition, transparent background.`;
       }
     }
     // Fallback for transparent background
-    return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. A ${creature}${uniqueFeature ? `: ${uniqueFeature}` : ''}, isolated character sprite, no background scene, no environment, no setting. Rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, ${settingConfig.technologyLevel}. Centered composition, transparent background. --style raw`;
+    return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. A ${creature}${enhancedFeature ? `: ${enhancedFeature}` : ''}, isolated character sprite, no background scene, no environment, no setting. Rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, ${settingConfig.technologyLevel}. Centered composition, transparent background.`;
   }
   
   // Prompts with background
@@ -58,12 +89,13 @@ function buildPixelArtPrompt(userPrompt: string, transparentBackground: boolean 
     if (creatureTypes.includes(firstWord)) {
       // Use the matched creature type
       const remainingPrompt = userPrompt.substring(userPrompt.toLowerCase().indexOf(firstWord) + firstWord.length).trim();
-      return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. A ${firstWord}${remainingPrompt ? `: ${remainingPrompt}` : ''}, depicted in a distinctly ${settingConfig.settingPhrase} world. Placed in a expansive ${settingConfig.settingPhrase} setting, rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Position the character in the lower third of the frame, (facing the camera), viewed from a pulled-back wide-angle perspective showing expansive landscape surrounding them. The character should occupy only 60-70% of the composition, with dominant landscape and sky filling the remainder. Retro SNES/Genesis style, ${settingConfig.technologyLevel}. --style raw`;
+      const enhancedRemaining = enhanceDescriptionWithRaceAndSex(remainingPrompt, race, sex);
+      return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. A ${firstWord}${enhancedRemaining ? `: ${enhancedRemaining}` : ''}, depicted in a distinctly ${settingConfig.settingPhrase} world. Placed in a expansive ${settingConfig.settingPhrase} setting, rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Position the character in the lower third of the frame, (facing the camera), viewed from a pulled-back wide-angle perspective showing expansive landscape surrounding them. The character should occupy only 60-70% of the composition, with dominant landscape and sky filling the remainder. Retro SNES/Genesis style, ${settingConfig.technologyLevel}.`;
     }
   }
   
   // Fallback: use the full user prompt as the unique feature
-  return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. A ${creature}${uniqueFeature ? `: ${uniqueFeature}` : ''}, depicted in a distinctly ${settingConfig.settingPhrase} world. Placed in a expansive ${settingConfig.settingPhrase} setting, rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Position the character in the lower third of the frame, (facing the camera), viewed from a pulled-back wide-angle perspective showing expansive landscape surrounding them. The character should occupy only 60-70% of the composition, with dominant landscape and sky filling the remainder. Retro SNES/Genesis style, ${settingConfig.technologyLevel}. --style raw`;
+  return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. A ${creature}${enhancedFeature ? `: ${enhancedFeature}` : ''}, depicted in a distinctly ${settingConfig.settingPhrase} world. Placed in a expansive ${settingConfig.settingPhrase} setting, rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Position the character in the lower third of the frame, (facing the camera), viewed from a pulled-back wide-angle perspective showing expansive landscape surrounding them. The character should occupy only 60-70% of the composition, with dominant landscape and sky filling the remainder. Retro SNES/Genesis style, ${settingConfig.technologyLevel}.`;
 }
 
 /**
@@ -76,7 +108,7 @@ function buildPixelArtPrompt(userPrompt: string, transparentBackground: boolean 
  */
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, seed, model = '5000', image_count = 1, transparentBackground = true, aspectRatio, setting = DEFAULT_SETTING, pixelize = false } = await req.json();
+    const { prompt, seed, model = '5000', image_count = 1, transparentBackground = true, aspectRatio, setting = DEFAULT_SETTING, pixelize = false, race, sex } = await req.json();
 
     if (!prompt) {
       return NextResponse.json(
@@ -104,7 +136,7 @@ export async function POST(req: NextRequest) {
         // Extract character description from the existing prompt
         const match = prompt.match(/retro .+? aesthetic\.\s*(.+?)(?:,\s*depicted|,\s*Placed|$)/i);
         const description = match ? match[1].trim() : prompt;
-        enhancedPrompt = buildPixelArtPrompt(description, true, setting as CardSetting); // true = transparent background
+        enhancedPrompt = buildPixelArtPrompt(description, true, setting as CardSetting, race, sex); // true = transparent background
       } else {
         // Use prompt as-is, but ensure transparent background is mentioned if needed
         enhancedPrompt = prompt;
@@ -116,7 +148,7 @@ export async function POST(req: NextRequest) {
       }
     } else {
       // Build new prompt with transparent background if requested
-      enhancedPrompt = buildPixelArtPrompt(prompt, transparentBackground, setting as CardSetting);
+      enhancedPrompt = buildPixelArtPrompt(prompt, transparentBackground, setting as CardSetting, race, sex);
     }
     
     // Note: aspect ratio is already specified in the template (16:9)

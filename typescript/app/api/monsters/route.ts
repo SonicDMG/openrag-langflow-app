@@ -402,7 +402,7 @@ export async function POST(req: NextRequest) {
       console.log('Generating new background scene...');
       const settingConfig = CARD_SETTINGS[setting as CardSetting] || CARD_SETTINGS[DEFAULT_SETTING];
       const paletteDescription = 'warm earth tones with vibrant accents';
-      const backgroundPrompt = `32-bit pixel art with clearly visible chunky pixel clusters, crisp sprite outlines, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. An atmospheric ${settingConfig.backgroundPhrase}, and dramatic atmosphere. EMPTY scene with ABSOLUTELY NO characters, NO creatures, NO people, NO beings, NO figures, NO entities, NO living things - ONLY the environment, architecture, landscape, ruins, lighting, and atmosphere. Completely empty of any characters or creatures. ${paletteDescription}. Retro SNES/Genesis style, ${settingConfig.technologyLevel}, cinematic composition, 16:9 aspect ratio. --ar 16:9 --style raw`;
+      const backgroundPrompt = `32-bit pixel art with clearly visible chunky pixel clusters, crisp sprite outlines, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. An atmospheric ${settingConfig.backgroundPhrase}, and dramatic atmosphere. EMPTY scene with ABSOLUTELY NO characters, NO creatures, NO people, NO beings, NO figures, NO entities, NO living things - ONLY the environment, architecture, landscape, ruins, lighting, and atmosphere. Completely empty of any characters or creatures. ${paletteDescription}. Retro SNES/Genesis style, ${settingConfig.technologyLevel}, cinematic composition, 16:9 aspect ratio.`;
       
       try {
         // Generate background using the utility function

@@ -1031,6 +1031,8 @@ export async function generateBattleEndingImage(
         const supportDescription = supportHero.class.description || '';
         const supportDetail = supportHeroDetails?.[supportHero.class.name] || '';
         return `${supportHero.name}, a ${supportHero.class.name} ${supportType} - SUPPORT HERO ${index + 1}:
+${supportHero.class.race && supportHero.class.race !== 'n/a' ? `Race: ${supportHero.class.race}` : ''}
+${supportHero.class.sex && supportHero.class.sex !== 'n/a' ? `Sex: ${supportHero.class.sex}` : ''}
 ${supportDescription ? `Description: ${supportDescription}` : `A ${supportHero.class.name} ${supportType}`}
 ${supportDetail ? `Visual/Appearance details: ${supportDetail}` : ''}`;
       }).join('\n\n');
@@ -1043,15 +1045,19 @@ ${supportDetail ? `Visual/Appearance details: ${supportDetail}` : ''}`;
 CHARACTER DESCRIPTIONS:
 
 ${victorName}, a ${victorClass.name} ${victorType} - THE VICTOR:
+${victorClass.race && victorClass.race !== 'n/a' ? `Race: ${victorClass.race}` : ''}
+${victorClass.sex && victorClass.sex !== 'n/a' ? `Sex: ${victorClass.sex}` : ''}
 ${victorDescription ? `Description: ${victorDescription}` : `A ${victorClass.name} ${victorType}`}
 ${victorDetails ? `Visual/Appearance details: ${victorDetails}` : ''}
 
 ${defeatedName}, a ${defeatedClass.name} ${defeatedType} - THE DEFEATED:
+${defeatedClass.race && defeatedClass.race !== 'n/a' ? `Race: ${defeatedClass.race}` : ''}
+${defeatedClass.sex && defeatedClass.sex !== 'n/a' ? `Sex: ${defeatedClass.sex}` : ''}
 ${defeatedDescription ? `Description: ${defeatedDescription}` : `A ${defeatedClass.name} ${defeatedType}`}
 ${defeatedDetails ? `Visual/Appearance details: ${defeatedDetails}` : ''}${supportHeroesDescription}
 
 IMAGE REQUIREMENTS:
-Create a dramatic battle conclusion scene that accurately depicts the characters described above. The scene should show ${victorName}${supportHeroes && supportHeroes.length > 0 ? ` along with ${supportHeroes.map(sh => sh.name).join(' and ')}` : ''} standing victorious over ${defeatedName} who has been defeated. The characters must match their descriptions - their appearance, weapons, armor, and features should reflect the character descriptions and visual details provided. ${victorName}${supportHeroes && supportHeroes.length > 0 ? ` and ${supportHeroes.map(sh => sh.name).join(' and ')}` : ''} should be shown in a triumphant pose (standing tall, possibly with weapon raised), while ${defeatedName} is shown defeated (on the ground or in a fallen position). The setting should be a ${settingConfig.backgroundPhrase} with dramatic lighting. Use warm earth tones with vibrant accents palette. Retro SNES/Genesis style, ${settingConfig.technologyLevel}, cinematic composition, 16:9 aspect ratio. The image should feel like the final frame of an epic battle, accurately showing all characters as they are described above with their specific visual details. --ar 16:9 --style raw`;
+Create a dramatic battle conclusion scene that accurately depicts the characters described above. The scene should show ${victorName}${supportHeroes && supportHeroes.length > 0 ? ` along with ${supportHeroes.map(sh => sh.name).join(' and ')}` : ''} standing victorious over ${defeatedName} who has been defeated. The characters must match their descriptions - their appearance, weapons, armor, and features should reflect the character descriptions and visual details provided. ${victorName}${supportHeroes && supportHeroes.length > 0 ? ` and ${supportHeroes.map(sh => sh.name).join(' and ')}` : ''} should be shown in a triumphant pose (standing tall, possibly with weapon raised), while ${defeatedName} is shown defeated (on the ground or in a fallen position). The setting should be a ${settingConfig.backgroundPhrase} with dramatic lighting. Use warm earth tones with vibrant accents palette. Retro SNES/Genesis style, ${settingConfig.technologyLevel}, cinematic composition, 16:9 aspect ratio. The image should feel like the final frame of an epic battle, accurately showing all characters as they are described above with their specific visual details.`;
 
     // Log the prompt for debugging
     console.log('=== BATTLE ENDING IMAGE GENERATION PROMPT ===');

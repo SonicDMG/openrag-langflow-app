@@ -247,6 +247,24 @@ export function CharacterCardZoom({
             </p>
           </div>
 
+          {/* Character Details (Race and Sex) */}
+          <div className="mb-2">
+            <h3 
+              className="text-lg font-semibold mb-1.5"
+              style={{ color: '#8B6F47' }}
+            >
+              CHARACTER DETAILS
+            </h3>
+            <div className="grid grid-cols-2 gap-2 text-base" style={{ color: '#5C4033' }}>
+              <div>
+                <span className="font-semibold">Race:</span> {playerClass.race && playerClass.race !== 'n/a' ? playerClass.race : 'n/a'}
+              </div>
+              <div>
+                <span className="font-semibold">Sex:</span> {playerClass.sex && playerClass.sex !== 'n/a' ? playerClass.sex : 'n/a'}
+              </div>
+            </div>
+          </div>
+
           {/* Stats Grid */}
           <div className="mb-2">
             <h3 

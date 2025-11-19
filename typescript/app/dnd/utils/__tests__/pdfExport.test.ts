@@ -128,6 +128,97 @@ describe('PDF Export Utilities', () => {
       expect(mockDoc.save).toHaveBeenCalled();
     });
 
+    it('should display race and sex when provided', async () => {
+      const characterWithRaceSex: DnDClass = {
+        ...mockCharacter,
+        race: 'Human',
+        sex: 'male',
+      };
+
+      const options: CharacterPDFExportOptions = {
+        playerClass: characterWithRaceSex,
+        characterName: 'Test Hero',
+      };
+
+      await exportCharacterToPDF(options);
+
+      const jsPDF = require('jspdf');
+      const mockDoc = jsPDF();
+      
+      // Should call text for CHARACTER DETAILS section
+      expect(mockDoc.text).toHaveBeenCalledWith(
+        expect.stringContaining('CHARACTER DETAILS'),
+        expect.any(Number),
+        expect.any(Number)
+      );
+      
+      // Should call text for race
+      expect(mockDoc.text).toHaveBeenCalledWith(
+        expect.stringContaining('Race: Human'),
+        expect.any(Number),
+        expect.any(Number)
+      );
+      
+      // Should call text for sex
+      expect(mockDoc.text).toHaveBeenCalledWith(
+        expect.stringContaining('Sex: male'),
+        expect.any(Number),
+        expect.any(Number)
+      );
+    });
+
+    it('should display "n/a" for race and sex when not provided', async () => {
+      const options: CharacterPDFExportOptions = {
+        playerClass: mockCharacter, // No race or sex
+        characterName: 'Test Hero',
+      };
+
+      await exportCharacterToPDF(options);
+
+      const jsPDF = require('jspdf');
+      const mockDoc = jsPDF();
+      
+      // Should still show CHARACTER DETAILS section
+      expect(mockDoc.text).toHaveBeenCalledWith(
+        expect.stringContaining('CHARACTER DETAILS'),
+        expect.any(Number),
+        expect.any(Number)
+      );
+      
+      // Should show "n/a" for race
+      expect(mockDoc.text).toHaveBeenCalledWith(
+        expect.stringContaining('Race: n/a'),
+        expect.any(Number),
+        expect.any(Number)
+      );
+      
+      // Should show "n/a" for sex
+      expect(mockDoc.text).toHaveBeenCalledWith(
+        expect.stringContaining('Sex: n/a'),
+        expect.any(Number),
+        expect.any(Number)
+      );
+    });
+
+    it('should always show CHARACTER DETAILS section', async () => {
+      const options: CharacterPDFExportOptions = {
+        playerClass: mockCharacter,
+        characterName: 'Test Hero',
+      };
+
+      await exportCharacterToPDF(options);
+
+      const jsPDF = require('jspdf');
+      const mockDoc = jsPDF();
+      
+      // Should always call text for CHARACTER DETAILS heading
+      const textCalls = mockDoc.text.mock.calls;
+      const hasCharacterDetails = textCalls.some((call: any[]) => 
+        call[0] && call[0].includes('CHARACTER DETAILS')
+      );
+      expect(hasCharacterDetails).toBe(true);
+    });
+
     it('should include character image when imageUrl is provided', async () => {
       const options: CharacterPDFExportOptions = {
         playerClass: mockCharacter,
@@ -276,6 +367,64 @@ describe('PDF Export Utilities', () => {
       const mockDoc = jsPDF();
       // Should use splitTextToSize for wrapping
       expect(mockDoc.splitTextToSize).toHaveBeenCalled();
+    });
+  });
+
+  describe('exportMultipleCharactersToPDF - Race and Sex', () => {
+    it('should display race and sex for multiple characters', async () => {
+      const characters: CharacterPDFExportOptions[] = [
+        {
+          playerClass: { ...mockCharacter, name: 'Hero 1', race: 'Human', sex: 'male' },
+          characterName: 'Hero 1',
+        },
+        {
+          playerClass: { ...mockCharacter, name: 'Hero 2', race: 'Elf', sex: 'female' },
+          characterName: 'Hero 2',
+        },
+      ];
+
+      await exportMultipleCharactersToPDF(characters);
+
+      const jsPDF = require('jspdf');
+      const mockDoc = jsPDF();
+      
+      const textCalls = mockDoc.text.mock.calls.map((call: any[]) => call[0]);
+      
+      // Should show CHARACTER DETAILS for each character
+      const detailsCount = textCalls.filter((text: string) => 
+        text && text.includes('CHARACTER DETAILS')
+      ).length;
+      expect(detailsCount).toBeGreaterThan(0);
+      
+      // Should show race and sex for each character
+      expect(textCalls.some((text: string) => text && text.includes('Race: Human'))).toBe(true);
+      expect(textCalls.some((text: string) => text && text.includes('Sex: male'))).toBe(true);
+      expect(textCalls.some((text: string) => text && text.includes('Race: Elf'))).toBe(true);
+      expect(textCalls.some((text: string) => text && text.includes('Sex: female'))).toBe(true);
+    });
+
+    it('should display "n/a" for missing race and sex in multiple characters', async () => {
+      const characters: CharacterPDFExportOptions[] = [
+        {
+          playerClass: { ...mockCharacter, name: 'Hero 1' }, // No race or sex
+          characterName: 'Hero 1',
+        },
+        {
+          playerClass: { ...mockCharacter, name: 'Hero 2', race: 'Human' }, // Only race
+          characterName: 'Hero 2',
+        },
+      ];
+
+      await exportMultipleCharactersToPDF(characters);
+
+      const jsPDF = require('jspdf');
+      const mockDoc = jsPDF();
+      
+      const textCalls = mockDoc.text.mock.calls.map((call: any[]) => call[0]);
+      
+      // Should show "n/a" for missing values
+      expect(textCalls.some((text: string) => text && text.includes('Race: n/a'))).toBe(true);
+      expect(textCalls.some((text: string) => text && text.includes('Sex: n/a'))).toBe(true);
     });
   });
 

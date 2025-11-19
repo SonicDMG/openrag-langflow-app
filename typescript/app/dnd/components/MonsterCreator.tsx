@@ -10,25 +10,53 @@ interface MonsterCreatorProps {
 }
 
 /**
+ * Enhances a character description with race and sex information
+ * @param description - The base character description
+ * @param race - Character race (optional, use "n/a" if not applicable)
+ * @param sex - Character sex (optional, use "n/a" if not applicable)
+ * @returns Enhanced description with race and sex included
+ */
+function enhanceDescriptionWithRaceAndSex(description: string, race?: string, sex?: string): string {
+  const parts: string[] = [];
+  
+  if (race && race !== 'n/a' && race.trim()) {
+    parts.push(race.trim());
+  }
+  
+  if (sex && sex !== 'n/a' && sex.trim()) {
+    parts.push(sex.trim());
+  }
+  
+  if (parts.length > 0) {
+    return `${parts.join(' ')} ${description}`.trim();
+  }
+  
+  return description;
+}
+
+/**
  * Builds the base pixel art prompt template with user's description
  * @param userPrompt - The user's character description
  * @param transparentBackground - If true, removes background references from prompt
  * @param setting - The card setting/theme (medieval, futuristic, etc.)
+ * @param race - Character race (optional, use "n/a" if not applicable)
+ * @param sex - Character sex (optional, use "n/a" if not applicable)
  */
-function buildBasePrompt(userPrompt: string = '', transparentBackground: boolean = false, setting: CardSetting = DEFAULT_SETTING as CardSetting): string {
+function buildBasePrompt(userPrompt: string = '', transparentBackground: boolean = false, setting: CardSetting = DEFAULT_SETTING as CardSetting, race?: string, sex?: string): string {
   const paletteDescription = 'warm earth tones with vibrant accents';
   const settingConfig = CARD_SETTINGS[setting] || CARD_SETTINGS[DEFAULT_SETTING];
   
-  // Use the user's prompt/description
-  const description = userPrompt.trim() || 'a fantasy character';
+  // Use the user's prompt/description and enhance with race/sex
+  const baseDescription = userPrompt.trim() || 'a fantasy character';
+  const description = enhanceDescriptionWithRaceAndSex(baseDescription, race, sex);
   
   if (transparentBackground) {
     // For transparent background, focus on isolated character only - no background references
-    return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. ${description}, isolated character sprite, no background scene, no environment, no setting. Rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, ${settingConfig.technologyLevel}. Centered composition, transparent background. --style raw`;
+    return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. ${description}, isolated character sprite, no background scene, no environment, no setting. Rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, ${settingConfig.technologyLevel}. Centered composition, transparent background.`;
   }
   
   // Prompt with background
-  return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. ${description}, depicted in a distinctly ${settingConfig.settingPhrase} world. Placed in a expansive ${settingConfig.settingPhrase} setting, rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Position the character in the lower third of the frame, (facing the camera), viewed from a pulled-back wide-angle perspective showing expansive landscape surrounding them. The character should occupy only 60-70% of the composition, with dominant landscape and sky filling the remainder. Retro SNES/Genesis style, ${settingConfig.technologyLevel}. --style raw`;
+  return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. ${description}, depicted in a distinctly ${settingConfig.settingPhrase} world. Placed in a expansive ${settingConfig.settingPhrase} setting, rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Position the character in the lower third of the frame, (facing the camera), viewed from a pulled-back wide-angle perspective showing expansive landscape surrounding them. The character should occupy only 60-70% of the composition, with dominant landscape and sky filling the remainder. Retro SNES/Genesis style, ${settingConfig.technologyLevel}.`;
 }
 
 export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps) {
@@ -110,14 +138,39 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
     return customHero?.description || customMonster?.description || fallbackClass?.description || fallbackMonster?.description || '';
   }, [klass, customHeroes, customMonsters]);
 
+  // Get race and sex from selected class/monster
+  const selectedRace = useMemo(() => {
+    if (!klass) return undefined;
+    const fallbackClass = FALLBACK_CLASSES.find(c => c.name === klass);
+    const fallbackMonster = FALLBACK_MONSTERS.find(m => m.name === klass);
+    const customHero = customHeroes.find(c => c.name === klass);
+    const customMonster = customMonsters.find(m => m.name === klass);
+    return customHero?.race || customMonster?.race || fallbackClass?.race || fallbackMonster?.race;
+  }, [klass, customHeroes, customMonsters]);
+
+  const selectedSex = useMemo(() => {
+    if (!klass) return undefined;
+    const fallbackClass = FALLBACK_CLASSES.find(c => c.name === klass);
+    const fallbackMonster = FALLBACK_MONSTERS.find(m => m.name === klass);
+    const customHero = customHeroes.find(c => c.name === klass);
+    const customMonster = customMonsters.find(m => m.name === klass);
+    return customHero?.sex || customMonster?.sex || fallbackClass?.sex || fallbackMonster?.sex;
+  }, [klass, customHeroes, customMonsters]);
+
   // When klass changes, populate the description field with the class/monster name and description
-  // For classes, also include a randomly selected race
+  // Use the race from the selected class if available, otherwise generate a random one
   useEffect(() => {
     if (klass && selectedDescription) {
       if (isClass) {
-        // For player classes, include a random race
-        const race = getRandomRace();
-        setUserPrompt(`${klass} ${race.name}: ${race.description}. ${selectedDescription}`);
+        // For player classes, use the race from the class if available, otherwise generate a random one
+        if (selectedRace) {
+          // Use the race from the selected class
+          setUserPrompt(`${klass} ${selectedRace}: ${selectedDescription}`);
+        } else {
+          // Generate a random race if the class doesn't have one
+          const race = getRandomRace();
+          setUserPrompt(`${klass} ${race.name}: ${race.description}. ${selectedDescription}`);
+        }
       } else {
         // For monsters, just include the name and description
         setUserPrompt(`${klass}: ${selectedDescription}`);
@@ -125,26 +178,32 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
     } else if (klass && !selectedDescription) {
       // If there's no description, just use the name (with race for classes)
       if (isClass) {
-        const race = getRandomRace();
-        setUserPrompt(`${klass} ${race.name}`);
+        if (selectedRace) {
+          // Use the race from the selected class
+          setUserPrompt(`${klass} ${selectedRace}`);
+        } else {
+          // Generate a random race if the class doesn't have one
+          const race = getRandomRace();
+          setUserPrompt(`${klass} ${race.name}`);
+        }
       } else {
         setUserPrompt(klass);
       }
     }
-  }, [klass, selectedDescription, isClass]); // Update when klass changes
+  }, [klass, selectedDescription, isClass, selectedRace]); // Update when klass changes or selectedRace changes
 
-  // Update full prompt when userPrompt, skipCutout, or setting changes
+  // Update full prompt when userPrompt, skipCutout, setting, race, or sex changes
   // Use different base prompts based on skipCutout option
   useEffect(() => {
     if (userPrompt.trim()) {
       // If skipCutout is true, use background prompt (character on background)
       // If skipCutout is false, use cutout prompt (transparent background, isolated character)
-      const basePrompt = buildBasePrompt(userPrompt, !skipCutout, setting); // !skipCutout = transparent background when false
+      const basePrompt = buildBasePrompt(userPrompt, !skipCutout, setting, selectedRace, selectedSex); // !skipCutout = transparent background when false
       setFullPrompt(basePrompt);
     } else {
       setFullPrompt('');
     }
-  }, [userPrompt, skipCutout, setting]);
+  }, [userPrompt, skipCutout, setting, selectedRace, selectedSex]);
 
   const handleGenerateImage = async () => {
     if (!fullPrompt) {
@@ -190,7 +249,7 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
           // Try to extract the description part (between the style description and "depicted")
           const match = fullPrompt.match(/retro .+? aesthetic\.\s*(.+?)(?:,\s*depicted|$)/i);
           const description = match ? match[1].trim() : userPrompt || 'a fantasy character';
-          characterPrompt = buildBasePrompt(description, true, setting); // true = transparent background
+          characterPrompt = buildBasePrompt(description, true, setting, selectedRace, selectedSex); // true = transparent background
         } else {
           // Custom prompt - just ensure transparent background is requested
           if (!characterPrompt.toLowerCase().includes('transparent') && 
@@ -212,6 +271,8 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
           transparentBackground: !skipCutout, // Generate with transparent background only if skipCutout is false
           aspectRatio: '16:9', // 16:9 aspect ratio for perfect fit
           setting, // Include setting in the request
+          race: selectedRace, // Pass race from selected class
+          sex: selectedSex,   // Pass sex from selected class
         }),
       });
 

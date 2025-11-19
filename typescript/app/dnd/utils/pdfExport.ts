@@ -341,6 +341,17 @@ export async function exportCharacterToPDF({
     pdf.addSpacing(3);
   }
 
+  // Race and Sex Section (always show, use "n/a" if not set)
+  pdf.addSectionHeading('CHARACTER DETAILS', 14);
+  
+  const raceValue = playerClass.race && playerClass.race !== 'n/a' ? playerClass.race : 'n/a';
+  const sexValue = playerClass.sex && playerClass.sex !== 'n/a' ? playerClass.sex : 'n/a';
+  
+  pdf.addText(`Race: ${raceValue}`, 11);
+  pdf.addText(`Sex: ${sexValue}`, 11);
+  
+  pdf.addSpacing(3);
+
   // Statistics Section
   pdf.addSectionHeading('STATISTICS', 14);
   
@@ -486,6 +497,17 @@ export async function exportMultipleCharactersToPDF(
       
       pdf.addSpacing(3);
     }
+
+    // Race and Sex Section (always show, use "n/a" if not set)
+    pdf.addSectionHeading('CHARACTER DETAILS', 14);
+    
+    const raceValue = playerClass.race && playerClass.race !== 'n/a' ? playerClass.race : 'n/a';
+    const sexValue = playerClass.sex && playerClass.sex !== 'n/a' ? playerClass.sex : 'n/a';
+    
+    pdf.addText(`Race: ${raceValue}`, 11);
+    pdf.addText(`Sex: ${sexValue}`, 11);
+    
+    pdf.addSpacing(3);
 
     // Statistics Section
     pdf.addSectionHeading('STATISTICS', 14);

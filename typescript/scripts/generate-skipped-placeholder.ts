@@ -22,7 +22,7 @@ async function generateSkippedPlaceholder() {
   }
 
   const paletteDescription = 'warm earth tones with vibrant accents';
-  const prompt = `32-bit pixel art with clearly visible chunky pixel clusters, crisp sprite outlines, dithered shading, low-resolution retro fantasy aesthetic. The text "SKIPPED" in large bold letters, centered, transparent background, isolated text sprite, no background scene, no environment, no setting. Rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, no modern objects or technology. Centered composition, transparent background, 16:9 aspect ratio. --ar 16:9 --style raw`;
+  const prompt = `32-bit pixel art with clearly visible chunky pixel clusters, crisp sprite outlines, dithered shading, low-resolution retro fantasy aesthetic. The text "SKIPPED" in large bold letters, centered, transparent background, isolated text sprite, no background scene, no environment, no setting. Rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, no modern objects or technology. Centered composition, transparent background, 16:9 aspect ratio.`;
 
   try {
     console.log('Generating "SKIPPED" placeholder image with EverArt...');

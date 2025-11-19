@@ -1,5 +1,6 @@
 import { DnDClass, Ability } from '../types';
 import { extractJsonFromResponse, parseSSEResponse } from '../utils/api';
+import { DND_PLAYER_RACES } from '../constants';
 
 interface GeneratedStats {
   hitPoints: number;
@@ -8,12 +9,116 @@ interface GeneratedStats {
   attackBonus: number;
   damageDie: string;
   description: string;
+  race?: string;
+  sex?: string;
 }
 
 interface GenerationResult {
   name?: string;
   stats: GeneratedStats | null;
   abilities: Ability[];
+  race?: string;
+  sex?: string;
+}
+
+/**
+ * Extract race from description text by matching against known races
+ */
+export function extractRaceFromDescription(description: string): string | undefined {
+  const descLower = description.toLowerCase();
+  
+  // Sort races by length (longest first) to match "Dark Elf (Drow)" before "Elf"
+  const sortedRaces = [...DND_PLAYER_RACES].sort((a, b) => b.name.length - a.name.length);
+  
+  // Check against all known races (case-insensitive)
+  for (const race of sortedRaces) {
+    const raceNameLower = race.name.toLowerCase();
+    // Escape special regex characters
+    const escapedName = raceNameLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // For multi-word races, we need to allow spaces between words
+    // Use word boundary at start and end, but allow spaces in the middle
+    const regex = new RegExp(`(^|\\s)${escapedName}(\\s|$)`, 'i');
+    if (regex.test(descLower)) {
+      return race.name;
+    }
+  }
+  
+  return undefined;
+}
+
+/**
+ * Extract sex/gender from description text
+ */
+export function extractSexFromDescription(description: string): string | undefined {
+  const descLower = description.toLowerCase();
+  
+  // Common sex/gender terms
+  const sexPatterns = [
+    { pattern: /\b(male|man|men|boy|boys|he|him|his)\b/i, value: 'male' },
+    { pattern: /\b(female|woman|women|girl|girls|she|her|hers)\b/i, value: 'female' },
+    { pattern: /\b(non-binary|nonbinary|enby|they|them|their)\b/i, value: 'other' },
+  ];
+  
+  for (const { pattern, value } of sexPatterns) {
+    if (pattern.test(descLower)) {
+      return value;
+    }
+  }
+  
+  return undefined;
+}
+
+/**
+ * Extract character name from description text
+ * Looks for patterns like "Name the", "Name is", "Name,", "Name:", etc.
+ */
+export function extractNameFromDescription(description: string): string | undefined {
+  // Common patterns for names in descriptions:
+  // - "Name the Class" or "Name, a Class"
+  // - "Name is a..."
+  // - "Name: description"
+  // - "The character Name..."
+  
+  const patterns = [
+    // Pattern: "Name: description" (check this first to capture full name before colon)
+    // Allow lowercase words like "the", "of", "de", etc. in the middle
+    /^([A-Z][a-z]+(?:\s+(?:[A-Z][a-z]+|[a-z]+))*):/,
+    // Pattern: "Name the Class" or "Name is a..." or "Name was a..."
+    /^([A-Z][a-z]+(?:\s+(?:[A-Z][a-z]+|[a-z]+))*)\s+(?:the|is|was)/i,
+    // Pattern: "Name, a Class" or "Name, the Class"
+    /^([A-Z][a-z]+(?:\s+(?:[A-Z][a-z]+|[a-z]+))*),\s*(?:a|an|the)/i,
+    // Pattern: "The character Name..." or "A warrior Name..."
+    /(?:character|hero|warrior|wizard|rogue|cleric|ranger|monk|bard|paladin|barbarian|druid|warlock|monster|creature)\s+([A-Z][a-z]+(?:\s+(?:[A-Z][a-z]+|[a-z]+))*)/i,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = description.match(pattern);
+    if (match && match[1]) {
+      const potentialName = match[1].trim();
+      // Don't return if it's a common class/race word or common words like "with", "a", "the"
+      // But allow multi-word names that contain these words (e.g., "Gandalf the Grey")
+      const commonWords = ['human', 'elf', 'dwarf', 'halfling', 'dragonborn', 'gnome', 'tiefling', 'orc', 'goblin', 'kobold', 'with', 'a', 'an', 'the', 'warrior'];
+      const nameLower = potentialName.toLowerCase();
+      const nameParts = potentialName.split(/\s+/);
+      
+      // Filter out if:
+      // 1. The entire name is a common word
+      // 2. The name starts with a common word and has no capital letters after (e.g., "with a sword")
+      // 3. All words are common words
+      const allCommonWords = nameParts.every(part => commonWords.includes(part.toLowerCase()));
+      const startsWithCommon = commonWords.includes(nameParts[0].toLowerCase());
+      const hasNoCapitals = !nameParts.slice(1).some(part => /^[A-Z]/.test(part));
+      
+      if (allCommonWords || (startsWithCommon && hasNoCapitals)) {
+        return undefined;
+      }
+      
+      // Allow if it's a multi-word name that doesn't match the above filters
+      return potentialName;
+    }
+  }
+  
+  return undefined;
 }
 
 /**
@@ -27,19 +132,31 @@ export async function generateCharacterStats(
   try {
     const typeLabel = characterType === 'hero' ? 'hero' : 'monster';
     
+    // Extract race, sex, and name from the description if mentioned
+    const extractedRace = extractRaceFromDescription(description);
+    const extractedSex = extractSexFromDescription(description);
+    const extractedName = extractNameFromDescription(description);
+    
+    // Use extracted name if found, otherwise use provided name
+    const nameToUse = extractedName || (name && name.trim() ? name : '');
+    
     // Generate name and stats
+    // If no name provided or name is empty, always generate one
+    const shouldGenerateName = !nameToUse || !nameToUse.trim();
     const statsQuery = `Create a D&D ${typeLabel} character based on this description: "${description}"
 
-${name ? `Character name: ${name}` : 'Generate an appropriate name for this character.'}
+${shouldGenerateName ? 'Generate an appropriate name for this character.' : `Character name: ${nameToUse}`}
 
 Provide the following information in JSON format:
 {
-  "name": string (${name ? 'use the provided name' : 'generate an appropriate fantasy name fitting the description'}),
+  "name": string (${shouldGenerateName ? 'generate an appropriate fantasy name fitting the description' : 'use the provided name'}),
   "hitPoints": number (typical HP for a ${characterType === 'hero' ? 'level 1-3 character, around 20-35' : 'challenging encounter, 25-50'}),
   "armorClass": number (typical AC, between ${characterType === 'hero' ? '12-18' : '10-20'}),
   "attackBonus": number (typical attack bonus modifier, between ${characterType === 'hero' ? '3-5' : '2-8'}),
   "damageDie": string (typical weapon damage die like "d6", "d8", "d10", or "d12"),
-  "description": string (brief 1-2 sentence description based on the provided description)
+  "description": string (brief 1-2 sentence description based on the provided description),
+  "race": string (extract race from description if mentioned, e.g., "Human", "Elf", "Dwarf", or "n/a" if not applicable),
+  "sex": string (extract sex/gender from description if mentioned, e.g., "male", "female", "other", or "n/a" if not applicable)
 }
 
 Return ONLY valid JSON, no other text.`;
@@ -69,7 +186,7 @@ Return ONLY valid JSON, no other text.`;
     // Extract stats JSON
     const statsJsonString = extractJsonFromResponse(
       statsContent,
-      ['name', 'hitPoints', 'armorClass', 'attackBonus', 'damageDie'],
+      ['name', 'hitPoints', 'armorClass', 'attackBonus', 'damageDie', 'race', 'sex'],
       ['search_query']
     );
 
@@ -78,12 +195,13 @@ Return ONLY valid JSON, no other text.`;
     if (statsJsonString) {
       try {
         const parsed = JSON.parse(statsJsonString);
-        // Extract name if generated (only if no name was provided)
+        // Extract name - use generated name if no name was provided
         if (parsed.name) {
-          if (!name) {
-            // Only use generated name if no name was provided
+          if (!nameToUse || !nameToUse.trim()) {
+            // Use generated name if no name was provided or name is empty
             generatedName = parsed.name;
           }
+          // If name was provided, keep generatedName as undefined (we'll use the provided name)
         }
         // Normalize damageDie format
         let damageDie = parsed.damageDie || 'd8';
@@ -92,6 +210,11 @@ Return ONLY valid JSON, no other text.`;
         }
 
         const hitPoints = parsed.hitPoints || (characterType === 'hero' ? 25 : 30);
+        // Use race/sex from parsed JSON if available, otherwise use extracted from description
+        // Filter out "n/a" values - treat them as undefined
+        let race = parsed.race && parsed.race !== 'n/a' ? parsed.race : extractedRace;
+        let sex = parsed.sex && parsed.sex !== 'n/a' ? parsed.sex : extractedSex;
+        
         stats = {
           hitPoints,
           maxHitPoints: hitPoints,
@@ -99,6 +222,8 @@ Return ONLY valid JSON, no other text.`;
           attackBonus: parsed.attackBonus || (characterType === 'hero' ? 4 : 4),
           damageDie,
           description: parsed.description || description,
+          race,
+          sex,
         };
       } catch (parseError) {
         console.warn('Error parsing stats JSON:', parseError);
@@ -111,8 +236,8 @@ Return ONLY valid JSON, no other text.`;
         const descriptionMatch = statsJsonString.match(/"description"\s*:\s*"([^"]*)"/);
 
         if (nameMatch) {
-          if (!name) {
-            // Only use generated name if no name was provided
+          if (!name || !name.trim()) {
+            // Use generated name if no name was provided or name is empty
             generatedName = nameMatch[1];
           }
         }
@@ -137,9 +262,11 @@ Return ONLY valid JSON, no other text.`;
     }
 
     // Generate abilities
+    // Use generated name if available, otherwise use provided name
+    const characterName = generatedName || name || '';
     const abilitiesQuery = `Create D&D abilities for a ${typeLabel} character based on this description: "${description}"
 
-${name ? `Character name: ${name}` : ''}
+${characterName ? `Character name: ${characterName}` : ''}
 
 Return your response as a JSON object with this exact structure:
 {
@@ -188,24 +315,52 @@ Important rules:
 
     const { content: abilitiesContent } = await parseSSEResponse(abilitiesReader);
 
-    // Check if response indicates no data found
-    if (abilitiesContent.toLowerCase().includes('no relevant supporting sources') ||
-        abilitiesContent.toLowerCase().includes('no sources found') ||
-        abilitiesContent.toLowerCase().includes('no relevant information') ||
-        abilitiesContent.trim().length === 0) {
-      console.warn('No abilities data found in response');
-      return { stats, abilities: [] };
-    }
-
-    // Extract abilities JSON
+    // Extract abilities JSON first (before checking for early returns)
     let abilitiesJsonString = extractJsonFromResponse(
       abilitiesContent,
       ['abilities']
     );
 
-    if (!abilitiesJsonString) {
-      console.warn('No JSON object with "abilities" field found');
-      return { stats, abilities: [] };
+    // Check if response indicates no data found
+    if (abilitiesContent.toLowerCase().includes('no relevant supporting sources') ||
+        abilitiesContent.toLowerCase().includes('no sources found') ||
+        abilitiesContent.toLowerCase().includes('no relevant information') ||
+        abilitiesContent.trim().length === 0 ||
+        !abilitiesJsonString) {
+      console.warn('No abilities data found in response');
+      // Still need to assign race and sex before returning
+      // Extract race and sex from stats if available, otherwise from description
+      let finalRace = stats?.race && stats.race !== 'n/a' ? stats.race : undefined;
+      if (!finalRace) {
+        finalRace = extractedRace;
+      }
+      
+      let finalSex = stats?.sex && stats.sex !== 'n/a' ? stats.sex : undefined;
+      if (!finalSex) {
+        finalSex = extractedSex;
+      }
+      
+      // For heroes only: If race not found, randomly select from available hero races
+      if (!finalRace && characterType === 'hero') {
+        const randomRace = DND_PLAYER_RACES[Math.floor(Math.random() * DND_PLAYER_RACES.length)];
+        finalRace = randomRace.name;
+      }
+      
+      // If sex not found, randomly select from common options (applies to both heroes and monsters)
+      if (!finalSex) {
+        const sexOptions = ['male', 'female', 'other'];
+        finalSex = sexOptions[Math.floor(Math.random() * sexOptions.length)];
+      }
+      
+      const finalName = generatedName || (nameToUse && nameToUse.trim() ? nameToUse : undefined);
+      
+      return { 
+        name: finalName, 
+        stats: stats ? { ...stats, race: finalRace, sex: finalSex } : null, 
+        abilities: [],
+        race: finalRace,
+        sex: finalSex,
+      };
     }
 
     // Fix common JSON malformation
@@ -247,7 +402,40 @@ Important rules:
       console.error('Extracted JSON string was:', abilitiesJsonString);
     }
 
-    return { name: generatedName, stats, abilities };
+    // Extract race and sex from stats if available, otherwise from description
+    // Filter out "n/a" values - treat them as undefined
+    let finalRace = stats?.race && stats.race !== 'n/a' ? stats.race : undefined;
+    if (!finalRace) {
+      finalRace = extractedRace;
+    }
+    
+    let finalSex = stats?.sex && stats.sex !== 'n/a' ? stats.sex : undefined;
+    if (!finalSex) {
+      finalSex = extractedSex;
+    }
+    
+    // For heroes only: If race not found, randomly select from available hero races
+    if (!finalRace && characterType === 'hero') {
+      const randomRace = DND_PLAYER_RACES[Math.floor(Math.random() * DND_PLAYER_RACES.length)];
+      finalRace = randomRace.name;
+    }
+    
+    // If sex not found, randomly select from common options (applies to both heroes and monsters)
+    if (!finalSex) {
+      const sexOptions = ['male', 'female', 'other'];
+      finalSex = sexOptions[Math.floor(Math.random() * sexOptions.length)];
+    }
+    
+    // Determine final name: use generated name if available, otherwise use extracted or provided name
+    const finalName = generatedName || (nameToUse && nameToUse.trim() ? nameToUse : undefined);
+    
+    return { 
+      name: finalName, 
+      stats: stats ? { ...stats, race: finalRace, sex: finalSex } : null, 
+      abilities,
+      race: finalRace,
+      sex: finalSex,
+    };
   } catch (error) {
     console.error('Error generating character stats:', error);
     throw error;

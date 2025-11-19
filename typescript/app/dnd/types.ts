@@ -31,6 +31,8 @@ export interface DnDClass {
   abilities: Ability[];
   description: string;
   color: string;
+  race?: string; // Character race (e.g., "Human", "Elf", "Dwarf") - use "n/a" if not applicable
+  sex?: string; // Character sex (e.g., "male", "female", "other") - use "n/a" if not applicable
 }
 
 export interface BattleLog {

@@ -29,6 +29,8 @@ export type HeroRecord = {
   abilities: Ability[];
   description: string;
   color: string;
+  race?: string; // Character race (e.g., "Human", "Elf", "Dwarf") - use "n/a" if not applicable
+  sex?: string; // Character sex (e.g., "male", "female", "other") - use "n/a" if not applicable
   searchContext?: string; // Context used when loading (e.g., "D&D", "Pokemon")
   createdAt: string;
   updatedAt: string;
@@ -45,6 +47,8 @@ export type MonsterRecord = {
   abilities: Ability[];
   description: string;
   color: string;
+  race?: string; // Character race (e.g., "Human", "Elf", "Dwarf") - use "n/a" if not applicable
+  sex?: string; // Character sex (e.g., "male", "female", "other") - use "n/a" if not applicable
   searchContext?: string; // Context used when loading (e.g., "D&D", "Pokemon")
   createdAt: string;
   updatedAt: string;
@@ -122,6 +126,8 @@ function classToHeroRecord(klass: DnDClass, searchContext?: string): Omit<HeroRe
     abilities: klass.abilities || [],
     description: klass.description || '',
     color: klass.color || 'bg-slate-900',
+    race: klass.race,
+    sex: klass.sex,
     searchContext,
   };
 }
@@ -138,6 +144,8 @@ function classToMonsterRecord(monster: DnDClass, searchContext?: string): Omit<M
     abilities: monster.abilities || [],
     description: monster.description || '',
     color: monster.color || 'bg-slate-900',
+    race: monster.race,
+    sex: monster.sex,
     searchContext,
   };
 }
@@ -154,6 +162,8 @@ function heroRecordToClass(record: HeroRecord): DnDClass {
     abilities: record.abilities || [],
     description: record.description,
     color: record.color,
+    race: record.race,
+    sex: record.sex,
   };
 }
 
@@ -169,6 +179,8 @@ function monsterRecordToClass(record: MonsterRecord): DnDClass {
     abilities: record.abilities || [],
     description: record.description,
     color: record.color,
+    race: record.race,
+    sex: record.sex,
   };
 }
 

@@ -14,6 +14,8 @@ type CharacterType = 'hero' | 'monster';
 interface CharacterFormData {
   name: string;
   description: string;
+  race: string;
+  sex: string;
   hitPoints: number;
   maxHitPoints: number;
   armorClass: number;
@@ -33,6 +35,8 @@ function CharacterCreatorPageContent() {
   const [formData, setFormData] = useState<CharacterFormData>({
     name: '',
     description: '',
+    race: '',
+    sex: '',
     hitPoints: 25,
     maxHitPoints: 25,
     armorClass: 14,
@@ -75,6 +79,8 @@ function CharacterCreatorPageContent() {
           setFormData({
             name: character.name,
             description: character.description || '',
+            race: character.race || '',
+            sex: character.sex || '',
             hitPoints: character.hitPoints,
             maxHitPoints: character.maxHitPoints,
             armorClass: character.armorClass,
@@ -122,8 +128,8 @@ function CharacterCreatorPageContent() {
         characterType
       );
 
-      // Update name if generated
-      if (result.name && !formData.name.trim()) {
+      // Update name if generated or if name field is empty
+      if (result.name) {
         setFormData(prev => ({
           ...prev,
           name: result.name || prev.name,
@@ -134,13 +140,35 @@ function CharacterCreatorPageContent() {
         const stats = result.stats;
         setFormData(prev => ({
           ...prev,
-          name: result.name || prev.name, // Update name here too in case it wasn't set above
+          name: result.name || prev.name, // Always update name if generated
           hitPoints: stats.hitPoints || prev.hitPoints,
           maxHitPoints: stats.maxHitPoints || stats.hitPoints || prev.hitPoints,
           armorClass: stats.armorClass || prev.armorClass,
           attackBonus: stats.attackBonus || prev.attackBonus,
           damageDie: stats.damageDie || prev.damageDie,
           description: stats.description || prev.description,
+          race: result.race || stats?.race || prev.race,
+          sex: result.sex || stats?.sex || prev.sex,
+        }));
+      } else {
+        // Even if stats generation failed, try to extract race/sex from description
+        // Always update race/sex if they're provided (they should always have defaults)
+        if (result.race || result.sex) {
+          setFormData(prev => ({
+            ...prev,
+            race: result.race || prev.race,
+            sex: result.sex || prev.sex,
+          }));
+        }
+      }
+      
+      // Always update race and sex if they're in the result (they should have defaults, never "n/a")
+      // This ensures they're set even if stats generation partially failed
+      if (result.race || result.sex) {
+        setFormData(prev => ({
+          ...prev,
+          race: result.race || prev.race || '',
+          sex: result.sex || prev.sex || '',
         }));
       }
 
@@ -219,6 +247,8 @@ function CharacterCreatorPageContent() {
         abilities: formData.abilities,
         description: formData.description || `A ${characterType === 'hero' ? 'hero' : 'monster'} named ${formData.name}.`,
         color: formData.color,
+        race: formData.race.trim() || undefined,
+        sex: formData.sex.trim() || undefined,
       };
 
       const endpoint = characterType === 'hero' ? '/api/heroes' : '/api/monsters-db';
@@ -261,6 +291,8 @@ function CharacterCreatorPageContent() {
     abilities: formData.abilities,
     description: formData.description,
     color: formData.color,
+    race: formData.race.trim() || undefined,
+    sex: formData.sex.trim() || undefined,
   };
 
   if (isLoading) {
@@ -352,6 +384,40 @@ function CharacterCreatorPageContent() {
                 <p className="text-xs text-amber-300 mt-1">
                   Enter a description and click the button to automatically generate a name, stats, and abilities for your character.
                 </p>
+              </div>
+
+              {/* Race and Sex */}
+              <div className="mb-4 grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-amber-100 mb-2">
+                    Race
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.race}
+                    onChange={(e) => setFormData(prev => ({ ...prev, race: e.target.value }))}
+                    className="w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100 placeholder-amber-400"
+                    placeholder="e.g., Human, Elf, Dwarf (or n/a)"
+                  />
+                  <p className="text-xs text-amber-300 mt-1">
+                    Character race (use "n/a" if not applicable)
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-amber-100 mb-2">
+                    Sex
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.sex}
+                    onChange={(e) => setFormData(prev => ({ ...prev, sex: e.target.value }))}
+                    className="w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100 placeholder-amber-400"
+                    placeholder="e.g., male, female, other (or n/a)"
+                  />
+                  <p className="text-xs text-amber-300 mt-1">
+                    Character sex (use "n/a" if not applicable)
+                  </p>
+                </div>
               </div>
 
               {/* Name */}

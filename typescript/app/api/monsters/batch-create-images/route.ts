@@ -8,23 +8,49 @@ import { CardSetting } from '@/app/dnd/types';
 const MONSTERS_DIR = join(process.cwd(), 'public', 'cdn', 'monsters');
 
 /**
+ * Enhances a character description with race and sex information
+ * @param description - The base character description
+ * @param race - Character race (optional, use "n/a" if not applicable)
+ * @param sex - Character sex (optional, use "n/a" if not applicable)
+ * @returns Enhanced description with race and sex included
+ */
+function enhanceDescriptionWithRaceAndSex(description: string, race?: string, sex?: string): string {
+  const parts: string[] = [];
+  
+  if (race && race !== 'n/a' && race.trim()) {
+    parts.push(race.trim());
+  }
+  
+  if (sex && sex !== 'n/a' && sex.trim()) {
+    parts.push(sex.trim());
+  }
+  
+  if (parts.length > 0) {
+    return `${parts.join(' ')} ${description}`.trim();
+  }
+  
+  return description;
+}
+
+/**
  * Builds the base pixel art prompt template with user's description
  * Matches the logic from MonsterCreator component
  */
-function buildBasePrompt(userPrompt: string = '', transparentBackground: boolean = false, setting: CardSetting = DEFAULT_SETTING as CardSetting): string {
+function buildBasePrompt(userPrompt: string = '', transparentBackground: boolean = false, setting: CardSetting = DEFAULT_SETTING as CardSetting, race?: string, sex?: string): string {
   const paletteDescription = 'warm earth tones with vibrant accents';
   const settingConfig = CARD_SETTINGS[setting] || CARD_SETTINGS[DEFAULT_SETTING];
   
-  // Use the user's prompt/description
-  const description = userPrompt.trim() || 'a fantasy character';
+  // Use the user's prompt/description and enhance with race/sex
+  const baseDescription = userPrompt.trim() || 'a fantasy character';
+  const description = enhanceDescriptionWithRaceAndSex(baseDescription, race, sex);
   
   if (transparentBackground) {
     // For transparent background, focus on isolated character only - no background references
-    return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. ${description}, isolated character sprite, no background scene, no environment, no setting. Rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, ${settingConfig.technologyLevel}. Centered composition, transparent background. --style raw`;
+    return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. ${description}, isolated character sprite, no background scene, no environment, no setting. Rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, ${settingConfig.technologyLevel}. Centered composition, transparent background.`;
   }
   
   // Prompt with background
-  return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. ${description}, depicted in a distinctly ${settingConfig.settingPhrase} world. Placed in a expansive ${settingConfig.settingPhrase} setting, rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Position the character in the lower third of the frame, (facing the camera), viewed from a pulled-back wide-angle perspective showing expansive landscape surrounding them. The character should occupy only 60-70% of the composition, with dominant landscape and sky filling the remainder. Retro SNES/Genesis style, ${settingConfig.technologyLevel}. --style raw`;
+  return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. ${description}, depicted in a distinctly ${settingConfig.settingPhrase} world. Placed in a expansive ${settingConfig.settingPhrase} setting, rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Position the character in the lower third of the frame, (facing the camera), viewed from a pulled-back wide-angle perspective showing expansive landscape surrounding them. The character should occupy only 60-70% of the composition, with dominant landscape and sky filling the remainder. Retro SNES/Genesis style, ${settingConfig.technologyLevel}.`;
 }
 
 /**

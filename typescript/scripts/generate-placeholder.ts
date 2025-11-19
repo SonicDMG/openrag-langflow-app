@@ -25,7 +25,7 @@ async function generatePlaceholder() {
   const backgroundScene = 'a medieval high-fantasy setting';
   const paletteDescription = 'warm earth tones with vibrant accents';
   
-  const prompt = `32-bit pixel art with clearly visible chunky pixel clusters, crisp sprite outlines, dithered shading, low-resolution retro fantasy aesthetic. A large question mark symbol, depicted in a distinctly medieval high-fantasy world. The question mark is placed in ${backgroundScene}, rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, no modern objects or technology. Cinematic composition, 16:9 aspect ratio, transparent background. --ar 16:9 --style raw`;
+  const prompt = `32-bit pixel art with clearly visible chunky pixel clusters, crisp sprite outlines, dithered shading, low-resolution retro fantasy aesthetic. A large question mark symbol, depicted in a distinctly medieval high-fantasy world. The question mark is placed in ${backgroundScene}, rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, no modern objects or technology. Cinematic composition, 16:9 aspect ratio, transparent background.`;
 
   try {
     console.log('Generating placeholder image with EverArt...');
