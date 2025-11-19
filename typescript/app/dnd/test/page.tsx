@@ -431,19 +431,6 @@ export default function DnDTestPage() {
     return player === 'player1' ? player1Class : player2Class;
   }, [player1Class, player2Class]);
   
-  // Test functions
-  const testDiceRoll = () => {
-    // Show random numbers floating on both cards
-    const numbers: Array<{ value: number | string; type: FloatingNumberType; targetPlayer: 'player1' | 'player2' }> = [
-      { value: Math.floor(Math.random() * 20) + 1, type: 'attack-roll', targetPlayer: 'player1' },
-      { value: Math.floor(Math.random() * 10) + 1, type: 'damage', targetPlayer: 'player2' },
-      { value: Math.floor(Math.random() * 8) + 1, type: 'damage', targetPlayer: 'player1' },
-      { value: Math.floor(Math.random() * 6) + 1, type: 'healing', targetPlayer: 'player2' },
-    ];
-    showFloatingNumbers(numbers, [], []);
-    addLog('system', '🎲 Test floating numbers triggered');
-  };
-  
   // Use shared performAttack for test attacks
   const testAttackHit = (attacker: 'player1' | 'player2') => {
     performAttack(attacker);
@@ -836,12 +823,6 @@ export default function DnDTestPage() {
           {/* Global Test Controls */}
           <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-4 shadow-2xl">
             <div className="flex flex-wrap gap-3 justify-center">
-              <button
-                onClick={testDiceRoll}
-                className="py-2 px-4 bg-purple-900 hover:bg-purple-800 text-white font-semibold rounded-lg border-2 border-purple-700 transition-all"
-              >
-                🎲 Test Dice Roll
-              </button>
               <button
                 onClick={() => {
                   setIsAIModeActive(!isAIModeActive);
