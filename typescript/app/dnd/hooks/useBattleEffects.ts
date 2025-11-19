@@ -15,27 +15,27 @@ export function useBattleEffects() {
   const floatingNumberCounterRef = useRef(0);
   
   // Visual effect states
-  const [shakingPlayer, setShakingPlayer] = useState<'player1' | 'player2' | null>(null);
-  const [shakeTrigger, setShakeTrigger] = useState({ player1: 0, player2: 0 });
-  const [shakeIntensity, setShakeIntensity] = useState<{ player1: number; player2: number }>({ player1: 0, player2: 0 });
+  const [shakingPlayer, setShakingPlayer] = useState<'player1' | 'player2' | 'support1' | 'support2' | null>(null);
+  const [shakeTrigger, setShakeTrigger] = useState({ player1: 0, player2: 0, support1: 0, support2: 0 });
+  const [shakeIntensity, setShakeIntensity] = useState<{ player1: number; player2: number; support1: number; support2: number }>({ player1: 0, player2: 0, support1: 0, support2: 0 });
   
-  const [sparklingPlayer, setSparklingPlayer] = useState<'player1' | 'player2' | null>(null);
-  const [sparkleTrigger, setSparkleTrigger] = useState({ player1: 0, player2: 0 });
-  const [sparkleIntensity, setSparkleIntensity] = useState<{ player1: number; player2: number }>({ player1: 0, player2: 0 });
+  const [sparklingPlayer, setSparklingPlayer] = useState<'player1' | 'player2' | 'support1' | 'support2' | null>(null);
+  const [sparkleTrigger, setSparkleTrigger] = useState({ player1: 0, player2: 0, support1: 0, support2: 0 });
+  const [sparkleIntensity, setSparkleIntensity] = useState<{ player1: number; player2: number; support1: number; support2: number }>({ player1: 0, player2: 0, support1: 0, support2: 0 });
   
-  const [missingPlayer, setMissingPlayer] = useState<'player1' | 'player2' | null>(null);
-  const [missTrigger, setMissTrigger] = useState({ player1: 0, player2: 0 });
+  const [missingPlayer, setMissingPlayer] = useState<'player1' | 'player2' | 'support1' | 'support2' | null>(null);
+  const [missTrigger, setMissTrigger] = useState({ player1: 0, player2: 0, support1: 0, support2: 0 });
   
-  const [hittingPlayer, setHittingPlayer] = useState<'player1' | 'player2' | null>(null);
-  const [hitTrigger, setHitTrigger] = useState({ player1: 0, player2: 0 });
+  const [hittingPlayer, setHittingPlayer] = useState<'player1' | 'player2' | 'support1' | 'support2' | null>(null);
+  const [hitTrigger, setHitTrigger] = useState({ player1: 0, player2: 0, support1: 0, support2: 0 });
   
-  const [castingPlayer, setCastingPlayer] = useState<'player1' | 'player2' | null>(null);
-  const [castTrigger, setCastTrigger] = useState({ player1: 0, player2: 0 });
+  const [castingPlayer, setCastingPlayer] = useState<'player1' | 'player2' | 'support1' | 'support2' | null>(null);
+  const [castTrigger, setCastTrigger] = useState({ player1: 0, player2: 0, support1: 0, support2: 0 });
   
-  const [flashingPlayer, setFlashingPlayer] = useState<'player1' | 'player2' | null>(null);
-  const [flashTrigger, setFlashTrigger] = useState({ player1: 0, player2: 0 });
-  const [flashProjectileType, setFlashProjectileType] = useState<{ player1: ProjectileType | null; player2: ProjectileType | null }>({ player1: null, player2: null });
-  const [castProjectileType, setCastProjectileType] = useState<{ player1: ProjectileType | null; player2: ProjectileType | null }>({ player1: null, player2: null });
+  const [flashingPlayer, setFlashingPlayer] = useState<'player1' | 'player2' | 'support1' | 'support2' | null>(null);
+  const [flashTrigger, setFlashTrigger] = useState({ player1: 0, player2: 0, support1: 0, support2: 0 });
+  const [flashProjectileType, setFlashProjectileType] = useState<{ player1: ProjectileType | null; player2: ProjectileType | null; support1: ProjectileType | null; support2: ProjectileType | null }>({ player1: null, player2: null, support1: null, support2: null });
+  const [castProjectileType, setCastProjectileType] = useState<{ player1: ProjectileType | null; player2: ProjectileType | null; support1: ProjectileType | null; support2: ProjectileType | null }>({ player1: null, player2: null, support1: null, support2: null });
   
   const [defeatedPlayer, setDefeatedPlayer] = useState<'player1' | 'player2' | null>(null);
   const [victorPlayer, setVictorPlayer] = useState<'player1' | 'player2' | null>(null);
@@ -79,14 +79,12 @@ export function useBattleEffects() {
   }, []);
 
   // Helper function to trigger flash effect on attacking card
-  // Support heroes map to player1's side for visual effects
   const triggerFlashEffect = useCallback((attacker: 'player1' | 'player2' | 'support1' | 'support2', projectileType?: ProjectileType) => {
-    const visualPlayer: 'player1' | 'player2' = (attacker === 'player1' || attacker === 'support1' || attacker === 'support2') ? 'player1' : 'player2';
-    setFlashingPlayer(visualPlayer);
-    setFlashTrigger(prev => ({ ...prev, [visualPlayer]: prev[visualPlayer] + 1 }));
+    setFlashingPlayer(attacker);
+    setFlashTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
     if (projectileType) {
-      setFlashProjectileType(prev => ({ ...prev, [visualPlayer]: projectileType }));
-      setCastProjectileType(prev => ({ ...prev, [visualPlayer]: projectileType }));
+      setFlashProjectileType(prev => ({ ...prev, [attacker]: projectileType }));
+      setCastProjectileType(prev => ({ ...prev, [attacker]: projectileType }));
     }
   }, []);
 
@@ -159,12 +157,12 @@ export function useBattleEffects() {
     setFlashingPlayer(null);
     setDefeatedPlayer(null);
     setVictorPlayer(null);
-    setMissTrigger({ player1: 0, player2: 0 });
-    setHitTrigger({ player1: 0, player2: 0 });
-    setCastTrigger({ player1: 0, player2: 0 });
-    setFlashTrigger({ player1: 0, player2: 0 });
-    setFlashProjectileType({ player1: null, player2: null });
-    setCastProjectileType({ player1: null, player2: null });
+    setMissTrigger({ player1: 0, player2: 0, support1: 0, support2: 0 });
+    setHitTrigger({ player1: 0, player2: 0, support1: 0, support2: 0 });
+    setCastTrigger({ player1: 0, player2: 0, support1: 0, support2: 0 });
+    setFlashTrigger({ player1: 0, player2: 0, support1: 0, support2: 0 });
+    setFlashProjectileType({ player1: null, player2: null, support1: null, support2: null });
+    setCastProjectileType({ player1: null, player2: null, support1: null, support2: null });
     setFloatingNumbers([]);
   }, []);
 

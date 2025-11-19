@@ -4,7 +4,7 @@ import { shouldShowCastEffect } from './spellEffects';
 // Type for visual effects
 export type PendingVisualEffect = {
   type: 'shake' | 'sparkle' | 'miss' | 'hit' | 'cast';
-  player: 'player1' | 'player2';
+  player: 'player1' | 'player2' | 'support1' | 'support2';
   intensity?: number; // Damage amount for shake, healing amount for sparkle
 };
 
@@ -45,8 +45,8 @@ export function getOpponent(player: 'player1' | 'player2'): 'player1' | 'player2
  * Includes hit effect for attacker, shake for defender
  */
 export function createHitVisualEffects(
-  attacker: 'player1' | 'player2',
-  defender: 'player1' | 'player2',
+  attacker: 'player1' | 'player2' | 'support1' | 'support2',
+  defender: 'player1' | 'player2' | 'support1' | 'support2',
   damage: number,
   defenderClass: DnDClass,
   attackerClass?: DnDClass
@@ -68,7 +68,7 @@ export function createHitVisualEffects(
  * Create visual effects array for a miss
  */
 export function createMissVisualEffects(
-  attacker: 'player1' | 'player2',
+  attacker: 'player1' | 'player2' | 'support1' | 'support2',
   attackerClass?: DnDClass
 ): PendingVisualEffect[] {
   const visualEffects: PendingVisualEffect[] = [{ type: 'miss', player: attacker }];
@@ -85,7 +85,7 @@ export function createMissVisualEffects(
  * Create visual effects array for healing
  */
 export function createHealingVisualEffects(
-  target: 'player1' | 'player2',
+  target: 'player1' | 'player2' | 'support1' | 'support2',
   healAmount: number,
   casterClass?: DnDClass
 ): PendingVisualEffect[] {

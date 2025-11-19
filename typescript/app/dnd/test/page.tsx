@@ -679,7 +679,7 @@ export default function DnDTestPage() {
   });
 
   // Use AI opponent hooks for support heroes (they auto-play after a delay to allow manual control)
-  // Reduced delay to 1000ms to make support heroes hit faster
+  // Reduced delay to 500ms to make support heroes hit faster
   const supportHero1Cleanup = useAIOpponent({
     isActive: isAIModeActive && supportHeroes.length > 0,
     currentTurn,
@@ -691,7 +691,7 @@ export default function DnDTestPage() {
       onAttack: () => performAttack('support1'),
       onUseAbility: (abilityIndex: number) => useAbility('support1', abilityIndex),
     },
-    delay: 1000, // 1 second delay to allow manual control while making them hit faster
+    delay: 500, // 500ms delay to allow manual control while making them hit faster
     onStateChange: () => {},
     onMoveInProgressChange: setIsMoveInProgress,
   });
@@ -707,7 +707,7 @@ export default function DnDTestPage() {
       onAttack: () => performAttack('support2'),
       onUseAbility: (abilityIndex: number) => useAbility('support2', abilityIndex),
     },
-    delay: 1000, // 1 second delay to allow manual control while making them hit faster
+    delay: 500, // 500ms delay to allow manual control while making them hit faster
     onStateChange: () => {},
     onMoveInProgressChange: setIsMoveInProgress,
   });
@@ -1069,33 +1069,33 @@ export default function DnDTestPage() {
                           })()}
                           onAttack={() => performAttack(supportPlayer)}
                           onUseAbility={(idx) => useAbility(supportPlayer, idx)}
-                          shouldShake={false}
-                          shouldSparkle={false}
-                          shouldMiss={false}
-                          shouldHit={false}
-                          shouldCast={false}
-                          shouldFlash={false}
-                          castTrigger={0}
-                          flashTrigger={0}
-                          flashProjectileType={null}
-                          castProjectileType={null}
-                          shakeTrigger={0}
-                          sparkleTrigger={0}
-                          missTrigger={0}
-                          hitTrigger={0}
-                          shakeIntensity={0}
-                          sparkleIntensity={0}
+                          shouldShake={shakingPlayer === supportPlayer}
+                          shouldSparkle={sparklingPlayer === supportPlayer}
+                          shouldMiss={missingPlayer === supportPlayer}
+                          shouldHit={hittingPlayer === supportPlayer}
+                          shouldCast={castingPlayer === supportPlayer}
+                          shouldFlash={flashingPlayer === supportPlayer}
+                          castTrigger={castTrigger[supportPlayer]}
+                          flashTrigger={flashTrigger[supportPlayer]}
+                          flashProjectileType={flashProjectileType[supportPlayer]}
+                          castProjectileType={castProjectileType[supportPlayer]}
+                          shakeTrigger={shakeTrigger[supportPlayer]}
+                          sparkleTrigger={sparkleTrigger[supportPlayer]}
+                          missTrigger={missTrigger[supportPlayer]}
+                          hitTrigger={hitTrigger[supportPlayer]}
+                          shakeIntensity={shakeIntensity[supportPlayer]}
+                          sparkleIntensity={sparkleIntensity[supportPlayer]}
                           isMoveInProgress={isMoveInProgress}
                           isActive={isActive}
                           isDefeated={isDefeated}
                           isVictor={false}
-                          confettiTrigger={0}
-                          onShakeComplete={() => {}}
-                          onSparkleComplete={() => {}}
-                          onMissComplete={() => {}}
-                          onHitComplete={() => {}}
-                          onCastComplete={() => {}}
-                          onFlashComplete={() => {}}
+                          confettiTrigger={confettiTrigger}
+                          onShakeComplete={handleShakeComplete}
+                          onSparkleComplete={handleSparkleComplete}
+                          onMissComplete={handleMissComplete}
+                          onHitComplete={handleHitComplete}
+                          onCastComplete={handleCastComplete}
+                          onFlashComplete={handleFlashComplete}
                           isOpponent={false}
                           allowAllTurns={false}
                         />

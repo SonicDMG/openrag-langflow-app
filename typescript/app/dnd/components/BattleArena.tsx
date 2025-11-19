@@ -17,22 +17,22 @@ type BattleArenaProps = {
   onAttack: (player: 'player1' | 'player2' | 'support1' | 'support2') => void;
   onUseAbility: (player: 'player1' | 'player2' | 'support1' | 'support2', abilityIndex: number) => void;
   // Visual effects
-  shakingPlayer: 'player1' | 'player2' | null;
-  sparklingPlayer: 'player1' | 'player2' | null;
-  missingPlayer: 'player1' | 'player2' | null;
-  hittingPlayer: 'player1' | 'player2' | null;
-  castingPlayer: 'player1' | 'player2' | null;
-  flashingPlayer: 'player1' | 'player2' | null;
-  castTrigger: { player1: number; player2: number };
-  flashTrigger: { player1: number; player2: number };
-  flashProjectileType: { player1: ProjectileType | null; player2: ProjectileType | null };
-  castProjectileType: { player1: ProjectileType | null; player2: ProjectileType | null };
-  shakeTrigger: { player1: number; player2: number };
-  sparkleTrigger: { player1: number; player2: number };
-  missTrigger: { player1: number; player2: number };
-  hitTrigger: { player1: number; player2: number };
-  shakeIntensity: { player1: number; player2: number };
-  sparkleIntensity: { player1: number; player2: number };
+  shakingPlayer: 'player1' | 'player2' | 'support1' | 'support2' | null;
+  sparklingPlayer: 'player1' | 'player2' | 'support1' | 'support2' | null;
+  missingPlayer: 'player1' | 'player2' | 'support1' | 'support2' | null;
+  hittingPlayer: 'player1' | 'player2' | 'support1' | 'support2' | null;
+  castingPlayer: 'player1' | 'player2' | 'support1' | 'support2' | null;
+  flashingPlayer: 'player1' | 'player2' | 'support1' | 'support2' | null;
+  castTrigger: { player1: number; player2: number; support1: number; support2: number };
+  flashTrigger: { player1: number; player2: number; support1: number; support2: number };
+  flashProjectileType: { player1: ProjectileType | null; player2: ProjectileType | null; support1: ProjectileType | null; support2: ProjectileType | null };
+  castProjectileType: { player1: ProjectileType | null; player2: ProjectileType | null; support1: ProjectileType | null; support2: ProjectileType | null };
+  shakeTrigger: { player1: number; player2: number; support1: number; support2: number };
+  sparkleTrigger: { player1: number; player2: number; support1: number; support2: number };
+  missTrigger: { player1: number; player2: number; support1: number; support2: number };
+  hitTrigger: { player1: number; player2: number; support1: number; support2: number };
+  shakeIntensity: { player1: number; player2: number; support1: number; support2: number };
+  sparkleIntensity: { player1: number; player2: number; support1: number; support2: number };
   isMoveInProgress: boolean;
   currentTurn: 'player1' | 'player2' | 'support1' | 'support2';
   defeatedPlayer: 'player1' | 'player2' | null;
@@ -182,33 +182,33 @@ export function BattleArena({
                   })()}
                   onAttack={() => onAttack(supportPlayer)}
                   onUseAbility={(idx) => onUseAbility(supportPlayer, idx)}
-                  shouldShake={false}
-                  shouldSparkle={false}
-                  shouldMiss={false}
-                  shouldHit={false}
-                  shouldCast={false}
-                  shouldFlash={false}
-                  castTrigger={0}
-                  flashTrigger={0}
-                  flashProjectileType={null}
-                  castProjectileType={null}
-                  shakeTrigger={0}
-                  sparkleTrigger={0}
-                  missTrigger={0}
-                  hitTrigger={0}
-                  shakeIntensity={0}
-                  sparkleIntensity={0}
+                  shouldShake={shakingPlayer === supportPlayer}
+                  shouldSparkle={sparklingPlayer === supportPlayer}
+                  shouldMiss={missingPlayer === supportPlayer}
+                  shouldHit={hittingPlayer === supportPlayer}
+                  shouldCast={castingPlayer === supportPlayer}
+                  shouldFlash={flashingPlayer === supportPlayer}
+                  castTrigger={castTrigger[supportPlayer]}
+                  flashTrigger={flashTrigger[supportPlayer]}
+                  flashProjectileType={flashProjectileType[supportPlayer]}
+                  castProjectileType={castProjectileType[supportPlayer]}
+                  shakeTrigger={shakeTrigger[supportPlayer]}
+                  sparkleTrigger={sparkleTrigger[supportPlayer]}
+                  missTrigger={missTrigger[supportPlayer]}
+                  hitTrigger={hitTrigger[supportPlayer]}
+                  shakeIntensity={shakeIntensity[supportPlayer]}
+                  sparkleIntensity={sparkleIntensity[supportPlayer]}
                   isMoveInProgress={isMoveInProgress}
                   isActive={isActive}
                   isDefeated={isDefeated}
                   isVictor={false}
-                  confettiTrigger={0}
-                  onShakeComplete={() => {}}
-                  onSparkleComplete={() => {}}
-                  onMissComplete={() => {}}
-                  onHitComplete={() => {}}
-                  onCastComplete={() => {}}
-                  onFlashComplete={() => {}}
+                  confettiTrigger={confettiTrigger}
+                  onShakeComplete={onShakeComplete}
+                  onSparkleComplete={onSparkleComplete}
+                  onMissComplete={onMissComplete}
+                  onHitComplete={onHitComplete}
+                  onCastComplete={onCastComplete}
+                  onFlashComplete={onFlashComplete}
                   isOpponent={false}
                   allowAllTurns={false}
                 />

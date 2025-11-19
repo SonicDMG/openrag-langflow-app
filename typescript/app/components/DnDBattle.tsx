@@ -436,7 +436,7 @@ export default function DnDBattle() {
   });
   
   // Use AI opponent hooks for support heroes (they auto-play after a delay to allow manual control)
-  // Reduced delay to 1000ms to make support heroes hit faster
+  // Reduced delay to 500ms to make support heroes hit faster
   const supportHero1Cleanup = useAIOpponent({
     isActive: isBattleActive && supportHeroes.length > 0,
     currentTurn,
@@ -448,7 +448,7 @@ export default function DnDBattle() {
       onAttack: () => performAttack('support1'),
       onUseAbility: (abilityIndex: number) => useAbility('support1', abilityIndex),
     },
-    delay: 1000, // 1 second delay to allow manual control while making them hit faster
+    delay: 500, // 500ms delay to allow manual control while making them hit faster
     onStateChange: () => {},
     onMoveInProgressChange: setIsMoveInProgress,
   });
@@ -464,7 +464,7 @@ export default function DnDBattle() {
       onAttack: () => performAttack('support2'),
       onUseAbility: (abilityIndex: number) => useAbility('support2', abilityIndex),
     },
-    delay: 1000, // 1 second delay to allow manual control while making them hit faster
+    delay: 500, // 500ms delay to allow manual control while making them hit faster
     onStateChange: () => {},
     onMoveInProgressChange: setIsMoveInProgress,
   });

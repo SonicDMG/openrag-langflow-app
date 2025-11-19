@@ -419,11 +419,8 @@ export function useBattleActions(deps: BattleActionsDependencies) {
       hit ? `Attack ${i + 1} hits for ${damages[i]} damage.` : `Attack ${i + 1} misses.`
     ).join(' ') : '';
 
-    // Use actual player IDs for visual effects (don't map support heroes to player1)
+    // Use actual player IDs for visual effects
     const visualDefender: 'player1' | 'player2' | 'support1' | 'support2' = defender;
-    // For visual effects that only support player1/player2, map support heroes to player1
-    const visualDefenderForEffects: 'player1' | 'player2' = (defender === 'player1' || defender === 'support1' || defender === 'support2') ? 'player1' : 'player2';
-    const visualAttackerForEffects: 'player1' | 'player2' = (attacker === 'player1' || attacker === 'support1' || attacker === 'support2') ? 'player1' : 'player2';
     const visualAttacker: 'player1' | 'player2' | 'support1' | 'support2' = attacker;
     
     const cardRotation = (attacker === 'player1' || attacker === 'support1' || attacker === 'support2') ? -5 : 5;
@@ -442,7 +439,7 @@ export function useBattleActions(deps: BattleActionsDependencies) {
           visualDefender,
           true,
           () => {
-            const shakeEffect = createHitVisualEffects(visualAttackerForEffects, visualDefenderForEffects, hitData.damage, defenderClass, attackerClass)
+            const shakeEffect = createHitVisualEffects(visualAttacker, visualDefender, hitData.damage, defenderClass, attackerClass)
               .find(effect => effect.type === 'shake');
             if (shakeEffect) {
               applyVisualEffect(shakeEffect);
@@ -452,7 +449,7 @@ export function useBattleActions(deps: BattleActionsDependencies) {
             completedHitsRef.count++;
             
             if (completedHitsRef.count === successfulHits.length) {
-              const visualEffects = createHitVisualEffects(visualAttackerForEffects, visualDefenderForEffects, totalDamage, defenderClass, attackerClass)
+              const visualEffects = createHitVisualEffects(visualAttacker, visualDefender, totalDamage, defenderClass, attackerClass)
                 .filter(effect => effect.type !== 'shake');
               
               showFloatingNumbers(
@@ -495,7 +492,7 @@ export function useBattleActions(deps: BattleActionsDependencies) {
         () => {
           showFloatingNumbers(
             [{ value: 'MISS', type: 'miss', targetPlayer: visualAttacker }],
-            createMissVisualEffects(visualAttackerForEffects, attackerClass),
+            createMissVisualEffects(visualAttacker, attackerClass),
             [
               async () => {
                 addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
@@ -541,13 +538,11 @@ export function useBattleActions(deps: BattleActionsDependencies) {
       
       const newHP = Math.max(0, defenderClass.hitPoints - damage);
       
-      // Use actual player IDs for visual effects (don't map support heroes to player1)
+      // Use actual player IDs for visual effects
       const visualDefender: 'player1' | 'player2' | 'support1' | 'support2' = defender;
-      // For visual effects that only support player1/player2, map support heroes to player1
-      const visualDefenderForEffects: 'player1' | 'player2' = (defender === 'player1' || defender === 'support1' || defender === 'support2') ? 'player1' : 'player2';
-      const visualAttackerForEffects: 'player1' | 'player2' = (attacker === 'player1' || attacker === 'support1' || attacker === 'support2') ? 'player1' : 'player2';
+      const visualAttacker: 'player1' | 'player2' | 'support1' | 'support2' = attacker;
       
-      const visualEffects = createHitVisualEffects(visualAttackerForEffects, visualDefenderForEffects, damage, defenderClass, attackerClass)
+      const visualEffects = createHitVisualEffects(visualAttacker, visualDefender, damage, defenderClass, attackerClass)
         .filter(effect => effect.type !== 'shake');
       
       const cardRotation = (attacker === 'player1' || attacker === 'support1' || attacker === 'support2') ? -5 : 5;
@@ -557,7 +552,7 @@ export function useBattleActions(deps: BattleActionsDependencies) {
         visualDefender,
         true,
         () => {
-          const shakeEffect = createHitVisualEffects(visualAttackerForEffects, visualDefenderForEffects, damage, defenderClass, attackerClass)
+          const shakeEffect = createHitVisualEffects(visualAttacker, visualDefender, damage, defenderClass, attackerClass)
             .find(effect => effect.type === 'shake');
           if (shakeEffect) {
             applyVisualEffect(shakeEffect);
@@ -590,11 +585,9 @@ export function useBattleActions(deps: BattleActionsDependencies) {
         projectileType
       );
     } else {
-      // Use actual player IDs for visual effects (don't map support heroes to player1)
+      // Use actual player IDs for visual effects
       const visualDefender: 'player1' | 'player2' | 'support1' | 'support2' = defender;
       const visualAttacker: 'player1' | 'player2' | 'support1' | 'support2' = attacker;
-      // For visual effects that only support player1/player2, map support heroes to player1
-      const visualAttackerForEffects: 'player1' | 'player2' = (attacker === 'player1' || attacker === 'support1' || attacker === 'support2') ? 'player1' : 'player2';
       
       const cardRotation = (attacker === 'player1' || attacker === 'support1' || attacker === 'support2') ? -5 : 5;
       const projectileType = getProjectileType(attackAbility, undefined, attackerClass.name);
@@ -606,7 +599,7 @@ export function useBattleActions(deps: BattleActionsDependencies) {
         () => {
           showFloatingNumbers(
             [{ value: 'MISS', type: 'miss', targetPlayer: visualAttacker }],
-            createMissVisualEffects(visualAttackerForEffects, attackerClass),
+            createMissVisualEffects(visualAttacker, attackerClass),
             [
               createPostMissCallback(
                 attackerClass,
@@ -644,13 +637,11 @@ export function useBattleActions(deps: BattleActionsDependencies) {
     );
     const newHP = Math.max(0, defenderClass.hitPoints - damage);
     
-    // Use actual player IDs for visual effects (don't map support heroes to player1)
+    // Use actual player IDs for visual effects
     const visualDefender: 'player1' | 'player2' | 'support1' | 'support2' = defender;
-    // For visual effects that only support player1/player2, map support heroes to player1
-    const visualDefenderForEffects: 'player1' | 'player2' = (defender === 'player1' || defender === 'support1' || defender === 'support2') ? 'player1' : 'player2';
-    const visualAttackerForEffects: 'player1' | 'player2' = (attacker === 'player1' || attacker === 'support1' || attacker === 'support2') ? 'player1' : 'player2';
+    const visualAttacker: 'player1' | 'player2' | 'support1' | 'support2' = attacker;
     
-    const visualEffects = createHitVisualEffects(visualAttackerForEffects, visualDefenderForEffects, damage, defenderClass, attackerClass)
+    const visualEffects = createHitVisualEffects(visualAttacker, visualDefender, damage, defenderClass, attackerClass)
       .filter(effect => effect.type !== 'shake');
     
     const cardRotation = (attacker === 'player1' || attacker === 'support1' || attacker === 'support2') ? -5 : 5;
@@ -660,7 +651,7 @@ export function useBattleActions(deps: BattleActionsDependencies) {
       visualDefender,
       true,
       () => {
-        const shakeEffect = createHitVisualEffects(visualAttackerForEffects, visualDefenderForEffects, damage, defenderClass, attackerClass)
+        const shakeEffect = createHitVisualEffects(visualAttacker, visualDefender, damage, defenderClass, attackerClass)
           .find(effect => effect.type === 'shake');
         if (shakeEffect) {
           applyVisualEffect(shakeEffect);
@@ -823,12 +814,11 @@ export function useBattleActions(deps: BattleActionsDependencies) {
         false,
         undefined,
         () => {
-          // For visual effects that only support player1/player2, map support heroes to player1
-          const visualAttackerForEffects: 'player1' | 'player2' = (attacker === 'player1' || attacker === 'support1' || attacker === 'support2') ? 'player1' : 'player2';
+          const visualAttacker: 'player1' | 'player2' | 'support1' | 'support2' = attacker;
           
           showFloatingNumbers(
             [{ value: 'MISS', type: 'miss', targetPlayer: visualAttacker }],
-            createMissVisualEffects(visualAttackerForEffects, attackerClass),
+            createMissVisualEffects(visualAttacker, attackerClass),
             [
               createPostMissCallback(
                 attackerClass,
