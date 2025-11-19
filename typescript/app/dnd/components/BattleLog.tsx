@@ -114,8 +114,17 @@ export function BattleLog({
                 </ReactMarkdown>
               </div>
             ) : (
-              <span style={log.type === 'roll' ? { color: '#DC2626', fontFamily: 'serif' } : {}}>
-                {log.message}
+              <div style={log.type === 'roll' ? { color: '#DC2626', fontFamily: 'serif' } : {}}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    p: ({ children }) => <span>{children}</span>,
+                    strong: ({ children }) => <strong className="font-bold" style={{ color: log.type === 'roll' ? '#DC2626' : undefined }}>{children}</strong>,
+                    em: ({ children }) => <em className="italic">{children}</em>,
+                  }}
+                >
+                  {log.message}
+                </ReactMarkdown>
                 {log.type === 'system' && 
                  log.message === 'Loading class abilities from knowledge base...' && 
                  isLoadingClassDetails && (
@@ -125,7 +134,7 @@ export function BattleLog({
                     <span className="waiting-dot"></span>
                   </span>
                 )}
-              </span>
+              </div>
             )}
           </div>
         ))}

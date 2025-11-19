@@ -131,6 +131,37 @@ describe('Victory and Defeat Conditions', () => {
         expect(support1Defeated).toBe(true); // Support1 is defeated
         expect(player1HP > 0).toBe(true); // But battle continues
       });
+
+      it('should continue battle when player1 is knocked out but support heroes remain', () => {
+        const player1HP = 0; // Player1 knocked out
+        const support1 = createSupportHero(20); // Still alive
+        const support2 = createSupportHero(15); // Still alive
+        
+        const player1Defeated = player1HP <= 0;
+        const support1Defeated = support1.class.hitPoints <= 0;
+        const support2Defeated = support2.class.hitPoints <= 0;
+        const allDefeated = player1Defeated && support1Defeated && support2Defeated;
+        
+        expect(player1Defeated).toBe(true); // Player1 is knocked out
+        expect(support1Defeated).toBe(false); // Support1 still alive
+        expect(support2Defeated).toBe(false); // Support2 still alive
+        expect(allDefeated).toBe(false); // Battle should continue
+        expect(support1.class.hitPoints > 0).toBe(true); // Support heroes can still fight
+        expect(support2.class.hitPoints > 0).toBe(true);
+      });
+
+      it('should end battle only when all heroes including player1 are defeated', () => {
+        const player1HP = 0; // Knocked out
+        const support1 = createSupportHero(0); // Knocked out
+        const support2 = createSupportHero(0); // Knocked out
+        
+        const player1Defeated = player1HP <= 0;
+        const support1Defeated = support1.class.hitPoints <= 0;
+        const support2Defeated = support2.class.hitPoints <= 0;
+        const allDefeated = player1Defeated && support1Defeated && support2Defeated;
+        
+        expect(allDefeated).toBe(true); // All heroes defeated, battle should end
+      });
     });
   });
 

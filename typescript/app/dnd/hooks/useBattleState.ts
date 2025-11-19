@@ -183,10 +183,17 @@ export function useBattleState() {
     let attempts = 0;
     const maxAttempts = 10; // Safety limit
     
+    // Skip defeated players (including player1 if knocked out but support heroes remain)
     while (isPlayerDefeated(nextPlayer) && attempts < maxAttempts) {
-      // Skip defeated players
+      // Skip defeated players - this handles player1 being knocked out while support heroes remain
       nextPlayer = getNextPlayer(nextPlayer);
       attempts++;
+    }
+    
+    // Safety check: if we couldn't find a non-defeated player, battle might be over
+    if (attempts >= maxAttempts || isPlayerDefeated(nextPlayer)) {
+      // All players defeated or couldn't find next player - battle should end
+      return;
     }
     
     // Don't switch to a defeated main player - skip to next

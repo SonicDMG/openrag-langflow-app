@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { DnDClass } from '../types';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS, isMonster, FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, selectRandomAbilities } from '../constants';
 import { rollDice, rollDiceWithNotation } from '../utils/dice';
@@ -1154,7 +1156,7 @@ export default function DnDTestPage() {
                 shakeIntensity={shakeIntensity.player1}
                 sparkleIntensity={sparkleIntensity.player1}
                 isActive={currentTurn === 'player1'}
-                isDefeated={defeatedPlayer === 'player1'}
+                isDefeated={defeatedPlayer === 'player1' || (player1Class?.hitPoints ?? 0) <= 0}
                 isVictor={victorPlayer === 'player1'}
                 confettiTrigger={confettiTrigger}
                 onShakeComplete={handleShakeComplete}
@@ -1266,7 +1268,7 @@ export default function DnDTestPage() {
                 shakeIntensity={shakeIntensity.player2}
                 sparkleIntensity={sparkleIntensity.player2}
                 isActive={currentTurn === 'player2'}
-                isDefeated={defeatedPlayer === 'player2'}
+                isDefeated={defeatedPlayer === 'player2' || (player2Class?.hitPoints ?? 0) <= 0}
                 isVictor={victorPlayer === 'player2'}
                 confettiTrigger={confettiTrigger}
                 onShakeComplete={handleShakeComplete}
@@ -1584,9 +1586,18 @@ export default function DnDTestPage() {
                     'bg-gray-50 text-gray-700 font-mono'
                   }`}
                 >
-                  <span style={log.type === 'roll' ? { color: '#DC2626', fontFamily: 'serif' } : {}}>
-                    {log.message}
-                  </span>
+                  <div style={log.type === 'roll' ? { color: '#DC2626', fontFamily: 'serif' } : {}}>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        p: ({ children }) => <span>{children}</span>,
+                        strong: ({ children }) => <strong className="font-bold" style={{ color: log.type === 'roll' ? '#DC2626' : undefined }}>{children}</strong>,
+                        em: ({ children }) => <em className="italic">{children}</em>,
+                      }}
+                    >
+                      {log.message}
+                    </ReactMarkdown>
+                  </div>
                 </div>
               ))}
             </div>

@@ -267,7 +267,7 @@ export function BattleArena({
           sparkleIntensity={sparkleIntensity.player1}
           isMoveInProgress={isMoveInProgress}
           isActive={currentTurn === 'player1'}
-          isDefeated={defeatedPlayer === 'player1'}
+          isDefeated={defeatedPlayer === 'player1' || (player1Class?.hitPoints ?? 0) <= 0}
           isVictor={victorPlayer === 'player1'}
           confettiTrigger={confettiTrigger}
           onShakeComplete={onShakeComplete}
@@ -332,7 +332,7 @@ export function BattleArena({
           sparkleIntensity={sparkleIntensity.player2}
           isMoveInProgress={isMoveInProgress}
           isActive={currentTurn === 'player2'}
-          isDefeated={defeatedPlayer === 'player2'}
+          isDefeated={defeatedPlayer === 'player2' || (player2Class?.hitPoints ?? 0) <= 0}
           isVictor={victorPlayer === 'player2'}
           confettiTrigger={confettiTrigger}
           onShakeComplete={onShakeComplete}

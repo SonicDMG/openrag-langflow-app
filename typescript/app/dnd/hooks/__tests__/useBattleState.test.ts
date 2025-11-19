@@ -335,6 +335,80 @@ describe('useBattleState', () => {
       // Should skip support1 and go to support2
       expect(result.current.currentTurn).toBe('support2');
     });
+
+    it('should skip defeated player1 and continue battle with support heroes', async () => {
+      const { result } = renderHook(() => useBattleState());
+      const player1 = createTestClass('Player1', 0, 50); // Knocked out
+      const support1 = createTestClass('Support1', 20, 30); // Still alive
+      const support2 = createTestClass('Support2', 15, 25); // Still alive
+      
+      act(() => {
+        result.current.setPlayer1Class(player1);
+        result.current.setSupportHeroes([
+          { class: support1, name: 'Support1', monsterId: null },
+          { class: support2, name: 'Support2', monsterId: null },
+        ]);
+        result.current.setCurrentTurn('player2'); // Monster just attacked
+      });
+      
+      // After monster's turn, should skip defeated player1 and go to support1
+      await act(async () => {
+        await result.current.switchTurn('player2', null);
+      });
+      
+      // Should skip player1 (defeated) and go to support1
+      expect(result.current.currentTurn).toBe('support1');
+      
+      // Support1 should be able to take their turn
+      expect(result.current.supportHeroes[0].class.hitPoints).toBeGreaterThan(0);
+      
+      // Continue turn order: support1 -> support2
+      await act(async () => {
+        await result.current.switchTurn('support1', null);
+      });
+      expect(result.current.currentTurn).toBe('support2');
+      
+      // Support2 should be able to take their turn
+      expect(result.current.supportHeroes[1].class.hitPoints).toBeGreaterThan(0);
+      
+      // After support2, should skip player1 again and go back to player2 (monster)
+      await act(async () => {
+        await result.current.switchTurn('support2', null);
+      });
+      expect(result.current.currentTurn).toBe('player2');
+    });
+
+    it('should continue battle when player1 is knocked out but at least one support hero remains', async () => {
+      const { result } = renderHook(() => useBattleState());
+      const player1 = createTestClass('Player1', 0, 50); // Knocked out
+      const support1 = createTestClass('Support1', 0, 30); // Also knocked out
+      const support2 = createTestClass('Support2', 10, 25); // Still alive
+      
+      act(() => {
+        result.current.setPlayer1Class(player1);
+        result.current.setSupportHeroes([
+          { class: support1, name: 'Support1', monsterId: null },
+          { class: support2, name: 'Support2', monsterId: null },
+        ]);
+      });
+      
+      // Battle should continue because support2 is still alive
+      const player1Defeated = result.current.player1Class?.hitPoints <= 0;
+      const support1Defeated = result.current.supportHeroes[0].class.hitPoints <= 0;
+      const support2Defeated = result.current.supportHeroes[1].class.hitPoints <= 0;
+      const allHeroesDefeated = player1Defeated && support1Defeated && support2Defeated;
+      
+      expect(player1Defeated).toBe(true);
+      expect(support1Defeated).toBe(true);
+      expect(support2Defeated).toBe(false);
+      expect(allHeroesDefeated).toBe(false); // Battle should continue
+      
+      // Turn should skip both player1 and support1, go to support2
+      await act(async () => {
+        await result.current.switchTurn('player2', null);
+      });
+      expect(result.current.currentTurn).toBe('support2');
+    });
   });
 
   describe('Reset Battle', () => {

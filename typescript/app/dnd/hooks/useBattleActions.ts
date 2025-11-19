@@ -135,10 +135,11 @@ export function useBattleActions(deps: BattleActionsDependencies) {
     return { d20Roll, attackRoll };
   }, []);
 
-  // Helper function to log attack roll
-  const logAttackRoll = useCallback((attackerClass: DnDClass, d20Roll: number, attackRoll: number, defenderAC: number) => {
+  // Helper function to log attack roll with hit/miss result
+  const logAttackRoll = useCallback((attackerClass: DnDClass, d20Roll: number, attackRoll: number, defenderAC: number, isHit: boolean) => {
     const bonusText = attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus} (attack bonus)` : '';
-    addLog('roll', `🎲 ${attackerClass.name} rolls ${d20Roll}${bonusText} = ${attackRoll} (needs ${defenderAC})`);
+    const hitMissText = isHit ? '**HIT**' : '**MISS**';
+    addLog('roll', `🎲 ${attackerClass.name} rolls d20: ${d20Roll}${bonusText} = ${attackRoll} vs AC ${defenderAC} → ${hitMissText}`);
   }, [addLog]);
 
   // Helper function to check if all heroes are defeated
@@ -258,6 +259,9 @@ export function useBattleActions(deps: BattleActionsDependencies) {
                 []
               );
               addLog('system', `💀 ${defenderClass.name} has been knocked out! Support heroes continue the fight!`);
+              
+              // Ensure turn switches to a support hero if available (switchTurn will skip defeated player1)
+              // Continue battle - switch turns (will skip defeated player1 and go to support heroes)
             } else {
               // One-on-one battle - player1 defeated, battle ends
               setDefeatedPlayer('player1');
@@ -400,8 +404,13 @@ export function useBattleActions(deps: BattleActionsDependencies) {
       const hit = attackRoll >= defenderClass.armorClass;
       hits.push(hit);
       
+      // Log each attack roll with hit/miss
+      const bonusText = attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : '';
+      const hitMissText = hit ? '**HIT**' : '**MISS**';
+      addLog('roll', `🎲 Attack ${i + 1}: d20: ${d20Roll}${bonusText} = ${attackRoll} vs AC ${defenderClass.armorClass} → ${hitMissText}`);
+      
       if (hit) {
-        const { totalDamage: damage } = buildDamageDiceArray(
+        const { diceArray, totalDamage: damage } = buildDamageDiceArray(
           attackAbility.damageDice,
           rollDiceWithNotation,
           parseDiceNotation,
@@ -409,16 +418,16 @@ export function useBattleActions(deps: BattleActionsDependencies) {
         );
         damages.push(damage);
         totalDamage += damage;
+        
+        // Log detailed damage dice rolls for this attack
+        const damageDetails = diceArray.map(d => `${d.diceType}: ${d.result}`).join(', ');
+        addLog('roll', `💥 Attack ${i + 1} damage: ${damageDetails} = ${damage} damage`);
       } else {
         damages.push(0);
       }
     }
     const newHP = totalDamage > 0 ? Math.max(0, defenderClass.hitPoints - totalDamage) : defenderClass.hitPoints;
     
-    const hitDetails = totalDamage > 0 ? hits.map((hit, i) => 
-      hit ? `Attack ${i + 1} hits for ${damages[i]} damage.` : `Attack ${i + 1} misses.`
-    ).join(' ') : '';
-
     // Use actual player IDs for visual effects
     const visualDefender: 'player1' | 'player2' | 'support1' | 'support2' = defender;
     const visualAttacker: 'player1' | 'player2' | 'support1' | 'support2' = attacker;
@@ -458,7 +467,9 @@ export function useBattleActions(deps: BattleActionsDependencies) {
                 [
                   () => updatePlayerHP(defender, totalDamage, true),
                   async () => {
-                    addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
+                    const hitCount = hits.filter(h => h).length;
+                    const missCount = hits.filter(h => !h).length;
+                    addLog('attack', `⚔️ ${attackerClass.name} uses ${attackAbility.name}: ${hitCount} hit(s), ${missCount} miss(es). Total damage: ${totalDamage}`);
                     await createPostDamageCallback(
                       newHP,
                       totalDamage,
@@ -467,8 +478,8 @@ export function useBattleActions(deps: BattleActionsDependencies) {
                       attackerDetails,
                       defenderDetails,
                       newHP <= 0
-                        ? `${attackerClass.name} uses ${attackAbility.name} and makes ${numAttacks} attacks. ${hitDetails} Total damage: ${totalDamage}. ${defenderClass.name} is ${defender === 'support1' || defender === 'support2' ? 'knocked out' : defender === 'player1' && supportHeroes.length > 0 && supportHeroes.some(sh => sh.class.hitPoints > 0) ? 'knocked out' : 'defeated'} with 0 HP.`
-                        : `${attackerClass.name} uses ${attackAbility.name} and makes ${numAttacks} attacks. ${hitDetails} Total damage: ${totalDamage}. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
+                        ? `${attackerClass.name} uses ${attackAbility.name} and makes ${numAttacks} attacks. Total damage: ${totalDamage}. ${defenderClass.name} is ${defender === 'support1' || defender === 'support2' ? 'knocked out' : defender === 'player1' && supportHeroes.length > 0 && supportHeroes.some(sh => sh.class.hitPoints > 0) ? 'knocked out' : 'defeated'} with 0 HP.`
+                        : `${attackerClass.name} uses ${attackAbility.name} and makes ${numAttacks} attacks. Total damage: ${totalDamage}. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
                       defender,
                       attacker
                     )();
@@ -495,7 +506,7 @@ export function useBattleActions(deps: BattleActionsDependencies) {
             createMissVisualEffects(visualAttacker, attackerClass),
             [
               async () => {
-                addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
+                addLog('attack', `⚔️ ${attackerClass.name} uses ${attackAbility.name}: All ${numAttacks} attacks miss!`);
                 await createPostMissCallback(
                   attackerClass,
                   defenderClass,
@@ -526,15 +537,20 @@ export function useBattleActions(deps: BattleActionsDependencies) {
     defender: 'player1' | 'player2' | 'support1' | 'support2'
   ) => {
     const { d20Roll, attackRoll } = calculateAttackRoll(attackerClass);
-    logAttackRoll(attackerClass, d20Roll, attackRoll, defenderClass.armorClass);
+    const isHit = attackRoll >= defenderClass.armorClass;
+    logAttackRoll(attackerClass, d20Roll, attackRoll, defenderClass.armorClass, isHit);
     
-    if (attackRoll >= defenderClass.armorClass) {
-      const { totalDamage: damage } = buildDamageDiceArray(
+    if (isHit) {
+      const { diceArray, totalDamage: damage } = buildDamageDiceArray(
         attackAbility.damageDice,
         rollDiceWithNotation,
         parseDiceNotation,
         attackAbility.bonusDamageDice
       );
+      
+      // Log detailed damage dice rolls
+      const damageDetails = diceArray.map(d => `${d.diceType}: ${d.result}`).join(', ');
+      addLog('roll', `💥 Damage roll: ${damageDetails} = ${damage} total damage`);
       
       const newHP = Math.max(0, defenderClass.hitPoints - damage);
       
@@ -563,19 +579,22 @@ export function useBattleActions(deps: BattleActionsDependencies) {
             visualEffects,
             [
               () => updatePlayerHP(defender, damage, true),
-              createPostDamageCallback(
-                newHP,
-                damage,
-                attackerClass,
-                defenderClass,
-                attackerDetails,
-                defenderDetails,
-                newHP <= 0
-                  ? `${attackerClass.name} uses ${attackAbility.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack hits for ${damage} damage. ${defenderClass.name} is ${defender === 'support1' || defender === 'support2' ? 'knocked out' : defender === 'player1' && supportHeroes.length > 0 && supportHeroes.some(sh => sh.class.hitPoints > 0) ? 'knocked out' : 'defeated'} with 0 HP.`
-                  : `${attackerClass.name} uses ${attackAbility.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack hits for ${damage} damage. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
-                defender,
-                attacker
-              )
+              () => {
+                addLog('attack', `⚔️ **HIT!** ${attackerClass.name} uses ${attackAbility.name} and hits ${defenderClass.name} for ${damage} damage. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`);
+                createPostDamageCallback(
+                  newHP,
+                  damage,
+                  attackerClass,
+                  defenderClass,
+                  attackerDetails,
+                  defenderDetails,
+                  newHP <= 0
+                    ? `${attackerClass.name} uses ${attackAbility.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack hits for ${damage} damage. ${defenderClass.name} is ${defender === 'support1' || defender === 'support2' ? 'knocked out' : defender === 'player1' && supportHeroes.length > 0 && supportHeroes.some(sh => sh.class.hitPoints > 0) ? 'knocked out' : 'defeated'} with 0 HP.`
+                    : `${attackerClass.name} uses ${attackAbility.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack hits for ${damage} damage. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
+                  defender,
+                  attacker
+                )();
+              }
             ]
           );
         },
@@ -601,14 +620,17 @@ export function useBattleActions(deps: BattleActionsDependencies) {
             [{ value: 'MISS', type: 'miss', targetPlayer: visualAttacker }],
             createMissVisualEffects(visualAttacker, attackerClass),
             [
-              createPostMissCallback(
-                attackerClass,
-                defenderClass,
-                attackerDetails,
-                defenderDetails,
-                `${attackerClass.name} uses ${attackAbility.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack misses! ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
-                attacker
-              )
+              () => {
+                addLog('attack', `⚔️ **MISS!** ${attackerClass.name} uses ${attackAbility.name} and misses ${defenderClass.name}! AC ${defenderClass.armorClass}.`);
+                createPostMissCallback(
+                  attackerClass,
+                  defenderClass,
+                  attackerDetails,
+                  defenderDetails,
+                  `${attackerClass.name} uses ${attackAbility.name} and attacks ${defenderClass.name} with an attack roll of ${attackRoll}. The attack misses! ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
+                  attacker
+                )();
+              }
             ]
           );
         },
@@ -629,12 +651,16 @@ export function useBattleActions(deps: BattleActionsDependencies) {
     defenderDetails: string,
     defender: 'player1' | 'player2' | 'support1' | 'support2'
   ) => {
-    const { totalDamage: damage } = buildDamageDiceArray(
+    const { diceArray, totalDamage: damage } = buildDamageDiceArray(
       attackAbility.damageDice,
       rollDiceWithNotation,
       parseDiceNotation,
       attackAbility.bonusDamageDice
     );
+    
+    // Log detailed damage dice rolls
+    const damageDetails = diceArray.map(d => `${d.diceType}: ${d.result}`).join(', ');
+    addLog('roll', `💥 ${attackerClass.name} uses ${attackAbility.name} - Damage roll: ${damageDetails} = ${damage} total damage`);
     const newHP = Math.max(0, defenderClass.hitPoints - damage);
     
     // Use actual player IDs for visual effects
@@ -688,12 +714,13 @@ export function useBattleActions(deps: BattleActionsDependencies) {
   // Main attack function
   const performAttack = useCallback(async (attacker: 'player1' | 'player2' | 'support1' | 'support2', attackType?: 'melee' | 'ranged') => {
     if (!isBattleActive || !player1Class || !player2Class || isMoveInProgress) return;
-
+    
     setIsMoveInProgress(true);
+    // Check if attacker is knocked out (HP <= 0)
     const attackerClass = getAttackerClass(attacker);
-    if (!attackerClass) {
+    if (!attackerClass || attackerClass.hitPoints <= 0) {
       setIsMoveInProgress(false);
-      return;
+      return; // Attacker is knocked out, can't attack
     }
     
     // Determine target: heroes/support attack monster, monster attacks a random hero/support
@@ -740,7 +767,8 @@ export function useBattleActions(deps: BattleActionsDependencies) {
     }
 
     const { d20Roll, attackRoll } = calculateAttackRoll(attackerClass);
-    logAttackRoll(attackerClass, d20Roll, attackRoll, defenderClass.armorClass);
+    const isHit = attackRoll >= defenderClass.armorClass;
+    logAttackRoll(attackerClass, d20Roll, attackRoll, defenderClass.armorClass, isHit);
 
     const attackTypeLabel = attackType === 'melee' ? 'melee' : attackType === 'ranged' ? 'ranged' : '';
     const attackDescription = attackTypeLabel ? `${attackTypeLabel} attack` : 'attack';
@@ -748,8 +776,9 @@ export function useBattleActions(deps: BattleActionsDependencies) {
     const projectileType = getProjectileType(null, attackType, attackerClass.name);
     triggerFlashEffect(attacker, projectileType);
 
-    if (attackRoll >= defenderClass.armorClass) {
+    if (isHit) {
       const damage = rollDice(damageDie);
+      addLog('roll', `💥 Damage roll: ${damageDie}: ${damage} damage`);
       const newHP = Math.max(0, defenderClass.hitPoints - damage);
       
       // Use actual player IDs for visual effects (don't map support heroes to player1)
@@ -780,19 +809,22 @@ export function useBattleActions(deps: BattleActionsDependencies) {
                 // Pass damage to updatePlayerHP, which will calculate from current state
                 updatePlayerHP(defender, damage, true);
               },
-              createPostDamageCallback(
-                newHP,
-                damage,
-                attackerClass,
-                defenderClass,
-                attackerDetails,
-                defenderDetails,
-                newHP <= 0
-                  ? `${attackerClass.name} ${attackDescription}s ${defenderClass.name} and deals ${damage} damage. ${defenderClass.name} is ${defender === 'support1' || defender === 'support2' ? 'knocked out' : defender === 'player1' && supportHeroes.length > 0 && supportHeroes.some(sh => sh.class.hitPoints > 0) ? 'knocked out' : 'defeated'} with 0 HP remaining.`
-                  : `${attackerClass.name} ${attackDescription}s ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack hits! ${defenderClass.name} takes ${damage} damage and is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
-                defender,
-                attacker
-              )
+              () => {
+                addLog('attack', `⚔️ **HIT!** ${attackerClass.name} ${attackDescription}s ${defenderClass.name} for ${damage} damage. ${defenderClass.name} is now at ${newHP}/${defenderClass.maxHitPoints} HP.`);
+                createPostDamageCallback(
+                  newHP,
+                  damage,
+                  attackerClass,
+                  defenderClass,
+                  attackerDetails,
+                  defenderDetails,
+                  newHP <= 0
+                    ? `${attackerClass.name} ${attackDescription}s ${defenderClass.name} and deals ${damage} damage. ${defenderClass.name} is ${defender === 'support1' || defender === 'support2' ? 'knocked out' : defender === 'player1' && supportHeroes.length > 0 && supportHeroes.some(sh => sh.class.hitPoints > 0) ? 'knocked out' : 'defeated'} with 0 HP remaining.`
+                    : `${attackerClass.name} ${attackDescription}s ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack hits! ${defenderClass.name} takes ${damage} damage and is now at ${newHP}/${defenderClass.maxHitPoints} HP.`,
+                  defender,
+                  attacker
+                )();
+              }
             ]
           );
         },
@@ -820,14 +852,17 @@ export function useBattleActions(deps: BattleActionsDependencies) {
             [{ value: 'MISS', type: 'miss', targetPlayer: visualAttacker }],
             createMissVisualEffects(visualAttacker, attackerClass),
             [
-              createPostMissCallback(
-                attackerClass,
-                defenderClass,
-                attackerDetails,
-                defenderDetails,
-                `${attackerClass.name} ${attackDescription}s ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack misses! ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
-                attacker
-              )
+              () => {
+                addLog('attack', `⚔️ **MISS!** ${attackerClass.name} ${attackDescription}s ${defenderClass.name} but misses! AC ${defenderClass.armorClass}.`);
+                createPostMissCallback(
+                  attackerClass,
+                  defenderClass,
+                  attackerDetails,
+                  defenderDetails,
+                  `${attackerClass.name} ${attackDescription}s ${defenderClass.name} with an attack roll of ${attackRoll} (rolled ${d20Roll}${attackerClass.attackBonus > 0 ? ` + ${attackerClass.attackBonus}` : ''}). The attack misses! ${defenderClass.name}'s AC is ${defenderClass.armorClass}.`,
+                  attacker
+                )();
+              }
             ]
           );
         },
@@ -864,7 +899,8 @@ export function useBattleActions(deps: BattleActionsDependencies) {
 
     setIsMoveInProgress(true);
     const attackerClass = getAttackerClass(attacker);
-    if (!attackerClass) {
+    if (!attackerClass || attackerClass.hitPoints <= 0) {
+      // Attacker is knocked out, can't use abilities
       setIsMoveInProgress(false);
       return;
     }
