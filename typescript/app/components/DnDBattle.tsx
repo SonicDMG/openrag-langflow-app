@@ -256,15 +256,15 @@ export default function DnDBattle() {
     setVictorPlayer(victor);
     setConfettiTrigger(prev => prev + 1);
     
-    showFloatingNumbers(
-      [{ value: 'DEFEATED!', type: 'defeated', targetPlayer: defender, persistent: true }],
-      [],
-      []
-    );
+    // Note: Floating number is already shown in createPostDamageCallback, so we don't need to show it again here
+    // This prevents duplicate floating numbers and ensures it appears before the overlay
     
     addLog('system', `🏆 ${attackerClass.name} wins! ${defenderClass.name} has been defeated!`);
     
-    // Show overlay immediately
+    // Delay showing overlay slightly to ensure floating number appears first
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Show overlay
     setIsSummaryVisible(true);
     setBattleSummary(''); // Start with empty summary
     

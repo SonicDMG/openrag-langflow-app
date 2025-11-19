@@ -190,7 +190,23 @@ export function useBattleActions(deps: BattleActionsDependencies) {
     attacker: 'player1' | 'player2' | 'support1' | 'support2'
   ) => {
     return async () => {
-      if (newHP <= 0) {
+      // Trust the calculated newHP value (it's correct at the time of calculation)
+      // Also check state as a fallback in case of timing issues
+      let stateHP = newHP;
+      if (defender === 'player1') {
+        stateHP = player1Class?.hitPoints ?? newHP;
+      } else if (defender === 'player2') {
+        stateHP = player2Class?.hitPoints ?? newHP;
+      } else if (defender === 'support1') {
+        stateHP = supportHeroes.length > 0 ? supportHeroes[0].class.hitPoints : newHP;
+      } else if (defender === 'support2') {
+        stateHP = supportHeroes.length > 1 ? supportHeroes[1].class.hitPoints : newHP;
+      }
+      
+      // Use the minimum to ensure we catch defeat - newHP is the source of truth
+      const currentHP = Math.min(newHP, stateHP);
+      
+      if (currentHP <= 0) {
         // Check if defender is a support hero or main hero
         if (defender === 'support1' || defender === 'support2') {
           // Support hero knocked out - show knocked out effect on the support card
@@ -202,7 +218,7 @@ export function useBattleActions(deps: BattleActionsDependencies) {
           addLog('system', `💀 ${defenderClass.name} has been knocked out!`);
           
           // Check if all heroes are defeated using current HP values
-          const allHeroesDefeated = checkAllHeroesDefeated(defender, newHP);
+          const allHeroesDefeated = checkAllHeroesDefeated(defender, currentHP);
           
           if (allHeroesDefeated) {
             // All heroes defeated, monster wins - show defeated on player1
@@ -231,7 +247,7 @@ export function useBattleActions(deps: BattleActionsDependencies) {
             
             if (isTeamBattle) {
               // Team battle - check if all heroes are defeated using current HP values
-              const allHeroesDefeated = checkAllHeroesDefeated(defender, newHP);
+              const allHeroesDefeated = checkAllHeroesDefeated(defender, currentHP);
               if (allHeroesDefeated) {
                 // All heroes defeated, monster wins - show defeated on player1
                 setDefeatedPlayer('player1');
@@ -281,7 +297,7 @@ export function useBattleActions(deps: BattleActionsDependencies) {
               );
               return;
             }
-          } else {
+          } else if (defender === 'player2') {
             // Monster defeated, heroes win
             setDefeatedPlayer('player2');
             showFloatingNumbers(
@@ -307,7 +323,7 @@ export function useBattleActions(deps: BattleActionsDependencies) {
       setIsMoveInProgress(false);
       clearProjectileTracking();
     };
-  }, [handleVictory, switchTurn, setIsMoveInProgress, clearProjectileTracking, addLog, supportHeroes, setDefeatedPlayer, checkAllHeroesDefeated]);
+  }, [handleVictory, switchTurn, setIsMoveInProgress, clearProjectileTracking, addLog, supportHeroes, setDefeatedPlayer, checkAllHeroesDefeated, player1Class, player2Class]);
 
   // Factory function to create post-miss callback
   const createPostMissCallback = useCallback((

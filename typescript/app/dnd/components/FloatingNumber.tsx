@@ -158,7 +158,7 @@ export function FloatingNumber({ value, type, targetCardRef, onComplete, persist
         top: `${position.y}px`,
         transform: 'translate(-50%, -50%)',
         pointerEvents: 'none',
-        zIndex: 2000,
+        zIndex: 2000, // Below battle summary overlay (2101) so chronicle appears on top
         userSelect: 'none',
         ...style,
       }}
