@@ -638,12 +638,12 @@ function CharacterCardComponent({
         {/* Defeated overlay - removed skull icon, damage effect applied via CSS class */}
 
         {/* Confetti for victor */}
-        {isVictor && <Confetti key={confettiTrigger} trigger={confettiTrigger} />}
+        {isVictor && <Confetti key={`confetti-${characterName}-${confettiTrigger}`} trigger={confettiTrigger} />}
 
         {/* Sparkles effect */}
         {shouldSparkle && (
           <Sparkles 
-            key={sparkleTrigger} 
+            key={`sparkle-${characterName}-${sparkleTrigger}`} 
             trigger={sparkleTrigger} 
             count={sparkleIntensity > 0 ? Math.max(1, Math.ceil(sparkleIntensity * 0.6)) : 12}
           />

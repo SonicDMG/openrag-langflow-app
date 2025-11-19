@@ -445,6 +445,10 @@ describe('useAIOpponent', () => {
       const abilities = [createAttackAbility('Fireball')];
       const opponentClass = createTestClass('Monster', 10, 50, abilities); // Low HP but no healing
 
+      // Mock Math.random to return 0.5 (below 0.7 threshold, so should use attack ability)
+      const originalRandom = Math.random;
+      Math.random = jest.fn(() => 0.5);
+
       renderHook(() =>
         useAIOpponent({
           isActive: true,
@@ -464,6 +468,8 @@ describe('useAIOpponent', () => {
 
       // Should use attack ability or basic attack, not healing
       expect(callbacks.onUseAbility).toHaveBeenCalledWith(0); // Attack ability
+      
+      Math.random = originalRandom;
     });
   });
 

@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { DnDClass, BattleLog, CharacterEmotion, Ability, AttackAbility } from '../types';
-import { FALLBACK_CLASSES, FALLBACK_MONSTERS, isMonster } from '../constants';
+import { FALLBACK_CLASSES, FALLBACK_MONSTERS, isMonster, FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, selectRandomAbilities } from '../constants';
 import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../utils/dice';
 import { generateCharacterName, generateDeterministicCharacterName } from '../utils/names';
 import { createHitVisualEffects, createMissVisualEffects, createHealingVisualEffects, getOpponent, buildDamageDiceArray, getProjectileType, type PendingVisualEffect, type ProjectileType } from '../utils/battle';
@@ -15,6 +15,14 @@ import { PageHeader } from '../components/PageHeader';
 import { LandscapePrompt } from '../components/LandscapePrompt';
 import { ProjectileEffect } from '../components/ProjectileEffect';
 
+// Hooks
+import { useBattleData } from '../hooks/useBattleData';
+import { useBattleState } from '../hooks/useBattleState';
+import { useBattleEffects } from '../hooks/useBattleEffects';
+import { useProjectileEffects } from '../hooks/useProjectileEffects';
+import { useBattleActions } from '../hooks/useBattleActions';
+import { useBattleNarrative } from '../hooks/useBattleNarrative';
+
 // Mock battle narrative generator (doesn't call agent)
 const mockBattleNarrative = (eventDescription: string): string => {
   return `[MOCK] ${eventDescription}`;
@@ -23,211 +31,203 @@ const mockBattleNarrative = (eventDescription: string): string => {
 export default function DnDTestPage() {
   const router = useRouter();
   
+  // Data loading hook
+  const {
+    availableClasses,
+    isLoadingClasses,
+    classesLoaded,
+    availableMonsters,
+    isLoadingMonsters,
+    monstersLoaded,
+    createdMonsters,
+    isLoadingCreatedMonsters,
+  } = useBattleData();
+  
+  // Battle state hook
+  const battleState = useBattleState();
+  const {
+    player1Class,
+    player2Class,
+    player1Name,
+    player2Name,
+    player1MonsterId,
+    player2MonsterId,
+    setPlayer1Class,
+    setPlayer2Class,
+    setPlayer1Name,
+    setPlayer2Name,
+    setPlayer1MonsterId,
+    setPlayer2MonsterId,
+    setPlayerClassWithMonster,
+    isBattleActive,
+    setIsBattleActive,
+    currentTurn,
+    setCurrentTurn,
+    isMoveInProgress,
+    setIsMoveInProgress,
+    battleLog,
+    setBattleLog,
+    isOpponentAutoPlaying,
+    setIsOpponentAutoPlaying,
+    classDetails,
+    setClassDetails,
+    isLoadingClassDetails,
+    setIsLoadingClassDetails,
+    opponentType,
+    setOpponentType,
+    previousTurnRef,
+    addLog,
+    updatePlayerHP,
+    switchTurn: switchTurnBase,
+    resetBattle: resetBattleBase,
+  } = battleState;
+  
+  // Visual effects hook
+  const battleEffects = useBattleEffects();
+  const {
+    shakingPlayer,
+    shakeTrigger,
+    shakeIntensity,
+    sparklingPlayer,
+    sparkleTrigger,
+    sparkleIntensity,
+    missingPlayer,
+    missTrigger,
+    hittingPlayer,
+    hitTrigger,
+    castingPlayer,
+    castTrigger,
+    flashingPlayer,
+    flashTrigger,
+    flashProjectileType,
+    castProjectileType,
+    defeatedPlayer,
+    victorPlayer,
+    confettiTrigger,
+    floatingNumbers,
+    setDefeatedPlayer,
+    setVictorPlayer,
+    setConfettiTrigger,
+    applyVisualEffect,
+    triggerFlashEffect,
+    showFloatingNumbers,
+    handleFloatingNumberComplete,
+    handleShakeComplete,
+    handleSparkleComplete,
+    handleMissComplete,
+    handleHitComplete,
+    handleCastComplete,
+    handleFlashComplete,
+    resetEffects,
+  } = battleEffects;
+  
+  // Projectile effects hook
+  const {
+    projectileEffects,
+    showProjectileEffect,
+    removeProjectileEffect,
+    clearProjectileTracking,
+  } = useProjectileEffects();
+  
+  // Narrative hook (kept for compatibility, but not used for play-by-play)
+  const narrative = useBattleNarrative(addLog);
+  const {
+    battleResponseId,
+    setBattleResponseId,
+    isWaitingForAgent,
+    setIsWaitingForAgent,
+    clearNarrativeQueue,
+    resetNarrative,
+  } = narrative;
+  
   // Type selection for player 2 only (player 1 is always a class)
   const [player2Type, setPlayer2Type] = useState<'class' | 'monster'>('class');
   
   // Scroll ref for monster selection
   const monsterScrollRef = useRef<HTMLDivElement>(null);
   
-  // Monster IDs for displaying monster images
-  const [player1MonsterId, setPlayer1MonsterId] = useState<string | null>(null);
-  const [player2MonsterId, setPlayer2MonsterId] = useState<string | null>(null);
-  
-  // Created monsters (with IDs and images)
-  const [createdMonsters, setCreatedMonsters] = useState<Array<DnDClass & { monsterId: string; imageUrl: string }>>([]);
-  const [isLoadingCreatedMonsters, setIsLoadingCreatedMonsters] = useState(false);
-  
-  // Custom heroes and monsters from database
+  // Custom heroes and monsters from database (for filtering)
   const [customHeroes, setCustomHeroes] = useState<DnDClass[]>([]);
   const [customMonsters, setCustomMonsters] = useState<DnDClass[]>([]);
   const [isLoadingCustom, setIsLoadingCustom] = useState(true);
   
-  // Test player setup - preserve actual abilities from classes
-  const [player1Class, setPlayer1Class] = useState<DnDClass>(() => ({
-    ...FALLBACK_CLASSES[0],
-    hitPoints: FALLBACK_CLASSES[0].maxHitPoints,
-    abilities: FALLBACK_CLASSES[0].abilities || [],
-  }));
-  
-  const [player2Class, setPlayer2Class] = useState<DnDClass>(() => ({
-    ...FALLBACK_CLASSES[1],
-    hitPoints: FALLBACK_CLASSES[1].maxHitPoints,
-    abilities: FALLBACK_CLASSES[1].abilities || [],
-  }));
+  // Helper to find associated monster for a class/monster type
+  const findAssociatedMonster = useCallback((className: string): (DnDClass & { monsterId: string; imageUrl: string }) | null => {
+    const associated = createdMonsters
+      .filter(m => {
+        const monsterKlass = (m as any).klass;
+        return monsterKlass ? monsterKlass === className : m.name === className;
+      })
+      .sort((a, b) => {
+        const aTime = (a as any).lastAssociatedAt || (a as any).createdAt || '';
+        const bTime = (b as any).lastAssociatedAt || (b as any).createdAt || '';
+        if (aTime && bTime) {
+          return new Date(bTime).getTime() - new Date(aTime).getTime();
+        }
+        return b.monsterId.localeCompare(a.monsterId);
+      });
+    return associated.length > 0 ? associated[0] : null;
+  }, [createdMonsters]);
   
   // Helper to create a test class/monster preserving actual abilities and monster metadata
   const createTestEntity = useCallback((entity: DnDClass & { monsterId?: string; imageUrl?: string }): DnDClass & { monsterId?: string; imageUrl?: string } => {
     return {
       ...entity,
       hitPoints: entity.maxHitPoints,
-      // Preserve actual abilities from the entity, or use empty array if none
       abilities: entity.abilities && entity.abilities.length > 0 ? entity.abilities : [],
-      // Preserve monsterId and imageUrl if they exist
       ...(entity.monsterId && { monsterId: entity.monsterId }),
       ...(entity.imageUrl && { imageUrl: entity.imageUrl }),
     };
   }, []);
-  
-  // Helper to find associated monster for a class/monster type
-  const findAssociatedMonster = useCallback((className: string): (DnDClass & { monsterId: string; imageUrl: string }) | null => {
-    // Find the most recently created monster associated with this class/monster type
-    const associated = createdMonsters
-      .filter(m => {
-        // For created monsters, match by klass field; for regular monsters, match by name
-        const monsterKlass = (m as any).klass;
-        return monsterKlass ? monsterKlass === className : m.name === className;
-      })
-      .sort((a, b) => {
-        // Sort by monsterId (UUIDs) - most recent first (assuming newer UUIDs are later in sort)
-        return b.monsterId.localeCompare(a.monsterId);
-      });
-    return associated.length > 0 ? associated[0] : null;
-  }, [createdMonsters]);
 
+  // Enhanced setPlayerClassWithMonster that includes findAssociatedMonster
+  const setPlayerClassWithMonsterEnhanced = useCallback((
+    player: 'player1' | 'player2',
+    dndClass: DnDClass & { monsterId?: string; imageUrl?: string },
+    name?: string
+  ) => {
+    setPlayerClassWithMonster(player, dndClass, name, findAssociatedMonster);
+  }, [setPlayerClassWithMonster, findAssociatedMonster]);
+  
   // Handle player 1 selection
   const handlePlayer1Select = useCallback((entity: DnDClass & { monsterId?: string; imageUrl?: string }) => {
     const testEntity = createTestEntity(entity);
-    setPlayer1Class(testEntity);
-    // Use the same logic as selection cards:
-    // - Created monsters: entity.name is already the character name
-    // - Custom heroes: entity.name is already the character name
-    // - Regular monsters: entity.name is the monster type name (use directly)
-    // - Regular classes: generate a deterministic name
-    const isCreatedMonster = !!(entity as any).klass && !!(entity as any).monsterId;
-    const isCustomHero = !isCreatedMonster && !isMonster(entity.name) && !FALLBACK_CLASSES.some(fc => fc.name === entity.name);
-    const entityIsMonster = isMonster(entity.name);
-    const nameToUse = isCreatedMonster || isCustomHero
-      ? entity.name // Created monsters and custom heroes already have the character name
-      : (entityIsMonster 
-          ? entity.name // Regular monsters use their type name
-          : generateDeterministicCharacterName(entity.name)); // Regular classes get generated name
-    setPlayer1Name(nameToUse);
-    
-    // Check if this entity already has a monsterId (explicitly selected created monster)
-    if (testEntity.monsterId) {
-      setPlayer1MonsterId(testEntity.monsterId);
-    } else {
-      // Otherwise, check if there's an associated monster for this class/monster type
-      // For created monsters, use klass to find associated monster; for regular classes, use name
-      const lookupName = isCreatedMonster ? (entity as any).klass : entity.name;
-      const associatedMonster = findAssociatedMonster(lookupName);
-      if (associatedMonster) {
-        setPlayer1MonsterId(associatedMonster.monsterId);
-      } else {
-        setPlayer1MonsterId(null);
-      }
-    }
-  }, [createTestEntity, findAssociatedMonster]);
+    setPlayerClassWithMonsterEnhanced('player1', testEntity);
+  }, [createTestEntity, setPlayerClassWithMonsterEnhanced]);
   
   // Handle player 2 selection
   const handlePlayer2Select = useCallback((entity: DnDClass & { monsterId?: string; imageUrl?: string }) => {
     const testEntity = createTestEntity(entity);
-    setPlayer2Class(testEntity);
-    // Use the same logic as selection cards:
-    // - Created monsters: entity.name is already the character name
-    // - Custom heroes: entity.name is already the character name
-    // - Regular monsters: entity.name is the monster type name (use directly)
-    // - Regular classes: generate a deterministic name
-    const isCreatedMonster = !!(entity as any).klass && !!(entity as any).monsterId;
-    const isCustomHero = !isCreatedMonster && !isMonster(entity.name) && !FALLBACK_CLASSES.some(fc => fc.name === entity.name);
-    const entityIsMonster = isMonster(entity.name);
-    const nameToUse = isCreatedMonster || isCustomHero
-      ? entity.name // Created monsters and custom heroes already have the character name
-      : (entityIsMonster 
-          ? entity.name // Regular monsters use their type name
-          : generateDeterministicCharacterName(entity.name)); // Regular classes get generated name
-    setPlayer2Name(nameToUse);
-    
-    // Check if this entity already has a monsterId (explicitly selected created monster)
-    if (testEntity.monsterId) {
-      setPlayer2MonsterId(testEntity.monsterId);
-    } else {
-      // Otherwise, check if there's an associated monster for this class/monster type
-      // For created monsters, use klass to find associated monster; for regular classes, use name
-      const lookupName = isCreatedMonster ? (entity as any).klass : entity.name;
-      const associatedMonster = findAssociatedMonster(lookupName);
+    setPlayerClassWithMonsterEnhanced('player2', testEntity);
+  }, [createTestEntity, setPlayerClassWithMonsterEnhanced]);
+  
+  // Update monster IDs when createdMonsters loads or changes
+  useEffect(() => {
+    if (player1Class && !player1MonsterId) {
+      const associatedMonster = findAssociatedMonster(player1Class.name);
       if (associatedMonster) {
-        setPlayer2MonsterId(associatedMonster.monsterId);
-      } else {
-        setPlayer2MonsterId(null);
+        setPlayer1MonsterId(associatedMonster.monsterId);
       }
     }
-  }, [createTestEntity, findAssociatedMonster]);
+    if (player2Class && !player2MonsterId) {
+      const associatedMonster = findAssociatedMonster(player2Class.name);
+      if (associatedMonster) {
+        setPlayer2MonsterId(associatedMonster.monsterId);
+      }
+    }
+  }, [createdMonsters, player1Class, player2Class, player1MonsterId, player2MonsterId, findAssociatedMonster, setPlayer1MonsterId, setPlayer2MonsterId]);
   
-  // Initialize names as null to prevent hydration mismatch
-  // Names will be generated on the client side only
-  const [player1Name, setPlayer1Name] = useState<string | null>(null);
-  const [player2Name, setPlayer2Name] = useState<string | null>(null);
-  
-  // Generate names only on client side to avoid hydration mismatch
-  // Use deterministic names so they match what's shown in selection cards
-  // Use the same logic as selection cards and selection handlers
+  // Initialize default classes on mount
   useEffect(() => {
-    // Player 1
-    const p1IsCreatedMonster = !!(player1Class as any).klass && !!(player1Class as any).monsterId;
-    const p1IsCustomHero = !p1IsCreatedMonster && !isMonster(player1Class.name) && !FALLBACK_CLASSES.some(fc => fc.name === player1Class.name);
-    const p1IsMonster = isMonster(player1Class.name);
-    const p1Name = p1IsCreatedMonster || p1IsCustomHero
-      ? player1Class.name
-      : (p1IsMonster ? player1Class.name : generateDeterministicCharacterName(player1Class.name));
-    setPlayer1Name(p1Name);
-    
-    // Player 2
-    const p2IsCreatedMonster = !!(player2Class as any).klass && !!(player2Class as any).monsterId;
-    const p2IsCustomHero = !p2IsCreatedMonster && !isMonster(player2Class.name) && !FALLBACK_CLASSES.some(fc => fc.name === player2Class.name);
-    const p2IsMonster = isMonster(player2Class.name);
-    const p2Name = p2IsCreatedMonster || p2IsCustomHero
-      ? player2Class.name
-      : (p2IsMonster ? player2Class.name : generateDeterministicCharacterName(player2Class.name));
-    setPlayer2Name(p2Name);
-  }, [player1Class.name, player2Class.name]);
-  const [battleLog, setBattleLog] = useState<BattleLog[]>([]);
-  const [currentTurn, setCurrentTurn] = useState<'player1' | 'player2'>('player1');
-  
-  // Visual effect states
-  const [shakingPlayer, setShakingPlayer] = useState<'player1' | 'player2' | null>(null);
-  const [shakeTrigger, setShakeTrigger] = useState({ player1: 0, player2: 0 });
-  const [sparklingPlayer, setSparklingPlayer] = useState<'player1' | 'player2' | null>(null);
-  const [sparkleTrigger, setSparkleTrigger] = useState({ player1: 0, player2: 0 });
-  const [missingPlayer, setMissingPlayer] = useState<'player1' | 'player2' | null>(null);
-  const [missTrigger, setMissTrigger] = useState({ player1: 0, player2: 0 });
-  const [hittingPlayer, setHittingPlayer] = useState<'player1' | 'player2' | null>(null);
-  const [hitTrigger, setHitTrigger] = useState({ player1: 0, player2: 0 });
-  const [castingPlayer, setCastingPlayer] = useState<'player1' | 'player2' | null>(null);
-  const [castTrigger, setCastTrigger] = useState({ player1: 0, player2: 0 });
-  const [flashingPlayer, setFlashingPlayer] = useState<'player1' | 'player2' | null>(null);
-  const [flashTrigger, setFlashTrigger] = useState({ player1: 0, player2: 0 });
-  const [flashProjectileType, setFlashProjectileType] = useState<{ player1: ProjectileType | null; player2: ProjectileType | null }>({ player1: null, player2: null });
-  const [castProjectileType, setCastProjectileType] = useState<{ player1: ProjectileType | null; player2: ProjectileType | null }>({ player1: null, player2: null });
-  const [shakeIntensity, setShakeIntensity] = useState<{ player1: number; player2: number }>({ player1: 0, player2: 0 });
-  const [sparkleIntensity, setSparkleIntensity] = useState<{ player1: number; player2: number }>({ player1: 0, player2: 0 });
-  const [defeatedPlayer, setDefeatedPlayer] = useState<'player1' | 'player2' | null>(null);
-  const [victorPlayer, setVictorPlayer] = useState<'player1' | 'player2' | null>(null);
-  const [confettiTrigger, setConfettiTrigger] = useState(0);
-  
-  // Floating numbers state - replaces dice roll system
-  type FloatingNumberData = {
-    id: string;
-    value: number | string;
-    type: FloatingNumberType;
-    targetPlayer: 'player1' | 'player2';
-    persistent?: boolean;
-  };
-  const [floatingNumbers, setFloatingNumbers] = useState<FloatingNumberData[]>([]);
-  
-  // Projectile effects state
-  type ProjectileData = {
-    id: string;
-    fromPlayer: 'player1' | 'player2';
-    toPlayer: 'player1' | 'player2';
-    isHit: boolean;
-    onHit?: () => void;
-    onComplete?: () => void;
-    fromCardRotation?: number;
-    delay?: number;
-    projectileType?: ProjectileType;
-  };
-  const [projectileEffects, setProjectileEffects] = useState<ProjectileData[]>([]);
+    if (!player1Class && availableClasses.length > 0) {
+      const defaultClass = createTestEntity(availableClasses[0]);
+      setPlayerClassWithMonsterEnhanced('player1', defaultClass);
+    }
+    if (!player2Class && availableClasses.length > 1) {
+      const defaultClass = createTestEntity(availableClasses[1]);
+      setPlayerClassWithMonsterEnhanced('player2', defaultClass);
+    }
+  }, [availableClasses, player1Class, player2Class, createTestEntity, setPlayerClassWithMonsterEnhanced]);
   
   // Refs for character cards to position floating numbers
   const player1CardRef = useRef<HTMLDivElement | null>(null);
@@ -236,8 +236,6 @@ export default function DnDTestPage() {
   const [manualEmotion1, setManualEmotion1] = useState<CharacterEmotion | null>(null);
   const [manualEmotion2, setManualEmotion2] = useState<CharacterEmotion | null>(null);
   const [isAIModeActive, setIsAIModeActive] = useState(false);
-  const [isOpponentAutoPlaying, setIsOpponentAutoPlaying] = useState(false);
-  const [isMoveInProgress, setIsMoveInProgress] = useState(false);
   const [particleEffectsEnabled, setParticleEffectsEnabled] = useState(true);
   const [flashEffectsEnabled, setFlashEffectsEnabled] = useState(true);
   const [shakeEffectsEnabled, setShakeEffectsEnabled] = useState(true);
@@ -246,7 +244,7 @@ export default function DnDTestPage() {
   const [missEffectsEnabled, setMissEffectsEnabled] = useState(true);
   const [castEffectsEnabled, setCastEffectsEnabled] = useState(true);
   
-  // Load custom heroes and monsters from database
+  // Load custom heroes and monsters from database (for filtering in UI)
   useEffect(() => {
     const loadCustomCharacters = async () => {
       setIsLoadingCustom(true);
@@ -255,7 +253,6 @@ export default function DnDTestPage() {
         const heroesResponse = await fetch('/api/heroes');
         if (heroesResponse.ok) {
           const heroesData = await heroesResponse.json();
-          // Filter to only show custom heroes (those not from fallbacks)
           const custom = (heroesData.heroes || []).filter((h: DnDClass) => 
             !FALLBACK_CLASSES.some(fc => fc.name === h.name)
           );
@@ -266,7 +263,6 @@ export default function DnDTestPage() {
         const monstersResponse = await fetch('/api/monsters-db');
         if (monstersResponse.ok) {
           const monstersData = await monstersResponse.json();
-          // Filter to only show custom monsters (those not from fallbacks)
           const custom = (monstersData.monsters || []).filter((m: DnDClass) => 
             !FALLBACK_MONSTERS.some(fm => fm.name === m.name)
           );
@@ -281,221 +277,66 @@ export default function DnDTestPage() {
 
     loadCustomCharacters();
   }, []);
-
-  // Load created monsters on mount
-  useEffect(() => {
-    const loadCreatedMonsters = async () => {
-      setIsLoadingCreatedMonsters(true);
-      try {
-        const response = await fetch('/api/monsters');
-        if (response.ok) {
-          const data = await response.json();
-          // Convert created monsters to DnDClass format
-          const convertedMonsters = data.monsters.map((m: any) => {
-            // Find matching class/monster from fallbacks to get stats and abilities
-            const fallbackClass = FALLBACK_CLASSES.find(c => c.name === m.klass);
-            const fallbackMonster = FALLBACK_MONSTERS.find(m2 => m2.name === m.klass);
-            const fallback = fallbackClass || fallbackMonster;
-            
-            // Also check custom heroes/monsters
-            const customHero = customHeroes.find(h => h.name === m.klass);
-            const customMonster = customMonsters.find(m2 => m2.name === m.klass);
-            const custom = customHero || customMonster;
-            
-            // Prefer custom over fallback
-            const character = custom || fallback;
-            
-            // Extract character name from prompt if available
-            // The prompt format is usually: "CharacterName: description" or "CharacterName ClassName: description"
-            // or "ClassName RaceName: description"
-            let characterName = m.klass; // Default to klass
-            if (m.prompt) {
-              // Try to extract name from prompt - look for pattern like "Name:" or "Name ClassName:"
-              // First, try to find the part before the first colon
-              const colonIndex = m.prompt.indexOf(':');
-              if (colonIndex > 0) {
-                const beforeColon = m.prompt.substring(0, colonIndex).trim();
-                const parts = beforeColon.split(/\s+/);
-                
-                // Check if the klass appears in the parts
-                const klassIndex = parts.findIndex((p: string) => p === m.klass);
-                
-                if (klassIndex > 0) {
-                  // Pattern like "Onyx Champion" - extract "Onyx" (everything before klass)
-                  characterName = parts.slice(0, klassIndex).join(' ');
-                } else if (klassIndex === -1 && parts.length > 0) {
-                  // Klass not found in parts - check if first part is different from klass
-                  if (parts[0] !== m.klass && parts.length === 1) {
-                    // Single word that's not the klass - likely the character name
-                    characterName = parts[0];
-                  } else if (parts.length === 2 && parts[0] === m.klass) {
-                    // Pattern like "Champion Human" - klass is first, so use klass as name
-                    characterName = m.klass;
-                  } else if (parts.length > 1 && parts[0] !== m.klass) {
-                    // Multiple words, first is not klass - might be "Name Race" or "Name Class"
-                    // Use first word as character name
-                    characterName = parts[0];
-                  }
-                }
-                // If klassIndex === 0, then klass is first word, so use klass as name (already set)
-              }
-            }
-            
-            // Construct imageUrl from monsterId if not provided
-            const imageUrl = m.imageUrl || `/cdn/monsters/${m.monsterId}/280x200.png`;
-            
-            return {
-              name: characterName, // Use extracted character name instead of klass
-              hitPoints: m.stats?.hitPoints || character?.hitPoints || 30,
-              maxHitPoints: m.stats?.maxHitPoints || m.stats?.hitPoints || character?.maxHitPoints || 30,
-              armorClass: m.stats?.armorClass || character?.armorClass || 14,
-              attackBonus: m.stats?.attackBonus || character?.attackBonus || 4,
-              damageDie: m.stats?.damageDie || character?.damageDie || 'd8',
-              abilities: character?.abilities || [],
-              description: m.stats?.description || character?.description || `A ${m.klass} created in the monster creator.`,
-              color: character?.color || 'bg-slate-900',
-              monsterId: m.monsterId,
-              imageUrl: imageUrl.replace('/256.png', '/280x200.png').replace('/200.png', '/280x200.png'),
-              hasCutout: m.hasCutout ?? false, // Preserve hasCutout flag from API
-              lastAssociatedAt: m.lastAssociatedAt, // Preserve last association time
-              // Store the klass separately so we can use it for class type display
-              klass: m.klass,
-            } as DnDClass & { monsterId: string; imageUrl: string; hasCutout?: boolean; lastAssociatedAt?: string; klass?: string };
-          });
-          setCreatedMonsters(convertedMonsters);
-        }
-      } catch (error) {
-        console.error('Failed to load created monsters:', error);
-      } finally {
-        setIsLoadingCreatedMonsters(false);
-      }
-    };
-    loadCreatedMonsters();
-  }, [customHeroes, customMonsters]);
-
-  // Update monster IDs when createdMonsters loads or changes, if players already have classes selected
-  useEffect(() => {
-    if (player1Class && !player1MonsterId) {
-      const associatedMonster = findAssociatedMonster(player1Class.name);
-      if (associatedMonster) {
-        setPlayer1MonsterId(associatedMonster.monsterId);
-      }
-    }
-    if (player2Class && !player2MonsterId) {
-      const associatedMonster = findAssociatedMonster(player2Class.name);
-      if (associatedMonster) {
-        setPlayer2MonsterId(associatedMonster.monsterId);
-      }
-    }
-  }, [createdMonsters, player1Class, player2Class, player1MonsterId, player2MonsterId, findAssociatedMonster]);
+  // Enhanced switchTurn - no narrative processing during battle
+  const switchTurn = useCallback(async (attacker: 'player1' | 'player2' | 'support1' | 'support2') => {
+    await switchTurnBase(attacker, defeatedPlayer, async () => {});
+  }, [switchTurnBase, defeatedPlayer]);
   
+  // Helper function to handle victory condition (simplified for test page)
+  const handleVictory = useCallback(async (
+    attackerClass: DnDClass,
+    defenderClass: DnDClass,
+    damage: number,
+    attackerDetails: string = '',
+    defenderDetails: string = '',
+    eventDescription: string,
+    defender: 'player1' | 'player2'
+  ): Promise<void> => {
+    setDefeatedPlayer(defender);
+    const victor = defender === 'player1' ? 'player2' : 'player1';
+    setVictorPlayer(victor);
+    setConfettiTrigger(prev => prev + 1);
+    
+    showFloatingNumbers(
+      [{ value: 'DEFEATED!', type: 'defeated', targetPlayer: defender, persistent: true }],
+      [],
+      []
+    );
+    
+    addLog('system', `🏆 ${attackerClass.name} wins! ${defenderClass.name} has been defeated!`);
+  }, [addLog, showFloatingNumbers, setDefeatedPlayer, setVictorPlayer, setConfettiTrigger]);
   
-  const addLog = useCallback((type: BattleLog['type'], message: string) => {
-    setBattleLog((prev) => [...prev, { type, message, timestamp: Date.now() }]);
-  }, []);
-  
-  const updatePlayerHP = useCallback((player: 'player1' | 'player2', newHP: number) => {
-    if (player === 'player1') {
-      setPlayer1Class((current) => current ? { ...current, hitPoints: newHP } : current);
-    } else {
-      setPlayer2Class((current) => current ? { ...current, hitPoints: newHP } : current);
-    }
-  }, []);
-  
-  // Helper function to trigger flash effect on attacking card
-  const triggerFlashEffect = useCallback((attacker: 'player1' | 'player2', projectileType?: ProjectileType) => {
-    if (!flashEffectsEnabled) {
-      console.log('[TestPage] Flash effects disabled, skipping flash trigger');
-      return;
-    }
-    console.log('[TestPage] Triggering flash effect for', attacker, 'with type', projectileType);
-    setFlashingPlayer(attacker);
-    setFlashTrigger(prev => {
-      const newValue = prev[attacker] + 1;
-      console.log('[TestPage] Flash trigger updated:', { attacker, newValue });
-      return { ...prev, [attacker]: newValue };
-    });
-    if (projectileType) {
-      setFlashProjectileType(prev => ({ ...prev, [attacker]: projectileType }));
-      setCastProjectileType(prev => ({ ...prev, [attacker]: projectileType }));
-    }
-  }, [flashEffectsEnabled]);
-
-  // Helper function to apply a visual effect (respects effect toggles)
-  const applyVisualEffect = useCallback((effect: PendingVisualEffect) => {
+  // Wrapper functions that respect test mode toggles
+  const applyVisualEffectWithToggles = useCallback((effect: PendingVisualEffect) => {
+    // Respect effect toggles in test mode
     switch (effect.type) {
       case 'shake':
         if (!shakeEffectsEnabled) return;
-        setShakingPlayer(effect.player);
-        setShakeTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
-        if (effect.intensity !== undefined) {
-          setShakeIntensity(prev => ({ ...prev, [effect.player]: effect.intensity! }));
-        }
         break;
       case 'sparkle':
         if (!sparkleEffectsEnabled) return;
-        setSparklingPlayer(effect.player);
-        setSparkleTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
-        if (effect.intensity !== undefined) {
-          setSparkleIntensity(prev => ({ ...prev, [effect.player]: effect.intensity! }));
-        }
         break;
       case 'miss':
         if (!missEffectsEnabled) return;
-        setMissingPlayer(effect.player);
-        setMissTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
         break;
       case 'hit':
         if (!hitEffectsEnabled) return;
-        setHittingPlayer(effect.player);
-        setHitTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
         break;
       case 'cast':
         if (!castEffectsEnabled) return;
-        setCastingPlayer(effect.player);
-        setCastTrigger(prev => ({ ...prev, [effect.player]: prev[effect.player] + 1 }));
         break;
     }
-  }, [shakeEffectsEnabled, sparkleEffectsEnabled, missEffectsEnabled, hitEffectsEnabled, castEffectsEnabled]);
+    applyVisualEffect(effect);
+  }, [shakeEffectsEnabled, sparkleEffectsEnabled, missEffectsEnabled, hitEffectsEnabled, castEffectsEnabled, applyVisualEffect]);
   
-  // Helper function to show floating numbers and apply effects immediately
-  const showFloatingNumbers = useCallback((
-    numbers: Array<{ value: number | string; type: FloatingNumberType; targetPlayer: 'player1' | 'player2'; persistent?: boolean }>,
-    visualEffects: PendingVisualEffect[] = [],
-    callbacks: (() => void)[] = []
-  ) => {
-    // Show floating numbers immediately
-    const numberData: FloatingNumberData[] = numbers.map((n, idx) => ({
-      id: `${Date.now()}-${idx}`,
-      ...n,
-    }));
-    setFloatingNumbers(prev => [...prev, ...numberData]);
-    
-    // Apply visual effects immediately
-    visualEffects.forEach(effect => {
-      applyVisualEffect(effect);
-    });
-    
-    // Execute callbacks immediately (with a tiny delay to ensure state updates)
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        callbacks.forEach(callback => callback());
-      });
-    });
-  }, [applyVisualEffect]);
-
-  // Handle floating number completion (cleanup)
-  const handleFloatingNumberComplete = useCallback((id: string) => {
-    setFloatingNumbers(prev => prev.filter(n => n.id !== id));
-  }, []);
-
-  // Ref to track recent projectile creations to prevent duplicates
-  const lastProjectileTimeRef = useRef<{ [key: string]: number }>({});
+  const triggerFlashEffectWithToggles = useCallback((attacker: 'player1' | 'player2' | 'support1' | 'support2', projectileType?: ProjectileType) => {
+    if (!flashEffectsEnabled) return;
+    triggerFlashEffect(attacker, projectileType);
+  }, [flashEffectsEnabled, triggerFlashEffect]);
   
-  // Helper function to show projectile effect
-  const showProjectileEffect = useCallback((
-    fromPlayer: 'player1' | 'player2',
-    toPlayer: 'player1' | 'player2',
+  const showProjectileEffectWithToggles = useCallback((
+    fromPlayer: 'player1' | 'player2' | 'support1' | 'support2',
+    toPlayer: 'player1' | 'player2' | 'support1' | 'support2',
     isHit: boolean,
     onHit?: () => void,
     onComplete?: () => void,
@@ -503,55 +344,46 @@ export default function DnDTestPage() {
     delay?: number,
     projectileType?: ProjectileType
   ) => {
-    // If particle effects are disabled, execute callbacks immediately without showing projectile
+    // If particle effects are disabled, execute callbacks immediately
     if (!particleEffectsEnabled) {
-      // Execute onHit callback immediately for hits
       if (isHit && onHit) {
-        // Small delay to maintain timing feel
-        setTimeout(() => {
-          onHit();
-        }, 50);
+        setTimeout(() => onHit(), 50);
       }
-      // Execute onComplete callback
       if (onComplete) {
-        setTimeout(() => {
-          onComplete();
-        }, isHit ? 100 : 150);
+        setTimeout(() => onComplete(), isHit ? 100 : 150);
       }
       return;
     }
-    
-    // Create a unique key for this attack (fromPlayer + toPlayer + delay)
-    // This prevents duplicate projectiles for the same attack within 200ms
-    const attackKey = `${fromPlayer}-${toPlayer}-${delay || 0}`;
-    const now = Date.now();
-    const lastTime = lastProjectileTimeRef.current[attackKey] || 0;
-    
-    // Prevent duplicate projectiles within 200ms for the same attack
-    if (now - lastTime < 200) {
-      return;
-    }
-    
-    lastProjectileTimeRef.current[attackKey] = now;
-    
-    const projectileId = `projectile-${now}-${Math.random()}`;
-    setProjectileEffects(prev => [...prev, {
-      id: projectileId,
-      fromPlayer,
-      toPlayer,
-      isHit,
-      onHit,
-      onComplete,
-      fromCardRotation,
-      delay,
-      projectileType,
-    }]);
-  }, [particleEffectsEnabled]);
-
-  // Helper function to remove projectile effect
-  const removeProjectileEffect = useCallback((id: string) => {
-    setProjectileEffects(prev => prev.filter(p => p.id !== id));
-  }, []);
+    showProjectileEffect(fromPlayer, toPlayer, isHit, onHit, onComplete, fromCardRotation, delay, projectileType);
+  }, [particleEffectsEnabled, showProjectileEffect]);
+  
+  // Battle actions hook
+  const battleActions = useBattleActions({
+    player1Class,
+    player2Class,
+    supportHeroes: [],
+    isBattleActive: true, // Always allow actions in test mode
+    isMoveInProgress,
+    classDetails,
+    defeatedPlayer,
+    setIsMoveInProgress,
+    updatePlayerHP,
+    addLog,
+    applyVisualEffect: applyVisualEffectWithToggles,
+    triggerFlashEffect: triggerFlashEffectWithToggles,
+    showFloatingNumbers,
+    showProjectileEffect: showProjectileEffectWithToggles,
+    clearProjectileTracking,
+    switchTurn,
+    handleVictory,
+    setDefeatedPlayer,
+  });
+  const { performAttack, useAbility } = battleActions;
+  
+  // Helper to safely get player class
+  const getPlayerClass = useCallback((player: 'player1' | 'player2'): DnDClass | null => {
+    return player === 'player1' ? player1Class : player2Class;
+  }, [player1Class, player2Class]);
   
   // Test functions
   const testDiceRoll = () => {
@@ -562,124 +394,29 @@ export default function DnDTestPage() {
       { value: Math.floor(Math.random() * 8) + 1, type: 'damage', targetPlayer: 'player1' },
       { value: Math.floor(Math.random() * 6) + 1, type: 'healing', targetPlayer: 'player2' },
     ];
-    showFloatingNumbers(numbers);
+    showFloatingNumbers(numbers, [], []);
     addLog('system', '🎲 Test floating numbers triggered');
   };
   
+  // Use shared performAttack for test attacks
   const testAttackHit = (attacker: 'player1' | 'player2') => {
-    console.log('[TestPage] testAttackHit called for', attacker);
-    const attackerClass = attacker === 'player1' ? player1Class : player2Class;
-    const defenderClass = attacker === 'player1' ? player2Class : player1Class;
-    const defender = getOpponent(attacker);
-    
-    // Get projectile type for flash effect
-    const projectileType = getProjectileType(null, undefined, attackerClass.name);
-    // Trigger flash effect on attacking card with projectile type
-    triggerFlashEffect(attacker, projectileType);
-    
-    // Create visual effects to check for cast effect
-    const allVisualEffects = createHitVisualEffects(attacker, defender, 0, defenderClass, attackerClass);
-    // Trigger cast effect immediately if present
-    const castEffect = allVisualEffects.find(effect => effect.type === 'cast');
-    if (castEffect) {
-      console.log('[TestPage] Triggering cast effect for', attacker, 'castEffect:', castEffect);
-      applyVisualEffect(castEffect);
-    } else {
-      console.log('[TestPage] No cast effect for', attacker, 'attackerClass:', attackerClass.name);
-    }
-    
-    console.log('[TestPage] Attacker:', attackerClass.name, 'Defender:', defenderClass.name);
-    
-    const d20Roll = rollDice('d20');
-    const attackRoll = d20Roll + attackerClass.attackBonus;
-    const damage = rollDice(attackerClass.damageDie);
-    
-    console.log('[TestPage] Attack roll:', attackRoll, 'Damage:', damage);
-    
-    addLog('roll', `🎲 ${attackerClass.name} rolls ${d20Roll} + ${attackerClass.attackBonus} = ${attackRoll} (hits AC ${defenderClass.armorClass})`);
-    
-    const newHP = Math.max(0, defenderClass.hitPoints - damage);
-    
-    // Create visual effects, but exclude shake (will be triggered by projectile hit)
-    const visualEffects = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass)
-      .filter(effect => effect.type !== 'shake'); // Remove shake, will be triggered on projectile hit
-    
-    // Show projectile effect with card rotation angle
-    const cardRotation = attacker === 'player1' ? -5 : 5;
-    // projectileType already defined above for flash effect
-    showProjectileEffect(
-      attacker,
-      defender,
-      true, // isHit
-      () => {
-        // On projectile hit: trigger shake and show damage
-        const shakeEffect = createHitVisualEffects(attacker, defender, damage, defenderClass, attackerClass)
-          .find(effect => effect.type === 'shake');
-        if (shakeEffect) {
-          applyVisualEffect(shakeEffect);
-        }
-        
-        // Show floating damage number when projectile hits
-        showFloatingNumbers(
-          [{ value: damage, type: 'damage', targetPlayer: defender }],
-          visualEffects, // Other effects (hit, cast) shown immediately
-          [
-            () => {
-              console.log('[TestPage] HP update callback for', defender, 'newHP:', newHP);
-              updatePlayerHP(defender, newHP);
-            },
-            () => {
-              console.log('[TestPage] Attack complete callback for', attacker);
-              addLog('attack', `⚔️ ${attackerClass.name} hits for ${damage} damage!`);
-              addLog('narrative', mockBattleNarrative(`${attackerClass.name} attacks ${defenderClass.name} and deals ${damage} damage.`));
-              
-              if (newHP <= 0) {
-                setDefeatedPlayer(defender);
-                setVictorPlayer(attacker);
-                setConfettiTrigger(prev => prev + 1);
-                
-                // Show floating "DEFEATED!" text (persistent - stays on card)
-                showFloatingNumbers(
-                  [{ value: 'DEFEATED!', type: 'defeated', targetPlayer: defender, persistent: true }],
-                  [],
-                  []
-                );
-                
-                addLog('system', `🏆 ${attackerClass.name} wins!`);
-              } else {
-                // Switch turns after attack completes
-                const nextTurn = attacker === 'player1' ? 'player2' : 'player1';
-                console.log('[TestPage] Switching turn from', attacker, 'to', nextTurn);
-                setTimeout(() => {
-                  setCurrentTurn(nextTurn);
-                  setIsMoveInProgress(false);
-                }, 450);
-                return; // Early return to prevent double execution
-              }
-            }
-          ]
-        );
-      },
-      undefined, // onComplete
-      cardRotation,
-      undefined, // delay
-      projectileType
-    );
+    performAttack(attacker);
   };
   
   const testCast = (attacker: 'player1' | 'player2') => {
-    console.log('[TestPage] testCast called for', attacker);
-    // Directly trigger cast effect
-    setCastingPlayer(attacker);
-    setCastTrigger(prev => ({ ...prev, [attacker]: prev[attacker] + 1 }));
-    addLog('system', `🔮 Cast effect triggered for ${attacker === 'player1' ? player1Class.name : player2Class.name}`);
+    const attackerClass = getPlayerClass(attacker);
+    if (!attackerClass) return;
+    // Directly trigger cast effect using hook
+    applyVisualEffectWithToggles({ type: 'cast', player: attacker });
+    addLog('system', `🔮 Cast effect triggered for ${attackerClass.name}`);
   };
 
   const testAttackMiss = (attacker: 'player1' | 'player2') => {
     const attackerClass = attacker === 'player1' ? player1Class : player2Class;
     const defenderClass = attacker === 'player1' ? player2Class : player1Class;
-    const defender = getOpponent(attacker);
+    if (!attackerClass || !defenderClass) return;
     
+    const defender = getOpponent(attacker);
     const d20Roll = rollDice('d20');
     const attackRoll = d20Roll + attackerClass.attackBonus;
     
@@ -688,18 +425,18 @@ export default function DnDTestPage() {
     // Get projectile type for flash effect
     const projectileType = getProjectileType(null, undefined, attackerClass.name);
     // Trigger flash effect on attacking card with projectile type
-    triggerFlashEffect(attacker, projectileType);
+    triggerFlashEffectWithToggles(attacker, projectileType);
     
     // Trigger cast effect immediately if present
     const missVisualEffects = createMissVisualEffects(attacker, attackerClass);
     const castEffect = missVisualEffects.find(effect => effect.type === 'cast');
     if (castEffect) {
-      applyVisualEffect(castEffect);
+      applyVisualEffectWithToggles(castEffect);
     }
     
     // Show projectile effect that misses the target
     const cardRotation = attacker === 'player1' ? -5 : 5;
-    showProjectileEffect(
+    showProjectileEffectWithToggles(
       attacker,
       defender,
       false, // isHit
@@ -714,11 +451,7 @@ export default function DnDTestPage() {
               addLog('attack', `❌ ${attackerClass.name} misses!`);
               addLog('narrative', mockBattleNarrative(`${attackerClass.name} attacks ${defenderClass.name} but misses.`));
               // Switch turns after miss
-              const nextTurn = attacker === 'player1' ? 'player2' : 'player1';
-              setTimeout(() => {
-                setCurrentTurn(nextTurn);
-                setIsMoveInProgress(false);
-              }, 650);
+              switchTurn(attacker);
             }
           ]
         );
@@ -730,7 +463,8 @@ export default function DnDTestPage() {
   };
   
   const testHeal = (player: 'player1' | 'player2') => {
-    const playerClass = player === 'player1' ? player1Class : player2Class;
+    const playerClass = getPlayerClass(player);
+    if (!playerClass) return;
     
     const heal = rollDiceWithNotation('1d8+3');
     
@@ -751,18 +485,15 @@ export default function DnDTestPage() {
           addLog('ability', `💚 ${playerClass.name} heals for ${heal} HP!`);
           addLog('narrative', mockBattleNarrative(`${playerClass.name} uses Test Heal and recovers ${heal} HP.`));
           // Switch turns after heal
-          const nextTurn = player === 'player1' ? 'player2' : 'player1';
-          setTimeout(() => {
-            setCurrentTurn(nextTurn);
-            setIsMoveInProgress(false);
-          }, 450);
+          switchTurn(player);
         }
       ]
     );
   };
   
   const testLowDamage = (target: 'player1' | 'player2') => {
-    const targetClass = target === 'player1' ? player1Class : player2Class;
+    const targetClass = getPlayerClass(target);
+    if (!targetClass) return;
     const attackerName = target === 'player1' ? 'Test Attacker' : 'Test Attacker';
     
     // Deal minimal damage (1-2 HP) to test low intensity shake
@@ -800,7 +531,8 @@ export default function DnDTestPage() {
   };
 
   const testLowHeal = (player: 'player1' | 'player2') => {
-    const playerClass = player === 'player1' ? player1Class : player2Class;
+    const playerClass = getPlayerClass(player);
+    if (!playerClass) return;
     const heal = Math.floor(Math.random() * 2) + 1; // 1 or 2 healing
     
     addLog('roll', `✨ ${playerClass.name} uses Low Heal!`);
@@ -822,7 +554,8 @@ export default function DnDTestPage() {
   };
 
   const testHighDamage = (target: 'player1' | 'player2') => {
-    const targetClass = target === 'player1' ? player1Class : player2Class;
+    const targetClass = getPlayerClass(target);
+    if (!targetClass) return;
     const attackerName = target === 'player1' ? 'Test Attacker' : 'Test Attacker';
     
     // Calculate high damage (40% of max HP or 50% of current HP, whichever is larger)
@@ -862,7 +595,8 @@ export default function DnDTestPage() {
   };
   
   const testFullHeal = (player: 'player1' | 'player2') => {
-    const playerClass = player === 'player1' ? player1Class : player2Class;
+    const playerClass = getPlayerClass(player);
+    if (!playerClass) return;
     const healAmount = playerClass.maxHitPoints - playerClass.hitPoints;
     
     if (healAmount <= 0) {
@@ -886,352 +620,9 @@ export default function DnDTestPage() {
     );
   };
 
-  // Test ability handler - handles all ability types
+  // Test ability handler - uses shared useAbility from battle actions
   const testUseAbility = (player: 'player1' | 'player2', abilityIndex: number) => {
-    if (isMoveInProgress) return;
-    
-    setIsMoveInProgress(true);
-    const attackerClass = player === 'player1' ? player1Class : player2Class;
-    const defenderClass = player === 'player1' ? player2Class : player1Class;
-    const ability = attackerClass.abilities[abilityIndex];
-    
-    if (!ability) {
-      setIsMoveInProgress(false);
-      return;
-    }
-    
-    addLog('roll', `✨ ${attackerClass.name} uses ${ability.name}!`);
-    
-    if (ability.type === 'healing') {
-      // Handle healing ability
-      const heal = rollDiceWithNotation(ability.healingDice);
-      const newHP = Math.min(attackerClass.maxHitPoints, attackerClass.hitPoints + heal);
-      
-      // Show floating healing number immediately
-      showFloatingNumbers(
-        [{ value: heal, type: 'healing', targetPlayer: player }],
-        createHealingVisualEffects(player, heal, attackerClass),
-        [
-          () => updatePlayerHP(player, newHP),
-          () => {
-            addLog('ability', `💚 ${attackerClass.name} heals for ${heal} HP!`);
-            addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} and heals for ${heal} HP.`));
-            const nextTurn = player === 'player1' ? 'player2' : 'player1';
-            setTimeout(() => {
-              setCurrentTurn(nextTurn);
-              setIsMoveInProgress(false);
-            }, 450);
-          }
-        ]
-      );
-    } else if (ability.type === 'attack') {
-      const attackAbility = ability as AttackAbility;
-      const numAttacks = attackAbility.attacks || 1;
-      const defender = getOpponent(player);
-      const cardRotation = player === 'player1' ? -5 : 5;
-      const projectileType = getProjectileType(attackAbility, undefined, attackerClass.name);
-      
-      // Trigger flash and cast effects for attack abilities only
-      triggerFlashEffect(player, projectileType);
-      // Trigger cast effect immediately for attacks
-      const attackVisualEffects = createHitVisualEffects(player, defender, 0, defenderClass, attackerClass);
-      const castEffect = attackVisualEffects.find(effect => effect.type === 'cast');
-      if (castEffect) {
-        applyVisualEffect(castEffect);
-      }
-      
-      if (numAttacks > 1) {
-        // Handle multi-attack
-        const attackRolls: number[] = [];
-        const d20Rolls: number[] = [];
-        const damages: number[] = [];
-        const hits: boolean[] = [];
-        let totalDamage = 0;
-        
-        for (let i = 0; i < numAttacks; i++) {
-          const d20Roll = rollDice('d20');
-          d20Rolls.push(d20Roll);
-          const attackRoll = d20Roll + attackerClass.attackBonus;
-          attackRolls.push(attackRoll);
-          const hit = attackRoll >= defenderClass.armorClass;
-          hits.push(hit);
-          
-          if (hit) {
-            const { totalDamage: damage } = buildDamageDiceArray(
-              attackAbility.damageDice,
-              rollDiceWithNotation,
-              parseDiceNotation,
-              attackAbility.bonusDamageDice
-            );
-            damages.push(damage);
-            totalDamage += damage;
-          } else {
-            damages.push(0);
-          }
-        }
-        
-        const newHP = totalDamage > 0 ? Math.max(0, defenderClass.hitPoints - totalDamage) : defenderClass.hitPoints;
-        const successfulHits = hits.map((hit, i) => ({ hit, damage: damages[i], index: i })).filter(h => h.hit);
-        
-        if (successfulHits.length > 0) {
-          // Show one projectile per successful hit with staggered delays
-          const damageNumbers: Array<{ value: number; type: FloatingNumberType; targetPlayer: 'player1' | 'player2' }> = [];
-          const completedHitsRef = { count: 0 };
-          
-          successfulHits.forEach((hitData, hitIndex) => {
-            const delay = hitIndex * 100; // 100ms delay between each projectile
-            
-            showProjectileEffect(
-              player,
-              defender,
-              true, // isHit
-              () => {
-                // On projectile hit: trigger shake and show individual damage
-                const shakeEffect = createHitVisualEffects(player, defender, hitData.damage, defenderClass, attackerClass)
-                  .find(effect => effect.type === 'shake');
-                if (shakeEffect) {
-                  applyVisualEffect(shakeEffect);
-                }
-                
-                // Add this hit's damage to the numbers array
-                damageNumbers.push({ value: hitData.damage, type: 'damage', targetPlayer: defender });
-                completedHitsRef.count++;
-                
-                // If this is the last hit, show all damage numbers and complete
-                if (completedHitsRef.count === successfulHits.length) {
-                  const visualEffects = createHitVisualEffects(player, defender, totalDamage, defenderClass, attackerClass)
-                    .filter(effect => effect.type !== 'shake');
-                  
-                  showFloatingNumbers(
-                    damageNumbers,
-                    visualEffects,
-                    [
-                      () => updatePlayerHP(defender, newHP),
-                      () => {
-                        addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
-                        const hitDetails = hits.map((hit, i) => 
-                          hit ? `Attack ${i + 1} hits for ${damages[i]} damage.` : `Attack ${i + 1} misses.`
-                        ).join(' ');
-                        addLog('attack', `⚔️ ${attackerClass.name} uses ${ability.name}: ${hitDetails} Total damage: ${totalDamage}!`);
-                        addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} and makes ${numAttacks} attacks. Total damage: ${totalDamage}.`));
-                        
-                        if (newHP <= 0) {
-                          setDefeatedPlayer(defender);
-                          setVictorPlayer(player);
-                          setConfettiTrigger(prev => prev + 1);
-                          
-                          // Show floating "DEFEATED!" text
-                          showFloatingNumbers(
-                            [{ value: 'DEFEATED!', type: 'defeated', targetPlayer: defender }],
-                            [],
-                            []
-                          );
-                          
-                          addLog('system', `🏆 ${attackerClass.name} wins!`);
-                        } else {
-                          const nextTurn = player === 'player1' ? 'player2' : 'player1';
-                          setTimeout(() => {
-                            setCurrentTurn(nextTurn);
-                            setIsMoveInProgress(false);
-                          }, 450);
-                        }
-                      }
-                    ]
-                  );
-                }
-              },
-              undefined, // onComplete - handled in onHit for last projectile
-              cardRotation,
-              delay,
-              projectileType
-            );
-          });
-        } else {
-          // All attacks missed - show projectile effect that misses the target
-          showProjectileEffect(
-            player,
-            defender,
-            false, // isHit
-            undefined, // onHit
-            () => {
-              // After projectile misses, show miss effects
-              showFloatingNumbers(
-                [{ value: 'MISS', type: 'miss', targetPlayer: player }],
-                createMissVisualEffects(player, attackerClass),
-                [
-                  () => {
-                    addLog('roll', `🎲 ${attackerClass.name} makes ${numAttacks} attacks: ${attackRolls.join(', ')}`);
-                    addLog('attack', `❌ ${attackerClass.name} uses ${ability.name} but all attacks miss!`);
-                    addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} but all attacks miss.`));
-                    const nextTurn = player === 'player1' ? 'player2' : 'player1';
-                    setTimeout(() => {
-                      setCurrentTurn(nextTurn);
-                      setIsMoveInProgress(false);
-                    }, 650);
-                  }
-                ]
-              );
-            },
-            cardRotation,
-            undefined, // delay
-            projectileType
-          );
-        }
-      } else if (attackAbility.attackRoll) {
-        // Handle single attack with roll
-        const d20Roll = rollDice('d20');
-        const attackRoll = d20Roll + attackerClass.attackBonus;
-        
-        addLog('roll', `🎲 ${attackerClass.name} rolls ${d20Roll} + ${attackerClass.attackBonus} = ${attackRoll} (vs AC ${defenderClass.armorClass})`);
-        
-        if (attackRoll >= defenderClass.armorClass) {
-          const { totalDamage: damage } = buildDamageDiceArray(
-            attackAbility.damageDice,
-            rollDiceWithNotation,
-            parseDiceNotation,
-            attackAbility.bonusDamageDice
-          );
-          
-          const newHP = Math.max(0, defenderClass.hitPoints - damage);
-          
-          // Create visual effects, but exclude shake (will be triggered by projectile hit)
-          const visualEffects = createHitVisualEffects(player, defender, damage, defenderClass, attackerClass)
-            .filter(effect => effect.type !== 'shake'); // Remove shake, will be triggered on projectile hit
-          
-          // Show projectile effect
-          showProjectileEffect(
-            player,
-            defender,
-            true, // isHit
-            () => {
-              // On projectile hit: trigger shake and show damage
-              const shakeEffect = createHitVisualEffects(player, defender, damage, defenderClass, attackerClass)
-                .find(effect => effect.type === 'shake');
-              if (shakeEffect) {
-                applyVisualEffect(shakeEffect);
-              }
-              
-              // Show floating damage number when projectile hits
-              showFloatingNumbers(
-                [{ value: damage, type: 'damage', targetPlayer: defender }],
-                visualEffects, // Other effects (hit, cast) shown immediately
-                [
-                  () => updatePlayerHP(defender, newHP),
-                  () => {
-                    addLog('attack', `⚔️ ${attackerClass.name} hits for ${damage} damage!`);
-                    addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} and hits for ${damage} damage.`));
-                    
-                    if (newHP <= 0) {
-                      setDefeatedPlayer(defender);
-                      setVictorPlayer(player);
-                      setConfettiTrigger(prev => prev + 1);
-                      addLog('system', `🏆 ${attackerClass.name} wins!`);
-                    } else {
-                      const nextTurn = player === 'player1' ? 'player2' : 'player1';
-                      setTimeout(() => {
-                        setCurrentTurn(nextTurn);
-                        setIsMoveInProgress(false);
-                      }, 450);
-                    }
-                  }
-                ]
-              );
-            },
-            undefined, // onComplete
-            cardRotation,
-            undefined, // delay
-            projectileType
-          );
-        } else {
-          // Miss - show projectile effect that misses the target
-          showProjectileEffect(
-            player,
-            defender,
-            false, // isHit
-            undefined, // onHit
-            () => {
-              // After projectile misses, show miss effects
-              showFloatingNumbers(
-                [{ value: 'MISS', type: 'miss', targetPlayer: player }],
-                createMissVisualEffects(player, attackerClass),
-                [
-                  () => {
-                    addLog('attack', `❌ ${attackerClass.name} misses!`);
-                    addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} but misses.`));
-                    const nextTurn = player === 'player1' ? 'player2' : 'player1';
-                    setTimeout(() => {
-                      setCurrentTurn(nextTurn);
-                      setIsMoveInProgress(false);
-                    }, 650);
-                  }
-                ]
-              );
-            },
-            cardRotation,
-            undefined, // delay
-            projectileType
-          );
-        }
-      } else {
-        // Handle automatic damage (no attack roll)
-        const { totalDamage: damage } = buildDamageDiceArray(
-          attackAbility.damageDice,
-          rollDiceWithNotation,
-          parseDiceNotation,
-          attackAbility.bonusDamageDice
-        );
-        const newHP = Math.max(0, defenderClass.hitPoints - damage);
-        
-        // Create visual effects, but exclude shake (will be triggered by projectile hit)
-        const visualEffects = createHitVisualEffects(player, defender, damage, defenderClass, attackerClass)
-          .filter(effect => effect.type !== 'shake'); // Remove shake, will be triggered on projectile hit
-        
-        // Show projectile effect
-        showProjectileEffect(
-          player,
-          defender,
-          true, // isHit
-          () => {
-            // On projectile hit: trigger shake and show damage
-            const shakeEffect = createHitVisualEffects(player, defender, damage, defenderClass, attackerClass)
-              .find(effect => effect.type === 'shake');
-            if (shakeEffect) {
-              applyVisualEffect(shakeEffect);
-            }
-            
-            // Show floating damage number when projectile hits
-            showFloatingNumbers(
-              [{ value: damage, type: 'damage', targetPlayer: defender }],
-              visualEffects, // Other effects (hit, cast) shown immediately
-              [
-                () => updatePlayerHP(defender, newHP),
-                () => {
-                  addLog('attack', `⚔️ ${attackerClass.name} deals ${damage} damage!`);
-                  addLog('narrative', mockBattleNarrative(`${attackerClass.name} uses ${ability.name} and deals ${damage} damage.`));
-                  
-                  if (newHP <= 0) {
-                    setDefeatedPlayer(defender);
-                    setVictorPlayer(player);
-                    setConfettiTrigger(prev => prev + 1);
-                    addLog('system', `🏆 ${attackerClass.name} wins!`);
-                  } else {
-                    const nextTurn = player === 'player1' ? 'player2' : 'player1';
-                    setTimeout(() => {
-                      setCurrentTurn(nextTurn);
-                      setIsMoveInProgress(false);
-                    }, 450);
-                  }
-                }
-              ]
-            );
-          },
-          undefined, // onComplete
-          cardRotation,
-          undefined, // delay
-          projectileType
-        );
-      }
-    }
+    useAbility(player, abilityIndex);
   };
   
   // Use AI opponent hook
@@ -1255,91 +646,25 @@ export default function DnDTestPage() {
   });
 
   const resetTest = () => {
-    setPlayer1Class(prev => ({ ...prev, hitPoints: prev.maxHitPoints }));
-    setPlayer2Class(prev => ({ ...prev, hitPoints: prev.maxHitPoints }));
+    if (player1Class) {
+      updatePlayerHP('player1', player1Class.maxHitPoints);
+    }
+    if (player2Class) {
+      updatePlayerHP('player2', player2Class.maxHitPoints);
+    }
     setBattleLog([]);
     setDefeatedPlayer(null);
     setVictorPlayer(null);
-    setShakingPlayer(null);
-    setSparklingPlayer(null);
-    setMissingPlayer(null);
-    setHittingPlayer(null);
-    setShakeTrigger({ player1: 0, player2: 0 });
-    setSparkleTrigger({ player1: 0, player2: 0 });
-    setMissTrigger({ player1: 0, player2: 0 });
-    setHitTrigger({ player1: 0, player2: 0 });
-    setCastingPlayer(null);
-    setCastTrigger({ player1: 0, player2: 0 });
-    setFlashingPlayer(null);
-    setFlashTrigger({ player1: 0, player2: 0 });
-    setFlashProjectileType({ player1: null, player2: null });
-    setCastProjectileType({ player1: null, player2: null });
-    setShakeIntensity({ player1: 0, player2: 0 });
-    setSparkleIntensity({ player1: 0, player2: 0 });
+    resetEffects();
+    clearProjectileTracking();
     setManualEmotion1(null);
     setManualEmotion2(null);
     setCurrentTurn('player1');
     setIsMoveInProgress(false);
     setIsOpponentAutoPlaying(false);
-    // Clear floating numbers
-    setFloatingNumbers([]);
-    // Clear projectile effects
-    setProjectileEffects([]);
-    // Clear projectile tracking ref
-    lastProjectileTimeRef.current = {};
-    // Note: We don't reset monster IDs here - they should persist with the selected character
     aiOpponentCleanup.cleanup();
     addLog('system', '🔄 Test reset');
   };
-
-  // Memoized callback functions for animation completion to prevent unnecessary re-renders
-  const handlePlayer1ShakeComplete = useCallback(() => {
-    setShakingPlayer(null);
-  }, []);
-
-  const handlePlayer1SparkleComplete = useCallback(() => {
-    setSparklingPlayer(null);
-  }, []);
-
-  const handlePlayer1MissComplete = useCallback(() => {
-    setMissingPlayer(null);
-  }, []);
-
-  const handlePlayer1HitComplete = useCallback(() => {
-    setHittingPlayer(null);
-  }, []);
-
-  const handlePlayer2ShakeComplete = useCallback(() => {
-    setShakingPlayer(null);
-  }, []);
-
-  const handlePlayer2SparkleComplete = useCallback(() => {
-    setSparklingPlayer(null);
-  }, []);
-
-  const handlePlayer2MissComplete = useCallback(() => {
-    setMissingPlayer(null);
-  }, []);
-
-  const handlePlayer2HitComplete = useCallback(() => {
-    setHittingPlayer(null);
-  }, []);
-
-  const handlePlayer1CastComplete = useCallback(() => {
-    setCastingPlayer(null);
-  }, []);
-
-  const handlePlayer2CastComplete = useCallback(() => {
-    setCastingPlayer(null);
-  }, []);
-
-  const handlePlayer1FlashComplete = useCallback(() => {
-    setFlashingPlayer(null);
-  }, []);
-
-  const handlePlayer2FlashComplete = useCallback(() => {
-    setFlashingPlayer(null);
-  }, []);
   
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#D1C9BA' }}>
@@ -1594,6 +919,7 @@ export default function DnDTestPage() {
               }}
             />
             {/* Left Card - Rotated counter-clockwise (outward) */}
+            {player1Class && (
             <div ref={player1CardRef} className="relative z-10 space-y-3" style={{ transform: 'rotate(-5deg)', overflow: 'visible' }}>
               <CharacterCard
                 playerClass={player1Class}
@@ -1637,12 +963,12 @@ export default function DnDTestPage() {
                 isDefeated={defeatedPlayer === 'player1'}
                 isVictor={victorPlayer === 'player1'}
                 confettiTrigger={confettiTrigger}
-                onShakeComplete={handlePlayer1ShakeComplete}
-                onSparkleComplete={handlePlayer1SparkleComplete}
-                onMissComplete={handlePlayer1MissComplete}
-                onHitComplete={handlePlayer1HitComplete}
-                onCastComplete={handlePlayer1CastComplete}
-                onFlashComplete={handlePlayer1FlashComplete}
+                onShakeComplete={handleShakeComplete}
+                onSparkleComplete={handleSparkleComplete}
+                onMissComplete={handleMissComplete}
+                onHitComplete={handleHitComplete}
+                onCastComplete={handleCastComplete}
+                onFlashComplete={handleFlashComplete}
                 allowAllTurns={!isAIModeActive}
                 imageMarginBottom="1.75rem"
               />
@@ -1689,6 +1015,7 @@ export default function DnDTestPage() {
                 </button>
               </div>
             </div>
+            )}
             {/* VS Graphic */}
             <div className="relative z-10 flex-shrink-0">
               <span className="text-5xl md:text-6xl font-bold" style={{ color: '#E0D9C9', fontFamily: 'serif' }}>
@@ -1696,6 +1023,7 @@ export default function DnDTestPage() {
               </span>
             </div>
             {/* Right Card - Rotated clockwise (outward) */}
+            {player2Class && (
             <div ref={player2CardRef} className="relative z-10 space-y-3" style={{ transform: 'rotate(5deg)', overflow: 'visible' }}>
               <CharacterCard
                 playerClass={player2Class}
@@ -1741,12 +1069,12 @@ export default function DnDTestPage() {
                 isDefeated={defeatedPlayer === 'player2'}
                 isVictor={victorPlayer === 'player2'}
                 confettiTrigger={confettiTrigger}
-                onShakeComplete={handlePlayer2ShakeComplete}
-                onSparkleComplete={handlePlayer2SparkleComplete}
-                onMissComplete={handlePlayer2MissComplete}
-                onHitComplete={handlePlayer2HitComplete}
-                onCastComplete={handlePlayer2CastComplete}
-                onFlashComplete={handlePlayer2FlashComplete}
+                onShakeComplete={handleShakeComplete}
+                onSparkleComplete={handleSparkleComplete}
+                onMissComplete={handleMissComplete}
+                onHitComplete={handleHitComplete}
+                onCastComplete={handleCastComplete}
+                onFlashComplete={handleFlashComplete}
                 allowAllTurns={!isAIModeActive}
                 imageMarginBottom="1.75rem"
               />
@@ -1817,6 +1145,7 @@ export default function DnDTestPage() {
                 </button>
               </div>
             </div>
+            )}
           </div>
 
           {/* Projectile Type Test Buttons */}
@@ -1943,14 +1272,17 @@ export default function DnDTestPage() {
                     const defender = 'player2';
                     const cardRotation = attacker === 'player1' ? -5 : 5;
                     // Trigger flash effect on attacking card with projectile type
-                    triggerFlashEffect(attacker, type);
+                    triggerFlashEffectWithToggles(attacker, type);
                     // Trigger cast effect for spell-casting classes
-                    const visualEffects = createHitVisualEffects(attacker, defender, 5, player2Class, player1Class);
-                    const castEffect = visualEffects.find(effect => effect.type === 'cast');
-                    if (castEffect) {
-                      applyVisualEffect(castEffect);
+                    if (player1Class && player2Class) {
+                      const visualEffects = createHitVisualEffects(attacker, defender, 5, player2Class, player1Class);
+                      const castEffect = visualEffects.find(effect => effect.type === 'cast');
+                      if (castEffect) {
+                        applyVisualEffectWithToggles(castEffect);
+                      }
                     }
-                    showProjectileEffect(
+                    if (!player1Class || !player2Class) return;
+                    showProjectileEffectWithToggles(
                       attacker,
                       defender,
                       true, // isHit
@@ -1961,7 +1293,7 @@ export default function DnDTestPage() {
                         const shakeEffect = createHitVisualEffects(attacker, defender, damage, defenderClass, player1Class)
                           .find(effect => effect.type === 'shake');
                         if (shakeEffect) {
-                          applyVisualEffect(shakeEffect);
+                          applyVisualEffectWithToggles(shakeEffect);
                         }
                         showFloatingNumbers(
                           [{ value: damage, type: 'damage', targetPlayer: defender }],
@@ -1988,12 +1320,13 @@ export default function DnDTestPage() {
             <div className="mt-3 flex flex-wrap gap-2 justify-center">
               <button
                 onClick={() => {
+                  if (!player1Class) return;
                   const attacker = 'player1';
                   const defender = 'player2';
                   const cardRotation = attacker === 'player1' ? -5 : 5;
                   // Trigger flash effect on attacking card with projectile type
-                  triggerFlashEffect(attacker, 'magic');
-                  showProjectileEffect(
+                  triggerFlashEffectWithToggles(attacker, 'magic');
+                  showProjectileEffectWithToggles(
                     attacker,
                     defender,
                     false, // isHit - miss
@@ -2063,4 +1396,5 @@ export default function DnDTestPage() {
     </div>
   );
 }
+
 
