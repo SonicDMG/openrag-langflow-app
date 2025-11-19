@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:webpack": "next build --webpack",
+    "build:turbo": "next build",
     "start": "node scripts/start-with-port.js",
     "lint": "eslint",
     "test": "jest",
