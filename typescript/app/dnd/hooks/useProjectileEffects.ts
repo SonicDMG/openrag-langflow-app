@@ -14,7 +14,7 @@ export type ProjectileData = {
 };
 
 // Flag to disable particle effects (projectiles) - set to true to disable
-const PARTICLE_EFFECTS_DISABLED = true;
+const PARTICLE_EFFECTS_DISABLED = false;
 
 export function useProjectileEffects() {
   const [projectileEffects, setProjectileEffects] = useState<ProjectileData[]>([]);
@@ -33,6 +33,51 @@ export function useProjectileEffects() {
     // Keep original player IDs - don't map support heroes to player1
     const visualFromPlayer: 'player1' | 'player2' | 'support1' | 'support2' = fromPlayer;
     const visualToPlayer: 'player1' | 'player2' | 'support1' | 'support2' = toPlayer;
+    
+    // Skip particle effects for misses - don't show any visual effects
+    if (!isHit) {
+      // Execute callbacks immediately without showing projectile
+      if (onComplete) {
+        setTimeout(() => {
+          onComplete();
+        }, 100);
+      }
+      return;
+    }
+    
+    // Skip particle effects for melee and ranged attacks
+    if (projectileType === 'melee' || projectileType === 'ranged') {
+      // Execute callbacks immediately without showing projectile
+      if (isHit && onHit) {
+        setTimeout(() => {
+          onHit();
+        }, 50);
+      }
+      if (onComplete) {
+        setTimeout(() => {
+          onComplete();
+        }, isHit ? 100 : 150);
+      }
+      return;
+    }
+    
+    // Disable particle effects for all other spell types except lightning and radiant
+    const enabledTypes: ProjectileType[] = ['lightning', 'radiant'];
+    if (projectileType && !enabledTypes.includes(projectileType)) {
+      // Execute callbacks immediately without showing projectile
+      if (isHit && onHit) {
+        setTimeout(() => {
+          onHit();
+        }, 50);
+      }
+      if (onComplete) {
+        setTimeout(() => {
+          onComplete();
+        }, isHit ? 100 : 150);
+      }
+      return;
+    }
+    
     // If particle effects are disabled, execute callbacks immediately without showing projectile
     if (PARTICLE_EFFECTS_DISABLED) {
       // Execute onHit callback immediately for hits

@@ -1,7 +1,7 @@
-/* Projectile Effect - lobbed attack effects */
+/* Projectile Effect - particles dropping from sky onto target */
 .projectile-effect {
-  width: 60px;
-  height: 60px;
+  width: 40px;
+  height: 40px;
   position: fixed;
   pointer-events: none;
   z-index: 1000;
@@ -320,26 +320,169 @@
   box-shadow: 0 0 40px rgba(255, 255, 255, 0.8);
 }
 
-/* Lightning Projectile - Electric bolt */
-.projectile-lightning .projectile-core {
-  background: radial-gradient(circle, #00BFFF 0%, #FFFFFF 40%, #FFFF00 70%, #1E90FF 100%);
-  box-shadow: 
-    0 0 35px rgba(0, 191, 255, 1),
-    0 0 70px rgba(255, 255, 255, 0.9),
-    0 0 105px rgba(255, 255, 0, 0.7),
-    inset 0 0 20px rgba(255, 255, 255, 0.8);
-  clip-path: polygon(40% 0%, 60% 0%, 100% 40%, 100% 60%, 60% 100%, 40% 100%, 0% 60%, 0% 40%);
-  animation: lightning-zap 0.1s ease-in-out infinite;
+/* Lightning Projectile - Realistic electric bolt */
+.projectile-lightning {
+  background: transparent;
+  overflow: visible;
 }
 
-@keyframes lightning-zap {
-  0%, 100% { clip-path: polygon(40% 0%, 60% 0%, 100% 40%, 100% 60%, 60% 100%, 40% 100%, 0% 60%, 0% 40%); }
-  50% { clip-path: polygon(45% 0%, 55% 0%, 100% 45%, 100% 55%, 55% 100%, 45% 100%, 0% 55%, 0% 45%); }
+.projectile-lightning .lightning-bolt {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  animation: lightning-flicker 0.05s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.9)) 
+          drop-shadow(0 0 16px rgba(0, 191, 255, 0.8))
+          drop-shadow(0 0 24px rgba(30, 144, 255, 0.6));
+}
+
+@keyframes lightning-flicker {
+  0%, 100% { 
+    opacity: 1;
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.9)) 
+            drop-shadow(0 0 16px rgba(0, 191, 255, 0.8))
+            drop-shadow(0 0 24px rgba(30, 144, 255, 0.6));
+  }
+  25% { 
+    opacity: 0.9;
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8)) 
+            drop-shadow(0 0 12px rgba(0, 191, 255, 0.7))
+            drop-shadow(0 0 18px rgba(30, 144, 255, 0.5));
+  }
+  50% { 
+    opacity: 1;
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 1)) 
+            drop-shadow(0 0 20px rgba(0, 191, 255, 0.9))
+            drop-shadow(0 0 30px rgba(30, 144, 255, 0.7));
+  }
+  75% { 
+    opacity: 0.95;
+    filter: drop-shadow(0 0 7px rgba(255, 255, 255, 0.85)) 
+            drop-shadow(0 0 14px rgba(0, 191, 255, 0.75))
+            drop-shadow(0 0 21px rgba(30, 144, 255, 0.55));
+  }
+}
+
+/* Electrical sparks/crackling effect */
+.projectile-lightning .lightning-sparks {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120%;
+  height: 120%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 20% 30%,
+    rgba(255, 255, 255, 0.8) 0%,
+    transparent 30%
+  ),
+  radial-gradient(
+    circle at 80% 50%,
+    rgba(0, 191, 255, 0.6) 0%,
+    transparent 25%
+  ),
+  radial-gradient(
+    circle at 50% 70%,
+    rgba(255, 255, 255, 0.7) 0%,
+    transparent 35%
+  ),
+  radial-gradient(
+    circle at 30% 80%,
+    rgba(30, 144, 255, 0.5) 0%,
+    transparent 20%
+  );
+  animation: lightning-sparks 0.08s ease-in-out infinite;
+  opacity: 0.8;
+}
+
+@keyframes lightning-sparks {
+  0%, 100% {
+    opacity: 0.8;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  25% {
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(1.1) rotate(5deg);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.95) rotate(-5deg);
+  }
+  75% {
+    opacity: 0.7;
+    transform: translate(-50%, -50%) scale(1.05) rotate(3deg);
+  }
 }
 
 .projectile-lightning .projectile-trail {
-  background: radial-gradient(circle, rgba(0, 191, 255, 0.8) 0%, transparent 70%);
-  box-shadow: 0 0 35px rgba(255, 255, 255, 0.7);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, rgba(0, 191, 255, 0.7) 30%, transparent 70%);
+  box-shadow: 
+    0 0 20px rgba(255, 255, 255, 0.9),
+    0 0 40px rgba(0, 191, 255, 0.8),
+    0 0 60px rgba(30, 144, 255, 0.6);
+  animation: lightning-trail 0.1s ease-in-out infinite;
+}
+
+@keyframes lightning-trail {
+  0%, 100% {
+    opacity: 0.8;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+}
+
+/* Lightning impact effect */
+@keyframes lightning-impact-pulse {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.5);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2);
+  }
+}
+
+/* Radiant beam impact effect */
+@keyframes radiant-impact-pulse {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+  100% {
+    opacity: 0.3;
+    transform: translate(-50%, -50%) scale(1.8);
+  }
+}
+
+/* Fire impact effect */
+@keyframes fire-impact-pulse {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.3);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2);
+  }
 }
 
 /* Acid Projectile - Bubbling droplet */
