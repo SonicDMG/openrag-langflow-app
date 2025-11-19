@@ -59,6 +59,8 @@ export default function DnDTestPage() {
     setPlayer1MonsterId,
     setPlayer2MonsterId,
     setPlayerClassWithMonster,
+    supportHeroes,
+    setSupportHeroes,
     isBattleActive,
     setIsBattleActive,
     currentTurn,
@@ -216,6 +218,78 @@ export default function DnDTestPage() {
       }
     }
   }, [createdMonsters, player1Class, player2Class, player1MonsterId, player2MonsterId, findAssociatedMonster, setPlayer1MonsterId, setPlayer2MonsterId]);
+
+  // Auto-add support heroes when fighting a monster with HP > 50
+  useEffect(() => {
+    if (!player2Class || !availableClasses.length) return;
+    
+    const isP2Monster = isMonster(player2Class.name, availableMonsters);
+    const needsSupportHeroes = isP2Monster && player2Class.maxHitPoints > 50;
+    
+    if (needsSupportHeroes && supportHeroes.length === 0) {
+      // Select 2 random support heroes from available classes (excluding player1's class)
+      const availableSupportClasses = availableClasses.filter(
+        cls => cls.name !== player1Class?.name && !isMonster(cls.name, availableMonsters)
+      );
+      
+      if (availableSupportClasses.length >= 2) {
+        // Shuffle and pick 2
+        const shuffled = [...availableSupportClasses].sort(() => Math.random() - 0.5);
+        const selectedSupportClasses = shuffled.slice(0, 2);
+        
+        const newSupportHeroes = selectedSupportClasses.map((supportClass) => {
+          const supportIsMonster = isMonster(supportClass.name, availableMonsters);
+          const supportAvailableAbilities = supportClass.abilities || (supportIsMonster ? FALLBACK_MONSTER_ABILITIES[supportClass.name] : FALLBACK_ABILITIES[supportClass.name]) || [];
+          const supportAbilities = selectRandomAbilities(supportAvailableAbilities);
+          
+          const supportHero = {
+            ...supportClass,
+            hitPoints: supportClass.maxHitPoints,
+            abilities: supportAbilities,
+          };
+          
+          const supportName = generateDeterministicCharacterName(supportClass.name);
+          const associatedMonster = findAssociatedMonster(supportClass.name);
+          const supportMonsterId = associatedMonster ? associatedMonster.monsterId : null;
+          
+          return {
+            class: supportHero,
+            name: supportName,
+            monsterId: supportMonsterId,
+          };
+        });
+        
+        setSupportHeroes(newSupportHeroes);
+        addLog('system', `🛡️ ${newSupportHeroes[0].name} (${newSupportHeroes[0].class.name}) and ${newSupportHeroes[1].name} (${newSupportHeroes[1].class.name}) join the battle to support ${player1Name || 'the hero'}!`);
+      } else if (availableSupportClasses.length === 1) {
+        // Only one support hero available
+        const supportClass = availableSupportClasses[0];
+        const supportIsMonster = isMonster(supportClass.name, availableMonsters);
+        const supportAvailableAbilities = supportClass.abilities || (supportIsMonster ? FALLBACK_MONSTER_ABILITIES[supportClass.name] : FALLBACK_ABILITIES[supportClass.name]) || [];
+        const supportAbilities = selectRandomAbilities(supportAvailableAbilities);
+        
+        const supportHero = {
+          ...supportClass,
+          hitPoints: supportClass.maxHitPoints,
+          abilities: supportAbilities,
+        };
+        
+        const supportName = generateDeterministicCharacterName(supportClass.name);
+        const associatedMonster = findAssociatedMonster(supportClass.name);
+        const supportMonsterId = associatedMonster ? associatedMonster.monsterId : null;
+        
+        setSupportHeroes([{
+          class: supportHero,
+          name: supportName,
+          monsterId: supportMonsterId,
+        }]);
+        addLog('system', `🛡️ ${supportName} (${supportClass.name}) joins the battle to support ${player1Name || 'the hero'}!`);
+      }
+    } else if (!needsSupportHeroes && supportHeroes.length > 0) {
+      // Clear support heroes if not needed
+      setSupportHeroes([]);
+    }
+  }, [player2Class, player1Class, availableClasses, availableMonsters, supportHeroes.length, player1Name, findAssociatedMonster, setSupportHeroes, addLog]);
   
   // Initialize default classes on mount
   useEffect(() => {
@@ -232,6 +306,8 @@ export default function DnDTestPage() {
   // Refs for character cards to position floating numbers
   const player1CardRef = useRef<HTMLDivElement | null>(null);
   const player2CardRef = useRef<HTMLDivElement | null>(null);
+  const support1CardRef = useRef<HTMLDivElement | null>(null);
+  const support2CardRef = useRef<HTMLDivElement | null>(null);
   
   const [manualEmotion1, setManualEmotion1] = useState<CharacterEmotion | null>(null);
   const [manualEmotion2, setManualEmotion2] = useState<CharacterEmotion | null>(null);
@@ -361,7 +437,7 @@ export default function DnDTestPage() {
   const battleActions = useBattleActions({
     player1Class,
     player2Class,
-    supportHeroes: [],
+    supportHeroes,
     isBattleActive: true, // Always allow actions in test mode
     isMoveInProgress,
     classDetails,
@@ -645,6 +721,39 @@ export default function DnDTestPage() {
     debugLog: (message: string) => console.log(message),
   });
 
+  // Use AI opponent hooks for support heroes (they auto-play after a delay to allow manual control)
+  const supportHero1Cleanup = useAIOpponent({
+    isActive: isAIModeActive && supportHeroes.length > 0,
+    currentTurn,
+    isMoveInProgress,
+    defeatedPlayer,
+    opponentClass: supportHeroes.length > 0 ? supportHeroes[0].class : null,
+    playerId: 'support1',
+    callbacks: {
+      onAttack: () => performAttack('support1'),
+      onUseAbility: (abilityIndex: number) => useAbility('support1', abilityIndex),
+    },
+    delay: 2000, // 2 second delay to allow manual control
+    onStateChange: () => {},
+    onMoveInProgressChange: setIsMoveInProgress,
+  });
+  
+  const supportHero2Cleanup = useAIOpponent({
+    isActive: isAIModeActive && supportHeroes.length > 1,
+    currentTurn,
+    isMoveInProgress,
+    defeatedPlayer,
+    opponentClass: supportHeroes.length > 1 ? supportHeroes[1].class : null,
+    playerId: 'support2',
+    callbacks: {
+      onAttack: () => performAttack('support2'),
+      onUseAbility: (abilityIndex: number) => useAbility('support2', abilityIndex),
+    },
+    delay: 2000, // 2 second delay to allow manual control
+    onStateChange: () => {},
+    onMoveInProgressChange: setIsMoveInProgress,
+  });
+
   const resetTest = () => {
     if (player1Class) {
       updatePlayerHP('player1', player1Class.maxHitPoints);
@@ -652,6 +761,10 @@ export default function DnDTestPage() {
     if (player2Class) {
       updatePlayerHP('player2', player2Class.maxHitPoints);
     }
+    // Reset support heroes HP
+    supportHeroes.forEach((supportHero, index) => {
+      updatePlayerHP(index === 0 ? 'support1' : 'support2', supportHero.class.maxHitPoints);
+    });
     setBattleLog([]);
     setDefeatedPlayer(null);
     setVictorPlayer(null);
@@ -663,6 +776,8 @@ export default function DnDTestPage() {
     setIsMoveInProgress(false);
     setIsOpponentAutoPlaying(false);
     aiOpponentCleanup.cleanup();
+    supportHero1Cleanup.cleanup();
+    supportHero2Cleanup.cleanup();
     addLog('system', '🔄 Test reset');
   };
   
@@ -672,36 +787,73 @@ export default function DnDTestPage() {
       <LandscapePrompt />
       
       {/* Floating Numbers */}
-      {floatingNumbers.map((number) => (
-        <FloatingNumber
-          key={number.id}
-          value={number.value}
-          type={number.type}
-          targetCardRef={number.targetPlayer === 'player1' ? player1CardRef : player2CardRef}
-          onComplete={() => handleFloatingNumberComplete(number.id)}
-          persistent={number.persistent}
-        />
-      ))}
+      {floatingNumbers.map((number) => {
+        // Determine which ref to use based on target player
+        let targetRef: React.RefObject<HTMLDivElement | null> = player1CardRef;
+        if (number.targetPlayer === 'player2') {
+          targetRef = player2CardRef;
+        } else if (number.targetPlayer === 'support1') {
+          targetRef = support1CardRef.current 
+            ? { current: support1CardRef.current } as React.RefObject<HTMLDivElement | null>
+            : player1CardRef; // Fallback to player1 if support ref not ready
+        } else if (number.targetPlayer === 'support2') {
+          targetRef = support2CardRef.current 
+            ? { current: support2CardRef.current } as React.RefObject<HTMLDivElement | null>
+            : player1CardRef; // Fallback to player1 if support ref not ready
+        }
+        
+        return (
+          <FloatingNumber
+            key={number.id}
+            value={number.value}
+            type={number.type}
+            targetCardRef={targetRef}
+            onComplete={() => handleFloatingNumberComplete(number.id)}
+            persistent={number.persistent}
+          />
+        );
+      })}
       
       {/* Projectile Effects */}
-      {projectileEffects.map((projectile) => (
-        <ProjectileEffect
-          key={projectile.id}
-          fromCardRef={projectile.fromPlayer === 'player1' ? player1CardRef : player2CardRef}
-          toCardRef={projectile.toPlayer === 'player1' ? player1CardRef : player2CardRef}
-          isHit={projectile.isHit}
-          onHit={projectile.onHit}
-          onComplete={() => {
-            if (projectile.onComplete) {
-              projectile.onComplete();
-            }
-            removeProjectileEffect(projectile.id);
-          }}
-          fromCardRotation={projectile.fromCardRotation}
-          delay={projectile.delay}
-          projectileType={projectile.projectileType}
-        />
-      ))}
+      {projectileEffects.map((projectile) => {
+        // Determine which refs to use based on from/to players
+        let fromRef = player1CardRef;
+        if (projectile.fromPlayer === 'player2') {
+          fromRef = player2CardRef;
+        } else if (projectile.fromPlayer === 'support1' && support1CardRef.current) {
+          fromRef = { current: support1CardRef.current } as React.RefObject<HTMLDivElement | null>;
+        } else if (projectile.fromPlayer === 'support2' && support2CardRef.current) {
+          fromRef = { current: support2CardRef.current } as React.RefObject<HTMLDivElement | null>;
+        }
+        
+        let toRef = player1CardRef;
+        if (projectile.toPlayer === 'player2') {
+          toRef = player2CardRef;
+        } else if (projectile.toPlayer === 'support1' && support1CardRef.current) {
+          toRef = { current: support1CardRef.current } as React.RefObject<HTMLDivElement | null>;
+        } else if (projectile.toPlayer === 'support2' && support2CardRef.current) {
+          toRef = { current: support2CardRef.current } as React.RefObject<HTMLDivElement | null>;
+        }
+        
+        return (
+          <ProjectileEffect
+            key={projectile.id}
+            fromCardRef={fromRef}
+            toCardRef={toRef}
+            isHit={projectile.isHit}
+            onHit={projectile.onHit}
+            onComplete={() => {
+              if (projectile.onComplete) {
+                projectile.onComplete();
+              }
+              removeProjectileEffect(projectile.id);
+            }}
+            fromCardRotation={projectile.fromCardRotation}
+            delay={projectile.delay}
+            projectileType={projectile.projectileType}
+          />
+        );
+      })}
       
       {/* Header */}
       <PageHeader
@@ -918,6 +1070,92 @@ export default function DnDTestPage() {
                 width: 'calc(100% + 120px)',
               }}
             />
+            
+            {/* Support Heroes - Small cards to the left of player1 */}
+            {supportHeroes && supportHeroes.length > 0 && (
+              <div className="relative z-20 flex flex-col gap-3 mr-4" style={{ minWidth: '120px' }}>
+                {supportHeroes.map((supportHero, index) => {
+                  const supportPlayer = index === 0 ? 'support1' : 'support2';
+                  const isActive = currentTurn === supportPlayer;
+                  const isDefeated = supportHero.class.hitPoints <= 0;
+                  
+                  return (
+                    <div
+                      key={`support-${index}-${supportHero.name}`}
+                      ref={index === 0 ? support1CardRef : support2CardRef}
+                      className="relative"
+                      style={{
+                        transform: `rotate(${-5 + index * 2}deg) scale(0.65)`,
+                        opacity: isDefeated ? 0.5 : 1,
+                      }}
+                    >
+                      {/* Turn indicator for support heroes */}
+                      {isActive && !isDefeated && (
+                        <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-20 bg-yellow-400 text-black px-2 py-1 rounded-md text-xs font-bold shadow-lg animate-pulse">
+                          YOUR TURN
+                        </div>
+                      )}
+                      <div
+                        className={`transition-all duration-300 ${
+                          isActive && !isDefeated
+                            ? 'ring-4 ring-yellow-400 ring-opacity-75 shadow-2xl shadow-yellow-400/50'
+                            : ''
+                        }`}
+                        style={{
+                          borderRadius: '8px',
+                        }}
+                      >
+                        <CharacterCard
+                          playerClass={supportHero.class}
+                          characterName={supportHero.name}
+                          monsterImageUrl={supportHero.monsterId ? `/cdn/monsters/${supportHero.monsterId}/280x200.png` : undefined}
+                          monsterCutOutImageUrl={(() => {
+                            if (!supportHero.monsterId || !supportHero.class) return undefined;
+                            const associatedMonster = findAssociatedMonster(supportHero.class.name);
+                            const hasCutout = (associatedMonster as any)?.hasCutout;
+                            return associatedMonster && hasCutout !== false
+                              ? `/cdn/monsters/${supportHero.monsterId}/280x200-cutout.png`
+                              : undefined;
+                          })()}
+                          onAttack={() => performAttack(supportPlayer)}
+                          onUseAbility={(idx) => useAbility(supportPlayer, idx)}
+                          shouldShake={false}
+                          shouldSparkle={false}
+                          shouldMiss={false}
+                          shouldHit={false}
+                          shouldCast={false}
+                          shouldFlash={false}
+                          castTrigger={0}
+                          flashTrigger={0}
+                          flashProjectileType={null}
+                          castProjectileType={null}
+                          shakeTrigger={0}
+                          sparkleTrigger={0}
+                          missTrigger={0}
+                          hitTrigger={0}
+                          shakeIntensity={0}
+                          sparkleIntensity={0}
+                          isMoveInProgress={isMoveInProgress}
+                          isActive={isActive}
+                          isDefeated={isDefeated}
+                          isVictor={false}
+                          confettiTrigger={0}
+                          onShakeComplete={() => {}}
+                          onSparkleComplete={() => {}}
+                          onMissComplete={() => {}}
+                          onHitComplete={() => {}}
+                          onCastComplete={() => {}}
+                          onFlashComplete={() => {}}
+                          isOpponent={false}
+                          allowAllTurns={false}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            
             {/* Left Card - Rotated counter-clockwise (outward) */}
             {player1Class && (
             <div ref={player1CardRef} className="relative z-10 space-y-3" style={{ transform: 'rotate(-5deg)', overflow: 'visible' }}>
