@@ -47,7 +47,7 @@ export function useAIOpponent(options: UseAIOpponentOptions) {
     // Check if this player is defeated (for support heroes, check their HP)
     const isDefeated = playerId === 'player1' || playerId === 'player2' 
       ? defeatedPlayer === playerId
-      : opponentClass?.hitPoints <= 0;
+      : (opponentClass?.hitPoints ?? 0) <= 0;
     
     // Only auto-play if:
     // - AI mode is active

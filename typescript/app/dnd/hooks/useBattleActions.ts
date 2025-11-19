@@ -299,7 +299,7 @@ export function useBattleActions(deps: BattleActionsDependencies) {
         }
       }
       // Continue battle - switch turns
-      await switchTurn(attacker, defender === 'player1' || defender === 'player2' ? defender : null);
+      await switchTurn(attacker);
       setIsMoveInProgress(false);
       clearProjectileTracking();
     };
@@ -707,7 +707,7 @@ export function useBattleActions(deps: BattleActionsDependencies) {
     
     // Determine target: heroes/support attack monster, monster attacks a random hero/support
     let defender: 'player1' | 'player2' | 'support1' | 'support2';
-    let defenderClass: DnDClass;
+    let defenderClass: DnDClass | null;
     
     if (attacker === 'player2') {
       // Monster's turn - choose target
@@ -764,8 +764,9 @@ export function useBattleActions(deps: BattleActionsDependencies) {
       // Use actual player IDs for visual effects (don't map support heroes to player1)
       const visualDefender: 'player1' | 'player2' | 'support1' | 'support2' = defender;
       // For visual effects that only support player1/player2, map support heroes to player1
+      const visualAttackerForEffects: 'player1' | 'player2' = (attacker === 'player1' || attacker === 'support1' || attacker === 'support2') ? 'player1' : 'player2';
       const visualDefenderForEffects: 'player1' | 'player2' = (defender === 'player1' || defender === 'support1' || defender === 'support2') ? 'player1' : 'player2';
-      const visualEffects = createHitVisualEffects(attacker, visualDefenderForEffects, damage, defenderClass, attackerClass)
+      const visualEffects = createHitVisualEffects(visualAttackerForEffects, visualDefenderForEffects, damage, defenderClass, attackerClass)
         .filter(effect => effect.type !== 'shake');
       
       const cardRotation = (attacker === 'player1' || attacker === 'support1' || attacker === 'support2') ? -5 : 5;
@@ -774,7 +775,7 @@ export function useBattleActions(deps: BattleActionsDependencies) {
         visualDefender,
         true,
         () => {
-          const shakeEffect = createHitVisualEffects(attacker, visualDefenderForEffects, damage, defenderClass, attackerClass)
+          const shakeEffect = createHitVisualEffects(visualAttackerForEffects, visualDefenderForEffects, damage, defenderClass, attackerClass)
             .find(effect => effect.type === 'shake');
           if (shakeEffect) {
             applyVisualEffect(shakeEffect);
@@ -880,7 +881,7 @@ export function useBattleActions(deps: BattleActionsDependencies) {
     
     // Determine target: heroes/support attack monster, monster attacks a selected hero/support
     let defender: 'player1' | 'player2' | 'support1' | 'support2';
-    let defenderClass: DnDClass;
+    let defenderClass: DnDClass | null;
     
     if (attacker === 'player2') {
       // Monster's turn - choose target for abilities (same logic as attacks)
