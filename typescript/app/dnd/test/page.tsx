@@ -2576,7 +2576,23 @@ export default function DnDTestPage() {
                         opacity: isDefeated ? 0.5 : 1,
                       }}
                     >
-                      <CharacterCard
+                      {/* Turn indicator for support heroes */}
+                      {isActive && !isDefeated && (
+                        <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-20 bg-yellow-400 text-black px-2 py-1 rounded-md text-xs font-bold shadow-lg animate-pulse">
+                          YOUR TURN
+                        </div>
+                      )}
+                      <div
+                        className={`transition-all duration-300 ${
+                          isActive && !isDefeated
+                            ? 'ring-4 ring-yellow-400 ring-opacity-75 shadow-2xl shadow-yellow-400/50'
+                            : ''
+                        }`}
+                        style={{
+                          borderRadius: '8px',
+                        }}
+                      >
+                        <CharacterCard
                         playerClass={supportHero.class}
                         characterName={supportHero.name}
                         monsterImageUrl={supportHero.monsterId ? `/cdn/monsters/${supportHero.monsterId}/280x200.png` : undefined}
@@ -2625,6 +2641,7 @@ export default function DnDTestPage() {
                         isOpponent={false}
                         allowAllTurns={!isAIModeActive}
                       />
+                      </div>
                     </div>
                   );
                 })}
@@ -2632,7 +2649,21 @@ export default function DnDTestPage() {
             )}
             
             {/* Left Card - Rotated counter-clockwise (outward) */}
-            <div ref={player1CardRef} className="relative z-10 space-y-3" style={{ transform: 'rotate(-5deg)', overflow: 'visible' }}>
+            <div 
+              ref={player1CardRef} 
+              className={`relative z-10 space-y-3 transition-all duration-300 ${
+                currentTurn === 'player1' && defeatedPlayer !== 'player1'
+                  ? 'ring-4 ring-yellow-400 ring-opacity-75 shadow-2xl shadow-yellow-400/50'
+                  : ''
+              }`}
+              style={{ transform: 'rotate(-5deg)', overflow: 'visible', borderRadius: '8px' }}
+            >
+              {/* Turn indicator for player1 */}
+              {currentTurn === 'player1' && defeatedPlayer !== 'player1' && (
+                <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-20 bg-yellow-400 text-black px-3 py-1 rounded-md text-sm font-bold shadow-lg animate-pulse">
+                  YOUR TURN
+                </div>
+              )}
               <CharacterCard
                 playerClass={player1Class}
                 characterName={player1Name || 'Loading...'}
@@ -2734,7 +2765,21 @@ export default function DnDTestPage() {
               </span>
             </div>
             {/* Right Card - Rotated clockwise (outward) */}
-            <div ref={player2CardRef} className="relative z-10 space-y-3" style={{ transform: 'rotate(5deg)', overflow: 'visible' }}>
+            <div 
+              ref={player2CardRef} 
+              className={`relative z-10 space-y-3 transition-all duration-300 ${
+                currentTurn === 'player2' && defeatedPlayer !== 'player2'
+                  ? 'ring-4 ring-yellow-400 ring-opacity-75 shadow-2xl shadow-yellow-400/50'
+                  : ''
+              }`}
+              style={{ transform: 'rotate(5deg)', overflow: 'visible', borderRadius: '8px' }}
+            >
+              {/* Turn indicator for player2 (monster) */}
+              {currentTurn === 'player2' && defeatedPlayer !== 'player2' && (
+                <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-20 bg-yellow-400 text-black px-3 py-1 rounded-md text-sm font-bold shadow-lg animate-pulse">
+                  MONSTER'S TURN
+                </div>
+              )}
               <CharacterCard
                 playerClass={player2Class}
                 characterName={player2Name || 'Loading...'}
