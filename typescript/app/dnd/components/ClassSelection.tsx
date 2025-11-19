@@ -20,7 +20,7 @@ interface ClassSelectionProps {
 export function ClassSelection({ title, availableClasses, selectedClass, onSelect, createdMonsters = [], selectionSyncTrigger = 0 }: ClassSelectionProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const [zoomedCard, setZoomedCard] = useState<{ playerClass: DnDClass; characterName: string; monsterImageUrl?: string; monsterCutOutImageUrl?: string; canEdit: boolean; editType?: 'hero' | 'monster' } | null>(null);
+  const [zoomedCard, setZoomedCard] = useState<{ playerClass: DnDClass; characterName: string; monsterImageUrl?: string; monsterCutOutImageUrl?: string; canEdit: boolean; editType?: 'hero' | 'monster'; imagePrompt?: string; imageSetting?: string } | null>(null);
   
   // Helper to find associated monster for a class
   const findAssociatedMonster = (className: string): (DnDClass & { monsterId: string; imageUrl: string }) | null => {
@@ -88,6 +88,14 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
             const isCreatedMonster = !!(dndClass as any).klass && !!(dndClass as any).monsterId;
             const lookupName = isCreatedMonster ? (dndClass as any).klass : dndClass.name;
             const associatedMonster = findAssociatedMonster(lookupName);
+            
+            // Also check if this class is a created monster by looking it up directly in createdMonsters
+            // This handles cases where created monsters might be in availableClasses but without prompt/setting
+            const createdMonsterMatch = createdMonsters.find(m => 
+              m.name === dndClass.name || 
+              ((m as any).klass && (m as any).klass === dndClass.name) ||
+              (m.monsterId && (dndClass as any).monsterId === m.monsterId)
+            );
             const monsterImageUrl = associatedMonster 
               ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
               : undefined;
@@ -118,6 +126,17 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
             const editType = isCreatedMonster ? 'monster' : (isMonster(dndClass.name) ? 'monster' : 'hero');
             
             const handleZoom = () => {
+              // Priority order for getting prompt/setting:
+              // 1. createdMonsterMatch (from createdMonsters array - most reliable)
+              // 2. dndClass itself (if it's a created monster)
+              // 3. associatedMonster (found via findAssociatedMonster)
+              const prompt = (createdMonsterMatch as any)?.prompt 
+                || (isCreatedMonster ? (dndClass as any)?.prompt : undefined)
+                || (associatedMonster as any)?.prompt;
+              const setting = (createdMonsterMatch as any)?.setting 
+                || (isCreatedMonster ? (dndClass as any)?.setting : undefined)
+                || (associatedMonster as any)?.setting;
+              
               setZoomedCard({
                 playerClass: { ...dndClass, hitPoints: dndClass.maxHitPoints },
                 characterName: displayName,
@@ -125,6 +144,8 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
                 monsterCutOutImageUrl,
                 canEdit: true, // All characters can be edited
                 editType,
+                imagePrompt: prompt || undefined, // Convert null to undefined
+                imageSetting: setting || undefined, // Convert null to undefined
               });
             };
             
@@ -183,6 +204,8 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
           onClose={() => setZoomedCard(null)}
           canEdit={zoomedCard.canEdit}
           editType={zoomedCard.editType}
+          imagePrompt={zoomedCard.imagePrompt}
+          imageSetting={zoomedCard.imageSetting}
         />
       )}
     </div>

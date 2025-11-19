@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DnDClass, Ability, AttackAbility, HealingAbility } from '../types';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS, isMonster } from '../constants';
+import { exportCharacterToPDF } from '../utils/pdfExport';
 
 interface CharacterCardZoomProps {
   playerClass: DnDClass;
@@ -15,6 +16,10 @@ interface CharacterCardZoomProps {
   // Determine if this character can be edited (custom heroes or created monsters)
   canEdit?: boolean;
   editType?: 'hero' | 'monster';
+  // Image generation prompt used to create the character image
+  imagePrompt?: string;
+  // Setting/theme used to create the character image
+  imageSetting?: string;
 }
 
 export function CharacterCardZoom({
@@ -26,6 +31,8 @@ export function CharacterCardZoom({
   onClose,
   canEdit = false,
   editType,
+  imagePrompt,
+  imageSetting,
 }: CharacterCardZoomProps) {
   const router = useRouter();
 
@@ -66,6 +73,28 @@ export function CharacterCardZoom({
 
   const isCustomHero = !isMonster(playerClass.name) && !FALLBACK_CLASSES.some(fc => fc.name === playerClass.name);
   const isCustomMonster = !FALLBACK_MONSTERS.some(fm => fm.name === playerClass.name) && isMonster(playerClass.name);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportPDF = async () => {
+    setIsExporting(true);
+    try {
+      const characterType = isCustomHero ? 'Custom Hero' : isCustomMonster ? 'Custom Monster' : isMonster(playerClass.name) ? 'Monster' : 'Hero';
+      
+      await exportCharacterToPDF({
+        playerClass,
+        characterName,
+        imageUrl: monsterImageUrl,
+        characterType,
+        imagePrompt,
+        imageSetting,
+      });
+    } catch (error) {
+      console.error('Failed to export PDF:', error);
+      alert('Failed to export PDF. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <div
@@ -140,35 +169,68 @@ export function CharacterCardZoom({
             ×
           </button>
 
-          {/* Edit button - printed text on card */}
-          {canEdit && (
+          {/* Action buttons container */}
+          <div className="absolute left-2 top-0.5 z-10 flex flex-col gap-2">
+            {/* Edit button - printed text on card */}
+            {canEdit && (
+              <button
+                onClick={handleEdit}
+                className="text-base font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                style={{
+                  backgroundColor: 'transparent',
+                  color: '#5C4033',
+                  fontFamily: 'serif',
+                  border: 'none',
+                  padding: 0,
+                  lineHeight: '1',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.textDecoration = 'underline';
+                  e.currentTarget.style.opacity = '0.8';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.textDecoration = 'none';
+                  e.currentTarget.style.opacity = '1';
+                }}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Edit
+              </button>
+            )}
+            {/* PDF Export button */}
             <button
-              onClick={handleEdit}
-              className="absolute left-2 z-10 text-base font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              onClick={handleExportPDF}
+              disabled={isExporting}
+              className="text-base font-bold transition-all flex items-center gap-1.5 cursor-pointer"
               style={{
-                top: '0.5rem',
                 backgroundColor: 'transparent',
                 color: '#5C4033',
                 fontFamily: 'serif',
                 border: 'none',
                 padding: 0,
                 lineHeight: '1',
+                opacity: isExporting ? 0.5 : 1,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.textDecoration = 'underline';
-                e.currentTarget.style.opacity = '0.8';
+                if (!isExporting) {
+                  e.currentTarget.style.textDecoration = 'underline';
+                  e.currentTarget.style.opacity = '0.8';
+                }
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.textDecoration = 'none';
-                e.currentTarget.style.opacity = '1';
+                e.currentTarget.style.opacity = isExporting ? '0.5' : '1';
               }}
+              title="Export to PDF"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              Edit
+              {isExporting ? 'Exporting...' : 'Export PDF'}
             </button>
-          )}
+          </div>
           {/* Card Back Header */}
           <div className="text-center mb-2 pb-1.5 border-b-2" style={{ borderColor: '#8B6F47' }}>
             <h2 

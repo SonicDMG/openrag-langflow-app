@@ -148,7 +148,7 @@ export async function POST(req: NextRequest) {
           },
         };
 
-        const bundle: MonsterBundle = {
+        const bundle: MonsterBundle & { setting?: string } = {
           monsterId,
           klass,
           seed,
@@ -163,6 +163,7 @@ export async function POST(req: NextRequest) {
           },
           palette,
           rig,
+          setting: setting as string, // Include setting in bundle
           images: {
             png128,
             png200,
@@ -546,7 +547,7 @@ export async function POST(req: NextRequest) {
       };
 
       // 5) Persist & return id
-      const bundle: MonsterBundle = {
+      const bundle: MonsterBundle & { setting?: string } = {
         monsterId,
         klass,
         seed,
@@ -561,6 +562,7 @@ export async function POST(req: NextRequest) {
         },
         palette,
         rig,
+        setting: setting as string, // Include setting in bundle
         images: {
           png128,
           png200,
@@ -661,10 +663,11 @@ export async function GET(req: NextRequest) {
           return {
             monsterId: metadata.monsterId || dir.name,
             klass: metadata.klass,
-            prompt: metadata.prompt,
+            prompt: metadata.prompt || null, // Include prompt (null for backward compatibility)
             seed: metadata.seed,
             stats: metadata.stats,
             hasCutout: metadata.hasCutout ?? false, // Include cutout flag (default to false for backward compatibility)
+            setting: metadata.setting || null, // Include setting/theme (null for backward compatibility with older monsters)
             createdAt: metadata.createdAt || new Date().toISOString(),
             lastAssociatedAt: metadata.lastAssociatedAt, // Include last association time
             imageUrl: `/cdn/monsters/${dir.name}/280x200.png`,

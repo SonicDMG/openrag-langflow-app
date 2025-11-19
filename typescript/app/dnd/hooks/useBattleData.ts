@@ -156,7 +156,10 @@ export function useBattleData() {
               lastAssociatedAt: m.lastAssociatedAt,
               // Store the klass separately so we can use it for class type display
               klass: m.klass,
-            } as DnDClass & { monsterId: string; imageUrl: string; hasCutout?: boolean; lastAssociatedAt?: string; klass?: string };
+              // Preserve prompt and setting for PDF export
+              prompt: m.prompt,
+              setting: m.setting,
+            } as DnDClass & { monsterId: string; imageUrl: string; hasCutout?: boolean; lastAssociatedAt?: string; klass?: string; prompt?: string; setting?: string };
           });
           setCreatedMonsters(convertedMonsters);
         }

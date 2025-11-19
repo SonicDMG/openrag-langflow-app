@@ -40,7 +40,7 @@ export function OpponentSelector({
 }: OpponentSelectorProps) {
   const monsterScrollRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const [zoomedCard, setZoomedCard] = useState<{ playerClass: DnDClass; characterName: string; monsterImageUrl?: string; monsterCutOutImageUrl?: string; canEdit: boolean; editType?: 'hero' | 'monster' } | null>(null);
+  const [zoomedCard, setZoomedCard] = useState<{ playerClass: DnDClass; characterName: string; monsterImageUrl?: string; monsterCutOutImageUrl?: string; canEdit: boolean; editType?: 'hero' | 'monster'; imagePrompt?: string; imageSetting?: string } | null>(null);
 
   return (
     <div>
@@ -138,6 +138,14 @@ export function OpponentSelector({
                     const isCreatedMonster = !!(monster as any).klass && !!(monster as any).monsterId;
                     const lookupName = isCreatedMonster ? (monster as any).klass : monster.name;
                     const associatedMonster = findAssociatedMonster(lookupName);
+                    
+                    // Also check if this monster is a created monster by looking it up directly in createdMonsters
+                    // This handles cases where created monsters might be in availableMonsters but without prompt/setting
+                    const createdMonsterMatch = createdMonsters.find(m => 
+                      m.name === monster.name || 
+                      ((m as any).klass && (m as any).klass === monster.name) ||
+                      (m.monsterId && (monster as any).monsterId === m.monsterId)
+                    );
                     const monsterImageUrl = associatedMonster 
                       ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
                       : undefined;
@@ -158,6 +166,17 @@ export function OpponentSelector({
                     const editType = isMonster(monster.name) ? 'monster' : 'hero';
                     
                     const handleZoom = () => {
+                      // Priority order for getting prompt/setting:
+                      // 1. createdMonsterMatch (from createdMonsters array - most reliable)
+                      // 2. monster itself (if it's a created monster)
+                      // 3. associatedMonster (found via findAssociatedMonster)
+                      const prompt = (createdMonsterMatch as any)?.prompt 
+                        || (isCreatedMonster ? (monster as any)?.prompt : undefined)
+                        || (associatedMonster as any)?.prompt;
+                      const setting = (createdMonsterMatch as any)?.setting 
+                        || (isCreatedMonster ? (monster as any)?.setting : undefined)
+                        || (associatedMonster as any)?.setting;
+                      
                       setZoomedCard({
                         playerClass: { ...monster, hitPoints: monster.maxHitPoints },
                         characterName: displayName,
@@ -165,6 +184,8 @@ export function OpponentSelector({
                         monsterCutOutImageUrl,
                         canEdit: true, // All characters can be edited
                         editType,
+                        imagePrompt: prompt || undefined, // Convert null to undefined
+                        imageSetting: setting || undefined, // Convert null to undefined
                       });
                     };
                     
@@ -248,6 +269,8 @@ export function OpponentSelector({
           onClose={() => setZoomedCard(null)}
           canEdit={zoomedCard.canEdit}
           editType={zoomedCard.editType}
+          imagePrompt={zoomedCard.imagePrompt}
+          imageSetting={zoomedCard.imageSetting}
         />
       )}
     </div>
