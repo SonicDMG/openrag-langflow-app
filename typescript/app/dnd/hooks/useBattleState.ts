@@ -32,7 +32,7 @@ export function useBattleState() {
   const [opponentType, setOpponentType] = useState<'class' | 'monster'>('class');
 
   // Refs for tracking
-  const previousTurnRef = useRef<'player1' | 'player2' | null>(null);
+  const previousTurnRef = useRef<'player1' | 'player2' | 'support1' | 'support2' | null>(null);
   const currentPlayer1ClassRef = useRef<DnDClass | null>(null);
   const currentPlayer2ClassRef = useRef<DnDClass | null>(null);
 

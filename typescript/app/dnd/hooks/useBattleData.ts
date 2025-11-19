@@ -107,7 +107,7 @@ export function useBattleData() {
                 const parts = beforeColon.split(/\s+/);
                 
                 // Check if the klass appears in the parts
-                const klassIndex = parts.findIndex(p => p === m.klass);
+                const klassIndex = parts.findIndex((p: string) => p === m.klass);
                 
                 if (klassIndex > 0) {
                   // Pattern like "Onyx Champion" - extract "Onyx" (everything before klass)
