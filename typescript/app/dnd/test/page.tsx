@@ -1,12 +1,11 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { DnDClass, BattleLog, CharacterEmotion, Ability, AttackAbility } from '../types';
+import { DnDClass } from '../types';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS, isMonster, FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, selectRandomAbilities } from '../constants';
-import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../utils/dice';
-import { generateCharacterName, generateDeterministicCharacterName } from '../utils/names';
-import { createHitVisualEffects, createMissVisualEffects, createHealingVisualEffects, getOpponent, buildDamageDiceArray, getProjectileType, type PendingVisualEffect, type ProjectileType } from '../utils/battle';
+import { rollDice, rollDiceWithNotation } from '../utils/dice';
+import { generateDeterministicCharacterName } from '../utils/names';
+import { createHitVisualEffects, createMissVisualEffects, createHealingVisualEffects, getOpponent, getProjectileType, type PendingVisualEffect, type ProjectileType } from '../utils/battle';
 import { FloatingNumber, FloatingNumberType } from '../components/FloatingNumber';
 import { CharacterCard } from '../components/CharacterCard';
 import { ClassSelection } from '../components/ClassSelection';
@@ -21,7 +20,6 @@ import { useBattleState } from '../hooks/useBattleState';
 import { useBattleEffects } from '../hooks/useBattleEffects';
 import { useProjectileEffects } from '../hooks/useProjectileEffects';
 import { useBattleActions } from '../hooks/useBattleActions';
-import { useBattleNarrative } from '../hooks/useBattleNarrative';
 
 // Mock battle narrative generator (doesn't call agent)
 const mockBattleNarrative = (eventDescription: string): string => {
@@ -29,18 +27,11 @@ const mockBattleNarrative = (eventDescription: string): string => {
 };
 
 export default function DnDTestPage() {
-  const router = useRouter();
-  
   // Data loading hook
   const {
     availableClasses,
-    isLoadingClasses,
-    classesLoaded,
     availableMonsters,
-    isLoadingMonsters,
-    monstersLoaded,
     createdMonsters,
-    isLoadingCreatedMonsters,
   } = useBattleData();
   
   // Battle state hook
@@ -73,15 +64,11 @@ export default function DnDTestPage() {
     setIsOpponentAutoPlaying,
     classDetails,
     setClassDetails,
-    isLoadingClassDetails,
-    setIsLoadingClassDetails,
     opponentType,
     setOpponentType,
-    previousTurnRef,
     addLog,
     updatePlayerHP,
     switchTurn: switchTurnBase,
-    resetBattle: resetBattleBase,
   } = battleState;
   
   // Visual effects hook
@@ -131,17 +118,6 @@ export default function DnDTestPage() {
     clearProjectileTracking,
   } = useProjectileEffects();
   
-  // Narrative hook (kept for compatibility, but not used for play-by-play)
-  const narrative = useBattleNarrative(addLog);
-  const {
-    battleResponseId,
-    setBattleResponseId,
-    isWaitingForAgent,
-    setIsWaitingForAgent,
-    clearNarrativeQueue,
-    resetNarrative,
-  } = narrative;
-  
   // Type selection for player 2 only (player 1 is always a class)
   const [player2Type, setPlayer2Type] = useState<'class' | 'monster'>('class');
   
@@ -151,7 +127,6 @@ export default function DnDTestPage() {
   // Custom heroes and monsters from database (for filtering)
   const [customHeroes, setCustomHeroes] = useState<DnDClass[]>([]);
   const [customMonsters, setCustomMonsters] = useState<DnDClass[]>([]);
-  const [isLoadingCustom, setIsLoadingCustom] = useState(true);
   
   // Helper to find associated monster for a class/monster type
   const findAssociatedMonster = useCallback((className: string): (DnDClass & { monsterId: string; imageUrl: string }) | null => {
@@ -309,8 +284,6 @@ export default function DnDTestPage() {
   const support1CardRef = useRef<HTMLDivElement | null>(null);
   const support2CardRef = useRef<HTMLDivElement | null>(null);
   
-  const [manualEmotion1, setManualEmotion1] = useState<CharacterEmotion | null>(null);
-  const [manualEmotion2, setManualEmotion2] = useState<CharacterEmotion | null>(null);
   const [isAIModeActive, setIsAIModeActive] = useState(false);
   const [particleEffectsEnabled, setParticleEffectsEnabled] = useState(true);
   const [flashEffectsEnabled, setFlashEffectsEnabled] = useState(true);
@@ -323,7 +296,6 @@ export default function DnDTestPage() {
   // Load custom heroes and monsters from database (for filtering in UI)
   useEffect(() => {
     const loadCustomCharacters = async () => {
-      setIsLoadingCustom(true);
       try {
         // Load custom heroes
         const heroesResponse = await fetch('/api/heroes');
@@ -346,8 +318,6 @@ export default function DnDTestPage() {
         }
       } catch (error) {
         console.error('Failed to load custom characters:', error);
-      } finally {
-        setIsLoadingCustom(false);
       }
     };
 
@@ -770,8 +740,6 @@ export default function DnDTestPage() {
     setVictorPlayer(null);
     resetEffects();
     clearProjectileTracking();
-    setManualEmotion1(null);
-    setManualEmotion2(null);
     setCurrentTurn('player1');
     setIsMoveInProgress(false);
     setIsOpponentAutoPlaying(false);
