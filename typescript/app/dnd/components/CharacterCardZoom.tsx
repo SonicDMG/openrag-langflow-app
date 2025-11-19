@@ -70,12 +70,15 @@ export function CharacterCardZoom({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.75)' }}
+      style={{ 
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        perspective: '1000px',
+      }}
       onClick={onClose}
     >
       {/* Card Back - Styled like the front of the card, scaled up large */}
       <div
-        className="relative flex flex-col"
+        className="relative flex flex-col card-zoom-flip"
         onClick={(e) => e.stopPropagation()}
         style={{ 
           backgroundColor: '#1a1a1a', // Dark black frame background (same as card front)
@@ -96,7 +99,6 @@ export function CharacterCardZoom({
           position: 'relative',
           overflow: 'hidden',
           fontFamily: 'serif',
-          transform: 'scale(1)', // Base scale
         }}
       >
         {/* Inner card content area */}
