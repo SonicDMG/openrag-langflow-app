@@ -692,6 +692,7 @@ export default function DnDTestPage() {
   });
 
   // Use AI opponent hooks for support heroes (they auto-play after a delay to allow manual control)
+  // Reduced delay to 1000ms to make support heroes hit faster
   const supportHero1Cleanup = useAIOpponent({
     isActive: isAIModeActive && supportHeroes.length > 0,
     currentTurn,
@@ -703,7 +704,7 @@ export default function DnDTestPage() {
       onAttack: () => performAttack('support1'),
       onUseAbility: (abilityIndex: number) => useAbility('support1', abilityIndex),
     },
-    delay: 2000, // 2 second delay to allow manual control
+    delay: 1000, // 1 second delay to allow manual control while making them hit faster
     onStateChange: () => {},
     onMoveInProgressChange: setIsMoveInProgress,
   });
@@ -719,7 +720,7 @@ export default function DnDTestPage() {
       onAttack: () => performAttack('support2'),
       onUseAbility: (abilityIndex: number) => useAbility('support2', abilityIndex),
     },
-    delay: 2000, // 2 second delay to allow manual control
+    delay: 1000, // 1 second delay to allow manual control while making them hit faster
     onStateChange: () => {},
     onMoveInProgressChange: setIsMoveInProgress,
   });
@@ -1127,6 +1128,12 @@ export default function DnDTestPage() {
             {/* Left Card - Rotated counter-clockwise (outward) */}
             {player1Class && (
             <div ref={player1CardRef} className="relative z-10 space-y-3" style={{ transform: 'rotate(-5deg)', overflow: 'visible' }}>
+              {/* Turn indicator for player1 */}
+              {currentTurn === 'player1' && defeatedPlayer !== 'player1' && (
+                <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-20 bg-yellow-400 text-black px-3 py-1 rounded-md text-sm font-bold shadow-lg animate-pulse">
+                  YOUR TURN
+                </div>
+              )}
               <CharacterCard
                 playerClass={player1Class}
                 characterName={player1Name || 'Loading...'}
@@ -1231,6 +1238,12 @@ export default function DnDTestPage() {
             {/* Right Card - Rotated clockwise (outward) */}
             {player2Class && (
             <div ref={player2CardRef} className="relative z-10 space-y-3" style={{ transform: 'rotate(5deg)', overflow: 'visible' }}>
+              {/* Turn indicator for player2 (monster) */}
+              {currentTurn === 'player2' && defeatedPlayer !== 'player2' && (
+                <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-20 bg-yellow-400 text-black px-3 py-1 rounded-md text-sm font-bold shadow-lg animate-pulse">
+                  MONSTER'S TURN
+                </div>
+              )}
               <CharacterCard
                 playerClass={player2Class}
                 characterName={player2Name || 'Loading...'}
