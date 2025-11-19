@@ -66,7 +66,9 @@ function CharacterCreatorPageContent() {
 
         const data = await response.json();
         const characters = editType === 'hero' ? data.heroes : data.monsters;
-        const character = characters.find((c: DnDClass) => c.name === editId);
+        // Decode the editId in case it was URL-encoded
+        const decodedEditId = decodeURIComponent(editId);
+        const character = characters.find((c: DnDClass) => c.name === decodedEditId);
 
         if (character) {
           setCharacterType(editType);
@@ -237,7 +239,7 @@ function CharacterCreatorPageContent() {
         throw new Error(data.error || 'Failed to save character');
       }
 
-      setSuccess(`${characterType === 'hero' ? 'Hero' : 'Monster'} saved successfully!`);
+      setSuccess(`${characterType === 'hero' ? 'Hero' : 'Monster'} ${editId ? 'updated' : 'saved'} successfully!`);
       setTimeout(() => {
         setSuccess(null);
         router.push('/dnd');

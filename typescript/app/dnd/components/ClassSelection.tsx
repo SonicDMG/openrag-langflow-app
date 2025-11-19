@@ -1,8 +1,10 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { DnDClass } from '../types';
 import { CharacterCard } from './CharacterCard';
+import { CharacterCardZoom } from './CharacterCardZoom';
 import { generateDeterministicCharacterName } from '../utils/names';
 import { isMonster, FALLBACK_CLASSES } from '../constants';
 
@@ -17,6 +19,8 @@ interface ClassSelectionProps {
 
 export function ClassSelection({ title, availableClasses, selectedClass, onSelect, createdMonsters = [], selectionSyncTrigger = 0 }: ClassSelectionProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const [zoomedCard, setZoomedCard] = useState<{ playerClass: DnDClass; characterName: string; monsterImageUrl?: string; monsterCutOutImageUrl?: string; canEdit: boolean; editType?: 'hero' | 'monster' } | null>(null);
   
   // Helper to find associated monster for a class
   const findAssociatedMonster = (className: string): (DnDClass & { monsterId: string; imageUrl: string }) | null => {
@@ -110,27 +114,47 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
                     ? dndClass.name 
                     : generateDeterministicCharacterName(dndClass.name));
             
+            // Determine edit type - all characters can be edited
+            const editType = isCreatedMonster ? 'monster' : (isMonster(dndClass.name) ? 'monster' : 'hero');
+            
+            const handleZoom = () => {
+              setZoomedCard({
+                playerClass: { ...dndClass, hitPoints: dndClass.maxHitPoints },
+                characterName: displayName,
+                monsterImageUrl,
+                monsterCutOutImageUrl,
+                canEdit: true, // All characters can be edited
+                editType,
+              });
+            };
+            
             return (
               <div
                 key={dndClass.name}
-                onClick={() => onSelect({ ...dndClass, hitPoints: dndClass.maxHitPoints })}
-                className="flex-shrink-0 cursor-pointer transition-all"
+                className="flex-shrink-0 relative group"
                 style={{
                   transform: isSelected ? 'scale(1.03) translateY(-4px)' : 'scale(1)',
                   padding: '4px', // Add padding to accommodate zoom without overflow
                 }}
               >
-                <CharacterCard
-                  playerClass={{ ...dndClass, hitPoints: dndClass.maxHitPoints }}
-                  characterName={displayName}
-                  monsterImageUrl={monsterImageUrl}
-                  monsterCutOutImageUrl={monsterCutOutImageUrl}
-                  size="compact"
-                  cardIndex={index}
-                  totalCards={availableClasses.length}
-                  isSelected={isSelected}
-                  selectionSyncTrigger={selectionSyncTrigger}
-                />
+                <div
+                  onClick={() => onSelect({ ...dndClass, hitPoints: dndClass.maxHitPoints })}
+                  className="cursor-pointer transition-all"
+                >
+                  <CharacterCard
+                    playerClass={{ ...dndClass, hitPoints: dndClass.maxHitPoints }}
+                    characterName={displayName}
+                    monsterImageUrl={monsterImageUrl}
+                    monsterCutOutImageUrl={monsterCutOutImageUrl}
+                    size="compact"
+                    cardIndex={index}
+                    totalCards={availableClasses.length}
+                    isSelected={isSelected}
+                    selectionSyncTrigger={selectionSyncTrigger}
+                    showZoomButton={true}
+                    onZoom={handleZoom}
+                  />
+                </div>
               </div>
             );
           })}
@@ -147,6 +171,20 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
           </svg>
         </button>
       </div>
+      
+      {/* Zoom Modal */}
+      {zoomedCard && (
+        <CharacterCardZoom
+          playerClass={zoomedCard.playerClass}
+          characterName={zoomedCard.characterName}
+          monsterImageUrl={zoomedCard.monsterImageUrl}
+          monsterCutOutImageUrl={zoomedCard.monsterCutOutImageUrl}
+          isOpen={!!zoomedCard}
+          onClose={() => setZoomedCard(null)}
+          canEdit={zoomedCard.canEdit}
+          editType={zoomedCard.editType}
+        />
+      )}
     </div>
   );
 }

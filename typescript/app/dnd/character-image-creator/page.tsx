@@ -47,7 +47,7 @@ export default function MonsterCreatorPage() {
   const [customHeroes, setCustomHeroes] = useState<DnDClass[]>([]);
   const [customMonsters, setCustomMonsters] = useState<DnDClass[]>([]);
   const [isLoadingCustom, setIsLoadingCustom] = useState(true);
-  const [allCreatedMonsters, setAllCreatedMonsters] = useState<Array<{ monsterId: string; klass: string; imageUrl: string; prompt?: string }>>([]);
+  const [allCreatedMonsters, setAllCreatedMonsters] = useState<Array<{ monsterId: string; klass: string; imageUrl: string; prompt?: string; createdAt?: string }>>([]);
   const [isLoadingMonsters, setIsLoadingMonsters] = useState(false);
   const [selectedMonsterForAssociation, setSelectedMonsterForAssociation] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -101,6 +101,7 @@ export default function MonsterCreatorPage() {
           klass: m.klass || 'Unassociated',
           imageUrl: m.imageUrl || `/cdn/monsters/${m.monsterId}/280x200.png`,
           prompt: m.prompt,
+          createdAt: m.createdAt,
         }));
         setAllCreatedMonsters(monsters);
       }
@@ -408,6 +409,125 @@ export default function MonsterCreatorPage() {
     }
   };
 
+  const handleDeleteAllInGroup = async (klass: string) => {
+    const groupMonsters = allCreatedMonsters.filter(m => (m.klass || 'Unassociated') === klass);
+    if (!confirm(`Are you sure you want to delete ALL ${groupMonsters.length} ${klass} monster(s)? This action cannot be undone.`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      // Delete each monster in the group
+      const deletePromises = groupMonsters.map(monster =>
+        fetch('/api/monsters', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ monsterId: monster.monsterId }),
+        })
+      );
+
+      const results = await Promise.all(deletePromises);
+      const failed = results.filter(r => !r.ok);
+      
+      if (failed.length > 0) {
+        throw new Error(`Failed to delete ${failed.length} monster(s)`);
+      }
+
+      // Remove from list
+      setAllCreatedMonsters(prev => prev.filter(m => (m.klass || 'Unassociated') !== klass));
+      
+      // If any deleted monster was the currently created monster, clear it
+      if (createdMonsterData && groupMonsters.some(m => m.monsterId === createdMonsterData.monsterId)) {
+        setCreatedMonsterData(null);
+        setSelectedKlass('');
+      }
+      
+      // Clear selection if it was selected for association
+      if (selectedMonsterForAssociation && groupMonsters.some(m => m.monsterId === selectedMonsterForAssociation)) {
+        setSelectedMonsterForAssociation(null);
+      }
+      
+      alert(`Successfully deleted ${groupMonsters.length} ${klass} monster(s)`);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete monsters');
+      setTimeout(() => setDeleteError(null), 5000);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteAllButLastInGroup = async (klass: string) => {
+    const groupMonsters = allCreatedMonsters.filter(m => (m.klass || 'Unassociated') === klass);
+    
+    if (groupMonsters.length <= 1) {
+      alert(`There is only 1 ${klass} monster. Nothing to delete.`);
+      return;
+    }
+
+    // Sort by createdAt (newest first), keep the first one (most recent)
+    const sorted = [...groupMonsters].sort((a, b) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bTime - aTime; // Newest first
+    });
+    
+    const toKeep = sorted[0]; // Most recent
+    const toDelete = sorted.slice(1); // All others
+
+    if (!confirm(`Are you sure you want to delete ${toDelete.length} ${klass} monster(s), keeping only the most recent one? This action cannot be undone.`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      // Delete all except the most recent
+      const deletePromises = toDelete.map(monster =>
+        fetch('/api/monsters', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ monsterId: monster.monsterId }),
+        })
+      );
+
+      const results = await Promise.all(deletePromises);
+      const failed = results.filter(r => !r.ok);
+      
+      if (failed.length > 0) {
+        throw new Error(`Failed to delete ${failed.length} monster(s)`);
+      }
+
+      // Remove deleted monsters from list
+      const toDeleteIds = new Set(toDelete.map(m => m.monsterId));
+      setAllCreatedMonsters(prev => prev.filter(m => !toDeleteIds.has(m.monsterId)));
+      
+      // If any deleted monster was the currently created monster, clear it
+      if (createdMonsterData && toDeleteIds.has(createdMonsterData.monsterId)) {
+        setCreatedMonsterData(null);
+        setSelectedKlass('');
+      }
+      
+      // Clear selection if it was selected for association
+      if (selectedMonsterForAssociation && toDeleteIds.has(selectedMonsterForAssociation)) {
+        setSelectedMonsterForAssociation(null);
+      }
+      
+      alert(`Successfully deleted ${toDelete.length} ${klass} monster(s), kept the most recent one.`);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete monsters');
+      setTimeout(() => setDeleteError(null), 5000);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#D1C9BA' }}>
       {/* Landscape Orientation Prompt */}
@@ -703,94 +823,153 @@ export default function MonsterCreatorPage() {
               <div className="text-amber-300 text-center py-8">
                 No monsters created yet. Generate a monster using the form above!
               </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {allCreatedMonsters.map((monster) => (
-                    <div
-                      key={monster.monsterId}
-                      className={`bg-amber-800/50 border-2 rounded-lg p-4 transition-all relative ${
-                        selectedMonsterForAssociation === monster.monsterId
-                          ? 'border-green-500 shadow-lg'
-                          : 'border-amber-700 hover:border-amber-600'
-                      }`}
-                    >
-                      {/* Delete button (X) in top right corner */}
-                      <button
-                        onClick={() => handleDeleteMonster(monster.monsterId)}
-                        disabled={isDeleting}
-                        className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center bg-red-700 hover:bg-red-600 text-white rounded-full text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all z-10"
-                        title="Delete this monster"
-                      >
-                        ×
-                      </button>
-                      
-                      <div className="flex items-start gap-3">
-                        <img
-                          src={monster.imageUrl}
-                          alt={monster.klass}
-                          className="w-20 h-20 object-cover rounded border-2 border-amber-600"
-                          style={{ imageRendering: 'pixelated' as const }}
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = '/cdn/placeholder.png';
-                          }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-amber-100 mb-1 truncate">
-                            {monster.klass}
-                          </div>
-                          <div className="text-xs text-amber-300 mb-2 truncate">
-                            ID: {monster.monsterId.substring(0, 8)}...
-                          </div>
-                          
-                          {selectedMonsterForAssociation === monster.monsterId ? (
-                            <div className="space-y-2">
-                              <SearchableSelect
-                                options={allOptions}
-                                value={selectedKlass}
-                                onChange={setSelectedKlass}
-                                placeholder="Select a class or monster..."
-                                disabled={isLoadingCustom || isSaving}
-                                label=""
-                                helpText=""
-                              />
-                              <div className="flex gap-2">
+            ) : (() => {
+              // Group monsters by klass
+              const groupedMonsters = allCreatedMonsters.reduce((acc, monster) => {
+                const klass = monster.klass || 'Unassociated';
+                if (!acc[klass]) {
+                  acc[klass] = [];
+                }
+                acc[klass].push(monster);
+                return acc;
+              }, {} as Record<string, typeof allCreatedMonsters>);
+
+              // Sort klass names (Unassociated at the end)
+              const sortedKlasses = Object.keys(groupedMonsters).sort((a, b) => {
+                if (a === 'Unassociated') return 1;
+                if (b === 'Unassociated') return -1;
+                return a.localeCompare(b);
+              });
+
+              return (
+                <div className="space-y-6">
+                  {sortedKlasses.map((klass) => {
+                    const monsters = groupedMonsters[klass];
+                    return (
+                      <div key={klass} className="space-y-3">
+                        {/* Section Header */}
+                        <div className="flex items-center justify-between pb-2 border-b-2 border-amber-700">
+                          <h3 className="text-xl font-bold text-amber-100" style={{ fontFamily: 'serif' }}>
+                            {klass}
+                          </h3>
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm text-amber-300">
+                              {monsters.length} {monsters.length === 1 ? 'image' : 'images'}
+                            </span>
+                            {monsters.length > 0 && (
+                              <>
                                 <button
-                                  onClick={() => handleSaveAssociation(monster.monsterId, selectedKlass)}
-                                  disabled={isSaving || !selectedKlass}
-                                  className="flex-1 px-3 py-1.5 bg-green-700 hover:bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                  onClick={() => handleDeleteAllButLastInGroup(klass)}
+                                  disabled={isDeleting || monsters.length <= 1}
+                                  className="px-3 py-1.5 bg-orange-700 hover:bg-orange-600 text-white rounded text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all border border-orange-600"
+                                  title={monsters.length <= 1 ? 'Need at least 2 images to delete all but last' : 'Delete all but the most recent image'}
                                 >
-                                  {isSaving ? 'Saving...' : 'Save'}
+                                  Delete All But Last
                                 </button>
                                 <button
-                                  onClick={() => {
-                                    setSelectedMonsterForAssociation(null);
-                                    setSelectedKlass(monster.klass);
+                                  onClick={() => handleDeleteAllInGroup(klass)}
+                                  disabled={isDeleting}
+                                  className="px-3 py-1.5 bg-red-700 hover:bg-red-600 text-white rounded text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all border border-red-600"
+                                  title="Delete all images in this group"
+                                >
+                                  Delete All
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Monsters Grid for this klass */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {monsters.map((monster) => (
+                            <div
+                              key={monster.monsterId}
+                              className={`bg-amber-800/50 border-2 rounded-lg p-4 transition-all relative ${
+                                selectedMonsterForAssociation === monster.monsterId
+                                  ? 'border-green-500 shadow-lg'
+                                  : 'border-amber-700 hover:border-amber-600'
+                              }`}
+                            >
+                              {/* Delete button (X) in top right corner */}
+                              <button
+                                onClick={() => handleDeleteMonster(monster.monsterId)}
+                                disabled={isDeleting}
+                                className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center bg-red-700 hover:bg-red-600 text-white rounded-full text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all z-10"
+                                title="Delete this monster"
+                              >
+                                ×
+                              </button>
+                              
+                              <div className="flex items-start gap-3">
+                                <img
+                                  src={monster.imageUrl}
+                                  alt={monster.klass}
+                                  className="w-20 h-20 object-cover rounded border-2 border-amber-600"
+                                  style={{ imageRendering: 'pixelated' as const }}
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = '/cdn/placeholder.png';
                                   }}
-                                  className="px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white rounded text-sm font-semibold transition-all"
-                                >
-                                  Cancel
-                                </button>
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-semibold text-amber-100 mb-1 truncate">
+                                    {monster.klass}
+                                  </div>
+                                  <div className="text-xs text-amber-300 mb-2 truncate">
+                                    ID: {monster.monsterId.substring(0, 8)}...
+                                  </div>
+                                  
+                                  {selectedMonsterForAssociation === monster.monsterId ? (
+                                    <div className="space-y-2">
+                                      <SearchableSelect
+                                        options={allOptions}
+                                        value={selectedKlass}
+                                        onChange={setSelectedKlass}
+                                        placeholder="Select a class or monster..."
+                                        disabled={isLoadingCustom || isSaving}
+                                        label=""
+                                        helpText=""
+                                      />
+                                      <div className="flex gap-2">
+                                        <button
+                                          onClick={() => handleSaveAssociation(monster.monsterId, selectedKlass)}
+                                          disabled={isSaving || !selectedKlass}
+                                          className="flex-1 px-3 py-1.5 bg-green-700 hover:bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                        >
+                                          {isSaving ? 'Saving...' : 'Save'}
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            setSelectedMonsterForAssociation(null);
+                                            setSelectedKlass(monster.klass);
+                                          }}
+                                          className="px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white rounded text-sm font-semibold transition-all"
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedMonsterForAssociation(monster.monsterId);
+                                        setSelectedKlass(monster.klass);
+                                      }}
+                                      className="w-full px-3 py-1.5 bg-blue-700 hover:bg-blue-600 text-white rounded text-sm font-semibold transition-all"
+                                    >
+                                      Associate with Class
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                setSelectedMonsterForAssociation(monster.monsterId);
-                                setSelectedKlass(monster.klass);
-                              }}
-                              className="w-full px-3 py-1.5 bg-blue-700 hover:bg-blue-600 text-white rounded text-sm font-semibold transition-all"
-                            >
-                              Associate with Class
-                            </button>
-                          )}
+                          ))}
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         </div>
       </div>

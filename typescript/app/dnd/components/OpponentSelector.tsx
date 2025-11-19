@@ -1,8 +1,10 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { DnDClass } from '../types';
 import { CharacterCard } from './CharacterCard';
+import { CharacterCardZoom } from './CharacterCardZoom';
 import { ClassSelection } from './ClassSelection';
 import { generateDeterministicCharacterName } from '../utils/names';
 import { isMonster } from '../constants';
@@ -37,6 +39,8 @@ export function OpponentSelector({
   selectionSyncTrigger,
 }: OpponentSelectorProps) {
   const monsterScrollRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const [zoomedCard, setZoomedCard] = useState<{ playerClass: DnDClass; characterName: string; monsterImageUrl?: string; monsterCutOutImageUrl?: string; canEdit: boolean; editType?: 'hero' | 'monster' } | null>(null);
 
   return (
     <div>
@@ -150,29 +154,49 @@ export function OpponentSelector({
                       ? monster.name // Created monsters already have the character name in the name field
                       : monster.name; // Regular monsters use their type name as their character name
                     
+                    // Determine edit type - all characters can be edited
+                    const editType = isMonster(monster.name) ? 'monster' : 'hero';
+                    
+                    const handleZoom = () => {
+                      setZoomedCard({
+                        playerClass: { ...monster, hitPoints: monster.maxHitPoints },
+                        characterName: displayName,
+                        monsterImageUrl,
+                        monsterCutOutImageUrl,
+                        canEdit: true, // All characters can be edited
+                        editType,
+                      });
+                    };
+                    
                     return (
                       <div
                         key={monster.name}
-                        onClick={() => {
-                          onSelectClass({ ...monster, monsterId: associatedMonster?.monsterId, imageUrl: monsterImageUrl });
-                        }}
-                        className="flex-shrink-0 cursor-pointer transition-all"
+                        className="flex-shrink-0 relative group"
                         style={{
                           transform: isSelected ? 'scale(1.03) translateY(-4px)' : 'scale(1)',
                           padding: '4px',
                         }}
                       >
-                        <CharacterCard
-                          playerClass={{ ...monster, hitPoints: monster.maxHitPoints }}
-                          characterName={displayName}
-                          monsterImageUrl={monsterImageUrl}
-                          monsterCutOutImageUrl={monsterCutOutImageUrl}
-                          size="compact"
-                          cardIndex={index}
-                          totalCards={availableMonsters.length}
-                          isSelected={isSelected}
-                          selectionSyncTrigger={selectionSyncTrigger}
-                        />
+                        <div
+                          onClick={() => {
+                            onSelectClass({ ...monster, monsterId: associatedMonster?.monsterId, imageUrl: monsterImageUrl });
+                          }}
+                          className="cursor-pointer transition-all"
+                        >
+                          <CharacterCard
+                            playerClass={{ ...monster, hitPoints: monster.maxHitPoints }}
+                            characterName={displayName}
+                            monsterImageUrl={monsterImageUrl}
+                            monsterCutOutImageUrl={monsterCutOutImageUrl}
+                            size="compact"
+                            cardIndex={index}
+                            totalCards={availableMonsters.length}
+                            isSelected={isSelected}
+                            selectionSyncTrigger={selectionSyncTrigger}
+                            showZoomButton={true}
+                            onZoom={handleZoom}
+                          />
+                        </div>
                       </div>
                     );
                   })}
@@ -211,6 +235,20 @@ export function OpponentSelector({
             selectionSyncTrigger={selectionSyncTrigger}
           />
         </div>
+      )}
+      
+      {/* Zoom Modal */}
+      {zoomedCard && (
+        <CharacterCardZoom
+          playerClass={zoomedCard.playerClass}
+          characterName={zoomedCard.characterName}
+          monsterImageUrl={zoomedCard.monsterImageUrl}
+          monsterCutOutImageUrl={zoomedCard.monsterCutOutImageUrl}
+          isOpen={!!zoomedCard}
+          onClose={() => setZoomedCard(null)}
+          canEdit={zoomedCard.canEdit}
+          editType={zoomedCard.editType}
+        />
       )}
     </div>
   );
