@@ -9,7 +9,7 @@ import { DnDClass } from '../dnd/types';
 import { FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, FALLBACK_CLASSES, selectRandomAbilities, isMonster } from '../dnd/constants';
 
 // Utilities
-import { generateCharacterName, generateDeterministicCharacterName } from '../dnd/utils/names';
+import { getCharacterName } from '../dnd/utils/names';
 import { getOpponent } from '../dnd/utils/battle';
 
 // Hooks
@@ -211,35 +211,7 @@ export default function DnDBattle() {
     await switchTurnBase(attacker, defeatedPlayer, async () => {});
   }, [switchTurnBase, defeatedPlayer]);
 
-  // Helper function to get character name using the same logic as selection cards
-  // - Created monsters: playerName is already the character name, dndClass.name is the character name, dndClass.klass is the class type
-  // - Custom heroes: playerName is already the character name, dndClass.name is also the character name
-  // - Regular classes: playerName might be generated, dndClass.name is the class name
-  // - Regular monsters: playerName is the monster type name, dndClass.name is also the monster type name
-  const getCharacterName = useCallback((playerName: string, dndClass: DnDClass | null): string => {
-    if (!dndClass) {
-      return playerName || 'Unknown';
-    }
-    
-    // Check if it's a created monster (has klass and monsterId)
-    const isCreatedMonster = !!(dndClass as any).klass && !!(dndClass as any).monsterId;
-    // Check if it's a custom hero (not in FALLBACK_CLASSES, not a monster, not a created monster)
-    const isCustomHero = !isCreatedMonster && !isMonster(dndClass.name) && !FALLBACK_CLASSES.some((fc: DnDClass) => fc.name === dndClass.name);
-    
-    // For created monsters and custom heroes, playerName is already the character name
-    if (isCreatedMonster || isCustomHero) {
-      return playerName || dndClass.name;
-    }
-    
-    // For regular classes, if playerName equals className, generate a name
-    // Otherwise, playerName is the actual character name
-    if (playerName === dndClass.name && !isMonster(dndClass.name)) {
-      return generateDeterministicCharacterName(dndClass.name);
-    }
-    
-    // Otherwise, use playerName (which should already be set correctly)
-    return playerName || (isMonster(dndClass.name) ? dndClass.name : generateDeterministicCharacterName(dndClass.name));
-  }, []);
+  // Use the centralized getCharacterName utility function
 
   // Helper function to handle victory condition
   const handleVictory = useCallback(async (
@@ -591,20 +563,18 @@ export default function DnDBattle() {
       setPlayerClassWithMonsterEnhanced('player2', p2);
       
       if (!player1Name) {
-        const isP1Monster = isMonster(p1.name);
-        setPlayer1Name(isP1Monster ? p1.name : generateDeterministicCharacterName(p1.name));
+        setPlayer1Name(getCharacterName('', p1));
         const associatedMonster = findAssociatedMonster(p1.name);
         if (associatedMonster) {
           setPlayer1MonsterId(associatedMonster.monsterId);
         }
       }
       
-      const isP1Monster = isMonster(p1.name, availableMonsters);
-      const isP2Monster = isMonster(p2.name, availableMonsters);
-      const finalP1Name = player1Name || (isP1Monster ? p1.name : generateDeterministicCharacterName(p1.name));
-      const finalP2Name = player2Name || (isP2Monster ? p2.name : generateDeterministicCharacterName(p2.name));
+      const finalP1Name = getCharacterName(player1Name || '', p1);
+      const finalP2Name = getCharacterName(player2Name || '', p2);
       
       // Check if we need support heroes (monster with HP > 50)
+      const isP2Monster = isMonster(p2.name, availableMonsters);
       const needsSupportHeroes = isP2Monster && p2.maxHitPoints > 50;
       console.log('[DnDBattle] Support heroes check:', { isP2Monster, maxHitPoints: p2.maxHitPoints, needsSupportHeroes });
       let newSupportHeroes: Array<{ class: DnDClass; name: string; monsterId: string | null }> = [];
@@ -631,7 +601,9 @@ export default function DnDBattle() {
               abilities: supportAbilities,
             };
             
-            const supportName = generateDeterministicCharacterName(supportClass.name);
+            // Use the centralized getCharacterName utility for consistent name handling
+            const supportName = getCharacterName('', supportClass);
+            
             const associatedMonster = findAssociatedMonster(supportClass.name);
             const supportMonsterId = associatedMonster ? associatedMonster.monsterId : null;
             
@@ -664,7 +636,9 @@ export default function DnDBattle() {
             abilities: supportAbilities,
           };
           
-          const supportName = generateDeterministicCharacterName(supportClass.name);
+          // Use the centralized getCharacterName utility for consistent name handling
+          const supportName = getCharacterName('', supportClass);
+          
           const associatedMonster = findAssociatedMonster(supportClass.name);
           const supportMonsterId = associatedMonster ? associatedMonster.monsterId : null;
           
@@ -824,12 +798,11 @@ export default function DnDBattle() {
         setPlayer1Class(p1);
         setPlayerClassWithMonsterEnhanced('player2', p2);
         
-        const isP1Monster = isMonster(p1.name, availableMonsters);
-        const isP2Monster = isMonster(p2.name, availableMonsters);
-        const finalP1Name = player1Name || (isP1Monster ? p1.name : generateDeterministicCharacterName(p1.name));
-        const finalP2Name = player2Name || (isP2Monster ? p2.name : generateDeterministicCharacterName(p2.name));
+        const finalP1Name = getCharacterName(player1Name || '', p1);
+        const finalP2Name = getCharacterName(player2Name || '', p2);
         
         // Check if we need support heroes (monster with HP > 50)
+        const isP2Monster = isMonster(p2.name, availableMonsters);
         const needsSupportHeroes = isP2Monster && p2.maxHitPoints > 50;
         let newSupportHeroes: Array<{ class: DnDClass; name: string; monsterId: string | null }> = [];
         
@@ -855,7 +828,9 @@ export default function DnDBattle() {
                 abilities: supportAbilities,
               };
               
-              const supportName = generateDeterministicCharacterName(supportClass.name);
+              // Use the centralized getCharacterName utility for consistent name handling
+              const supportName = getCharacterName('', supportClass);
+              
               const associatedMonster = findAssociatedMonster(supportClass.name);
               const supportMonsterId = associatedMonster ? associatedMonster.monsterId : null;
               
@@ -887,7 +862,9 @@ export default function DnDBattle() {
               abilities: supportAbilities,
             };
             
-            const supportName = generateDeterministicCharacterName(supportClass.name);
+            // Use the centralized getCharacterName utility for consistent name handling
+            const supportName = getCharacterName('', supportClass);
+            
             const associatedMonster = findAssociatedMonster(supportClass.name);
             const supportMonsterId = associatedMonster ? associatedMonster.monsterId : null;
             

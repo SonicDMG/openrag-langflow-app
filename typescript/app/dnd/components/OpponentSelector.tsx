@@ -6,7 +6,6 @@ import { DnDClass } from '../types';
 import { CharacterCard } from './CharacterCard';
 import { CharacterCardZoom } from './CharacterCardZoom';
 import { ClassSelection } from './ClassSelection';
-import { generateDeterministicCharacterName } from '../utils/names';
 import { isMonster } from '../constants';
 
 type OpponentSelectorProps = {

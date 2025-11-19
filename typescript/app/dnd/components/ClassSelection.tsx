@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { DnDClass } from '../types';
 import { CharacterCard } from './CharacterCard';
 import { CharacterCardZoom } from './CharacterCardZoom';
-import { generateDeterministicCharacterName } from '../utils/names';
+import { generateDeterministicCharacterName, getCharacterName } from '../utils/names';
 import { isMonster, FALLBACK_CLASSES } from '../constants';
 
 interface ClassSelectionProps {
@@ -109,18 +109,9 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
             
             const isSelected = selectedClass?.name === dndClass.name;
             
-            // Generate character name for display (deterministic so it matches what will be generated on selection)
-            // For created monsters, dndClass.name is already the character name and dndClass.klass is the class type
-            // For custom heroes (not in FALLBACK_CLASSES), dndClass.name is already the character name
-            // For regular classes/monsters, check if it's a monster or generate a name
-            const isCustomHero = !isCreatedMonster && !isMonster(dndClass.name) && !FALLBACK_CLASSES.some(fc => fc.name === dndClass.name);
-            const displayName = isCreatedMonster
-              ? dndClass.name // Created monsters already have the character name in the name field
-              : isCustomHero
-                ? dndClass.name // Custom heroes already have the character name in the name field
-                : (isMonster(dndClass.name) 
-                    ? dndClass.name 
-                    : generateDeterministicCharacterName(dndClass.name));
+            // Generate character name for display using the centralized utility
+            // This ensures consistency with what will be generated on selection
+            const displayName = getCharacterName('', dndClass);
             
             // Determine edit type - all characters can be edited
             const editType = isCreatedMonster ? 'monster' : (isMonster(dndClass.name) ? 'monster' : 'hero');

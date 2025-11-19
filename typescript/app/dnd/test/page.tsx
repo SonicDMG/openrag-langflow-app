@@ -6,7 +6,7 @@ import remarkGfm from 'remark-gfm';
 import { DnDClass } from '../types';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS, isMonster, FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, selectRandomAbilities } from '../constants';
 import { rollDice, rollDiceWithNotation } from '../utils/dice';
-import { generateDeterministicCharacterName } from '../utils/names';
+import { getCharacterName } from '../utils/names';
 import { createHitVisualEffects, createMissVisualEffects, createHealingVisualEffects, getOpponent, getProjectileType, type PendingVisualEffect, type ProjectileType } from '../utils/battle';
 import { FloatingNumber, FloatingNumberType } from '../components/FloatingNumber';
 import { CharacterCard } from '../components/CharacterCard';
@@ -225,7 +225,8 @@ export default function DnDTestPage() {
             abilities: supportAbilities,
           };
           
-          const supportName = generateDeterministicCharacterName(supportClass.name);
+          // Use the centralized getCharacterName utility for consistent name handling
+          const supportName = getCharacterName('', supportClass);
           const associatedMonster = findAssociatedMonster(supportClass.name);
           const supportMonsterId = associatedMonster ? associatedMonster.monsterId : null;
           
@@ -251,7 +252,8 @@ export default function DnDTestPage() {
           abilities: supportAbilities,
         };
         
-        const supportName = generateDeterministicCharacterName(supportClass.name);
+        // Use the centralized getCharacterName utility for consistent name handling
+        const supportName = getCharacterName('', supportClass);
         const associatedMonster = findAssociatedMonster(supportClass.name);
         const supportMonsterId = associatedMonster ? associatedMonster.monsterId : null;
         
@@ -882,8 +884,9 @@ export default function DnDTestPage() {
                       onClick={() => {
                         setPlayer2Type('class');
                         const firstClass = FALLBACK_CLASSES[1];
-                        setPlayer2Class(createTestEntity(firstClass));
-                        setPlayer2Name(generateDeterministicCharacterName(firstClass.name));
+                        const testEntity = createTestEntity(firstClass);
+                        setPlayer2Class(testEntity);
+                        setPlayer2Name(getCharacterName('', testEntity));
                       }}
                       className={`px-3 py-1 text-xs rounded border transition-all ${
                         player2Type === 'class'

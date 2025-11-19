@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { DnDClass, BattleLog } from '../types';
-import { generateCharacterName, generateDeterministicCharacterName } from '../utils/names';
+import { generateCharacterName, generateDeterministicCharacterName, getCharacterName } from '../utils/names';
 import { isMonster, FALLBACK_CLASSES } from '../constants';
 
 export function useBattleState() {
@@ -100,23 +100,11 @@ export function useBattleState() {
     
     setClass(dndClass);
     
-    // Set name if provided, otherwise generate it
-    // Use the same logic as selection cards:
-    // - Created monsters: dndClass.name is already the character name
-    // - Custom heroes: dndClass.name is already the character name
-    // - Regular monsters: dndClass.name is the monster type name (use directly)
-    // - Regular classes: generate a deterministic name
+    // Set name if provided, otherwise use the centralized getCharacterName utility
     if (name) {
       setName(name);
     } else {
-      const isCreatedMonster = !!(dndClass as any).klass && !!(dndClass as any).monsterId;
-      const isCustomHero = !isCreatedMonster && !isMonster(dndClass.name) && !FALLBACK_CLASSES.some(fc => fc.name === dndClass.name);
-      const isMonsterCheck = isMonster(dndClass.name);
-      const nameToUse = isCreatedMonster || isCustomHero
-        ? dndClass.name // Created monsters and custom heroes already have the character name
-        : (isMonsterCheck 
-            ? dndClass.name // Regular monsters use their type name
-            : generateDeterministicCharacterName(dndClass.name)); // Regular classes get generated name
+      const nameToUse = getCharacterName('', dndClass);
       setName(nameToUse);
     }
     
