@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { DnDClass } from '../types';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../constants';
+import { loadHeroesFromDatabase, loadMonstersFromDatabase } from '../utils/dataLoader';
 
 export function useBattleData() {
   const [availableClasses, setAvailableClasses] = useState<DnDClass[]>(FALLBACK_CLASSES);
@@ -13,67 +14,41 @@ export function useBattleData() {
   const [isLoadingCreatedMonsters, setIsLoadingCreatedMonsters] = useState(false);
 
   useEffect(() => {
-    // Load classes from Astra DB (with fallback to localStorage)
+    // Load classes from database (with automatic localStorage fallback and update)
     const loadClasses = async () => {
+      setIsLoadingClasses(true);
       try {
-        // Try Astra DB first
-        const response = await fetch('/api/heroes');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.heroes && data.heroes.length > 0) {
-            setAvailableClasses(data.heroes);
-            setClassesLoaded(true);
-            console.log(`Loaded ${data.heroes.length} classes from Astra DB`);
-            return;
-          }
-        }
-      } catch (error) {
-        console.warn('Failed to load classes from Astra DB, trying localStorage:', error);
-      }
-
-      // Fallback to localStorage
-      try {
-        const savedClasses = localStorage.getItem('dnd_loaded_classes');
-        if (savedClasses) {
-          const parsedClasses = JSON.parse(savedClasses) as DnDClass[];
-          setAvailableClasses(parsedClasses);
+        const heroes = await loadHeroesFromDatabase();
+        console.log(`[useBattleData] Loaded ${heroes.length} heroes from database`);
+        if (heroes.length > 0) {
+          setAvailableClasses(heroes);
           setClassesLoaded(true);
-          console.log(`Loaded ${parsedClasses.length} classes from localStorage`);
+        } else {
+          console.log('[useBattleData] No heroes found in database, using fallback classes');
         }
       } catch (error) {
-        console.error('Failed to load classes from localStorage:', error);
+        console.error('Failed to load classes:', error);
+      } finally {
+        setIsLoadingClasses(false);
       }
     };
 
-    // Load monsters from Astra DB (with fallback to localStorage)
+    // Load monsters from database (with automatic localStorage fallback and update)
     const loadMonsters = async () => {
+      setIsLoadingMonsters(true);
       try {
-        // Try Astra DB first
-        const response = await fetch('/api/monsters-db');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.monsters && data.monsters.length > 0) {
-            setAvailableMonsters(data.monsters);
-            setMonstersLoaded(true);
-            console.log(`Loaded ${data.monsters.length} monsters from Astra DB`);
-            return;
-          }
-        }
-      } catch (error) {
-        console.warn('Failed to load monsters from Astra DB, trying localStorage:', error);
-      }
-
-      // Fallback to localStorage
-      try {
-        const savedMonsters = localStorage.getItem('dnd_loaded_monsters');
-        if (savedMonsters) {
-          const parsedMonsters = JSON.parse(savedMonsters) as DnDClass[];
-          setAvailableMonsters(parsedMonsters);
+        const monsters = await loadMonstersFromDatabase();
+        console.log(`[useBattleData] Loaded ${monsters.length} monsters from database`);
+        if (monsters.length > 0) {
+          setAvailableMonsters(monsters);
           setMonstersLoaded(true);
-          console.log(`Loaded ${parsedMonsters.length} monsters from localStorage`);
+        } else {
+          console.log('[useBattleData] No monsters found in database, using fallback monsters');
         }
       } catch (error) {
-        console.error('Failed to load monsters from localStorage:', error);
+        console.error('Failed to load monsters:', error);
+      } finally {
+        setIsLoadingMonsters(false);
       }
     };
 
@@ -112,33 +87,23 @@ export function useBattleData() {
                 if (klassIndex > 0) {
                   // Pattern like "Onyx Champion" - extract "Onyx" (everything before klass)
                   characterName = parts.slice(0, klassIndex).join(' ');
-                  console.log(`[useBattleData] Extracted character name "${characterName}" from prompt "${beforeColon}" (klass: ${m.klass})`);
                 } else if (klassIndex === -1 && parts.length > 0) {
                   // Klass not found in parts - check if first part is different from klass
                   if (parts[0] !== m.klass && parts.length === 1) {
                     // Single word that's not the klass - likely the character name
                     characterName = parts[0];
-                    console.log(`[useBattleData] Using single word "${characterName}" as character name (klass: ${m.klass})`);
                   } else if (parts.length === 2 && parts[0] === m.klass) {
                     // Pattern like "Champion Human" - klass is first, so use klass as name
                     characterName = m.klass;
-                    console.log(`[useBattleData] Using klass "${characterName}" as character name (pattern: "${beforeColon}")`);
                   } else if (parts.length > 1 && parts[0] !== m.klass) {
                     // Multiple words, first is not klass - might be "Name Race" or "Name Class"
                     // Use first word as character name
                     characterName = parts[0];
-                    console.log(`[useBattleData] Using first word "${characterName}" as character name (klass: ${m.klass}, pattern: "${beforeColon}")`);
                   }
                 }
                 // If klassIndex === 0, then klass is first word, so use klass as name (already set)
-              } else {
-                console.log(`[useBattleData] No colon found in prompt, using klass "${characterName}" as character name`);
               }
-            } else {
-              console.log(`[useBattleData] No prompt found, using klass "${characterName}" as character name`);
             }
-            
-            console.log(`[useBattleData] Final: name="${characterName}", klass="${m.klass}"`);
             
             return {
               name: characterName, // Use extracted character name instead of klass

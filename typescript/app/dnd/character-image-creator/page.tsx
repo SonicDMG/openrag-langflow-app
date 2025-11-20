@@ -9,6 +9,7 @@ import { FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../constants';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { PageHeader } from '../components/PageHeader';
 import { LandscapePrompt } from '../components/LandscapePrompt';
+import { loadHeroesFromDatabase, loadMonstersFromDatabase } from '../utils/dataLoader';
 
 interface CreatedMonsterData {
   monsterId: string;
@@ -46,6 +47,9 @@ export default function MonsterCreatorPage() {
 
   const [customHeroes, setCustomHeroes] = useState<DnDClass[]>([]);
   const [customMonsters, setCustomMonsters] = useState<DnDClass[]>([]);
+  // Store ALL heroes/monsters from database (including those that match fallback names)
+  const [allDatabaseHeroes, setAllDatabaseHeroes] = useState<DnDClass[]>([]);
+  const [allDatabaseMonsters, setAllDatabaseMonsters] = useState<DnDClass[]>([]);
   const [isLoadingCustom, setIsLoadingCustom] = useState(true);
   const [allCreatedMonsters, setAllCreatedMonsters] = useState<Array<{ monsterId: string; klass: string; imageUrl: string; prompt?: string; createdAt?: string }>>([]);
   const [isLoadingMonsters, setIsLoadingMonsters] = useState(false);
@@ -53,41 +57,58 @@ export default function MonsterCreatorPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // Load custom heroes and monsters from database
-  useEffect(() => {
-    const loadCustomCharacters = async () => {
-      setIsLoadingCustom(true);
-      try {
-        // Load custom heroes
-        const heroesResponse = await fetch('/api/heroes');
-        if (heroesResponse.ok) {
-          const heroesData = await heroesResponse.json();
-          // Filter to only show custom heroes (those with searchContext 'Custom' or not from fallbacks)
-          const custom = (heroesData.heroes || []).filter((h: DnDClass) => 
-            !FALLBACK_CLASSES.some(fc => fc.name === h.name)
-          );
-          setCustomHeroes(custom);
-        }
+  // Load custom heroes and monsters from database (with localStorage fallback)
+  const loadCustomCharacters = useCallback(async () => {
+    setIsLoadingCustom(true);
+    try {
+      // Load ALL heroes from database (with localStorage fallback)
+      const allHeroes = await loadHeroesFromDatabase();
+      // Store all heroes for description lookup
+      setAllDatabaseHeroes(allHeroes);
+      // Store only truly custom heroes (not in fallbacks) for dropdown
+      const custom = allHeroes.filter((h: DnDClass) => 
+        !FALLBACK_CLASSES.some(fc => fc.name === h.name)
+      );
+      setCustomHeroes(custom);
 
-        // Load custom monsters
-        const monstersResponse = await fetch('/api/monsters-db');
-        if (monstersResponse.ok) {
-          const monstersData = await monstersResponse.json();
-          // Filter to only show custom monsters (those not from fallbacks)
-          const custom = (monstersData.monsters || []).filter((m: DnDClass) => 
-            !FALLBACK_MONSTERS.some(fm => fm.name === m.name)
-          );
-          setCustomMonsters(custom);
-        }
-      } catch (error) {
-        console.error('Failed to load custom characters:', error);
-      } finally {
-        setIsLoadingCustom(false);
-      }
-    };
-
-    loadCustomCharacters();
+      // Load ALL monsters from database (with localStorage fallback)
+      const allMonsters = await loadMonstersFromDatabase();
+      // Store all monsters for description lookup
+      setAllDatabaseMonsters(allMonsters);
+      // Store only truly custom monsters (not in fallbacks) for dropdown
+      const customMonsters = allMonsters.filter((m: DnDClass) => 
+        !FALLBACK_MONSTERS.some(fm => fm.name === m.name)
+      );
+      setCustomMonsters(customMonsters);
+    } catch (error) {
+      console.error('Failed to load custom characters:', error);
+    } finally {
+      setIsLoadingCustom(false);
+    }
   }, []);
+
+  // Load custom heroes and monsters on mount
+  useEffect(() => {
+    loadCustomCharacters();
+  }, [loadCustomCharacters]);
+
+  // Reload heroes/monsters when selectedKlass changes (to get latest descriptions)
+  // Always reload when selectedKlass changes to ensure we have the latest data from database
+  useEffect(() => {
+    if (selectedKlass) {
+      // Reload to get latest data for the selected class (including updated fallback classes)
+      loadCustomCharacters();
+    }
+  }, [selectedKlass, loadCustomCharacters]);
+
+  // Reload custom heroes/monsters when window regains focus (in case user updated class in another tab)
+  useEffect(() => {
+    const handleFocus = () => {
+      loadCustomCharacters();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [loadCustomCharacters]);
 
   // Load all created monsters
   const loadAllMonsters = useCallback(async () => {
@@ -159,26 +180,29 @@ export default function MonsterCreatorPage() {
 
   // Create DnDClass object for the preview based on selected klass
   const previewMonsterClass: DnDClass | null = createdMonsterData ? (() => {
-    // Check fallback classes first
-    const fallbackClass = FALLBACK_CLASSES.find(c => c.name === selectedKlass || c.name === createdMonsterData.klass);
-    const fallbackMonster = FALLBACK_MONSTERS.find(m => m.name === selectedKlass || m.name === createdMonsterData.klass);
+    const klassName = selectedKlass || createdMonsterData.klass;
     
-    // Check custom heroes/monsters
-    const customHero = customHeroes.find(h => h.name === selectedKlass || h.name === createdMonsterData.klass);
-    const customMonster = customMonsters.find(m => m.name === selectedKlass || m.name === createdMonsterData.klass);
+    // Check database first (includes updated versions of fallback classes)
+    const databaseHero = allDatabaseHeroes.find(h => h.name === klassName);
+    const databaseMonster = allDatabaseMonsters.find(m => m.name === klassName);
     
-    // Prefer custom over fallback
-    const character = customHero || customMonster || fallbackClass || fallbackMonster;
+    // Check fallback classes/monsters
+    const fallbackClass = FALLBACK_CLASSES.find(c => c.name === klassName);
+    const fallbackMonster = FALLBACK_MONSTERS.find(m => m.name === klassName);
+    
+    // Prefer database over fallback
+    const character = databaseHero || databaseMonster || fallbackClass || fallbackMonster;
     
     return {
-      name: selectedKlass || createdMonsterData.klass || 'Monster',
+      name: klassName || 'Monster',
       hitPoints: createdMonsterData.stats.hitPoints,
       maxHitPoints: createdMonsterData.stats.maxHitPoints,
       armorClass: createdMonsterData.stats.armorClass,
       attackBonus: createdMonsterData.stats.attackBonus,
       damageDie: createdMonsterData.stats.damageDie,
       abilities: character?.abilities || [],
-      description: createdMonsterData.stats.description || character?.description || `A ${selectedKlass || createdMonsterData.klass} created in the monster creator.`,
+      // Prefer database description over fallback, but use stats.description if it exists
+      description: createdMonsterData.stats.description || character?.description || `A ${klassName} created in the monster creator.`,
       color: character?.color || 'bg-slate-900',
     };
   })() : null;

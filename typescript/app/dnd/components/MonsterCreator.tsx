@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS, getRandomRace, CARD_SETTINGS, DEFAULT_SETTING } from '../constants';
 import { DnDClass, CardSetting } from '../types';
 import { SearchableSelect } from './SearchableSelect';
+import { extractRaceFromDescription, extractSexFromDescription } from '../services/characterGeneration';
+import { loadHeroesFromDatabase, loadMonstersFromDatabase } from '../utils/dataLoader';
 
 interface MonsterCreatorProps {
   onMonsterCreated?: (monsterId: string, klass: string, imageUrl: string) => void;
@@ -75,37 +77,59 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
 
   const [customHeroes, setCustomHeroes] = useState<DnDClass[]>([]);
   const [customMonsters, setCustomMonsters] = useState<DnDClass[]>([]);
+  // Store ALL heroes/monsters from database (including those that match fallback names)
+  const [allDatabaseHeroes, setAllDatabaseHeroes] = useState<DnDClass[]>([]);
+  const [allDatabaseMonsters, setAllDatabaseMonsters] = useState<DnDClass[]>([]);
 
-  // Load custom heroes and monsters from database
-  useEffect(() => {
-    const loadCustomCharacters = async () => {
-      try {
-        // Load custom heroes
-        const heroesResponse = await fetch('/api/heroes');
-        if (heroesResponse.ok) {
-          const heroesData = await heroesResponse.json();
-          const custom = (heroesData.heroes || []).filter((h: DnDClass) => 
-            !FALLBACK_CLASSES.some(fc => fc.name === h.name)
-          );
-          setCustomHeroes(custom);
-        }
+  // Load custom heroes and monsters from database (with localStorage fallback)
+  const loadCustomCharacters = useCallback(async () => {
+    try {
+      // Load ALL heroes from database (with localStorage fallback)
+      const allHeroes = await loadHeroesFromDatabase();
+      // Store all heroes for description lookup
+      setAllDatabaseHeroes(allHeroes);
+      // Store only truly custom heroes (not in fallbacks) for dropdown
+      const custom = allHeroes.filter((h: DnDClass) => 
+        !FALLBACK_CLASSES.some(fc => fc.name === h.name)
+      );
+      setCustomHeroes(custom);
 
-        // Load custom monsters
-        const monstersResponse = await fetch('/api/monsters-db');
-        if (monstersResponse.ok) {
-          const monstersData = await monstersResponse.json();
-          const custom = (monstersData.monsters || []).filter((m: DnDClass) => 
-            !FALLBACK_MONSTERS.some(fm => fm.name === m.name)
-          );
-          setCustomMonsters(custom);
-        }
-      } catch (error) {
-        console.error('Failed to load custom characters:', error);
-      }
-    };
-
-    loadCustomCharacters();
+      // Load ALL monsters from database (with localStorage fallback)
+      const allMonsters = await loadMonstersFromDatabase();
+      // Store all monsters for description lookup
+      setAllDatabaseMonsters(allMonsters);
+      // Store only truly custom monsters (not in fallbacks) for dropdown
+      const customMonsters = allMonsters.filter((m: DnDClass) => 
+        !FALLBACK_MONSTERS.some(fm => fm.name === m.name)
+      );
+      setCustomMonsters(customMonsters);
+    } catch (error) {
+      console.error('Failed to load custom characters:', error);
+    }
   }, []);
+
+  // Load custom heroes and monsters on mount
+  useEffect(() => {
+    loadCustomCharacters();
+  }, [loadCustomCharacters]);
+
+  // Reload heroes/monsters when klass changes (to get latest descriptions)
+  // Always reload when klass changes to ensure we have the latest data from database
+  useEffect(() => {
+    if (klass) {
+      // Reload to get latest data for the selected class (including updated fallback classes)
+      loadCustomCharacters();
+    }
+  }, [klass, loadCustomCharacters]);
+
+  // Reload custom heroes/monsters when window regains focus (in case user updated class in another tab)
+  useEffect(() => {
+    const handleFocus = () => {
+      loadCustomCharacters();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [loadCustomCharacters]);
 
   // Combine all available classes and monsters for dropdown
   const allOptions = [
@@ -128,69 +152,51 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
   }, [klass, customHeroes]);
 
   // Get the selected class/monster description
+  // IMPORTANT: Check database first (allDatabaseHeroes/allDatabaseMonsters) to get latest data,
+  // then fall back to fallback classes/monsters if not in database
   const selectedDescription = useMemo(() => {
     if (!klass) return '';
+    // First check database (this includes updated versions of fallback classes)
+    const databaseHero = allDatabaseHeroes.find(c => c.name === klass);
+    const databaseMonster = allDatabaseMonsters.find(m => m.name === klass);
+    // Then check fallback classes/monsters
     const fallbackClass = FALLBACK_CLASSES.find(c => c.name === klass);
     const fallbackMonster = FALLBACK_MONSTERS.find(m => m.name === klass);
-    const customHero = customHeroes.find(c => c.name === klass);
-    const customMonster = customMonsters.find(m => m.name === klass);
-    // Prefer custom over fallback
-    return customHero?.description || customMonster?.description || fallbackClass?.description || fallbackMonster?.description || '';
-  }, [klass, customHeroes, customMonsters]);
+    // Prefer database over fallback
+    return databaseHero?.description || databaseMonster?.description || fallbackClass?.description || fallbackMonster?.description || '';
+  }, [klass, allDatabaseHeroes, allDatabaseMonsters]);
 
   // Get race and sex from selected class/monster
+  // Check database first, then fallback
   const selectedRace = useMemo(() => {
     if (!klass) return undefined;
+    const databaseHero = allDatabaseHeroes.find(c => c.name === klass);
+    const databaseMonster = allDatabaseMonsters.find(m => m.name === klass);
     const fallbackClass = FALLBACK_CLASSES.find(c => c.name === klass);
     const fallbackMonster = FALLBACK_MONSTERS.find(m => m.name === klass);
-    const customHero = customHeroes.find(c => c.name === klass);
-    const customMonster = customMonsters.find(m => m.name === klass);
-    return customHero?.race || customMonster?.race || fallbackClass?.race || fallbackMonster?.race;
-  }, [klass, customHeroes, customMonsters]);
+    return databaseHero?.race || databaseMonster?.race || fallbackClass?.race || fallbackMonster?.race;
+  }, [klass, allDatabaseHeroes, allDatabaseMonsters]);
 
   const selectedSex = useMemo(() => {
     if (!klass) return undefined;
+    const databaseHero = allDatabaseHeroes.find(c => c.name === klass);
+    const databaseMonster = allDatabaseMonsters.find(m => m.name === klass);
     const fallbackClass = FALLBACK_CLASSES.find(c => c.name === klass);
     const fallbackMonster = FALLBACK_MONSTERS.find(m => m.name === klass);
-    const customHero = customHeroes.find(c => c.name === klass);
-    const customMonster = customMonsters.find(m => m.name === klass);
-    return customHero?.sex || customMonster?.sex || fallbackClass?.sex || fallbackMonster?.sex;
-  }, [klass, customHeroes, customMonsters]);
+    return databaseHero?.sex || databaseMonster?.sex || fallbackClass?.sex || fallbackMonster?.sex;
+  }, [klass, allDatabaseHeroes, allDatabaseMonsters]);
 
-  // When klass changes, populate the description field with the class/monster name and description
-  // Use the race from the selected class if available, otherwise generate a random one
+  // When klass changes, populate the description field with the description from the database
+  // Use the description as-is from the database without any modifications
   useEffect(() => {
     if (klass && selectedDescription) {
-      if (isClass) {
-        // For player classes, use the race from the class if available, otherwise generate a random one
-        if (selectedRace) {
-          // Use the race from the selected class
-          setUserPrompt(`${klass} ${selectedRace}: ${selectedDescription}`);
-        } else {
-          // Generate a random race if the class doesn't have one
-          const race = getRandomRace();
-          setUserPrompt(`${klass} ${race.name}: ${race.description}. ${selectedDescription}`);
-        }
-      } else {
-        // For monsters, just include the name and description
-        setUserPrompt(`${klass}: ${selectedDescription}`);
-      }
+      // Use the description directly from the database as-is
+      setUserPrompt(selectedDescription);
     } else if (klass && !selectedDescription) {
-      // If there's no description, just use the name (with race for classes)
-      if (isClass) {
-        if (selectedRace) {
-          // Use the race from the selected class
-          setUserPrompt(`${klass} ${selectedRace}`);
-        } else {
-          // Generate a random race if the class doesn't have one
-          const race = getRandomRace();
-          setUserPrompt(`${klass} ${race.name}`);
-        }
-      } else {
-        setUserPrompt(klass);
-      }
+      // If there's no description, use the class name
+      setUserPrompt(klass);
     }
-  }, [klass, selectedDescription, isClass, selectedRace]); // Update when klass changes or selectedRace changes
+  }, [klass, selectedDescription]); // Update when klass changes or selectedDescription changes
 
   // Update full prompt when userPrompt, skipCutout, setting, race, or sex changes
   // Use different base prompts based on skipCutout option

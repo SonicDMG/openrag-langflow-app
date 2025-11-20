@@ -5,12 +5,14 @@ import { DnDClass } from '../../dnd/types';
 // GET - Fetch all monsters
 export async function GET(req: NextRequest) {
   try {
+    console.log('[API /monsters-db] GET request received - fetching monsters from database');
     const monsters = await getAllMonsters();
     const classes = monsters.map(monsterRecordToClass);
+    console.log(`[API /monsters-db] Returning ${classes.length} monsters`);
     
     return NextResponse.json({ monsters: classes });
   } catch (error) {
-    console.error('Error fetching monsters:', error);
+    console.error('[API /monsters-db] Error fetching monsters:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to fetch monsters' },
       { status: 500 }
