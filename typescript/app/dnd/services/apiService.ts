@@ -1057,7 +1057,7 @@ ${defeatedDescription ? `Description: ${defeatedDescription}` : `A ${defeatedCla
 ${defeatedDetails ? `Visual/Appearance details: ${defeatedDetails}` : ''}${supportHeroesDescription}
 
 IMAGE REQUIREMENTS:
-Create a dramatic battle conclusion scene that accurately depicts the characters described above. The scene should show ${victorName}${supportHeroes && supportHeroes.length > 0 ? ` along with ${supportHeroes.map(sh => sh.name).join(' and ')}` : ''} standing victorious over ${defeatedName} who has been defeated. The characters must match their descriptions - their appearance, weapons, armor, and features should reflect the character descriptions and visual details provided. ${victorName}${supportHeroes && supportHeroes.length > 0 ? ` and ${supportHeroes.map(sh => sh.name).join(' and ')}` : ''} should be shown in a triumphant pose (standing tall, possibly with weapon raised), while ${defeatedName} is shown defeated (on the ground or in a fallen position). The setting should be a ${settingConfig.backgroundPhrase} with dramatic lighting. Use warm earth tones with vibrant accents palette. Retro SNES/Genesis style, ${settingConfig.technologyLevel}, cinematic composition, 16:9 aspect ratio. The image should feel like the final frame of an epic battle, accurately showing all characters as they are described above with their specific visual details.`;
+Dramatic battle conclusion scene showing ${victorName}${supportHeroes && supportHeroes.length > 0 ? ` and ${supportHeroes.map(sh => sh.name).join(' and ')}` : ''} victorious over defeated ${defeatedName}. ${victorName} in triumphant pose, ${defeatedName} fallen. ${settingConfig.backgroundPhrase} setting with dramatic lighting. Warm earth tones with vibrant accents. Retro SNES/Genesis style, ${settingConfig.technologyLevel}, 16:9 aspect ratio.`;
 
     // Log the prompt for debugging
     console.log('=== BATTLE ENDING IMAGE GENERATION PROMPT ===');
@@ -1065,6 +1065,7 @@ Create a dramatic battle conclusion scene that accurately depicts the characters
     console.log('=== END PROMPT ===');
 
     // Generate image and pixelize it
+    // Note: If pixelization is causing black images, set skipPixelize: true to test
     const response = await fetch('/api/generate-image', {
       method: 'POST',
       headers: {
@@ -1077,6 +1078,7 @@ Create a dramatic battle conclusion scene that accurately depicts the characters
         transparentBackground: false, // We want a background scene for the ending
         aspectRatio: '16:9',
         pixelize: true, // Pixelize to match app style
+        skipPixelize: false, // Set to true to skip pixelization for debugging
       }),
     });
 

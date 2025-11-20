@@ -103,12 +103,13 @@ export function useBattleActions(deps: BattleActionsDependencies) {
   }, [player1Class, player2Class, supportHeroes]);
   
   // Helper to get defender class based on target ID
-  const getDefenderClass = useCallback((target: 'player1' | 'support1' | 'support2'): DnDClass | null => {
+  const getDefenderClass = useCallback((target: 'player1' | 'player2' | 'support1' | 'support2'): DnDClass | null => {
     if (target === 'player1') return player1Class;
+    if (target === 'player2') return player2Class;
     if (target === 'support1' && supportHeroes.length > 0) return supportHeroes[0].class;
     if (target === 'support2' && supportHeroes.length > 1) return supportHeroes[1].class;
     return null;
-  }, [player1Class, supportHeroes]);
+  }, [player1Class, player2Class, supportHeroes]);
   
   // Helper to get available targets for monster (non-defeated heroes)
   const getAvailableTargets = useCallback((): Array<'player1' | 'support1' | 'support2'> => {
@@ -193,22 +194,22 @@ export function useBattleActions(deps: BattleActionsDependencies) {
   ) => {
     return async () => {
       // Trust the calculated newHP value (it's correct at the time of calculation)
-      // Also check state as a fallback in case of timing issues
-      let stateHP = newHP;
-      if (defender === 'player1') {
-        stateHP = player1Class?.hitPoints ?? newHP;
-      } else if (defender === 'player2') {
-        stateHP = player2Class?.hitPoints ?? newHP;
-      } else if (defender === 'support1') {
-        stateHP = supportHeroes.length > 0 ? supportHeroes[0].class.hitPoints : newHP;
-      } else if (defender === 'support2') {
-        stateHP = supportHeroes.length > 1 ? supportHeroes[1].class.hitPoints : newHP;
-      }
+      // newHP is the source of truth - it was calculated from the actual damage dealt
+      const currentHP = newHP;
       
-      // Use the minimum to ensure we catch defeat - newHP is the source of truth
-      const currentHP = Math.min(newHP, stateHP);
+      // Debug logging for defeat detection
+      console.log('=== POST DAMAGE CALLBACK DEBUG ===');
+      console.log('Defender:', defender);
+      console.log('Calculated newHP:', newHP);
+      console.log('Current HP (for defeat check):', currentHP);
+      console.log('Defender class:', defenderClass.name);
+      console.log('Is team battle:', supportHeroes.length > 0);
+      console.log('Will check defeat:', currentHP <= 0);
+      console.log('=== END DEBUG ===');
       
-      if (currentHP <= 0) {
+      // Check for defeat - use <= 0 to catch exactly 0 or negative values
+      // Also add a small epsilon check for floating point precision issues
+      if (currentHP <= 0 || Math.abs(currentHP) < 0.01) {
         // Check if defender is a support hero or main hero
         if (defender === 'support1' || defender === 'support2') {
           // Support hero knocked out - show knocked out effect on the support card
@@ -301,6 +302,9 @@ export function useBattleActions(deps: BattleActionsDependencies) {
             }
           } else if (defender === 'player2') {
             // Monster defeated, heroes win
+            console.log('🎯 MONSTER DEFEATED - Calling handleVictory');
+            console.log('Attacker:', attackerClass.name);
+            console.log('Defender:', defenderClass.name);
             setDefeatedPlayer('player2');
             showFloatingNumbers(
               [{ value: 'DEFEATED!', type: 'defeated', targetPlayer: 'player2', persistent: true }],
@@ -316,6 +320,7 @@ export function useBattleActions(deps: BattleActionsDependencies) {
               eventDescription,
               defender
             );
+            console.log('✅ handleVictory completed for player2 defeat');
             return;
           }
         }
@@ -444,6 +449,9 @@ export function useBattleActions(deps: BattleActionsDependencies) {
         damages.push(0);
       }
     }
+    
+    // Calculate newHP from the defenderClass parameter (which is current when function is called)
+    // updatePlayerHP uses functional updates so it will read the latest state when applied
     const newHP = totalDamage > 0 ? Math.max(0, defenderClass.hitPoints - totalDamage) : defenderClass.hitPoints;
     
     // Use actual player IDs for visual effects
@@ -570,6 +578,8 @@ export function useBattleActions(deps: BattleActionsDependencies) {
       const damageDetails = diceArray.map(d => `${d.diceType}: ${d.result}`).join(', ');
       addLog('roll', `💥 Damage roll: ${damageDetails} = ${damage} total damage`);
       
+      // Calculate newHP from the defenderClass parameter (which is current when function is called)
+      // updatePlayerHP uses functional updates so it will read the latest state when applied
       const newHP = Math.max(0, defenderClass.hitPoints - damage);
       
       // Use actual player IDs for visual effects
@@ -679,6 +689,9 @@ export function useBattleActions(deps: BattleActionsDependencies) {
     // Log detailed damage dice rolls
     const damageDetails = diceArray.map(d => `${d.diceType}: ${d.result}`).join(', ');
     addLog('roll', `💥 ${attackerClass.name} uses ${attackAbility.name} - Damage roll: ${damageDetails} = ${damage} total damage`);
+    
+    // Calculate newHP from the defenderClass parameter (which is current when function is called)
+    // updatePlayerHP uses functional updates so it will read the latest state when applied
     const newHP = Math.max(0, defenderClass.hitPoints - damage);
     
     // Use actual player IDs for visual effects
@@ -818,6 +831,9 @@ export function useBattleActions(deps: BattleActionsDependencies) {
     if (isHit) {
       const damage = rollDice(damageDie);
       addLog('roll', `💥 Damage roll: ${damageDie}: ${damage} damage`);
+      
+      // Calculate newHP from the defenderClass parameter (which is current when function is called)
+      // updatePlayerHP uses functional updates so it will read the latest state when applied
       const newHP = Math.max(0, defenderClass.hitPoints - damage);
       
       // Use actual player IDs for visual effects (don't map support heroes to player1)

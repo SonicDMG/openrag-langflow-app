@@ -108,7 +108,7 @@ function buildPixelArtPrompt(userPrompt: string, transparentBackground: boolean 
  */
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, seed, model = '5000', image_count = 1, transparentBackground = true, aspectRatio, setting = DEFAULT_SETTING, pixelize = false, race, sex } = await req.json();
+    const { prompt, seed, model = '5000', image_count = 1, transparentBackground = true, aspectRatio, setting = DEFAULT_SETTING, pixelize = false, race, sex, skipPixelize = false } = await req.json();
 
     if (!prompt) {
       return NextResponse.json(
@@ -226,11 +226,19 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      // Log the original image URL for debugging
+      console.log('=== ORIGINAL IMAGE URL FROM EVERART ===');
+      console.log(imageUrl);
+      console.log('=== END ORIGINAL IMAGE URL ===');
+
       // Process the image based on requirements
       let finalImageUrl = imageUrl;
       let imageBuffer: Buffer | null = null;
 
-      if (transparentBackground || pixelize) {
+      // Skip pixelization if explicitly requested (for debugging/testing)
+      const shouldPixelize = pixelize && !skipPixelize;
+
+      if (transparentBackground || shouldPixelize) {
         try {
           imageBuffer = await downloadImage(imageUrl);
           
@@ -245,88 +253,137 @@ export async function POST(req: NextRequest) {
           }
 
           // Pixelize if requested
-          if (pixelize) {
+          if (shouldPixelize) {
             console.log('Pixelizing image to match app style...');
             const { ensure16x9AspectRatio } = await import('@/app/dnd/server/imageGeneration');
             const sharp = (await import('sharp')).default;
             const IQ = await import('image-q');
             
-            // Ensure 16:9 aspect ratio first
-            imageBuffer = await ensure16x9AspectRatio(imageBuffer);
-            
-            // Pixelize the image - for 16:9 images, we'll use a custom approach
-            // Target size: 1024x576 (16:9)
-            const targetWidth = 1024;
-            const targetHeight = 576;
-            const smallHeight = 180; // Downscale to this for pixelization
-            const smallWidth = Math.round(smallHeight * (16 / 9)); // 320
-            
-            // Downscale aggressively
-            const smallBuf = await sharp(imageBuffer)
-              .resize(smallWidth, smallHeight, { kernel: sharp.kernel.lanczos3 })
-              .png()
-              .toBuffer();
-            
-            // Upscale with nearest neighbor
-            const nearest = await sharp(smallBuf)
-              .resize(targetWidth, targetHeight, { kernel: sharp.kernel.nearest })
-              .png()
-              .toBuffer();
-            
-            // Reduce color palette to 32 colors using image-q (same approach as pixelize.ts)
-            const img = sharp(nearest);
-            const { data, info } = await img.raw().toBuffer({ resolveWithObject: true });
-            
-            // Use image-q for quantization (matching pixelize.ts implementation)
-            const pointContainer = IQ.utils.PointContainer.fromUint8Array(
-              data,
-              info.width,
-              info.height
-            );
-            
-            const distance = new IQ.distance.EuclideanBT709();
-            const paletteQuantizer = new IQ.palette.NeuQuant(distance, 32);
-            paletteQuantizer.sample(pointContainer);
-            const palette = paletteQuantizer.quantizeSync();
-            
-            const quantizer = new IQ.image.NearestColor(distance);
-            const out = quantizer.quantize(pointContainer, palette);
-            
-            if (!out) {
-              throw new Error('Quantization failed');
-            }
-            
-            // Convert quantized result to buffer
-            let outBuf: Buffer | undefined;
-            if (out instanceof IQ.utils.PointContainer) {
-              outBuf = Buffer.from(out.toUint8Array());
-            } else {
-              // Fallback to sharp quantization
-              console.warn('image-q quantization failed, using sharp quantization fallback');
-              imageBuffer = await sharp(nearest)
-                .png({ colors: 32, dither: 1 })
-                .toBuffer();
-            }
-            
-            if (outBuf) {
-              const quantizedImage = await sharp(outBuf, {
-                raw: { width: info.width, height: info.height, channels: 4 },
-              })
+            try {
+              // Ensure 16:9 aspect ratio first
+              imageBuffer = await ensure16x9AspectRatio(imageBuffer);
+              
+              // Validate image buffer before processing
+              const prePixelizeMetadata = await sharp(imageBuffer).metadata();
+              if (!prePixelizeMetadata.width || !prePixelizeMetadata.height) {
+                throw new Error('Invalid image buffer before pixelization');
+              }
+              console.log(`Pre-pixelize dimensions: ${prePixelizeMetadata.width}x${prePixelizeMetadata.height}`);
+              
+              // Pixelize the image - for 16:9 images, we'll use a custom approach
+              // Target size: 1024x576 (16:9)
+              const targetWidth = 1024;
+              const targetHeight = 576;
+              const smallHeight = 180; // Downscale to this for pixelization
+              const smallWidth = Math.round(smallHeight * (16 / 9)); // 320
+              
+              // Downscale aggressively
+              const smallBuf = await sharp(imageBuffer)
+                .resize(smallWidth, smallHeight, { kernel: sharp.kernel.lanczos3 })
                 .png()
                 .toBuffer();
               
-              imageBuffer = quantizedImage;
+              // Upscale with nearest neighbor
+              const nearest = await sharp(smallBuf)
+                .resize(targetWidth, targetHeight, { kernel: sharp.kernel.nearest })
+                .png()
+                .toBuffer();
+              
+              // Reduce color palette to 32 colors using image-q (same approach as pixelize.ts)
+              const img = sharp(nearest);
+              const { data, info } = await img.raw().toBuffer({ resolveWithObject: true });
+              
+              // Validate we got valid image data
+              if (!data || !info || !info.width || !info.height) {
+                throw new Error('Failed to extract raw image data for quantization');
+              }
+              
+              // Use image-q for quantization (matching pixelize.ts implementation)
+              const pointContainer = IQ.utils.PointContainer.fromUint8Array(
+                data,
+                info.width,
+                info.height
+              );
+              
+              const distance = new IQ.distance.EuclideanBT709();
+              const paletteQuantizer = new IQ.palette.NeuQuant(distance, 32);
+              paletteQuantizer.sample(pointContainer);
+              const palette = paletteQuantizer.quantizeSync();
+              
+              const quantizer = new IQ.image.NearestColor(distance);
+              const out = quantizer.quantize(pointContainer, palette);
+              
+              if (!out) {
+                throw new Error('Quantization failed - no output from quantizer');
+              }
+              
+              // Convert quantized result to buffer
+              let outBuf: Buffer | undefined;
+              if (out instanceof IQ.utils.PointContainer) {
+                outBuf = Buffer.from(out.toUint8Array());
+                console.log('Using image-q quantization result');
+              } else {
+                // Fallback to sharp quantization
+                console.warn('image-q quantization failed, using sharp quantization fallback');
+                imageBuffer = await sharp(nearest)
+                  .png({ colors: 32, dither: 1 })
+                  .toBuffer();
+              }
+              
+              if (outBuf) {
+                // Validate outBuf has expected size
+                const expectedSize = info.width * info.height * 4; // RGBA = 4 channels
+                if (outBuf.length !== expectedSize) {
+                  console.error(`Buffer size mismatch: expected ${expectedSize}, got ${outBuf.length}`);
+                  throw new Error(`Quantized buffer size mismatch: expected ${expectedSize} bytes, got ${outBuf.length}`);
+                }
+                
+                const quantizedImage = await sharp(outBuf, {
+                  raw: { width: info.width, height: info.height, channels: 4 },
+                })
+                  .png()
+                  .toBuffer();
+                
+                // Validate the final image
+                const finalMetadata = await sharp(quantizedImage).metadata();
+                if (!finalMetadata.width || !finalMetadata.height) {
+                  throw new Error('Pixelized image is invalid');
+                }
+                console.log(`Post-pixelize dimensions: ${finalMetadata.width}x${finalMetadata.height}`);
+                
+                imageBuffer = quantizedImage;
+              }
+              
+              // Final validation - check if image is mostly black (which would indicate a problem)
+              const stats = await sharp(imageBuffer)
+                .stats();
+              const avgBrightness = stats.channels.reduce((sum, ch) => sum + (ch.mean || 0), 0) / stats.channels.length;
+              if (avgBrightness < 10) {
+                console.error(`Warning: Pixelized image appears to be mostly black (avg brightness: ${avgBrightness.toFixed(2)})`);
+                throw new Error('Pixelized image appears to be black - skipping pixelization');
+              }
+              
+              console.log('Image pixelized successfully');
+            } catch (pixelizeError) {
+              console.error('Pixelization error:', pixelizeError);
+              // If pixelization fails, return the original EverArt image URL directly
+              // This avoids any processing issues and gives the user the image that EverArt generated
+              console.log('Fell back to original EverArt image URL due to pixelization error');
+              finalImageUrl = imageUrl; // Use the original URL from EverArt
+              imageBuffer = null; // Don't process it
             }
-            
-            console.log('Image pixelized successfully');
           }
           
-          // Convert to base64 data URL for immediate use
-          const base64 = imageBuffer.toString('base64');
-          finalImageUrl = `data:image/png;base64,${base64}`;
+          // Convert to base64 data URL for immediate use (only if we have a processed buffer)
+          if (imageBuffer) {
+            const base64 = imageBuffer.toString('base64');
+            finalImageUrl = `data:image/png;base64,${base64}`;
+          }
+          // If imageBuffer is null, finalImageUrl should already be set to the original imageUrl
         } catch (error) {
           console.warn('Failed to process image:', error);
           // Continue with original imageUrl if processing fails
+          finalImageUrl = imageUrl;
         }
       }
 
