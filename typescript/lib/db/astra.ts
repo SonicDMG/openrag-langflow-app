@@ -21,6 +21,7 @@ try {
 export type HeroRecord = {
   _id?: string;
   name: string;
+  class?: string; // Character class (e.g., "Fighter", "Wizard", "Rogue") - separate from name
   hitPoints: number;
   maxHitPoints: number;
   armorClass: number;
@@ -39,6 +40,7 @@ export type HeroRecord = {
 export type MonsterRecord = {
   _id?: string;
   name: string;
+  class?: string; // Character class (e.g., "Fighter", "Wizard", "Rogue") - separate from name
   hitPoints: number;
   maxHitPoints: number;
   armorClass: number;
@@ -118,6 +120,7 @@ async function getMonstersCollection() {
 function classToHeroRecord(klass: DnDClass, searchContext?: string): Omit<HeroRecord, '_id' | 'createdAt' | 'updatedAt'> {
   return {
     name: klass.name,
+    class: klass.class,
     hitPoints: klass.hitPoints,
     maxHitPoints: klass.maxHitPoints,
     armorClass: klass.armorClass,
@@ -136,6 +139,7 @@ function classToHeroRecord(klass: DnDClass, searchContext?: string): Omit<HeroRe
 function classToMonsterRecord(monster: DnDClass, searchContext?: string): Omit<MonsterRecord, '_id' | 'createdAt' | 'updatedAt'> {
   return {
     name: monster.name,
+    class: monster.class,
     hitPoints: monster.hitPoints,
     maxHitPoints: monster.maxHitPoints,
     armorClass: monster.armorClass,
@@ -154,6 +158,7 @@ function classToMonsterRecord(monster: DnDClass, searchContext?: string): Omit<M
 function heroRecordToClass(record: HeroRecord): DnDClass {
   return {
     name: record.name,
+    class: record.class,
     hitPoints: record.hitPoints,
     maxHitPoints: record.maxHitPoints,
     armorClass: record.armorClass,
@@ -171,6 +176,7 @@ function heroRecordToClass(record: HeroRecord): DnDClass {
 function monsterRecordToClass(record: MonsterRecord): DnDClass {
   return {
     name: record.name,
+    class: record.class,
     hitPoints: record.hitPoints,
     maxHitPoints: record.maxHitPoints,
     armorClass: record.armorClass,
@@ -370,6 +376,61 @@ export async function upsertMonsters(monsters: DnDClass[], searchContext?: strin
     console.log(`upsertMonsters - Successfully processed ${monsters.length} monsters`);
   } catch (error) {
     console.error("upsertMonsters - Error:", error);
+    throw error;
+  }
+}
+
+// Delete operations
+export async function deleteHero(name: string): Promise<boolean> {
+  try {
+    console.log(`deleteHero - Deleting hero ${name}`);
+    const collection = await getHeroesCollection();
+    
+    // Try exact match first
+    let existingRecord = await collection.findOne({ name: name });
+    if (!existingRecord) {
+      // Try case-insensitive
+      const normalizedName = name.toLowerCase();
+      existingRecord = await collection.findOne({ name: normalizedName });
+    }
+    
+    if (!existingRecord) {
+      console.log(`deleteHero - Hero ${name} not found`);
+      return false;
+    }
+    
+    const result = await collection.deleteOne({ _id: existingRecord._id });
+    console.log(`deleteHero - Deleted hero ${name}:`, result.deletedCount > 0);
+    return result.deletedCount > 0;
+  } catch (error) {
+    console.error("deleteHero - Error:", error);
+    throw error;
+  }
+}
+
+export async function deleteMonster(name: string): Promise<boolean> {
+  try {
+    console.log(`deleteMonster - Deleting monster ${name}`);
+    const collection = await getMonstersCollection();
+    
+    // Try exact match first
+    let existingRecord = await collection.findOne({ name: name });
+    if (!existingRecord) {
+      // Try case-insensitive
+      const normalizedName = name.toLowerCase();
+      existingRecord = await collection.findOne({ name: normalizedName });
+    }
+    
+    if (!existingRecord) {
+      console.log(`deleteMonster - Monster ${name} not found`);
+      return false;
+    }
+    
+    const result = await collection.deleteOne({ _id: existingRecord._id });
+    console.log(`deleteMonster - Deleted monster ${name}:`, result.deletedCount > 0);
+    return result.deletedCount > 0;
+  } catch (error) {
+    console.error("deleteMonster - Error:", error);
     throw error;
   }
 }

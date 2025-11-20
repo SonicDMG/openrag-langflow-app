@@ -154,7 +154,7 @@ Provide the following information in JSON format:
   "armorClass": number (typical AC, between ${characterType === 'hero' ? '12-18' : '10-20'}),
   "attackBonus": number (typical attack bonus modifier, between ${characterType === 'hero' ? '3-5' : '2-8'}),
   "damageDie": string (typical weapon damage die like "d6", "d8", "d10", or "d12"),
-  "description": string (brief 1-2 sentence description based on the provided description),
+  "description": string (a single concise sentence that combines the character's role/descriptor with key visual details: appearance (height, build, hair, eyes), clothing/armor, and visible equipment. Be descriptive but concise - prioritize the most distinctive visual features that would help generate an accurate image. Keep it brief and focused.),
   "race": string (extract race from description if mentioned, e.g., "Human", "Elf", "Dwarf", or "n/a" if not applicable),
   "sex": string (extract sex/gender from description if mentioned, e.g., "male", "female", "other", or "n/a" if not applicable)
 }

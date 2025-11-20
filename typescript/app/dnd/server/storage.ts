@@ -188,6 +188,29 @@ export async function loadMonsterBundle(monsterId: string): Promise<MonsterBundl
   }
 }
 
+export async function deleteMonsterBundle(monsterId: string): Promise<boolean> {
+  try {
+    const monsterDir = join(MONSTERS_DIR, monsterId);
+    
+    // Check if directory exists
+    try {
+      await fs.access(monsterDir);
+    } catch {
+      // Directory doesn't exist, nothing to delete
+      console.log(`Monster directory ${monsterId} does not exist`);
+      return false;
+    }
+    
+    // Delete the entire directory and all its contents
+    await fs.rm(monsterDir, { recursive: true, force: true });
+    console.log(`Successfully deleted monster bundle ${monsterId}`);
+    return true;
+  } catch (error) {
+    console.error(`Failed to delete monster bundle ${monsterId}:`, error);
+    throw error;
+  }
+}
+
 export function getMonsterUrl(monsterId: string, filename: string = 'rig.json'): string {
   return `/cdn/monsters/${monsterId}/${filename}`;
 }

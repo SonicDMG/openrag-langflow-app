@@ -13,6 +13,7 @@ type CharacterType = 'hero' | 'monster';
 
 interface CharacterFormData {
   name: string;
+  class: string;
   description: string;
   race: string;
   sex: string;
@@ -34,6 +35,7 @@ function CharacterCreatorPageContent() {
   const [characterType, setCharacterType] = useState<CharacterType>('hero');
   const [formData, setFormData] = useState<CharacterFormData>({
     name: '',
+    class: '',
     description: '',
     race: '',
     sex: '',
@@ -78,6 +80,7 @@ function CharacterCreatorPageContent() {
           setCharacterType(editType);
           setFormData({
             name: character.name,
+            class: character.class || '',
             description: character.description || '',
             race: character.race || '',
             sex: character.sex || '',
@@ -239,6 +242,7 @@ function CharacterCreatorPageContent() {
     try {
       const character: DnDClass = {
         name: formData.name.trim(),
+        class: formData.class.trim() || undefined,
         hitPoints: formData.hitPoints,
         maxHitPoints: formData.maxHitPoints,
         armorClass: formData.armorClass,
@@ -283,6 +287,7 @@ function CharacterCreatorPageContent() {
 
   const previewCharacter: DnDClass = {
     name: formData.name || 'Unnamed Character',
+    class: formData.class.trim() || undefined,
     hitPoints: formData.hitPoints,
     maxHitPoints: formData.maxHitPoints,
     armorClass: formData.armorClass,
@@ -432,6 +437,23 @@ function CharacterCreatorPageContent() {
                   className="w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100"
                   placeholder="Enter character name (or generate from description above)"
                 />
+              </div>
+
+              {/* Class */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-amber-100 mb-2">
+                  Class
+                </label>
+                <input
+                  type="text"
+                  value={formData.class}
+                  onChange={(e) => setFormData(prev => ({ ...prev, class: e.target.value }))}
+                  className="w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100"
+                  placeholder="e.g., Fighter, Wizard, Rogue (optional)"
+                />
+                <p className="text-xs text-amber-300 mt-1">
+                  Character class (e.g., Fighter, Wizard, Rogue) - separate from character name
+                </p>
               </div>
 
               {/* Stats Grid */}

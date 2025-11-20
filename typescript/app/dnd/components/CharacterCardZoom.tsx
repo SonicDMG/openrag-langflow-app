@@ -73,7 +73,12 @@ export function CharacterCardZoom({
 
   const isCustomHero = !isMonster(playerClass.name) && !FALLBACK_CLASSES.some(fc => fc.name === playerClass.name);
   const isCustomMonster = !FALLBACK_MONSTERS.some(fm => fm.name === playerClass.name) && isMonster(playerClass.name);
+  
+  // Allow delete for any character (all characters can be deleted)
+  const canDelete = true;
   const [isExporting, setIsExporting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleExportPDF = async () => {
     setIsExporting(true);
@@ -93,6 +98,64 @@ export function CharacterCardZoom({
       alert('Failed to export PDF. Please try again.');
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  // Extract monsterId from image URL if present
+  const extractMonsterId = (): string | null => {
+    // Check if playerClass has monsterId property
+    if ((playerClass as any).monsterId) {
+      return (playerClass as any).monsterId;
+    }
+    
+    // Try to extract from monsterImageUrl
+    if (monsterImageUrl) {
+      const match = monsterImageUrl.match(/\/cdn\/monsters\/([^\/]+)\//);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+    
+    return null;
+  };
+
+  const handleDelete = async () => {
+    if (!showDeleteConfirm) {
+      setShowDeleteConfirm(true);
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const endpoint = determinedEditType === 'hero' ? '/api/heroes' : '/api/monsters-db';
+      const monsterId = extractMonsterId();
+      
+      // Build URL with name parameter
+      const url = new URL(endpoint, window.location.origin);
+      url.searchParams.set('name', playerClass.name);
+      if (monsterId && determinedEditType === 'monster') {
+        url.searchParams.set('monsterId', monsterId);
+      }
+      
+      const response = await fetch(url.toString(), {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete character');
+      }
+
+      // Close the modal and reload the page to refresh the character list
+      onClose();
+      router.refresh();
+      // Also reload the window to ensure all components update
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to delete character:', error);
+      alert(error instanceof Error ? error.message : 'Failed to delete character. Please try again.');
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -197,6 +260,39 @@ export function CharacterCardZoom({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
                 Edit
+              </button>
+            )}
+            {/* Delete button - available for all characters */}
+            {canDelete && (
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="text-base font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                style={{
+                  backgroundColor: 'transparent',
+                  color: showDeleteConfirm ? '#dc2626' : '#5C4033',
+                  fontFamily: 'serif',
+                  border: 'none',
+                  padding: 0,
+                  lineHeight: '1',
+                  opacity: isDeleting ? 0.5 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (!isDeleting) {
+                    e.currentTarget.style.textDecoration = 'underline';
+                    e.currentTarget.style.opacity = '0.8';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.textDecoration = 'none';
+                  e.currentTarget.style.opacity = isDeleting ? '0.5' : '1';
+                }}
+                title={showDeleteConfirm ? 'Click again to confirm deletion' : 'Delete character'}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                {isDeleting ? 'Deleting...' : showDeleteConfirm ? 'Confirm Delete' : 'Delete'}
               </button>
             )}
             {/* PDF Export button */}

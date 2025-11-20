@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllMonsters, upsertMonster, upsertMonsters, monsterRecordToClass } from '../../../lib/db/astra';
+import { getAllMonsters, upsertMonster, upsertMonsters, monsterRecordToClass, deleteMonster } from '../../../lib/db/astra';
+import { deleteMonsterBundle } from '../../dnd/server/storage';
 import { DnDClass } from '../../dnd/types';
 
 // GET - Fetch all monsters
@@ -68,6 +69,53 @@ export async function PUT(req: NextRequest) {
     console.error('Error saving monsters:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to save monsters' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Delete a monster and its associated images
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const name = searchParams.get('name');
+    const monsterId = searchParams.get('monsterId'); // Optional: if provided, delete images too
+
+    if (!name) {
+      return NextResponse.json(
+        { error: 'Monster name is required' },
+        { status: 400 }
+      );
+    }
+
+    const deleted = await deleteMonster(name);
+    
+    if (!deleted) {
+      return NextResponse.json(
+        { error: 'Monster not found' },
+        { status: 404 }
+      );
+    }
+
+    // If monsterId is provided, also delete associated images
+    if (monsterId) {
+      try {
+        await deleteMonsterBundle(monsterId);
+        console.log(`Deleted monster images for ${monsterId}`);
+      } catch (error) {
+        // Log but don't fail if image deletion fails (images might not exist)
+        console.warn(`Failed to delete monster images for ${monsterId}:`, error);
+      }
+    }
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Monster deleted successfully' 
+    });
+  } catch (error) {
+    console.error('Error deleting monster:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to delete monster' },
       { status: 500 }
     );
   }

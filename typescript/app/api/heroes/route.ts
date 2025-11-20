@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllHeroes, upsertHero, upsertHeroes, heroRecordToClass } from '../../../lib/db/astra';
+import { getAllHeroes, upsertHero, upsertHeroes, heroRecordToClass, deleteHero } from '../../../lib/db/astra';
 import { DnDClass } from '../../dnd/types';
 
 // GET - Fetch all heroes
@@ -68,6 +68,41 @@ export async function PUT(req: NextRequest) {
     console.error('Error saving heroes:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to save heroes' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Delete a hero
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const name = searchParams.get('name');
+
+    if (!name) {
+      return NextResponse.json(
+        { error: 'Hero name is required' },
+        { status: 400 }
+      );
+    }
+
+    const deleted = await deleteHero(name);
+    
+    if (!deleted) {
+      return NextResponse.json(
+        { error: 'Hero not found' },
+        { status: 404 }
+      );
+    }
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Hero deleted successfully' 
+    });
+  } catch (error) {
+    console.error('Error deleting hero:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to delete hero' },
       { status: 500 }
     );
   }

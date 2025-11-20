@@ -21,6 +21,7 @@ export type Ability = AttackAbility | HealingAbility;
 // D&D Class definitions
 export interface DnDClass {
   name: string;
+  class?: string; // Character class (e.g., "Fighter", "Wizard", "Rogue") - separate from name
   hitPoints: number;
   maxHitPoints: number;
   armorClass: number;
