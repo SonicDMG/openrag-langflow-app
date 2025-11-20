@@ -123,6 +123,7 @@ export default function MonsterCreatorPage() {
           imageUrl: m.imageUrl || `/cdn/monsters/${m.monsterId}/280x200.png`,
           prompt: m.prompt,
           createdAt: m.createdAt,
+          lastAssociatedAt: m.lastAssociatedAt, // Include lastAssociatedAt for proper sorting
         }));
         setAllCreatedMonsters(monsters);
       }

@@ -135,6 +135,15 @@ export function useBattleData() {
       }
     };
     loadCreatedMonsters();
+
+    // Reload created monsters when window regains focus (in case user updated associations in another tab)
+    const handleFocus = () => {
+      loadCreatedMonsters();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   return {
