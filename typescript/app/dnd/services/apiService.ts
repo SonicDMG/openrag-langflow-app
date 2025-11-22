@@ -41,6 +41,29 @@ async function extractAbilitiesFromResponse(
   abilitiesJsonString = abilitiesJsonString.replace(/,\s*"(\{[^"]*"[^"]*"[^}]*\})"\s*/g, ',$1');
   abilitiesJsonString = abilitiesJsonString.replace(/\[\s*"(\{[^"]*"[^"]*"[^}]*\})"\s*/g, '[$1');
   abilitiesJsonString = abilitiesJsonString.replace(/"(\{[^"]*"[^"]*"[^}]*\})"/g, '$1');
+  
+  // Remove trailing commas before closing brackets/braces
+  abilitiesJsonString = abilitiesJsonString.replace(/,(\s*[}\]])/g, '$1');
+  
+  // Fix missing commas between array elements (look for } followed by { without comma)
+  abilitiesJsonString = abilitiesJsonString.replace(/\}\s*\{/g, '},{');
+  
+  // Fix quoted JSON objects in arrays more robustly
+  // Match patterns like "{"key":"value"}" and unquote them
+  abilitiesJsonString = abilitiesJsonString.replace(/"(\{[^{}]*\})"/g, (match, jsonObj) => {
+    // Only unquote if it looks like valid JSON (has balanced braces)
+    let braceCount = 0;
+    for (let i = 0; i < jsonObj.length; i++) {
+      if (jsonObj[i] === '{') braceCount++;
+      if (jsonObj[i] === '}') braceCount--;
+    }
+    if (braceCount === 0) {
+      return jsonObj;
+    }
+    return match;
+  });
+  
+  // Remove any remaining trailing commas in arrays/objects
   abilitiesJsonString = abilitiesJsonString.replace(/,(\s*[}\]])/g, '$1');
 
   try {
@@ -82,8 +105,63 @@ async function extractAbilitiesFromResponse(
     return fallbackAbilities[name] || [];
   } catch (parseError) {
     console.error('Error parsing JSON from AI response:', parseError);
-    console.error('Extracted JSON string was:', abilitiesJsonString);
-    console.error('Full response was:', accumulatedResponse.substring(0, 200) + '...');
+    console.error('Extracted JSON string (first 500 chars):', abilitiesJsonString.substring(0, 500));
+    
+    // Try to extract position from error message (e.g., "at position 265")
+    if (parseError instanceof SyntaxError) {
+      const positionMatch = parseError.message.match(/position (\d+)/);
+      if (positionMatch) {
+        const position = parseInt(positionMatch[1], 10);
+        console.error('Extracted JSON string (around error position):', 
+          abilitiesJsonString.substring(Math.max(0, position - 100), Math.min(abilitiesJsonString.length, position + 100)));
+      }
+    }
+    
+    console.error('Full response (first 500 chars):', accumulatedResponse.substring(0, 500));
+    
+    // Try one more aggressive fix: attempt to extract just the abilities array
+    try {
+      // Look for the abilities array specifically
+      const abilitiesArrayMatch = abilitiesJsonString.match(/"abilities"\s*:\s*\[([\s\S]*?)\]/);
+      if (abilitiesArrayMatch) {
+        let arrayContent = abilitiesArrayMatch[1];
+        // Try to fix common issues in the array
+        arrayContent = arrayContent.replace(/,(\s*[}\]])/g, '$1'); // Remove trailing commas
+        arrayContent = arrayContent.replace(/\}\s*\{/g, '},{'); // Add missing commas
+        // Try to parse as a complete JSON object with the fixed array
+        const fixedJson = `{"abilities":[${arrayContent}]}`;
+        const fixedParsed = JSON.parse(fixedJson);
+        if (fixedParsed.abilities && Array.isArray(fixedParsed.abilities)) {
+          const validAbilities: Ability[] = [];
+          for (const ability of fixedParsed.abilities) {
+            if (ability.type === 'attack' && ability.name && ability.damageDice) {
+              validAbilities.push({
+                name: ability.name,
+                type: 'attack',
+                damageDice: ability.damageDice,
+                attackRoll: ability.attackRoll !== undefined ? ability.attackRoll : true,
+                attacks: ability.attacks || 1,
+                bonusDamageDice: ability.bonusDamageDice,
+                description: ability.description || '',
+              } as Ability);
+            } else if (ability.type === 'healing' && ability.name && ability.healingDice) {
+              validAbilities.push({
+                name: ability.name,
+                type: 'healing',
+                healingDice: ability.healingDice,
+                description: ability.description || '',
+              } as Ability);
+            }
+          }
+          if (validAbilities.length > 0) {
+            console.warn(`Successfully parsed abilities using aggressive fix for ${name}`);
+            return validAbilities;
+          }
+        }
+      }
+    } catch (aggressiveFixError) {
+      console.error('Aggressive JSON fix also failed:', aggressiveFixError);
+    }
     
     // Try to extract abilities manually using regex as a last resort
     try {
