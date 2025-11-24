@@ -328,7 +328,7 @@ export function CharacterCardZoom({
             </button>
           </div>
           {/* Card Back Header */}
-          <div className="text-center mb-2 pb-1.5 border-b-2" style={{ borderColor: '#8B6F47' }}>
+          <div className="text-center mb-1.5 pb-1 border-b-2" style={{ borderColor: '#8B6F47' }}>
             <h2 
               className="text-4xl font-bold mb-0.5"
               style={{ color: '#5C4033' }}
@@ -344,9 +344,9 @@ export function CharacterCardZoom({
           </div>
 
           {/* Character Details (Race and Sex) */}
-          <div className="mb-2">
+          <div className="mb-1.5">
             <h3 
-              className="text-lg font-semibold mb-1.5"
+              className="text-lg font-semibold mb-1"
               style={{ color: '#8B6F47' }}
             >
               CHARACTER DETAILS
@@ -362,9 +362,9 @@ export function CharacterCardZoom({
           </div>
 
           {/* Stats Grid */}
-          <div className="mb-2">
+          <div className="mb-1.5">
             <h3 
-              className="text-lg font-semibold mb-1.5"
+              className="text-lg font-semibold mb-1"
               style={{ color: '#8B6F47' }}
             >
               STATISTICS
@@ -396,15 +396,15 @@ export function CharacterCardZoom({
           </div>
 
           {/* Description */}
-          <div className="mb-2">
+          <div className="mb-1.5">
             <h3 
-              className="text-lg font-semibold mb-1.5"
+              className="text-lg font-semibold mb-1"
               style={{ color: '#8B6F47' }}
             >
               DESCRIPTION
             </h3>
             <p 
-              className="text-sm leading-relaxed line-clamp-2"
+              className="text-xs leading-tight line-clamp-2"
               style={{ color: '#5C4033' }}
             >
               {playerClass.description || `A ${isMonster(playerClass.name) ? 'monster' : 'hero'} named ${characterName}.`}
@@ -413,14 +413,14 @@ export function CharacterCardZoom({
 
           {/* Abilities */}
           {playerClass.abilities && playerClass.abilities.length > 0 && (
-            <div className="mb-2 flex-1 min-h-0 flex flex-col">
+            <div className="mb-1.5 flex-1 min-h-0 flex flex-col">
               <h3 
-                className="text-lg font-semibold mb-1.5"
+                className="text-lg font-semibold mb-1"
                 style={{ color: '#8B6F47' }}
               >
                 ABILITIES
               </h3>
-              <div className="space-y-1 flex-1 min-h-0">
+              <div className="space-y-0.5 flex-1 min-h-0">
                 {(playerClass.abilities.slice(0, 5)).map((ability, index) => (
                   <AbilityDetailCardBack key={index} ability={ability} />
                 ))}
@@ -454,7 +454,7 @@ function AbilityDetailCardBack({ ability }: { ability: Ability }) {
 
   return (
     <div 
-      className="border-2 rounded-lg p-1.5 flex-shrink-0"
+      className="border-2 rounded-lg p-1 flex-shrink-0"
       style={{ 
         borderColor: '#D4C4B0',
         backgroundColor: 'rgba(139, 111, 71, 0.1)',
@@ -462,13 +462,13 @@ function AbilityDetailCardBack({ ability }: { ability: Ability }) {
     >
       <div className="flex items-start justify-between mb-0.5">
         <h4 
-          className="text-base font-bold"
+          className="text-sm font-bold"
           style={{ color: '#5C4033' }}
         >
           {ability.name}
         </h4>
         <span 
-          className="text-sm font-semibold uppercase px-1.5 py-0.5 rounded"
+          className="text-xs font-semibold uppercase px-1 py-0.5 rounded"
           style={{ 
             color: '#8B6F47',
             backgroundColor: 'rgba(139, 111, 71, 0.2)',
@@ -487,7 +487,7 @@ function AbilityDetailCardBack({ ability }: { ability: Ability }) {
         </p>
       )}
 
-      <div className="flex flex-wrap gap-x-1.5 gap-y-0.5 text-sm" style={{ color: '#8B6F47' }}>
+      <div className="flex flex-wrap gap-x-1.5 gap-y-0.5 text-xs" style={{ color: '#8B6F47' }}>
         {isAttack && attackAbility ? (
           <>
             <div className="flex items-center gap-0.5">
