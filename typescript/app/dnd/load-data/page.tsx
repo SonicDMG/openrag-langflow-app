@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { DnDClass, Ability } from '../types';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS, CLASS_COLORS, FALLBACK_ABILITIES, MONSTER_COLORS, FALLBACK_MONSTER_ABILITIES } from '../constants';
-import { fetchAvailableClasses, fetchClassStats, extractAbilities, fetchAvailableMonsters, fetchMonsterStats, extractMonsterAbilities } from '../services/apiService';
+import { fetchAvailableClasses, fetchClassStats, fetchAvailableMonsters, fetchMonsterStats, extractMonsterAbilities, processSingleCharacter } from '../services/apiService';
 import { PageHeader } from '../components/PageHeader';
 import { LandscapePrompt } from '../components/LandscapePrompt';
 
@@ -23,6 +23,8 @@ export default function LoadDataPage() {
   const [monsterSearchContext, setMonsterSearchContext] = useState<string>('D&D');
   const [isLoadingClasses, setIsLoadingClasses] = useState(false);
   const [isLoadingMonsters, setIsLoadingMonsters] = useState(false);
+  const [singleLookupName, setSingleLookupName] = useState<string>('');
+  const [isLoadingSingle, setIsLoadingSingle] = useState(false);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const logEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -36,7 +38,7 @@ export default function LoadDataPage() {
   // Warn user if they try to navigate away during an operation
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isLoadingClasses || isLoadingMonsters) {
+      if (isLoadingClasses || isLoadingMonsters || isLoadingSingle) {
         e.preventDefault();
         e.returnValue = 'A data loading operation is in progress. Are you sure you want to leave?';
         return e.returnValue;
@@ -47,7 +49,7 @@ export default function LoadDataPage() {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [isLoadingClasses, isLoadingMonsters]);
+  }, [isLoadingClasses, isLoadingMonsters, isLoadingSingle]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -143,36 +145,34 @@ export default function LoadDataPage() {
         try {
           const fallback = fallbackClassMap.get(className);
           
-          // Fetch abilities
-          let abilities: Ability[] = [];
-          try {
-            abilities = await extractAbilities(className, classSearchContext || undefined);
-            if (abilities.length > 0) {
-              updateLogEntry(className, 'loading', `Loading ${className}... (abilities loaded)`);
-            }
-          } catch (error) {
-            console.warn(`Failed to load abilities for ${className}:`, error);
-            abilities = fallback?.abilities || FALLBACK_ABILITIES[className] || [];
-          }
+          // Fetch stats and abilities together in one go (2 queries: search + follow-up)
+          const results = await fetchClassStats(
+            className,
+            (type, msg) => addLog('system', msg),
+            classSearchContext || undefined
+          );
+          
+          const result = results[0]; // Get first result (should only be one for single class)
+          const { stats, abilities } = result;
           
           if (fallback) {
-            // Update existing class with new abilities
+            // Update existing class with new stats and abilities
             const updatedClass: DnDClass = {
               ...fallback,
+              hitPoints: stats?.hitPoints ?? fallback.hitPoints,
+              maxHitPoints: stats?.maxHitPoints ?? stats?.hitPoints ?? fallback.maxHitPoints,
+              armorClass: stats?.armorClass ?? fallback.armorClass,
+              attackBonus: stats?.attackBonus ?? fallback.attackBonus,
+              damageDie: stats?.damageDie ?? fallback.damageDie,
               abilities: abilities.length > 0 ? abilities : fallback.abilities,
+              description: stats?.description ?? fallback.description,
             };
             loadedClasses.push(updatedClass);
             processedItemsRef.current.push(updatedClass); // Track for incremental save
-            updateLogEntry(className, 'success', `✅ ${className} - Updated with ${abilities.length} abilities`);
+            updateLogEntry(className, 'success', `✅ ${className} - Updated (HP: ${updatedClass.hitPoints}, AC: ${updatedClass.armorClass}, ${updatedClass.abilities.length} abilities)`);
             successCount++;
           } else {
-            // Fetch stats for new class
-            const { stats } = await fetchClassStats(
-              className,
-              (type, msg) => addLog('system', msg),
-              classSearchContext || undefined
-            );
-            
+            // New class - use fetched stats and abilities
             if (stats) {
               const newClass: DnDClass = {
                 name: className,
@@ -184,6 +184,8 @@ export default function LoadDataPage() {
                 abilities: abilities,
                 description: stats.description || `A ${className} character.`,
                 color: CLASS_COLORS[className] || 'bg-slate-900',
+                race: stats.race,
+                sex: stats.sex,
               };
               loadedClasses.push(newClass);
               processedItemsRef.current.push(newClass); // Track for incremental save
@@ -401,6 +403,112 @@ export default function LoadDataPage() {
     }
   };
 
+  const loadSingleHeroOrMonster = async () => {
+    if (!singleLookupName.trim()) {
+      addLog('error', '⚠️ Please enter a hero/class or monster name');
+      return;
+    }
+
+    setIsLoadingSingle(true);
+    setLogEntries([]);
+    processedItemsRef.current = [];
+    abortControllerRef.current = new AbortController();
+    addLog('system', `🔍 Looking up "${singleLookupName}" (skipping list query, going directly to character details)...`);
+    
+    try {
+      addLog('item', `Loading ${singleLookupName}...`, singleLookupName, 'loading');
+      
+      // Use processSingleCharacter directly - it does 2 queries: search + follow-up
+      const result = await processSingleCharacter(
+        singleLookupName.trim(),
+        (type, msg) => addLog(type === 'system' ? 'system' : 'system', msg)
+      );
+
+      if (!result.stats) {
+        updateLogEntry(singleLookupName, 'failed', `❌ ${singleLookupName} - Character not found`);
+        setIsLoadingSingle(false);
+        return;
+      }
+
+      // Determine if it's a monster or hero/class (heuristic: check if name is in fallback monsters)
+      const isMonster = FALLBACK_MONSTERS.some(m => m.name.toLowerCase() === singleLookupName.toLowerCase());
+      const fallbackMap = isMonster 
+        ? new Map(FALLBACK_MONSTERS.map(m => [m.name, m]))
+        : new Map(FALLBACK_CLASSES.map(c => [c.name, c]));
+      const fallback = fallbackMap.get(singleLookupName);
+      const colorMap = isMonster ? MONSTER_COLORS : CLASS_COLORS;
+      const storageKey = isMonster ? 'dnd_loaded_monsters' : 'dnd_loaded_classes';
+      const apiEndpoint = isMonster ? '/api/monsters-db' : '/api/heroes';
+      const itemType = isMonster ? 'monster' : 'class';
+
+      const newItem: DnDClass = {
+        name: singleLookupName.trim(),
+        hitPoints: result.stats.hitPoints || (isMonster ? 30 : 25),
+        maxHitPoints: result.stats.maxHitPoints || result.stats.hitPoints || (isMonster ? 30 : 25),
+        armorClass: result.stats.armorClass || 14,
+        attackBonus: result.stats.attackBonus || 4,
+        damageDie: result.stats.damageDie || 'd8',
+        abilities: result.abilities,
+        description: result.stats.description || `A ${singleLookupName} ${itemType}.`,
+        color: colorMap[singleLookupName] || 'bg-slate-900',
+        race: result.stats.race,
+        sex: result.stats.sex,
+      };
+
+      // Merge with existing items and save to localStorage
+      const existingItems = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      const allItems = new Map<string, DnDClass>();
+      existingItems.forEach((item: DnDClass) => allItems.set(item.name, item));
+      allItems.set(newItem.name, newItem);
+      const finalItems = Array.from(allItems.values());
+
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(finalItems));
+        addLog('system', `💾 Saved ${singleLookupName} to localStorage`);
+      } catch (error) {
+        console.error('Failed to save to localStorage:', error);
+        addLog('error', `⚠️ Failed to save to localStorage: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+
+      // Save to Astra DB
+      try {
+        addLog('system', `💾 Saving ${singleLookupName} to Astra DB...`);
+        const response = await fetch(apiEndpoint, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            [isMonster ? 'monsters' : 'heroes']: finalItems,
+            searchContext: isMonster ? monsterSearchContext || undefined : classSearchContext || undefined,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to save to Astra DB');
+        }
+
+        addLog('system', `✅ Successfully saved ${singleLookupName} to Astra DB`);
+      } catch (error) {
+        console.error('Failed to save to Astra DB:', error);
+        addLog('error', `⚠️ Failed to save to Astra DB: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+
+      updateLogEntry(singleLookupName, 'success', `✅ ${singleLookupName} - Loaded (HP: ${newItem.hitPoints}, AC: ${newItem.armorClass}, ${newItem.abilities.length} abilities)`);
+      addLog('system', `✅ Completed loading ${singleLookupName}`);
+    } catch (error) {
+      if (abortControllerRef.current?.signal.aborted) {
+        addLog('system', '⚠️ Operation cancelled');
+      } else {
+        addLog('error', `❌ Error loading ${singleLookupName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        updateLogEntry(singleLookupName, 'failed', `❌ ${singleLookupName} - Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    } finally {
+      setIsLoadingSingle(false);
+    }
+  };
+
   const clearLog = () => {
     setLogEntries([]);
   };
@@ -512,11 +620,48 @@ export default function LoadDataPage() {
             </div>
           </div>
 
+          {/* Single Hero/Class/Monster Lookup */}
+          <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl">
+            <h2 className="text-2xl font-bold mb-4 text-amber-100" style={{ fontFamily: 'serif' }}>
+              Single Hero/Class/Monster Lookup
+            </h2>
+            <p className="text-amber-200 mb-4">Look up a single hero, class, or monster by name (skips list query, goes directly to character details)</p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-amber-200 mb-2">
+                  Hero/Class/Monster Name
+                </label>
+                <input
+                  type="text"
+                  value={singleLookupName}
+                  onChange={(e) => setSingleLookupName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !isLoadingSingle) {
+                      loadSingleHeroOrMonster();
+                    }
+                  }}
+                  placeholder="e.g., Scanlan, Fighter, Goblin"
+                  className="w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100 placeholder-amber-400"
+                />
+                <p className="text-xs text-amber-300 mt-1">
+                  Enter the exact name of a hero, class, or monster to look up directly
+                </p>
+              </div>
+              <button
+                onClick={loadSingleHeroOrMonster}
+                disabled={isLoadingSingle || isLoadingClasses || isLoadingMonsters || !singleLookupName.trim()}
+                className="w-full px-6 py-3 bg-purple-900 hover:bg-purple-800 text-white font-bold rounded-lg border-2 border-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {isLoadingSingle ? 'Looking up...' : 'Look Up Single Hero/Class/Monster'}
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Classes Section */}
             <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl">
               <h2 className="text-2xl font-bold mb-4 text-amber-100" style={{ fontFamily: 'serif' }}>
-                Load Classes/Heroes
+                Bulk Load Classes/Heroes
               </h2>
               <div className="space-y-4">
                 <div>
@@ -536,10 +681,10 @@ export default function LoadDataPage() {
                 </div>
                 <button
                   onClick={loadClassesFromOpenRAG}
-                  disabled={isLoadingClasses || isLoadingMonsters}
+                  disabled={isLoadingClasses || isLoadingMonsters || isLoadingSingle}
                   className="w-full px-6 py-3 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-lg border-2 border-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
-                  {isLoadingClasses ? 'Loading Classes...' : 'Load Classes from OpenRAG'}
+                  {isLoadingClasses ? 'Loading Classes...' : 'Bulk Load Classes from OpenRAG'}
                 </button>
               </div>
             </div>
@@ -547,7 +692,7 @@ export default function LoadDataPage() {
             {/* Monsters Section */}
             <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl">
               <h2 className="text-2xl font-bold mb-4 text-amber-100" style={{ fontFamily: 'serif' }}>
-                Load Monsters
+                Bulk Load Monsters
               </h2>
               <div className="space-y-4">
                 <div>
@@ -567,10 +712,10 @@ export default function LoadDataPage() {
                 </div>
                 <button
                   onClick={loadMonstersFromOpenRAG}
-                  disabled={isLoadingClasses || isLoadingMonsters}
+                  disabled={isLoadingClasses || isLoadingMonsters || isLoadingSingle}
                   className="w-full px-6 py-3 bg-red-900 hover:bg-red-800 text-white font-bold rounded-lg border-2 border-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
-                  {isLoadingMonsters ? 'Loading Monsters...' : 'Load Monsters from OpenRAG'}
+                  {isLoadingMonsters ? 'Loading Monsters...' : 'Bulk Load Monsters from OpenRAG'}
                 </button>
               </div>
             </div>

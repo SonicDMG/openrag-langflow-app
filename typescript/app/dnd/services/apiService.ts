@@ -1,6 +1,7 @@
 import { DnDClass, Ability, CardSetting } from '../types';
 import { CLASS_COLORS, FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, getPlayerClassNames, isMonster, CARD_SETTINGS, DEFAULT_SETTING } from '../constants';
 import { extractJsonFromResponse, parseSSEResponse } from '../utils/api';
+import { extractRaceFromDescription, extractSexFromDescription } from './characterGeneration';
 
 /**
  * Shared helper to extract abilities from AI response
@@ -223,9 +224,10 @@ export async function fetchAvailableClasses(
   searchContext?: string
 ): Promise<{ classNames: string[]; response: string }> {
   try {
-    const query = searchContext 
-      ? `Based on your knowledge base, what character classes are available in ${searchContext}? Return only a JSON array of class names, like ["Fighter", "Wizard", "Rogue", ...]. Do not include any other text, just the JSON array.`
-      : `List all available D&D 5th edition character classes. Return only a JSON array of class names, like ["Fighter", "Wizard", "Rogue", ...]. Do not include any other text, just the JSON array.`;
+    const contextValue = searchContext || 'D&D';
+    const query = `Using your tools, find all character sheets, details, and descriptions for heroes or classes that match "${contextValue}". 
+
+Return only a JSON array of class or hero names. Do not include any other text, just the JSON array.`;
     
     addLog('system', `🔍 Querying OpenRAG for available classes${searchContext ? ` (${searchContext})` : ' (D&D)'}...`);
     
@@ -310,116 +312,267 @@ export async function fetchAvailableClasses(
   }
 }
 
-// Fetch class stats from OpenRAG
-export async function fetchClassStats(
-  className: string,
-  addLog: (type: 'system' | 'narrative', message: string) => void,
-  searchContext?: string
-): Promise<{ stats: Partial<DnDClass> | null; response: string }> {
+// Helper function to process a single character (creates its own thread)
+// Exported for single hero/class/monster lookup
+export async function processSingleCharacter(
+  characterName: string,
+  addLog: (type: 'system' | 'narrative', message: string) => void
+): Promise<{ stats: Partial<DnDClass> | null; abilities: Ability[]; response: string; characterName: string }> {
   try {
-    const contextLabel = searchContext || 'D&D';
-    const query = `For the ${contextLabel} ${className} class, provide the following information in JSON format:
-{
-  "hitPoints": number (typical starting HP at level 1-3, around 20-35),
-  "armorClass": number (typical AC, between 12-18),
-  "attackBonus": number (typical attack bonus modifier, between 3-5),
-  "damageDie": string (typical weapon damage die like "d6", "d8", "d10", or "d12"),
-  "description": string (brief 1-2 sentence description of the class)
-}
-
-Return ONLY valid JSON, no other text. Use typical values for a level 1-3 character.`;
+    // First call: Search for character information (new thread for each character)
+    const searchQuery = `using your tools, find character sheet, details, description for ${characterName}`;
     
-    addLog('system', `🔍 Querying OpenRAG for ${className} class stats...`);
+    // Log the prompt for debugging
+    console.log(`[processSingleCharacter] First call - Search prompt for ${characterName}:`, searchQuery);
     
-    const response = await fetch('/api/chat', {
+    addLog('system', `🔍 Searching OpenRAG for ${characterName}...`);
+    
+    const searchResponse = await fetch('/api/chat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        message: query,
-        previousResponseId: null,
+        message: searchQuery,
+        previousResponseId: null, // New thread for each character
       }),
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    if (!searchResponse.ok) {
+      throw new Error(`HTTP error! status: ${searchResponse.status}`);
     }
 
-    const reader = response.body?.getReader();
-    if (!reader) {
+    const searchReader = searchResponse.body?.getReader();
+    if (!searchReader) {
       throw new Error('No response body');
     }
 
-    const { content } = await parseSSEResponse(reader);
+    const { content: searchContent, responseId } = await parseSSEResponse(searchReader);
     
     // Log the agent response
-    addLog('narrative', `**OpenRAG Response (${className} Stats):**\n\n${content}`);
+    addLog('narrative', `**OpenRAG Search Response (${characterName}):**\n\n${searchContent}`);
+    
+    // Check if OpenRAG returned "no sources found" error
+    if (searchContent.toLowerCase().includes('no relevant supporting sources') || 
+        searchContent.toLowerCase().includes('no sources found') ||
+        searchContent.toLowerCase().includes('no relevant information')) {
+      addLog('system', `⚠️ OpenRAG found no sources for "${characterName}".`);
+      return { stats: null, abilities: [], response: searchContent, characterName };
+    }
+    
+    // Second call: Structure the found information into complete character JSON
+    const structureQuery = `Based on the information found about ${characterName}, provide the complete character information in JSON format:
+{
+  "hitPoints": number (typical starting HP at level 1-3, around 20-35),
+  "armorClass": number (typical AC, between 12-18),
+  "attackBonus": number (typical attack bonus modifier, between 3-5),
+  "damageDie": string (typical weapon damage die like "d6", "d8", "d10", or "d12"),
+  "description": string (brief 1-2 sentence description of the class),
+  "race": string (character race, e.g., "Human", "Elf", "Dwarf", or "n/a" if not applicable),
+  "sex": string (character sex/gender, e.g., "male", "female", "other", or "n/a" if not applicable),
+  "abilities": [
+    {
+      "name": "Ability Name",
+      "type": "attack" or "healing",
+      "damageDice": "XdY" (for attacks, e.g., "1d10", "3d6", "2d8"),
+      "attackRoll": true or false (for attacks: true if requires attack roll, false if automatic damage),
+      "attacks": number (optional, for multi-attack abilities, default: 1),
+      "bonusDamageDice": "XdY" (optional, for attacks with bonus damage like sneak attack),
+      "healingDice": "XdY+Z" (for healing abilities, e.g., "1d8+3", "2d4+2"),
+      "description": "Brief description of the ability"
+    }
+  ]
+}
+
+Important rules:
+- For attack abilities: include "damageDice" and "attackRoll" fields
+- For healing abilities: include "healingDice" field
+- Use standard D&D dice notation (e.g., "1d10", "3d6", "2d8+4")
+- Return ALL available attack and healing abilities for this class - do not limit the number
+- If the class has no abilities, return an empty abilities array: []
+- Return ONLY valid JSON, no other text. Use typical values for a level 1-3 character.`;
+    
+    // Log the prompt for debugging
+    console.log(`[processSingleCharacter] Second call - Structure prompt for ${characterName}:`, structureQuery);
+    
+    addLog('system', `📋 Structuring ${characterName} information into JSON format...`);
+    
+    const structureResponse = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: structureQuery,
+        previousResponseId: responseId,
+      }),
+    });
+
+    if (!structureResponse.ok) {
+      throw new Error(`HTTP error! status: ${structureResponse.status}`);
+    }
+
+    const structureReader = structureResponse.body?.getReader();
+    if (!structureReader) {
+      throw new Error('No response body');
+    }
+
+    const { content } = await parseSSEResponse(structureReader);
+    
+    // Log the agent response
+    addLog('narrative', `**OpenRAG Response (${characterName} Stats & Abilities):**\n\n${content}`);
     
     // Extract JSON from response using utility function
     const statsJsonString = extractJsonFromResponse(
       content,
-      ['hitPoints', 'armorClass', 'attackBonus', 'damageDie'], // required fields
+      ['hitPoints', 'armorClass'], // at least these should be present
       ['search_query'] // exclude fields (unless they also have required fields)
     );
     
+    let parsed: any = null;
+    let abilities: Ability[] = [];
+    
     if (statsJsonString) {
       try {
-        const parsed = JSON.parse(statsJsonString);
-        // Normalize damageDie format (convert "1d6" to "d6" for consistency)
-        let damageDie = parsed.damageDie || 'd8';
-        if (damageDie.match(/^\d+d\d+$/)) {
-          damageDie = 'd' + damageDie.split('d')[1];
-        }
+        parsed = JSON.parse(statsJsonString);
         
-        return {
-          stats: {
-            hitPoints: parsed.hitPoints || 25,
-            maxHitPoints: parsed.hitPoints || 25,
-            armorClass: parsed.armorClass || 14,
-            attackBonus: parsed.attackBonus || 4,
-            damageDie: damageDie,
-            description: parsed.description || `A ${className} character.`,
-          },
-          response: content,
-        };
-      } catch (parseError) {
-        console.warn(`Error parsing stats JSON for ${className}:`, parseError);
-        // Try to extract partial data even if JSON is incomplete
-        const hitPointsMatch = statsJsonString.match(/"hitPoints"\s*:\s*(\d+)/);
-        const armorClassMatch = statsJsonString.match(/"armorClass"\s*:\s*(\d+)/);
-        const attackBonusMatch = statsJsonString.match(/"attackBonus"\s*:\s*(\d+)/);
-        const damageDieMatch = statsJsonString.match(/"damageDie"\s*:\s*"([^"]+)"/);
-        const descriptionMatch = statsJsonString.match(/"description"\s*:\s*"([^"]*)"/);
-        
-        if (hitPointsMatch || armorClassMatch) {
-          let damageDie = damageDieMatch ? damageDieMatch[1] : 'd8';
-          // Normalize damageDie format
-          if (damageDie.match(/^\d+d\d+$/)) {
-            damageDie = 'd' + damageDie.split('d')[1];
+        // Extract abilities from parsed JSON
+        if (parsed.abilities && Array.isArray(parsed.abilities)) {
+          // Validate and normalize abilities
+          for (const ability of parsed.abilities) {
+            if (ability.type === 'attack' && ability.name && ability.damageDice) {
+              abilities.push({
+                name: ability.name,
+                type: 'attack',
+                damageDice: ability.damageDice,
+                attackRoll: ability.attackRoll !== undefined ? ability.attackRoll : true,
+                attacks: ability.attacks || 1,
+                bonusDamageDice: ability.bonusDamageDice,
+                description: ability.description || '',
+              } as Ability);
+            } else if (ability.type === 'healing' && ability.name && ability.healingDice) {
+              abilities.push({
+                name: ability.name,
+                type: 'healing',
+                healingDice: ability.healingDice,
+                description: ability.description || '',
+              } as Ability);
+            }
           }
-          
-          return {
-            stats: {
-              hitPoints: hitPointsMatch ? parseInt(hitPointsMatch[1]) : 25,
-              maxHitPoints: hitPointsMatch ? parseInt(hitPointsMatch[1]) : 25,
-              armorClass: armorClassMatch ? parseInt(armorClassMatch[1]) : 14,
-              attackBonus: attackBonusMatch ? parseInt(attackBonusMatch[1]) : 4,
-              damageDie: damageDie,
-              description: descriptionMatch ? descriptionMatch[1] : `A ${className} character.`,
-            },
-            response: content,
-          };
         }
+      } catch (parseError) {
+        console.warn(`Error parsing stats JSON for ${characterName}:`, parseError);
+        parsed = null;
       }
     }
     
-    console.warn(`Could not parse stats for ${className}:`, content.substring(0, 200));
-    return { stats: null, response: content };
+    // If we successfully parsed, extract stats
+    if (parsed) {
+      // Normalize damageDie format (convert "1d6" to "d6" for consistency)
+      let damageDie = parsed.damageDie || 'd8';
+      if (damageDie.match(/^\d+d\d+$/)) {
+        damageDie = 'd' + damageDie.split('d')[1];
+      }
+      
+      // Extract race and sex from JSON, filtering out "n/a" values
+      let race = parsed.race && parsed.race !== 'n/a' ? parsed.race : undefined;
+      let sex = parsed.sex && parsed.sex !== 'n/a' ? parsed.sex : undefined;
+      
+      // If not found in JSON, try to extract from description
+      const description = parsed.description || content;
+      if (!race) {
+        race = extractRaceFromDescription(description);
+      }
+      if (!sex) {
+        sex = extractSexFromDescription(description);
+      }
+      
+      return {
+        stats: {
+          hitPoints: parsed.hitPoints || 25,
+          maxHitPoints: parsed.hitPoints || 25,
+          armorClass: parsed.armorClass || 14,
+          attackBonus: parsed.attackBonus || 4,
+          damageDie: damageDie,
+          description: parsed.description || `A ${characterName} character.`,
+          race: race,
+          sex: sex,
+        },
+        abilities: abilities,
+        response: content,
+        characterName: characterName,
+      };
+    }
+    
+    // Fallback: try to extract partial data even if JSON is incomplete
+    const hitPointsMatch = content.match(/(?:hitPoints|hit points|hp)[\s:]*(\d+)/i);
+    const armorClassMatch = content.match(/(?:armorClass|armor class|ac)[\s:]*(\d+)/i);
+    const attackBonusMatch = content.match(/(?:attackBonus|attack bonus|attack modifier)[\s:]*[+\-]?(\d+)/i);
+    const damageDieMatch = content.match(/(?:damageDie|damage die|damage dice)[\s:]*"([^"]+)"|([d\d+]+)/i);
+    const descriptionMatch = content.match(/(?:description)[\s:]*"([^"]*)"/);
+    
+    if (hitPointsMatch || armorClassMatch) {
+      let damageDie = damageDieMatch ? (damageDieMatch[1] || damageDieMatch[2]) : 'd8';
+      // Normalize damageDie format
+      if (damageDie.match(/^\d+d\d+$/)) {
+        damageDie = 'd' + damageDie.split('d')[1];
+      }
+      
+      // Try to extract abilities from the response using the existing helper
+      try {
+        abilities = await extractAbilitiesFromResponse(characterName, content, FALLBACK_ABILITIES);
+      } catch (error) {
+        console.warn(`Failed to extract abilities from response for ${characterName}:`, error);
+        abilities = FALLBACK_ABILITIES[characterName] || [];
+      }
+      
+      // Extract race and sex from description using existing functions
+      const description = descriptionMatch ? descriptionMatch[1] : content;
+      const extractedRace = extractRaceFromDescription(description);
+      const extractedSex = extractSexFromDescription(description);
+      
+      return {
+        stats: {
+          hitPoints: hitPointsMatch ? parseInt(hitPointsMatch[1]) : 25,
+          maxHitPoints: hitPointsMatch ? parseInt(hitPointsMatch[1]) : 25,
+          armorClass: armorClassMatch ? parseInt(armorClassMatch[1]) : 14,
+          attackBonus: attackBonusMatch ? parseInt(attackBonusMatch[1]) : 4,
+          damageDie: damageDie,
+          description: descriptionMatch ? descriptionMatch[1] : `A ${characterName} character.`,
+          race: extractedRace,
+          sex: extractedSex,
+        },
+        abilities: abilities,
+        response: content,
+        characterName: characterName,
+      };
+    }
+    
+    console.warn(`Could not parse stats for ${characterName}:`, content.substring(0, 200));
+    return { stats: null, abilities: [], response: content, characterName };
+  } catch (error) {
+    console.error(`Error fetching stats for ${characterName}:`, error);
+    addLog('system', `❌ Error fetching stats for ${characterName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return { stats: null, abilities: [], response: '', characterName };
+  }
+}
+
+// Fetch class stats and abilities from OpenRAG using two calls
+// Handles both single character and multiple characters
+export async function fetchClassStats(
+  className: string,
+  addLog: (type: 'system' | 'narrative', message: string) => void,
+  searchContext?: string
+): Promise<Array<{ stats: Partial<DnDClass> | null; abilities: Ability[]; response: string; characterName: string }>> {
+  try {
+    // Process the character directly - processSingleCharacter will handle the search and follow-up
+    // This avoids duplicate search queries
+    const result = await processSingleCharacter(className, addLog);
+    return [result];
   } catch (error) {
     console.error(`Error fetching stats for ${className}:`, error);
     addLog('system', `❌ Error fetching stats for ${className}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    return { stats: null, response: '' };
+    return [{ stats: null, abilities: [], response: '', characterName: className }];
   }
 }
 
@@ -428,8 +581,7 @@ Return ONLY valid JSON, no other text. Use typical values for a level 1-3 charac
 export async function extractAbilities(className: string, searchContext?: string): Promise<Ability[]> {
   try {
     // Ask the AI to return ALL available abilities for this class
-    const contextLabel = searchContext || 'D&D';
-    const extractionPrompt = `You are a ${contextLabel} expert. From the ${contextLabel} knowledge base, find information about the ${className} class and return ALL available attack and healing abilities.
+    const extractionPrompt = `using your tools, find character sheet, details, description for ${className}. From the information found, return ALL available attack and healing abilities.
 
 Return your response as a JSON object with this exact structure:
 {
@@ -455,6 +607,9 @@ Important rules:
 - Return ALL available attack and healing abilities for this class - do not limit the number
 - If the class has no abilities of either type, return an empty abilities array: {"abilities": []}
 - Include all abilities that are appropriate for this class`;
+
+    // Log the prompt for debugging
+    console.log('[extractAbilities] Prompt:', extractionPrompt);
 
     const response = await fetch('/api/chat', {
       method: 'POST',
