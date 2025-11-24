@@ -867,6 +867,8 @@ function CharacterCardComponent({
               const hasMelee = !!playerClass.meleeDamageDie;
               const hasRanged = !!playerClass.rangedDamageDie;
               const showSeparate = hasMelee && hasRanged;
+              const attackIcon = '⚔️';
+              const iconSize = isCompact ? '0.65em' : '0.75em';
               
               if (showSeparate) {
                 // Show separate Melee and Ranged buttons
@@ -894,10 +896,12 @@ function CharacterCardComponent({
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        gap: '2px',
                         verticalAlign: 'top'
                       }}
                       title={buildAttackTooltip(playerClass.meleeDamageDie!, 'melee')}
                     >
+                      <span style={{ fontSize: iconSize, lineHeight: '1' }}>{attackIcon}</span>
                       Melee
                     </button>
                     <button
@@ -922,10 +926,12 @@ function CharacterCardComponent({
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        gap: '2px',
                         verticalAlign: 'top'
                       }}
                       title={buildAttackTooltip(playerClass.rangedDamageDie!, 'ranged')}
                     >
+                      <span style={{ fontSize: iconSize, lineHeight: '1' }}>{attackIcon}</span>
                       Ranged
                     </button>
                   </>
@@ -970,10 +976,12 @@ function CharacterCardComponent({
                       display: 'inline-flex',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      gap: '2px',
                       verticalAlign: 'top'
                     }}
                     title={buildAttackTooltip(damageDie, attackType)}
                   >
+                    <span style={{ fontSize: iconSize, lineHeight: '1' }}>{attackIcon}</span>
                     Attack
                   </button>
                 );
@@ -983,6 +991,9 @@ function CharacterCardComponent({
             {playerClass.abilities.length > 0 && playerClass.abilities.map((ability, idx) => {
               const isTestHeal = ability.name === 'Test Heal';
               const testMissButton = testButtons.find(btn => btn.label.includes('Test Miss'));
+              const isAttack = ability.type === 'attack';
+              const abilityIcon = isAttack ? '⚔️' : '💚';
+              const iconSize = isCompact ? '0.65em' : '0.75em';
               
               // For non-interactive mode (auto-playing opponents or preview), show as disabled buttons
               if (shouldDisableOpponent || !onUseAbility) {
@@ -1008,10 +1019,12 @@ function CharacterCardComponent({
                       display: 'inline-flex',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      gap: '2px',
                       verticalAlign: 'middle'
                     }}
                     title={buildAbilityTooltip(ability) || undefined}
                   >
+                    <span style={{ fontSize: iconSize, lineHeight: '1' }}>{abilityIcon}</span>
                     {ability.name}
                   </button>
                 );
@@ -1042,10 +1055,12 @@ function CharacterCardComponent({
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    gap: '2px',
                     verticalAlign: 'top'
                   }}
                   title={buildAbilityTooltip(ability) || undefined}
                   >
+                    <span style={{ fontSize: iconSize, lineHeight: '1' }}>{abilityIcon}</span>
                     {ability.name}
                   </button>
               );
