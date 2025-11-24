@@ -116,7 +116,7 @@ describe('apiService - Query Structure Tests', () => {
 
   describe('processSingleCharacter (via fetchClassStats)', () => {
     it('should make exactly 2 queries: search + follow-up in same thread', async () => {
-      const mockResponse = {
+      const mockChatResponse = {
         ok: true,
         body: {
           getReader: jest.fn(() => ({
@@ -125,7 +125,25 @@ describe('apiService - Query Structure Tests', () => {
         },
       };
 
-      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+      const mockHeroesResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({ heroes: [] }),
+      };
+
+      const mockMonstersResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({ monsters: [] }),
+      };
+
+      (global.fetch as jest.Mock).mockImplementation((url: string) => {
+        if (url === '/api/heroes') {
+          return Promise.resolve(mockHeroesResponse);
+        }
+        if (url === '/api/monsters-db') {
+          return Promise.resolve(mockMonstersResponse);
+        }
+        return Promise.resolve(mockChatResponse);
+      });
       
       // First call: search query
       (parseSSEResponse as jest.Mock)
@@ -138,6 +156,7 @@ describe('apiService - Query Structure Tests', () => {
       (parseSSEResponse as jest.Mock)
         .mockResolvedValueOnce({
           content: JSON.stringify({
+            name: 'Scanlan',
             hitPoints: 30,
             armorClass: 15,
             attackBonus: 4,
@@ -150,6 +169,7 @@ describe('apiService - Query Structure Tests', () => {
 
       (extractJsonFromResponse as jest.Mock).mockReturnValue(
         JSON.stringify({
+          name: 'Scanlan',
           hitPoints: 30,
           armorClass: 15,
           attackBonus: 4,
@@ -161,17 +181,24 @@ describe('apiService - Query Structure Tests', () => {
 
       const results = await fetchClassStats('Scanlan', mockAddLog);
 
-      // Should make exactly 2 fetch calls
-      expect(global.fetch).toHaveBeenCalledTimes(2);
+      // Should make exactly 2 chat API calls (search + follow-up) plus 2 database check calls
+      // Total: 4 calls (2 chat + 2 database checks)
+      expect(global.fetch).toHaveBeenCalledTimes(4);
+      
+      // Filter to only chat API calls for the main assertions
+      const chatCalls = (global.fetch as jest.Mock).mock.calls.filter(
+        (call) => call[0] === '/api/chat'
+      );
+      expect(chatCalls).toHaveLength(2);
 
-      // First call: search query
-      const firstCall = (global.fetch as jest.Mock).mock.calls[0];
+      // First call: search query (filter to chat calls only)
+      const firstCall = chatCalls[0];
       const firstRequestBody = JSON.parse(firstCall[1].body);
-      expect(firstRequestBody.message).toBe('using your tools, find character sheet, details, description for Scanlan');
+      expect(firstRequestBody.message).toBe('using your tools, find character sheet, details, description, and name for Scanlan. Be sure to list the name as "Name: nameHere"');
       expect(firstRequestBody.previousResponseId).toBeNull(); // New thread
 
       // Second call: follow-up query
-      const secondCall = (global.fetch as jest.Mock).mock.calls[1];
+      const secondCall = chatCalls[1];
       const secondRequestBody = JSON.parse(secondCall[1].body);
       expect(secondRequestBody.message).toContain('Based on the information found about Scanlan');
       expect(secondRequestBody.message).toContain('provide the complete character information in JSON format');
@@ -183,7 +210,7 @@ describe('apiService - Query Structure Tests', () => {
     });
 
     it('should not make a third query for abilities separately', async () => {
-      const mockResponse = {
+      const mockChatResponse = {
         ok: true,
         body: {
           getReader: jest.fn(() => ({
@@ -192,7 +219,25 @@ describe('apiService - Query Structure Tests', () => {
         },
       };
 
-      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+      const mockHeroesResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({ heroes: [] }),
+      };
+
+      const mockMonstersResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({ monsters: [] }),
+      };
+
+      (global.fetch as jest.Mock).mockImplementation((url: string) => {
+        if (url === '/api/heroes') {
+          return Promise.resolve(mockHeroesResponse);
+        }
+        if (url === '/api/monsters-db') {
+          return Promise.resolve(mockMonstersResponse);
+        }
+        return Promise.resolve(mockChatResponse);
+      });
       
       (parseSSEResponse as jest.Mock)
         .mockResolvedValueOnce({
@@ -222,8 +267,11 @@ describe('apiService - Query Structure Tests', () => {
 
       const results = await fetchClassStats('Wizard', mockAddLog);
 
-      // Should still be exactly 2 calls
-      expect(global.fetch).toHaveBeenCalledTimes(2);
+      // Should make 2 chat API calls (search + follow-up) plus 2 database check calls
+      const chatCalls = (global.fetch as jest.Mock).mock.calls.filter(
+        (call) => call[0] === '/api/chat'
+      );
+      expect(chatCalls).toHaveLength(2);
       
       // Abilities should be included in the result from the second query
       expect(results[0].abilities).toHaveLength(1);
@@ -231,7 +279,7 @@ describe('apiService - Query Structure Tests', () => {
     });
 
     it('should include abilities in the follow-up query structure', async () => {
-      const mockResponse = {
+      const mockChatResponse = {
         ok: true,
         body: {
           getReader: jest.fn(() => ({
@@ -240,7 +288,25 @@ describe('apiService - Query Structure Tests', () => {
         },
       };
 
-      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+      const mockHeroesResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({ heroes: [] }),
+      };
+
+      const mockMonstersResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({ monsters: [] }),
+      };
+
+      (global.fetch as jest.Mock).mockImplementation((url: string) => {
+        if (url === '/api/heroes') {
+          return Promise.resolve(mockHeroesResponse);
+        }
+        if (url === '/api/monsters-db') {
+          return Promise.resolve(mockMonstersResponse);
+        }
+        return Promise.resolve(mockChatResponse);
+      });
       
       (parseSSEResponse as jest.Mock)
         .mockResolvedValueOnce({
@@ -257,7 +323,11 @@ describe('apiService - Query Structure Tests', () => {
       await fetchClassStats('Fighter', mockAddLog);
 
       // Check that the follow-up query includes abilities in the structure
-      const secondCall = (global.fetch as jest.Mock).mock.calls[1];
+      // Filter to chat calls only to get the follow-up query
+      const chatCalls = (global.fetch as jest.Mock).mock.calls.filter(
+        (call) => call[0] === '/api/chat'
+      );
+      const secondCall = chatCalls[1];
       const secondRequestBody = JSON.parse(secondCall[1].body);
       
       expect(secondRequestBody.message).toContain('"abilities"');
@@ -269,7 +339,7 @@ describe('apiService - Query Structure Tests', () => {
 
   describe('fetchClassStats', () => {
     it('should call processSingleCharacter directly without duplicate search', async () => {
-      const mockResponse = {
+      const mockChatResponse = {
         ok: true,
         body: {
           getReader: jest.fn(() => ({
@@ -278,7 +348,25 @@ describe('apiService - Query Structure Tests', () => {
         },
       };
 
-      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+      const mockHeroesResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({ heroes: [] }),
+      };
+
+      const mockMonstersResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({ monsters: [] }),
+      };
+
+      (global.fetch as jest.Mock).mockImplementation((url: string) => {
+        if (url === '/api/heroes') {
+          return Promise.resolve(mockHeroesResponse);
+        }
+        if (url === '/api/monsters-db') {
+          return Promise.resolve(mockMonstersResponse);
+        }
+        return Promise.resolve(mockChatResponse);
+      });
       
       (parseSSEResponse as jest.Mock)
         .mockResolvedValueOnce({
@@ -304,13 +392,16 @@ describe('apiService - Query Structure Tests', () => {
 
       const results = await fetchClassStats('Rogue', mockAddLog);
 
-      // Should make exactly 2 calls (not 3 or 4)
-      expect(global.fetch).toHaveBeenCalledTimes(2);
+      // Should make 2 chat API calls (search + follow-up) plus 2 database check calls
+      const chatCalls = (global.fetch as jest.Mock).mock.calls.filter(
+        (call) => call[0] === '/api/chat'
+      );
+      expect(chatCalls).toHaveLength(2);
       
       // Should not have a separate search query before processSingleCharacter
-      const firstCall = (global.fetch as jest.Mock).mock.calls[0];
+      const firstCall = chatCalls[0];
       const firstRequestBody = JSON.parse(firstCall[1].body);
-      expect(firstRequestBody.message).toBe('using your tools, find character sheet, details, description for Rogue');
+      expect(firstRequestBody.message).toBe('using your tools, find character sheet, details, description, and name for Rogue. Be sure to list the name as "Name: nameHere"');
       
       // Should return results
       expect(results).toHaveLength(1);
@@ -318,7 +409,7 @@ describe('apiService - Query Structure Tests', () => {
     });
 
     it('should not make a separate extractAbilities call', async () => {
-      const mockResponse = {
+      const mockChatResponse = {
         ok: true,
         body: {
           getReader: jest.fn(() => ({
@@ -327,7 +418,25 @@ describe('apiService - Query Structure Tests', () => {
         },
       };
 
-      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+      const mockHeroesResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({ heroes: [] }),
+      };
+
+      const mockMonstersResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({ monsters: [] }),
+      };
+
+      (global.fetch as jest.Mock).mockImplementation((url: string) => {
+        if (url === '/api/heroes') {
+          return Promise.resolve(mockHeroesResponse);
+        }
+        if (url === '/api/monsters-db') {
+          return Promise.resolve(mockMonstersResponse);
+        }
+        return Promise.resolve(mockChatResponse);
+      });
       
       (parseSSEResponse as jest.Mock)
         .mockResolvedValueOnce({
@@ -357,12 +466,15 @@ describe('apiService - Query Structure Tests', () => {
 
       await fetchClassStats('Rogue', mockAddLog);
 
-      // Should still be exactly 2 calls
-      expect(global.fetch).toHaveBeenCalledTimes(2);
+      // Should make 2 chat API calls (search + follow-up) plus 2 database check calls
+      const chatCalls = (global.fetch as jest.Mock).mock.calls.filter(
+        (call) => call[0] === '/api/chat'
+      );
+      expect(chatCalls).toHaveLength(2);
       
       // Verify no query contains "return ALL available attack and healing abilities" 
       // (which would indicate a separate extractAbilities call)
-      const allCalls = (global.fetch as jest.Mock).mock.calls;
+      const allCalls = chatCalls;
       allCalls.forEach((call) => {
         const body = JSON.parse(call[1].body);
         expect(body.message).not.toContain('return ALL available attack and healing abilities');
@@ -402,7 +514,7 @@ describe('apiService - Query Structure Tests', () => {
     });
 
     it('should ensure fetchClassStats uses correct query sequence', async () => {
-      const mockResponse = {
+      const mockChatResponse = {
         ok: true,
         body: {
           getReader: jest.fn(() => ({
@@ -411,7 +523,25 @@ describe('apiService - Query Structure Tests', () => {
         },
       };
 
-      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+      const mockHeroesResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({ heroes: [] }),
+      };
+
+      const mockMonstersResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({ monsters: [] }),
+      };
+
+      (global.fetch as jest.Mock).mockImplementation((url: string) => {
+        if (url === '/api/heroes') {
+          return Promise.resolve(mockHeroesResponse);
+        }
+        if (url === '/api/monsters-db') {
+          return Promise.resolve(mockMonstersResponse);
+        }
+        return Promise.resolve(mockChatResponse);
+      });
       
       (parseSSEResponse as jest.Mock)
         .mockResolvedValueOnce({
@@ -427,15 +557,18 @@ describe('apiService - Query Structure Tests', () => {
 
       await fetchClassStats('TestCharacter', mockAddLog);
 
-      // Verify query sequence
-      expect(global.fetch).toHaveBeenCalledTimes(2);
+      // Verify query sequence - filter to chat calls only
+      const chatCalls = (global.fetch as jest.Mock).mock.calls.filter(
+        (call) => call[0] === '/api/chat'
+      );
+      expect(chatCalls).toHaveLength(2);
       
       // First query should be the search query
-      const firstCall = (global.fetch as jest.Mock).mock.calls[0];
-      expect(JSON.parse(firstCall[1].body).message).toMatch(/^using your tools, find character sheet, details, description for/);
+      const firstCall = chatCalls[0];
+      expect(JSON.parse(firstCall[1].body).message).toMatch(/^using your tools, find character sheet, details, description, and name for/);
       
       // Second query should be the follow-up
-      const secondCall = (global.fetch as jest.Mock).mock.calls[1];
+      const secondCall = chatCalls[1];
       expect(JSON.parse(secondCall[1].body).message).toContain('Based on the information found about');
       expect(JSON.parse(secondCall[1].body).previousResponseId).toBe('response-123');
     });
