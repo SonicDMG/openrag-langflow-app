@@ -3,6 +3,65 @@ import { DnDClass } from '../types';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../constants';
 import { loadHeroesFromDatabase, loadMonstersFromDatabase } from '../utils/dataLoader';
 
+// Character name lists for each class (from names.ts)
+const CLASS_NAME_LISTS: Record<string, string[]> = {
+  Fighter: ['Thorin Ironfist', 'Gareth the Bold', 'Ragnar Steelheart', 'Sir Aldric', 'Bjorn the Mighty', 'Kaelen Bladeborn', 'Darius Warhammer', 'Conan the Conqueror'],
+  Wizard: ['Merlin Shadowweaver', 'Gandalf the Grey', 'Zephyr Starfire', 'Archmage Elara', 'Thaddeus Spellwright', 'Lyra Moonwhisper', 'Alistair the Wise', 'Morgana Arcane'],
+  Rogue: ['Shadow the Silent', 'Raven Blackdagger', 'Whisper Nightshade', 'Vex the Swift', 'Sly Cooper', 'Nyx Shadowstep', 'Jade the Thief', 'Crimson Blade'],
+  Cleric: ['Brother Marcus', 'Sister Seraphina', 'Father Lightbringer', 'High Priestess Celeste', 'Brother Gabriel', 'Sister Mercy', 'Father Devout', 'Cleric Aria'],
+  Barbarian: ['Grok the Furious', 'Thokk Bloodaxe', 'Berserker Korg', 'Rage the Unstoppable', 'Grimjaw the Wild', 'Thunder Fist', 'Bloodfang', 'Ragnarok'],
+  Ranger: ['Aragorn the Wanderer', 'Legolas Greenleaf', 'Hawkeye the Tracker', 'Sylvan the Hunter', 'Ranger Kael', 'Forest Walker', 'Arrow the Swift', 'Wildheart'],
+  Paladin: ['Sir Galahad', 'Lady Justice', 'Knight Valor', 'Sir Percival', 'Paladin Dawn', 'Holy Champion', 'Sir Lancelot', 'Divine Shield'],
+  Bard: ['Lorelei the Songstress', 'Merry the Minstrel', 'Bardic Thunder', 'Lyric the Storyteller', 'Melody Bright', 'Harmony the Voice', 'Verse the Charmer', 'Rhyme the Witty'],
+  Sorcerer: ['Zara Stormcaller', 'Draco the Wild', 'Nova the Radiant', 'Chaos the Untamed', 'Aurora Spellborn', 'Tempest the Furious', 'Ember the Bright', 'Starfire'],
+  Warlock: ['Malachi Darkpact', 'Lilith the Cursed', 'Necro the Bound', 'Shadow the Summoner', 'Vex the Hexed', 'Raven the Cursed', 'Void the Dark', 'Pactkeeper'],
+  Monk: ['Master Chen', 'Sifu Li', 'Zen the Peaceful', 'Iron Fist', 'Master Po', 'Dragon the Wise', 'Tiger the Fierce', 'Crane the Graceful'],
+  Druid: ['Oakheart the Ancient', 'Luna Moonwhisper', 'Thorn the Wild', 'Nature the Keeper', 'Grove the Guardian', 'Ivy the Green', 'Root the Deep', 'Bloom the Bright'],
+  Artificer: ['Tinker the Inventor', 'Gear the Builder', 'Cog the Mechanic', 'Spark the Creator', 'Forge the Smith', 'Wrench the Fixer', 'Blueprint the Designer', 'Steam the Engineer'],
+};
+
+/**
+ * Check if a custom hero name matches any character name in a fallback class's name list.
+ * This helps filter out fallback classes when a custom hero with a matching name exists.
+ */
+function isCustomHeroNameInClassList(customHeroName: string, className: string): boolean {
+  const nameList = CLASS_NAME_LISTS[className] || [];
+  return nameList.some(name => name.toLowerCase() === customHeroName.toLowerCase());
+}
+
+/**
+ * Filter out fallback classes that have a custom hero with a matching character name.
+ * This prevents duplicate cards (e.g., "Sylvan the Hunter" custom hero and "Ranger" fallback class).
+ */
+function filterFallbackClassesWithCustomHeroes(heroes: DnDClass[]): DnDClass[] {
+  // Identify custom heroes (not in FALLBACK_CLASSES)
+  const customHeroes = heroes.filter(hero => 
+    !FALLBACK_CLASSES.some(fc => fc.name === hero.name)
+  );
+  
+  // If no custom heroes, return all heroes as-is
+  if (customHeroes.length === 0) {
+    return heroes;
+  }
+  
+  // Filter out fallback classes that have a custom hero with a matching name
+  return heroes.filter(hero => {
+    // Keep all custom heroes
+    const isCustomHero = !FALLBACK_CLASSES.some(fc => fc.name === hero.name);
+    if (isCustomHero) {
+      return true;
+    }
+    
+    // For fallback classes, check if any custom hero name matches this class's name list
+    const hasMatchingCustomHero = customHeroes.some(customHero => 
+      isCustomHeroNameInClassList(customHero.name, hero.name)
+    );
+    
+    // Exclude fallback class if there's a matching custom hero
+    return !hasMatchingCustomHero;
+  });
+}
+
 export function useBattleData() {
   const [availableClasses, setAvailableClasses] = useState<DnDClass[]>(FALLBACK_CLASSES);
   const [isLoadingClasses, setIsLoadingClasses] = useState(false);
@@ -21,7 +80,10 @@ export function useBattleData() {
         const heroes = await loadHeroesFromDatabase();
         console.log(`[useBattleData] Loaded ${heroes.length} heroes from database`);
         if (heroes.length > 0) {
-          setAvailableClasses(heroes);
+          // Filter out fallback classes that have matching custom heroes
+          const filteredHeroes = filterFallbackClassesWithCustomHeroes(heroes);
+          console.log(`[useBattleData] Filtered to ${filteredHeroes.length} heroes (removed ${heroes.length - filteredHeroes.length} fallback classes with matching custom heroes)`);
+          setAvailableClasses(filteredHeroes);
           setClassesLoaded(true);
         } else {
           console.log('[useBattleData] No heroes found in database, using fallback classes');

@@ -1,7 +1,7 @@
 import { DnDClass, Ability, CardSetting } from '../types';
 import { CLASS_COLORS, FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, getPlayerClassNames, isMonster, CARD_SETTINGS, DEFAULT_SETTING } from '../constants';
 import { extractJsonFromResponse, parseSSEResponse } from '../utils/api';
-import { extractRaceFromDescription, extractSexFromDescription } from './characterGeneration';
+import { extractRaceFromDescription, extractSexFromDescription, extractNameFromDescription } from './characterGeneration';
 
 /**
  * Shared helper to extract abilities from AI response
@@ -317,10 +317,10 @@ Return only a JSON array of class or hero names. Do not include any other text, 
 export async function processSingleCharacter(
   characterName: string,
   addLog: (type: 'system' | 'narrative', message: string) => void
-): Promise<{ stats: Partial<DnDClass> | null; abilities: Ability[]; response: string; characterName: string }> {
+): Promise<{ stats: Partial<DnDClass> | null; abilities: Ability[]; response: string; characterName: string; alreadyExists?: boolean }> {
   try {
     // First call: Search for character information (new thread for each character)
-    const searchQuery = `using your tools, find character sheet, details, description for ${characterName}`;
+    const searchQuery = `using your tools, find character sheet, details, description, and name for ${characterName}. Be sure to list the name as "Name: nameHere"`;
     
     // Log the prompt for debugging
     console.log(`[processSingleCharacter] First call - Search prompt for ${characterName}:`, searchQuery);
@@ -357,12 +357,136 @@ export async function processSingleCharacter(
         searchContent.toLowerCase().includes('no sources found') ||
         searchContent.toLowerCase().includes('no relevant information')) {
       addLog('system', `⚠️ OpenRAG found no sources for "${characterName}".`);
-      return { stats: null, abilities: [], response: searchContent, characterName };
+      return { stats: null, abilities: [], response: searchContent, characterName, alreadyExists: false };
+    }
+    
+    // Extract character name from search response to check for duplicates
+    // The search query asks for "Name: nameHere" format, so look for that first
+    let extractedName: string | undefined = undefined;
+    
+    // First, try to extract from "Name: nameHere" format (most reliable)
+    // Handle markdown formatting like **bold** and other formatting
+    const nameFieldPattern = /Name:\s*([^\n\r]+)/i;
+    const nameFieldMatch = searchContent.match(nameFieldPattern);
+    if (nameFieldMatch && nameFieldMatch[1]) {
+      extractedName = nameFieldMatch[1].trim();
+      
+      // Remove markdown formatting (**bold**, *italic*, etc.)
+      extractedName = extractedName.replace(/\*\*/g, '').replace(/\*/g, '').trim();
+      
+      // Remove any trailing punctuation, colons, or other formatting that might have been captured
+      extractedName = extractedName.replace(/[.,:;]+$/, '').trim();
+      
+      // If there's additional text after the name (like "Character Details:"), extract just the name part
+      // Look for patterns where the name ends before common section headers
+      const sectionHeaders = ['Character Details', 'Description', 'Stats', 'Abilities', 'Class', 'Race'];
+      for (const header of sectionHeaders) {
+        const headerIndex = extractedName.indexOf(header);
+        if (headerIndex > 0) {
+          extractedName = extractedName.substring(0, headerIndex).trim();
+          break;
+        }
+      }
+      
+      // Clean up any remaining trailing punctuation
+      extractedName = extractedName.replace(/[.,:;]+$/, '').trim();
+      
+      console.log(`[processSingleCharacter] Extracted name from "Name:" field: "${extractedName}"`);
+    }
+    
+    // Fallback to other patterns if "Name:" field not found
+    if (!extractedName) {
+      // Look for patterns like "Here are the details for [Full Name]"
+      const nameExtractionPatterns = [
+        // Pattern: "Here are the details for Sylvan the Hunter" - capture everything after "for" until punctuation
+        /(?:here are the details for|information about|details for|found details about|found information about|character named|character)\s+([A-Z][a-z]+(?:\s+(?:the|of|de|van|von)\s+[A-Z][a-z]+|[A-Z][a-z]+)*?)(?:\s*[.,:;]|\s+(?:is|was|a|an|the|has|with)|$)/i,
+        // Pattern: "Sylvan the Hunter: description" - capture full name before colon
+        /^([A-Z][a-z]+(?:\s+(?:the|of|de|van|von)\s+[A-Z][a-z]+|[A-Z][a-z]+)*?)(?:\s*[:,]|\s+(?:is|was|a|an|the))/,
+      ];
+      
+      for (const pattern of nameExtractionPatterns) {
+        const match = searchContent.match(pattern);
+        if (match && match[1]) {
+          const potentialName = match[1].trim();
+          const commonSingleWords = ['here', 'information', 'details', 'character', 'found', 'about'];
+          const hasTitlePattern = /\s+(?:the|of|de|van|von)\s+[A-Z][a-z]+/i.test(potentialName);
+          
+          if (potentialName.length > 2 && 
+              potentialName.length < 50 && 
+              /^[A-Z]/.test(potentialName) &&
+              !commonSingleWords.includes(potentialName.toLowerCase()) &&
+              (hasTitlePattern || potentialName.split(/\s+/).length >= 2)) {
+            extractedName = potentialName;
+            console.log(`[processSingleCharacter] Extracted name using pattern: "${extractedName}"`);
+            break;
+          }
+        }
+      }
+      
+      // Final fallback to the original extractNameFromDescription
+      if (!extractedName) {
+        extractedName = extractNameFromDescription(searchContent);
+        if (extractedName) {
+          console.log(`[processSingleCharacter] Extracted name using fallback: "${extractedName}"`);
+        }
+      }
+    }
+    
+    const nameToCheck = extractedName || characterName;
+    console.log(`[processSingleCharacter] Final extracted name: "${extractedName}", using "${nameToCheck}" for duplicate check`);
+    
+    // Check if character already exists in database (check both heroes and monsters)
+    // This saves us the cost of the structuring query if the character already exists
+    try {
+      addLog('system', `🔍 Checking if ${nameToCheck} already exists in database...`);
+      
+      // Check heroes endpoint
+      const heroesResponse = await fetch('/api/heroes');
+      if (heroesResponse.ok) {
+        const heroesData = await heroesResponse.json();
+        const heroes = heroesData.heroes || [];
+        console.log(`[processSingleCharacter] Checking ${heroes.length} heroes for "${nameToCheck}"`);
+        const existingHero = heroes.find((h: DnDClass) => 
+          h.name.toLowerCase() === nameToCheck.toLowerCase()
+        );
+        if (existingHero) {
+          console.log(`[processSingleCharacter] Found existing hero: ${existingHero.name}`);
+          addLog('system', `ℹ️ ${nameToCheck} already exists in the database as a hero. Skipping processing.`);
+          return { stats: null, abilities: [], response: searchContent, characterName: nameToCheck, alreadyExists: true };
+        }
+      } else {
+        console.warn(`[processSingleCharacter] Heroes API returned status ${heroesResponse.status}`);
+      }
+      
+      // Check monsters endpoint
+      const monstersResponse = await fetch('/api/monsters-db');
+      if (monstersResponse.ok) {
+        const monstersData = await monstersResponse.json();
+        const monsters = monstersData.monsters || [];
+        console.log(`[processSingleCharacter] Checking ${monsters.length} monsters for "${nameToCheck}"`);
+        const existingMonster = monsters.find((m: DnDClass) => 
+          m.name.toLowerCase() === nameToCheck.toLowerCase()
+        );
+        if (existingMonster) {
+          console.log(`[processSingleCharacter] Found existing monster: ${existingMonster.name}`);
+          addLog('system', `ℹ️ ${nameToCheck} already exists in the database as a monster. Skipping processing.`);
+          return { stats: null, abilities: [], response: searchContent, characterName: nameToCheck, alreadyExists: true };
+        }
+      } else {
+        console.warn(`[processSingleCharacter] Monsters API returned status ${monstersResponse.status}`);
+      }
+      
+      console.log(`[processSingleCharacter] Character "${nameToCheck}" not found in database, proceeding with structuring query`);
+    } catch (error) {
+      console.error('Failed to check for existing character, continuing with processing:', error);
+      addLog('system', `⚠️ Failed to check database for existing character, continuing with processing...`);
+      // Continue with processing if check fails
     }
     
     // Second call: Structure the found information into complete character JSON
     const structureQuery = `Based on the information found about ${characterName}, provide the complete character information in JSON format:
 {
+  "name": string (the actual character name from the character sheet, e.g., "Sylvan the Hunter", "Aragorn", "Gandalf the Grey"),
   "hitPoints": number (typical starting HP at level 1-3, around 20-35),
   "armorClass": number (typical AC, between 12-18),
   "attackBonus": number (typical attack bonus modifier, between 3-5),
@@ -385,6 +509,7 @@ export async function processSingleCharacter(
 }
 
 Important rules:
+- The "name" field should be the actual character name from the character sheet, not the search term
 - For attack abilities: include "damageDice" and "attackRoll" fields
 - For healing abilities: include "healingDice" field
 - Use standard D&D dice notation (e.g., "1d10", "3d6", "2d8+4")
@@ -431,10 +556,23 @@ Important rules:
     
     let parsed: any = null;
     let abilities: Ability[] = [];
+    let extractedCharacterName: string = characterName; // Default to search term
     
     if (statsJsonString) {
       try {
         parsed = JSON.parse(statsJsonString);
+        
+        // Extract character name from JSON if available
+        if (parsed.name && parsed.name.trim()) {
+          extractedCharacterName = parsed.name.trim();
+        } else {
+          // Try to extract name from description or search content
+          const description = parsed.description || searchContent || content;
+          const extractedName = extractNameFromDescription(description);
+          if (extractedName) {
+            extractedCharacterName = extractedName;
+          }
+        }
         
         // Extract abilities from parsed JSON
         if (parsed.abilities && Array.isArray(parsed.abilities)) {
@@ -494,13 +632,14 @@ Important rules:
           armorClass: parsed.armorClass || 14,
           attackBonus: parsed.attackBonus || 4,
           damageDie: damageDie,
-          description: parsed.description || `A ${characterName} character.`,
+          description: parsed.description || `A ${extractedCharacterName} character.`,
           race: race,
           sex: sex,
         },
         abilities: abilities,
         response: content,
-        characterName: characterName,
+        characterName: extractedCharacterName,
+        alreadyExists: false,
       };
     }
     
@@ -518,6 +657,11 @@ Important rules:
         damageDie = 'd' + damageDie.split('d')[1];
       }
       
+      // Try to extract character name from description or search content
+      const description = descriptionMatch ? descriptionMatch[1] : content;
+      const extractedName = extractNameFromDescription(description) || extractNameFromDescription(searchContent);
+      const finalCharacterName = extractedName || characterName;
+      
       // Try to extract abilities from the response using the existing helper
       try {
         abilities = await extractAbilitiesFromResponse(characterName, content, FALLBACK_ABILITIES);
@@ -527,7 +671,6 @@ Important rules:
       }
       
       // Extract race and sex from description using existing functions
-      const description = descriptionMatch ? descriptionMatch[1] : content;
       const extractedRace = extractRaceFromDescription(description);
       const extractedSex = extractSexFromDescription(description);
       
@@ -538,22 +681,23 @@ Important rules:
           armorClass: armorClassMatch ? parseInt(armorClassMatch[1]) : 14,
           attackBonus: attackBonusMatch ? parseInt(attackBonusMatch[1]) : 4,
           damageDie: damageDie,
-          description: descriptionMatch ? descriptionMatch[1] : `A ${characterName} character.`,
+          description: descriptionMatch ? descriptionMatch[1] : `A ${finalCharacterName} character.`,
           race: extractedRace,
           sex: extractedSex,
         },
         abilities: abilities,
         response: content,
-        characterName: characterName,
+        characterName: finalCharacterName,
+        alreadyExists: false,
       };
     }
     
     console.warn(`Could not parse stats for ${characterName}:`, content.substring(0, 200));
-    return { stats: null, abilities: [], response: content, characterName };
+    return { stats: null, abilities: [], response: content, characterName, alreadyExists: false };
   } catch (error) {
     console.error(`Error fetching stats for ${characterName}:`, error);
     addLog('system', `❌ Error fetching stats for ${characterName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    return { stats: null, abilities: [], response: '', characterName };
+    return { stats: null, abilities: [], response: '', characterName, alreadyExists: false };
   }
 }
 

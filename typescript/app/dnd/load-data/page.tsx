@@ -424,6 +424,16 @@ export default function LoadDataPage() {
         (type, msg) => addLog(type === 'system' ? 'system' : 'system', msg)
       );
 
+      // Use the extracted character name from the character sheet, not the search term
+      const characterName = result.characterName || singleLookupName.trim();
+
+      // Check if character already exists (checked during processSingleCharacter)
+      if (result.alreadyExists) {
+        updateLogEntry(singleLookupName, 'success', `ℹ️ ${characterName} - Already exists in database`);
+        setIsLoadingSingle(false);
+        return;
+      }
+
       if (!result.stats) {
         updateLogEntry(singleLookupName, 'failed', `❌ ${singleLookupName} - Character not found`);
         setIsLoadingSingle(false);
@@ -431,6 +441,7 @@ export default function LoadDataPage() {
       }
 
       // Determine if it's a monster or hero/class (heuristic: check if name is in fallback monsters)
+      // Use the original search term for this check, not the extracted name
       const isMonster = FALLBACK_MONSTERS.some(m => m.name.toLowerCase() === singleLookupName.toLowerCase());
       const fallbackMap = isMonster 
         ? new Map(FALLBACK_MONSTERS.map(m => [m.name, m]))
@@ -440,17 +451,17 @@ export default function LoadDataPage() {
       const storageKey = isMonster ? 'dnd_loaded_monsters' : 'dnd_loaded_classes';
       const apiEndpoint = isMonster ? '/api/monsters-db' : '/api/heroes';
       const itemType = isMonster ? 'monster' : 'class';
-
+      
       const newItem: DnDClass = {
-        name: singleLookupName.trim(),
+        name: characterName,
         hitPoints: result.stats.hitPoints || (isMonster ? 30 : 25),
         maxHitPoints: result.stats.maxHitPoints || result.stats.hitPoints || (isMonster ? 30 : 25),
         armorClass: result.stats.armorClass || 14,
         attackBonus: result.stats.attackBonus || 4,
         damageDie: result.stats.damageDie || 'd8',
         abilities: result.abilities,
-        description: result.stats.description || `A ${singleLookupName} ${itemType}.`,
-        color: colorMap[singleLookupName] || 'bg-slate-900',
+        description: result.stats.description || `A ${characterName} ${itemType}.`,
+        color: colorMap[characterName] || colorMap[singleLookupName] || 'bg-slate-900',
         race: result.stats.race,
         sex: result.stats.sex,
       };
@@ -464,7 +475,7 @@ export default function LoadDataPage() {
 
       try {
         localStorage.setItem(storageKey, JSON.stringify(finalItems));
-        addLog('system', `💾 Saved ${singleLookupName} to localStorage`);
+        addLog('system', `💾 Saved ${characterName} to localStorage`);
       } catch (error) {
         console.error('Failed to save to localStorage:', error);
         addLog('error', `⚠️ Failed to save to localStorage: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -472,7 +483,7 @@ export default function LoadDataPage() {
 
       // Save to Astra DB
       try {
-        addLog('system', `💾 Saving ${singleLookupName} to Astra DB...`);
+        addLog('system', `💾 Saving ${characterName} to Astra DB...`);
         const response = await fetch(apiEndpoint, {
           method: 'PUT',
           headers: {
@@ -489,14 +500,14 @@ export default function LoadDataPage() {
           throw new Error(errorData.error || 'Failed to save to Astra DB');
         }
 
-        addLog('system', `✅ Successfully saved ${singleLookupName} to Astra DB`);
+        addLog('system', `✅ Successfully saved ${characterName} to Astra DB`);
       } catch (error) {
         console.error('Failed to save to Astra DB:', error);
         addLog('error', `⚠️ Failed to save to Astra DB: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
 
-      updateLogEntry(singleLookupName, 'success', `✅ ${singleLookupName} - Loaded (HP: ${newItem.hitPoints}, AC: ${newItem.armorClass}, ${newItem.abilities.length} abilities)`);
-      addLog('system', `✅ Completed loading ${singleLookupName}`);
+      updateLogEntry(singleLookupName, 'success', `✅ ${characterName} - Loaded (HP: ${newItem.hitPoints}, AC: ${newItem.armorClass}, ${newItem.abilities.length} abilities)`);
+      addLog('system', `✅ Completed loading ${characterName}`);
     } catch (error) {
       if (abortControllerRef.current?.signal.aborted) {
         addLog('system', '⚠️ Operation cancelled');
