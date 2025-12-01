@@ -1,14 +1,14 @@
 # Dynamic Monster Creation System
 
-This system allows you to dynamically create new monster types at runtime by generating reference images, pixelizing them, auto-rigging, and rendering them with procedural animations.
+This system allows you to dynamically create new monster types at runtime by generating reference images, pixelizing them, and storing them as static images with optional cutout versions for layered display.
 
 ## Architecture Overview
 
 1. **Image Generation**: Uses EverArt MCP tool to generate reference images
 2. **Pixelization**: Reduces image to pixel art with palette quantization
-3. **Auto-Rigging**: Automatically detects parts and creates rig structure
+3. **Background Removal**: Creates cutout versions of monsters for layered display
 4. **Storage**: Saves monster bundles to `/public/cdn/monsters/{monsterId}/`
-5. **Runtime Rendering**: Uses PixiJS to render rigs with procedural animations
+5. **Runtime Display**: Uses static PNG images with CSS animations for visual effects
 
 ## Usage
 
@@ -53,22 +53,9 @@ Navigate to `/dnd/monster-creator` to use the visual interface for creating mons
 
 ## Components
 
-### RigPlayer
-
-Renders a rigged character with procedural animations:
-
-```tsx
-<RigPlayer
-  bundleUrl={`/cdn/monsters/${monsterId}`}
-  expression="neutral" // or "happy", "angry"
-  wind={0.6} // 0-1, controls wind animation strength
-  cast={false} // enables spell casting particle effects
-/>
-```
-
 ### MonsterCreator
 
-UI component for creating new monsters with form inputs.
+UI component for creating new monsters with form inputs. Creates static images that are displayed using the CharacterCard component with CSS-based visual effects (shake, sparkle, cast, flash, etc.).
 
 ## File Structure
 
@@ -77,11 +64,10 @@ app/dnd/
 ├── server/
 │   ├── storage.ts          # Monster bundle persistence
 │   ├── pixelize.ts         # Image pixelization & palette reduction
-│   ├── autoRig.ts          # Automatic rigging heuristics
+│   ├── backgroundRemoval.ts # Background removal for cutout images
 │   └── imageGeneration.ts  # Image generation helpers
 ├── components/
-│   ├── RigPlayer.tsx       # Runtime rig renderer
-│   └── MonsterCreator.tsx # Monster creation UI
+│   └── MonsterCreator.tsx  # Monster creation UI
 └── utils/
     └── monsterTypes.ts     # Type definitions
 ```
@@ -90,58 +76,30 @@ app/dnd/
 
 Each monster is stored in `/public/cdn/monsters/{monsterId}/`:
 
-- `rig.json` - Rig definition (bones, slots, expressions)
-- `128.png`, `256.png`, `512.png` - Pixelized images at different sizes
-- `{partName}.png` - Individual part textures (head.png, torso.png, etc.)
+- `rig.json` - Metadata about the monster (image dimensions, class, seed, etc.)
+- `128.png`, `200.png`, `256.png`, `280x200.png`, `512.png` - Pixelized images at different sizes
+- `128-cutout.png`, `200-cutout.png`, etc. - Cutout versions for layered display (optional)
+- `128-background.png`, `200-background.png`, etc. - Background-only versions (optional)
 - `metadata.json` - Monster metadata (class, seed, prompt, stats, palette)
 
-## Procedural Animations
+## Visual Effects
 
-The RigPlayer supports several procedural animations:
+Monsters use CSS-based visual effects for battle animations:
 
-- **Idle**: Head bobbing
-- **Wind**: Beard, robe, and hat swaying (controlled by `wind` prop)
-- **Blink**: Automatic eye blinking
-- **Spell Casting**: Particle effects from staff tip (when `cast={true}`)
+- **Shake**: Card shake animation for damage
+- **Sparkle**: Sparkle particles for healing/buffs
+- **Cast**: Cast effect animations for spell casting
+- **Flash**: Flash effects with projectile types (fire, ice, magic, etc.)
+- **Miss**: Miss animation for failed attacks
+- **Hit**: Hit animation for successful attacks
 
-## Customization
-
-### Adding New Expressions
-
-Edit the rig's `expressions` field to add new emotion states:
-
-```json
-{
-  "expressions": {
-    "neutral": {},
-    "happy": { "mouth": "mouth_smile.png" },
-    "angry": { "mouth": "mouth_grit.png" },
-    "surprised": { "eyeL": "eye_wide.png", "eyeR": "eye_wide.png" }
-  }
-}
-```
-
-### Adding Wind-Affected Parts
-
-Edit the `windParts` array in `RigPlayer.tsx`:
-
-```typescript
-const windParts = ['beard', 'robeL', 'robeR', 'hatTip', 'cape'];
-```
-
-### Custom Auto-Rigging
-
-Modify `autoRig.ts` to improve part detection. For production, consider:
-- Using OpenCV WASM for contour detection
-- Implementing more sophisticated heuristics
-- Adding a manual confirmation UI for rig adjustments
+These effects are applied via the CharacterCard component using CSS animations and particle effects.
 
 ## Future Enhancements
 
-- [ ] OpenCV-based part detection for better auto-rigging
-- [ ] Manual rig editor integration for fine-tuning
-- [ ] Support for multiple animation states
-- [ ] Export to Spine/DragonBones format
+- [ ] Improved background removal algorithms
+- [ ] Support for animated GIF exports
 - [ ] Class-specific palette presets
 - [ ] Batch monster generation
+- [ ] Enhanced cutout quality
 

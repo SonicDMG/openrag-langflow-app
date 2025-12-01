@@ -33,7 +33,6 @@ export default function MonsterTestPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [expression, setExpression] = useState('neutral');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -561,18 +560,7 @@ export default function MonsterTestPage() {
               <h3 className="font-semibold text-amber-100">Animation Controls</h3>
 
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-amber-100">
-                  Expression
-                  <select
-                    value={expression}
-                    onChange={(e) => setExpression(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100"
-                  >
-                    <option value="neutral">Neutral</option>
-                    <option value="happy">Happy</option>
-                    <option value="angry">Angry</option>
-                  </select>
-                </label>
+                {/* Expression controls removed - not used in current implementation */}
               </div>
 
               {/* Card Animation Test Buttons */}

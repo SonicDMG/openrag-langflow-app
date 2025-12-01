@@ -140,12 +140,6 @@ export async function POST(req: NextRequest) {
             weaponPart: animationConfig?.weaponPart || undefined,
             skipCutout: true, // Flag to indicate cutouts were skipped
           },
-          bones: [],
-          slots: [],
-          parts: {},
-          expressions: {
-            neutral: {},
-          },
         };
 
         const bundle: MonsterBundle & { setting?: string } = {
@@ -232,12 +226,6 @@ export async function POST(req: NextRequest) {
               weaponPart: animationConfig?.weaponPart || undefined,
               skipCutout: true,
             },
-            bones: [],
-            slots: [],
-            parts: {},
-            expressions: {
-              neutral: {},
-            },
           };
 
           const bundle: MonsterBundle = {
@@ -293,12 +281,6 @@ export async function POST(req: NextRequest) {
               animationConfig: animationConfig || undefined,
               weaponPart: animationConfig?.weaponPart || undefined,
               skipCutout: true,
-            },
-            bones: [],
-            slots: [],
-            parts: {},
-            expressions: {
-              neutral: {},
             },
           };
 
@@ -537,12 +519,6 @@ export async function POST(req: NextRequest) {
           seed,
           animationConfig: animationConfig || undefined,
           weaponPart: animationConfig?.weaponPart || undefined,
-        },
-        bones: [],
-        slots: [],
-        parts: {},
-        expressions: {
-          neutral: {},
         },
       };
 

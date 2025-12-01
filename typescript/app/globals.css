@@ -36,13 +36,6 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Pixelated rendering for rig player */
-.rig-player-container canvas {
-  image-rendering: pixelated;
-  image-rendering: -moz-crisp-edges;
-  image-rendering: crisp-edges;
-}
-
 /* Rotating Dots Loading Animation */
 .dot-animation {
   display: inline-block;

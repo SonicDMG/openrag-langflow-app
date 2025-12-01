@@ -17,11 +17,10 @@ export interface Rig {
     weaponPart?: string; // Name of the part that represents the weapon (staffTip, swordTip, wandTip, hand, etc.)
     weaponPosition?: { x: number; y: number }; // Position of weapon tip in image coordinates
     animationConfig?: AnimationConfig; // Custom animation configuration
+    skipCutout?: boolean; // Flag to indicate cutouts were skipped
   };
-  bones: unknown[]; // Currently always empty, but kept for JSON structure compatibility
-  slots: unknown[]; // Currently always empty, but kept for JSON structure compatibility
-  parts?: Record<string, unknown>; // Currently always empty, but kept for JSON structure compatibility
-  expressions?: Record<string, Partial<Record<string, string>>>;
+  // Removed: bones, slots, parts, expressions - these were never used
+  // Only meta fields are actually used for image dimensions and configuration
 }
 
 export interface MonsterBundle {
