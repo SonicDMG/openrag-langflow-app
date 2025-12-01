@@ -135,7 +135,7 @@ export function BattleArena({
       
       {/* Support Heroes - Small cards to the left of player1 */}
       {supportHeroes && supportHeroes.length > 0 && (
-        <div className="relative z-20 flex flex-col gap-3 mr-4" style={{ minWidth: '120px', backgroundColor: 'rgba(255,0,0,0.1)' }}>
+        <div className="relative z-20 flex flex-col gap-3 mr-4" style={{ minWidth: '120px' }}>
           {/* Debug: Support heroes count: {supportHeroes.length} */}
           {supportHeroes.map((supportHero, index) => {
             const supportPlayer = index === 0 ? 'support1' : 'support2';
