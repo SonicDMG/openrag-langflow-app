@@ -2,7 +2,6 @@
 
 /* Import modular CSS files */
 @import "./styles/animations/battle-animations.css";
-@import "./styles/animations/dice-animations.css";
 @import "./styles/animations/floating-numbers.css";
 @import "./styles/animations/card-animations.css";
 @import "./styles/animations/battle-drop.css";
