@@ -2,7 +2,6 @@
 
 export interface AnimationConfig {
   windParts?: string[]; // Parts affected by wind (e.g., ['hair', 'robeL', 'robeR', 'cape'])
-  weaponPart?: string; // Part that represents the weapon/spell source (e.g., 'staffTip', 'swordTip', 'hand', 'wingL', 'tail')
   spellEffectType?: 'particles' | 'fire' | 'sparkles' | 'glow'; // Type of spell effect
 }
 
@@ -14,8 +13,6 @@ export interface Rig {
     monsterId?: string;
     class?: string;
     seed?: number;
-    weaponPart?: string; // Name of the part that represents the weapon (staffTip, swordTip, wandTip, hand, etc.)
-    weaponPosition?: { x: number; y: number }; // Position of weapon tip in image coordinates
     animationConfig?: AnimationConfig; // Custom animation configuration
     skipCutout?: boolean; // Flag to indicate cutouts were skipped
   };

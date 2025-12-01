@@ -96,8 +96,6 @@ export interface Rig {
     monsterId?: string;
     class?: string;
     seed?: number;
-    weaponPart?: string;
-    weaponPosition?: { x: number; y: number };
     animationConfig?: AnimationConfig;
   };
   bones: unknown[]; // Currently always empty
@@ -118,12 +116,11 @@ export interface Rig {
     monsterId?: string;
     class?: string;
     seed?: number;
-    weaponPart?: string;
-    weaponPosition?: { x: number; y: number };
     animationConfig?: AnimationConfig;
     skipCutout?: boolean;
   };
   // Removed: bones, slots, parts, expressions (never used)
+  // Removed: weaponPart, weaponPosition (weapon animation artifacts, no longer used)
 }
 ```
 

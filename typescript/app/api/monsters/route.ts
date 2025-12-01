@@ -137,7 +137,6 @@ export async function POST(req: NextRequest) {
             class: klass,
             seed,
             animationConfig: animationConfig || undefined,
-            weaponPart: animationConfig?.weaponPart || undefined,
             skipCutout: true, // Flag to indicate cutouts were skipped
           },
         };
@@ -223,7 +222,6 @@ export async function POST(req: NextRequest) {
               class: klass,
               seed,
               animationConfig: animationConfig || undefined,
-              weaponPart: animationConfig?.weaponPart || undefined,
               skipCutout: true,
             },
           };
@@ -279,7 +277,6 @@ export async function POST(req: NextRequest) {
               class: klass,
               seed,
               animationConfig: animationConfig || undefined,
-              weaponPart: animationConfig?.weaponPart || undefined,
               skipCutout: true,
             },
           };
@@ -518,7 +515,6 @@ export async function POST(req: NextRequest) {
           class: klass,
           seed,
           animationConfig: animationConfig || undefined,
-          weaponPart: animationConfig?.weaponPart || undefined,
         },
       };
 
