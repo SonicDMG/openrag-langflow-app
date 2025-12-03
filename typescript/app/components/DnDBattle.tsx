@@ -46,6 +46,7 @@ export default function DnDBattle() {
     monstersLoaded,
     createdMonsters,
     isLoadingCreatedMonsters,
+    isRefreshingFromDatabase,
   } = useBattleData();
 
   // Battle state hook
@@ -993,6 +994,7 @@ export default function DnDBattle() {
         title="Battle"
         title2="Arena"
         decalImageUrl="/cdn/decals/battle-arena.png"
+        isLoading={isRefreshingFromDatabase}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 md:py-4 pb-0">

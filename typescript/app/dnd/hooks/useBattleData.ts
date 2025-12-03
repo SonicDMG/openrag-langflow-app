@@ -63,22 +63,71 @@ function filterFallbackClassesWithCustomHeroes(heroes: DnDClass[]): DnDClass[] {
 }
 
 export function useBattleData() {
+  // Start with fallback data to ensure SSR/client hydration match
   const [availableClasses, setAvailableClasses] = useState<DnDClass[]>(FALLBACK_CLASSES);
   const [isLoadingClasses, setIsLoadingClasses] = useState(false);
   const [classesLoaded, setClassesLoaded] = useState(false);
   const [availableMonsters, setAvailableMonsters] = useState<DnDClass[]>(FALLBACK_MONSTERS);
   const [isLoadingMonsters, setIsLoadingMonsters] = useState(false);
   const [monstersLoaded, setMonstersLoaded] = useState(false);
+  // Track if we have initial data (from fallbacks or cache) - used to prevent hiding content during refresh
+  const [hasInitialData, setHasInitialData] = useState(true);
   const [createdMonsters, setCreatedMonsters] = useState<Array<DnDClass & { monsterId: string; imageUrl: string }>>([]);
   const [isLoadingCreatedMonsters, setIsLoadingCreatedMonsters] = useState(false);
+  const [isRefreshingFromDatabase, setIsRefreshingFromDatabase] = useState(false);
+  const [hasLoadedFromCache, setHasLoadedFromCache] = useState(false);
+
+  // Load from localStorage immediately after mount (client-side only, after hydration)
+  useEffect(() => {
+    // Only run on client side, after hydration
+    if (typeof window === 'undefined' || hasLoadedFromCache) return;
+
+    try {
+      const savedHeroes = localStorage.getItem('dnd_loaded_classes');
+      const savedMonsters = localStorage.getItem('dnd_loaded_monsters');
+      
+      if (savedHeroes) {
+        const heroes = JSON.parse(savedHeroes) as DnDClass[];
+        console.log(`[useBattleData] Loaded ${heroes.length} heroes from localStorage (instant)`);
+        setAvailableClasses(heroes);
+        setClassesLoaded(true);
+      } else {
+        // Even if no cache, we have fallback data, so mark as having initial data
+        setHasInitialData(true);
+      }
+      
+      if (savedMonsters) {
+        const monsters = JSON.parse(savedMonsters) as DnDClass[];
+        console.log(`[useBattleData] Loaded ${monsters.length} monsters from localStorage (instant)`);
+        setAvailableMonsters(monsters);
+        setMonstersLoaded(true);
+      } else {
+        // Even if no cache, we have fallback data, so mark as having initial data
+        setHasInitialData(true);
+      }
+      
+      setHasLoadedFromCache(true);
+      setHasInitialData(true);
+    } catch (error) {
+      console.error('Failed to load from localStorage:', error);
+      setHasLoadedFromCache(true);
+    }
+  }, [hasLoadedFromCache]);
 
   useEffect(() => {
-    // Load classes from database (with automatic localStorage fallback and update)
+    // Wait for cache load to complete before starting database refresh
+    if (!hasLoadedFromCache) return;
+
+    // Set refreshing state at the start (for the loading indicator in header)
+    setIsRefreshingFromDatabase(true);
+
+    // Load classes from database in background (updates localStorage and state if different)
+    // Don't set isLoadingClasses to true during background refresh - we already have data displayed
     const loadClasses = async () => {
-      setIsLoadingClasses(true);
+      // Don't set loading state during background refresh - we have fallback/cached data already
       try {
         const heroes = await loadHeroesFromDatabase();
-        console.log(`[useBattleData] Loaded ${heroes.length} heroes from database`);
+        console.log(`[useBattleData] Loaded ${heroes.length} heroes from database (background refresh)`);
         if (heroes.length > 0) {
           // Filter out fallback classes that have matching custom heroes
           const filteredHeroes = filterFallbackClassesWithCustomHeroes(heroes);
@@ -86,38 +135,38 @@ export function useBattleData() {
           setAvailableClasses(filteredHeroes);
           setClassesLoaded(true);
         } else {
-          console.log('[useBattleData] No heroes found in database, using fallback classes');
+          console.log('[useBattleData] No heroes found in database, keeping cached/fallback classes');
         }
       } catch (error) {
         console.error('Failed to load classes:', error);
-      } finally {
-        setIsLoadingClasses(false);
       }
     };
 
-    // Load monsters from database (with automatic localStorage fallback and update)
+    // Load monsters from database in background (updates localStorage and state if different)
+    // Don't set isLoadingMonsters during background refresh - we already have data displayed
     const loadMonsters = async () => {
-      setIsLoadingMonsters(true);
       try {
         const monsters = await loadMonstersFromDatabase();
-        console.log(`[useBattleData] Loaded ${monsters.length} monsters from database`);
+        console.log(`[useBattleData] Loaded ${monsters.length} monsters from database (background refresh)`);
         if (monsters.length > 0) {
           setAvailableMonsters(monsters);
           setMonstersLoaded(true);
         } else {
-          console.log('[useBattleData] No monsters found in database, using fallback monsters');
+          console.log('[useBattleData] No monsters found in database, keeping cached/fallback monsters');
         }
       } catch (error) {
         console.error('Failed to load monsters:', error);
-      } finally {
-        setIsLoadingMonsters(false);
       }
     };
 
-    loadClasses();
-    loadMonsters();
+    // Load both in parallel, then set refreshing to false when both complete
+    Promise.all([loadClasses(), loadMonsters()]).finally(() => {
+      setIsRefreshingFromDatabase(false);
+    });
+  }, [hasLoadedFromCache]);
 
-    // Load created monsters from API
+  // Load created monsters from API (separate effect, doesn't depend on cache)
+  useEffect(() => {
     const loadCreatedMonsters = async () => {
       setIsLoadingCreatedMonsters(true);
       try {
@@ -217,6 +266,7 @@ export function useBattleData() {
     monstersLoaded,
     createdMonsters,
     isLoadingCreatedMonsters,
+    isRefreshingFromDatabase,
   };
 }
 
