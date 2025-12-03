@@ -6,6 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import PortalButton from './PortalButton';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -611,7 +612,7 @@ export default function Chat() {
       {/* Input */}
       <div className="border-t border-zinc-200 dark:border-zinc-800 px-4 sm:px-6 py-4 shrink-0 bg-white dark:bg-black">
         <div className="max-w-7xl mx-auto">
-          <form onSubmit={handleSubmit} className="flex gap-3 w-full">
+          <form onSubmit={handleSubmit} className="flex gap-3 w-full items-center">
             <textarea
               ref={textareaRef}
               value={input}
@@ -629,6 +630,7 @@ export default function Chat() {
             >
               Send
             </button>
+            <PortalButton />
           </form>
         </div>
       </div>
