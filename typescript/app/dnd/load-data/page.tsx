@@ -7,6 +7,7 @@ import { FALLBACK_CLASSES, FALLBACK_MONSTERS, CLASS_COLORS, FALLBACK_ABILITIES, 
 import { fetchAvailableClasses, fetchClassStats, fetchAvailableMonsters, fetchMonsterStats, extractMonsterAbilities, processSingleCharacter } from '../services/apiService';
 import { PageHeader } from '../components/PageHeader';
 import { LandscapePrompt } from '../components/LandscapePrompt';
+import { StagingConfirmationModal } from '../components/StagingConfirmationModal';
 
 type LogEntry = {
   id: string;
@@ -29,6 +30,13 @@ export default function LoadDataPage() {
   const logEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const processedItemsRef = useRef<DnDClass[]>([]);
+  
+  // Confirmation modal state
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [discoveredItems, setDiscoveredItems] = useState<string[]>([]);
+  const [pendingItemType, setPendingItemType] = useState<'heroes' | 'monsters'>('heroes');
+  const [pendingSearchContext, setPendingSearchContext] = useState<string>('');
+  const [pendingIngestionFn, setPendingIngestionFn] = useState<(() => Promise<void>) | null>(null);
 
   // Auto-scroll to bottom of log
   useEffect(() => {
@@ -103,29 +111,14 @@ export default function LoadDataPage() {
     ));
   };
 
-  const loadClassesFromOpenRAG = async () => {
+  // Ingestion function for classes (called after confirmation)
+  const ingestClassesFromOpenRAG = async (classNames: string[], searchContext?: string) => {
     setIsLoadingClasses(true);
-    setLogEntries([]);
     processedItemsRef.current = [];
     abortControllerRef.current = new AbortController();
-    addLog('system', `🚀 Starting to load classes from OpenRAG (context: ${classSearchContext || 'default'})...`);
-    
+    addLog('system', `📋 Fetching stats and abilities for ${classNames.length} classes...`);
+
     try {
-      const { classNames } = await fetchAvailableClasses(
-        (type, msg) => addLog(type === 'system' ? 'system' : 'system', msg),
-        classSearchContext || undefined
-      );
-      
-      if (classNames.length === 0) {
-        const contextMsg = classSearchContext ? ` for "${classSearchContext}"` : '';
-        addLog('error', `⚠️ No classes found${contextMsg}. This might mean the knowledge base doesn't contain data for this context. Try a different search context (e.g., "D&D", "Pokemon") or leave it blank for default D&D classes.`);
-        setIsLoadingClasses(false);
-        return;
-      }
-
-      addLog('system', `✅ Found ${classNames.length} classes: ${classNames.join(', ')}`);
-      addLog('system', `📋 Fetching stats and abilities for ${classNames.length} classes...`);
-
       const fallbackClassMap = new Map(FALLBACK_CLASSES.map(c => [c.name, c]));
       const loadedClasses: DnDClass[] = [];
       let successCount = 0;
@@ -149,7 +142,7 @@ export default function LoadDataPage() {
           const results = await fetchClassStats(
             className,
             (type, msg) => addLog('system', msg),
-            classSearchContext || undefined
+            searchContext || undefined
           );
           
           const result = results[0]; // Get first result (should only be one for single class)
@@ -230,7 +223,7 @@ export default function LoadDataPage() {
           },
           body: JSON.stringify({
             heroes: finalClasses,
-            searchContext: classSearchContext || undefined,
+            searchContext: searchContext || undefined,
           }),
         });
 
@@ -253,29 +246,63 @@ export default function LoadDataPage() {
     }
   };
 
-  const loadMonstersFromOpenRAG = async () => {
-    setIsLoadingMonsters(true);
+  // Discovery function for classes (shows confirmation before ingestion)
+  const loadClassesFromOpenRAG = async () => {
+    setIsLoadingClasses(true);
     setLogEntries([]);
-    processedItemsRef.current = [];
-    abortControllerRef.current = new AbortController();
-    addLog('system', `🚀 Starting to load monsters from OpenRAG (context: ${monsterSearchContext || 'default'})...`);
+    addLog('system', `🚀 Discovering classes from OpenRAG (context: ${classSearchContext || 'default'})...`);
     
     try {
-      const { monsterNames } = await fetchAvailableMonsters(
+      const { classNames } = await fetchAvailableClasses(
         (type, msg) => addLog(type === 'system' ? 'system' : 'system', msg),
-        monsterSearchContext || undefined
+        classSearchContext || undefined
       );
       
-      if (monsterNames.length === 0) {
-        const contextMsg = monsterSearchContext ? ` for "${monsterSearchContext}"` : '';
-        addLog('error', `⚠️ No monsters found${contextMsg}. This might mean the knowledge base doesn't contain data for this context. Try a different search context (e.g., "D&D", "Pokemon") or leave it blank for default D&D monsters.`);
-        setIsLoadingMonsters(false);
+      if (classNames.length === 0) {
+        const contextMsg = classSearchContext ? ` for "${classSearchContext}"` : '';
+        addLog('error', `⚠️ No classes found${contextMsg}. This might mean the knowledge base doesn't contain data for this context. Try a different search context (e.g., "D&D", "Pokemon") or leave it blank for default D&D classes.`);
+        setIsLoadingClasses(false);
         return;
       }
 
-      addLog('system', `✅ Found ${monsterNames.length} monsters: ${monsterNames.join(', ')}`);
-      addLog('system', `📋 Fetching stats and abilities for ${monsterNames.length} monsters...`);
+      addLog('system', `✅ Found ${classNames.length} classes: ${classNames.join(', ')}`);
+      
+      // Show confirmation modal
+      setDiscoveredItems(classNames);
+      setPendingItemType('heroes');
+      setPendingSearchContext(classSearchContext);
+      setPendingIngestionFn(() => () => ingestClassesFromOpenRAG(classNames, classSearchContext || undefined));
+      setShowConfirmation(true);
+      setIsLoadingClasses(false);
+    } catch (error) {
+      addLog('error', `❌ Error discovering classes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setIsLoadingClasses(false);
+    }
+  };
 
+  const handleConfirmStaging = async () => {
+    setShowConfirmation(false);
+    if (pendingIngestionFn) {
+      await pendingIngestionFn();
+    }
+    setPendingIngestionFn(null);
+  };
+
+  const handleCancelStaging = () => {
+    setShowConfirmation(false);
+    setDiscoveredItems([]);
+    setPendingIngestionFn(null);
+    addLog('system', '⚠️ Staging cancelled by user');
+  };
+
+  // Ingestion function for monsters (called after confirmation)
+  const ingestMonstersFromOpenRAG = async (monsterNames: string[], searchContext?: string) => {
+    setIsLoadingMonsters(true);
+    processedItemsRef.current = [];
+    abortControllerRef.current = new AbortController();
+    addLog('system', `📋 Fetching stats and abilities for ${monsterNames.length} monsters...`);
+
+    try {
       const fallbackMonsterMap = new Map(FALLBACK_MONSTERS.map(m => [m.name, m]));
       const loadedMonsters: DnDClass[] = [];
       let successCount = 0;
@@ -298,7 +325,7 @@ export default function LoadDataPage() {
           // Fetch abilities
           let abilities: Ability[] = [];
           try {
-            abilities = await extractMonsterAbilities(monsterName, monsterSearchContext || undefined);
+            abilities = await extractMonsterAbilities(monsterName, searchContext || undefined);
             if (abilities.length > 0) {
               updateLogEntry(monsterName, 'loading', `Loading ${monsterName}... (abilities loaded)`);
             }
@@ -322,7 +349,7 @@ export default function LoadDataPage() {
             const { stats } = await fetchMonsterStats(
               monsterName,
               (type, msg) => addLog('system', msg),
-              monsterSearchContext || undefined
+              searchContext || undefined
             );
             
             if (stats) {
@@ -380,7 +407,7 @@ export default function LoadDataPage() {
           },
           body: JSON.stringify({
             monsters: finalMonsters,
-            searchContext: monsterSearchContext || undefined,
+            searchContext: searchContext || undefined,
           }),
         });
 
@@ -399,6 +426,40 @@ export default function LoadDataPage() {
     } catch (error) {
       addLog('error', `❌ Error loading monsters: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
+      setIsLoadingMonsters(false);
+    }
+  };
+
+  // Discovery function for monsters (shows confirmation before ingestion)
+  const loadMonstersFromOpenRAG = async () => {
+    setIsLoadingMonsters(true);
+    setLogEntries([]);
+    addLog('system', `🚀 Discovering monsters from OpenRAG (context: ${monsterSearchContext || 'default'})...`);
+    
+    try {
+      const { monsterNames } = await fetchAvailableMonsters(
+        (type, msg) => addLog(type === 'system' ? 'system' : 'system', msg),
+        monsterSearchContext || undefined
+      );
+      
+      if (monsterNames.length === 0) {
+        const contextMsg = monsterSearchContext ? ` for "${monsterSearchContext}"` : '';
+        addLog('error', `⚠️ No monsters found${contextMsg}. This might mean the knowledge base doesn't contain data for this context. Try a different search context (e.g., "D&D", "Pokemon") or leave it blank for default D&D monsters.`);
+        setIsLoadingMonsters(false);
+        return;
+      }
+
+      addLog('system', `✅ Found ${monsterNames.length} monsters: ${monsterNames.join(', ')}`);
+      
+      // Show confirmation modal
+      setDiscoveredItems(monsterNames);
+      setPendingItemType('monsters');
+      setPendingSearchContext(monsterSearchContext);
+      setPendingIngestionFn(() => () => ingestMonstersFromOpenRAG(monsterNames, monsterSearchContext || undefined));
+      setShowConfirmation(true);
+      setIsLoadingMonsters(false);
+    } catch (error) {
+      addLog('error', `❌ Error discovering monsters: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setIsLoadingMonsters(false);
     }
   };
@@ -773,6 +834,16 @@ export default function LoadDataPage() {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      <StagingConfirmationModal
+        isOpen={showConfirmation}
+        onClose={handleCancelStaging}
+        onConfirm={handleConfirmStaging}
+        items={discoveredItems}
+        itemType={pendingItemType}
+        searchContext={pendingSearchContext || undefined}
+      />
     </div>
   );
 }
