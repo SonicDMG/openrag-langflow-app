@@ -320,7 +320,7 @@ export async function processSingleCharacter(
 ): Promise<{ stats: Partial<DnDClass> | null; abilities: Ability[]; response: string; characterName: string; alreadyExists?: boolean }> {
   try {
     // First call: Search for character information (new thread for each character)
-    const searchQuery = `using your tools, find character sheet, details, description, and name for ${characterName}. Be sure to list the name as "Name: nameHere"`;
+    const searchQuery = `using your tools, find character sheet, details, description, name, and abilities for ${characterName}. Be sure to list the name as "Name: nameHere"`;
     
     // Log the prompt for debugging
     console.log(`[processSingleCharacter] First call - Search prompt for ${characterName}:`, searchQuery);

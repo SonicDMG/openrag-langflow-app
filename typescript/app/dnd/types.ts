@@ -34,6 +34,7 @@ export interface DnDClass {
   color: string;
   race?: string; // Character race (e.g., "Human", "Elf", "Dwarf") - use "n/a" if not applicable
   sex?: string; // Character sex (e.g., "male", "female", "other") - use "n/a" if not applicable
+  isDefault?: boolean; // Flag to indicate if this hero was loaded from default heroes
 }
 
 export interface BattleLog {

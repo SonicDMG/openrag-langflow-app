@@ -6,6 +6,7 @@ import { DnDClass } from '../types';
 import { CharacterCard } from './CharacterCard';
 import { CharacterCardZoom } from './CharacterCardZoom';
 import { AddHeroCard } from './AddHeroCard';
+import { LoadDefaultHeroesCard } from './LoadDefaultHeroesCard';
 import { generateDeterministicCharacterName, getCharacterName } from '../utils/names';
 import { isMonster, FALLBACK_CLASSES } from '../constants';
 
@@ -93,6 +94,18 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
           >
             <AddHeroCard size="compact" />
           </div>
+          
+          {/* Show "Load Default Heroes" card if no heroes exist */}
+          {availableClasses.length === 0 && (
+            <div
+              className="flex-shrink-0 relative group"
+              style={{
+                padding: '4px',
+              }}
+            >
+              <LoadDefaultHeroesCard size="compact" />
+            </div>
+          )}
           
           {/* Hero cards */}
           {availableClasses.map((dndClass, index) => {

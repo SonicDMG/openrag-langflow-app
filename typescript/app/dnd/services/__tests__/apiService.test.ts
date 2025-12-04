@@ -194,7 +194,7 @@ describe('apiService - Query Structure Tests', () => {
       // First call: search query (filter to chat calls only)
       const firstCall = chatCalls[0];
       const firstRequestBody = JSON.parse(firstCall[1].body);
-      expect(firstRequestBody.message).toBe('using your tools, find character sheet, details, description, and name for Scanlan. Be sure to list the name as "Name: nameHere"');
+      expect(firstRequestBody.message).toBe('using your tools, find character sheet, details, description, name, and abilities for Scanlan. Be sure to list the name as "Name: nameHere"');
       expect(firstRequestBody.previousResponseId).toBeNull(); // New thread
 
       // Second call: follow-up query
@@ -401,7 +401,7 @@ describe('apiService - Query Structure Tests', () => {
       // Should not have a separate search query before processSingleCharacter
       const firstCall = chatCalls[0];
       const firstRequestBody = JSON.parse(firstCall[1].body);
-      expect(firstRequestBody.message).toBe('using your tools, find character sheet, details, description, and name for Rogue. Be sure to list the name as "Name: nameHere"');
+      expect(firstRequestBody.message).toBe('using your tools, find character sheet, details, description, name, and abilities for Rogue. Be sure to list the name as "Name: nameHere"');
       
       // Should return results
       expect(results).toHaveLength(1);
@@ -565,7 +565,7 @@ describe('apiService - Query Structure Tests', () => {
       
       // First query should be the search query
       const firstCall = chatCalls[0];
-      expect(JSON.parse(firstCall[1].body).message).toMatch(/^using your tools, find character sheet, details, description, and name for/);
+      expect(JSON.parse(firstCall[1].body).message).toMatch(/^using your tools, find character sheet, details, description, name, and abilities for/);
       
       // Second query should be the follow-up
       const secondCall = chatCalls[1];

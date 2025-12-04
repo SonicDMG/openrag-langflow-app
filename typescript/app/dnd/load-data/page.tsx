@@ -635,6 +635,69 @@ export default function LoadDataPage() {
     }
   };
 
+  const clearAllHeroes = async () => {
+    if (!confirm('Are you sure you want to delete ALL heroes from the database? This action cannot be undone.')) {
+      return;
+    }
+
+    setLogEntries([]);
+    addLog('system', '🗑️ Clearing all heroes from database...');
+    
+    try {
+      // Get all heroes first
+      const response = await fetch('/api/heroes');
+      if (!response.ok) {
+        throw new Error('Failed to fetch heroes');
+      }
+      
+      const data = await response.json();
+      const heroes = data.heroes || [];
+      
+      if (heroes.length === 0) {
+        addLog('system', 'ℹ️ No heroes found in database');
+        return;
+      }
+      
+      addLog('system', `Found ${heroes.length} heroes to delete...`);
+      
+      // Delete each hero
+      let successCount = 0;
+      let failCount = 0;
+      
+      for (const hero of heroes) {
+        try {
+          const deleteResponse = await fetch(`/api/heroes?name=${encodeURIComponent(hero.name)}`, {
+            method: 'DELETE',
+          });
+          
+          if (deleteResponse.ok) {
+            successCount++;
+            addLog('success', `✅ Deleted: ${hero.name}`);
+          } else {
+            failCount++;
+            addLog('error', `❌ Failed to delete: ${hero.name}`);
+          }
+        } catch (error) {
+          failCount++;
+          addLog('error', `❌ Error deleting ${hero.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+      
+      // Clear localStorage cache
+      localStorage.removeItem('dnd_loaded_classes');
+      addLog('system', '🧹 Cleared localStorage cache');
+      
+      addLog('system', `✅ Completed! Deleted ${successCount} heroes${failCount > 0 ? `, ${failCount} failed` : ''}`);
+      
+      // Reload page to refresh UI
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } catch (error) {
+      addLog('error', `❌ Error clearing heroes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
   const getStatusIcon = (status?: LogEntry['status']) => {
     switch (status) {
       case 'loading':
@@ -680,14 +743,23 @@ export default function LoadDataPage() {
             </h2>
             <p className="text-amber-200 mb-4">Import heroes and monsters from your OpenRAG knowledge base</p>
             <div>
-              <button
-                onClick={saveFallbackDataToAstra}
-                className="px-4 py-2 bg-green-900 hover:bg-green-800 text-white font-semibold rounded-lg border-2 border-green-700 transition-all"
-              >
-                💾 Save Fallback Data to Astra DB
-              </button>
+              <div className="flex gap-4">
+                <button
+                  onClick={saveFallbackDataToAstra}
+                  className="px-4 py-2 bg-green-900 hover:bg-green-800 text-white font-semibold rounded-lg border-2 border-green-700 transition-all"
+                >
+                  💾 Save Fallback Data to Astra DB
+                </button>
+                <button
+                  onClick={clearAllHeroes}
+                  disabled={isLoadingClasses || isLoadingMonsters || isLoadingSingle}
+                  className="px-4 py-2 bg-red-900 hover:bg-red-800 text-white font-semibold rounded-lg border-2 border-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  🗑️ Clear All Heroes
+                </button>
+              </div>
               <p className="text-xs text-amber-300 mt-2">
-                Save the default fallback classes and monsters to Astra DB (useful for initial setup)
+                Save the default fallback classes and monsters to Astra DB (useful for initial setup), or clear all heroes to start fresh
               </p>
             </div>
           </div>

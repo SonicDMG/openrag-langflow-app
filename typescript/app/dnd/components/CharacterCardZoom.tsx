@@ -74,8 +74,8 @@ export function CharacterCardZoom({
   const isCustomHero = !isMonster(playerClass.name) && !FALLBACK_CLASSES.some(fc => fc.name === playerClass.name);
   const isCustomMonster = !FALLBACK_MONSTERS.some(fm => fm.name === playerClass.name) && isMonster(playerClass.name);
   
-  // Allow delete for any character (all characters can be deleted)
-  const canDelete = true;
+  // Only allow delete for custom heroes and monsters (not fallback/default ones)
+  const canDelete = isCustomHero || isCustomMonster;
   const [isExporting, setIsExporting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -143,6 +143,18 @@ export function CharacterCardZoom({
 
       if (!response.ok) {
         const data = await response.json();
+        
+        // If hero/monster not found in database, it might be a stale cache entry
+        // Clear localStorage and reload to sync with database
+        if (data.error === 'Hero not found' || data.error === 'Monster not found') {
+          console.log('Character not found in database - clearing cache and reloading');
+          localStorage.removeItem('dnd_loaded_classes');
+          localStorage.removeItem('dnd_loaded_monsters');
+          onClose();
+          window.location.reload();
+          return;
+        }
+        
         throw new Error(data.error || 'Failed to delete character');
       }
 

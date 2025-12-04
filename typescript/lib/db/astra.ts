@@ -33,6 +33,7 @@ export type HeroRecord = {
   race?: string; // Character race (e.g., "Human", "Elf", "Dwarf") - use "n/a" if not applicable
   sex?: string; // Character sex (e.g., "male", "female", "other") - use "n/a" if not applicable
   searchContext?: string; // Context used when loading (e.g., "D&D", "Pokemon")
+  isDefault?: boolean; // Flag to indicate if this hero was loaded from default heroes
   createdAt: string;
   updatedAt: string;
 };

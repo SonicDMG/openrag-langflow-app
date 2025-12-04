@@ -449,6 +449,16 @@ function CharacterCardComponent({
         overflow: 'visible' // Allow cast effect to extend outside card
       }}
     >
+      {/* Default Hero Badge - top left corner */}
+      {playerClass.isDefault && (
+        <div
+          className="absolute top-2 left-2 z-30 bg-amber-600/90 text-white text-xs font-bold px-2 py-1 rounded-md shadow-lg border border-amber-400/50"
+          title="Default Hero - loaded from game defaults"
+        >
+          DEFAULT
+        </div>
+      )}
+
       {/* Zoom button - printed text on card */}
       {showZoomButton && onZoom && (
         <button

@@ -47,15 +47,15 @@ function filterFallbackClassesWithCustomHeroes(heroes: DnDClass[]): DnDClass[] {
 }
 
 export function useBattleData() {
-  // Start with fallback data to ensure SSR/client hydration match
-  const [availableClasses, setAvailableClasses] = useState<DnDClass[]>(FALLBACK_CLASSES);
+  // Start with empty arrays - no longer auto-load fallbacks
+  const [availableClasses, setAvailableClasses] = useState<DnDClass[]>([]);
   const [isLoadingClasses, setIsLoadingClasses] = useState(false);
   const [classesLoaded, setClassesLoaded] = useState(false);
-  const [availableMonsters, setAvailableMonsters] = useState<DnDClass[]>(FALLBACK_MONSTERS);
+  const [availableMonsters, setAvailableMonsters] = useState<DnDClass[]>([]);
   const [isLoadingMonsters, setIsLoadingMonsters] = useState(false);
   const [monstersLoaded, setMonstersLoaded] = useState(false);
-  // Track if we have initial data (from fallbacks or cache) - used to prevent hiding content during refresh
-  const [hasInitialData, setHasInitialData] = useState(true);
+  // Track if we have initial data (from cache or database) - used to prevent hiding content during refresh
+  const [hasInitialData, setHasInitialData] = useState(false);
   const [createdMonsters, setCreatedMonsters] = useState<Array<DnDClass & { monsterId: string; imageUrl: string }>>([]);
   const [isLoadingCreatedMonsters, setIsLoadingCreatedMonsters] = useState(false);
   const [isRefreshingFromDatabase, setIsRefreshingFromDatabase] = useState(false);
@@ -108,19 +108,16 @@ export function useBattleData() {
     // Load classes from database in background (updates localStorage and state if different)
     // Don't set isLoadingClasses to true during background refresh - we already have data displayed
     const loadClasses = async () => {
-      // Don't set loading state during background refresh - we have fallback/cached data already
+      // Don't set loading state during background refresh - we have cached data already
       try {
         const heroes = await loadHeroesFromDatabase();
         console.log(`[useBattleData] Loaded ${heroes.length} heroes from database (background refresh)`);
-        if (heroes.length > 0) {
-          // Filter out fallback classes that have matching custom heroes
-          const filteredHeroes = filterFallbackClassesWithCustomHeroes(heroes);
-          console.log(`[useBattleData] Filtered to ${filteredHeroes.length} heroes (removed ${heroes.length - filteredHeroes.length} fallback classes with matching custom heroes)`);
-          setAvailableClasses(filteredHeroes);
-          setClassesLoaded(true);
-        } else {
-          console.log('[useBattleData] No heroes found in database, keeping cached/fallback classes');
-        }
+        // Always update with database results, even if empty (no more fallback to FALLBACK_CLASSES)
+        // Filter out fallback classes that have matching custom heroes
+        const filteredHeroes = filterFallbackClassesWithCustomHeroes(heroes);
+        console.log(`[useBattleData] Filtered to ${filteredHeroes.length} heroes (removed ${heroes.length - filteredHeroes.length} fallback classes with matching custom heroes)`);
+        setAvailableClasses(filteredHeroes);
+        setClassesLoaded(true);
       } catch (error) {
         console.error('Failed to load classes:', error);
       }
