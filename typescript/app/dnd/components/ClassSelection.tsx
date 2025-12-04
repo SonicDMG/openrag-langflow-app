@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { DnDClass } from '../types';
 import { CharacterCard } from './CharacterCard';
 import { CharacterCardZoom } from './CharacterCardZoom';
+import { AddHeroCard } from './AddHeroCard';
 import { generateDeterministicCharacterName, getCharacterName } from '../utils/names';
 import { isMonster, FALLBACK_CLASSES } from '../constants';
 
@@ -83,6 +84,17 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
             maxWidth: '100%',
           }}
         >
+          {/* Always show "Add your Hero" card at the beginning */}
+          <div
+            className="flex-shrink-0 relative group"
+            style={{
+              padding: '4px',
+            }}
+          >
+            <AddHeroCard size="compact" />
+          </div>
+          
+          {/* Hero cards */}
           {availableClasses.map((dndClass, index) => {
             // For created monsters, use klass to find associated monster; for regular classes, use name
             const isCreatedMonster = !!(dndClass as any).klass && !!(dndClass as any).monsterId;
