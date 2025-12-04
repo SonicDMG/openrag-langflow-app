@@ -571,45 +571,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/**
- * Generate image via EverArt service
- * 
- * Since MCP tools are not directly available in Next.js API routes,
- * you have a few options:
- * 
- * Option 1: Create a proxy service that has MCP access
- * Option 2: Use a different image generation API (Stable Diffusion, DALL-E, etc.)
- * Option 3: Generate images client-side and upload them
- * 
- * For now, this is a placeholder that you can replace with your preferred method.
- * The function should return a URL to the generated image.
- */
-async function generateImageViaService(
-  prompt: string,
-  seed: number,
-  model: string = '5000'
-): Promise<string> {
-  // TODO: Implement image generation
-  // Example using a hypothetical EverArt API:
-  // const response = await fetch('https://api.everart.ai/generate', {
-  //   method: 'POST',
-  //   headers: { 'Content-Type': 'application/json' },
-  //   body: JSON.stringify({ prompt, seed, model }),
-  // });
-  // const data = await response.json();
-  // return data.imageUrl;
-  
-  // For development/testing, you could also:
-  // 1. Use a placeholder image service
-  // 2. Generate images via a separate microservice
-  // 3. Use the MCP tool in a different context and pass the URL
-  
-  throw new Error(
-    'Image generation not implemented. ' +
-    'Please configure generateImageViaService to use EverArt or another image generation service.'
-  );
-}
-
 // GET endpoint to list all created monsters
 export async function GET(req: NextRequest) {
   try {
