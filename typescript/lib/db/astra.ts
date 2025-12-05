@@ -27,6 +27,8 @@ export type HeroRecord = {
   armorClass: number;
   attackBonus: number;
   damageDie: string;
+  meleeDamageDie?: string; // Optional melee weapon damage die
+  rangedDamageDie?: string; // Optional ranged weapon damage die
   abilities: Ability[];
   description: string;
   color: string;
@@ -47,12 +49,15 @@ export type MonsterRecord = {
   armorClass: number;
   attackBonus: number;
   damageDie: string;
+  meleeDamageDie?: string; // Optional melee weapon damage die
+  rangedDamageDie?: string; // Optional ranged weapon damage die
   abilities: Ability[];
   description: string;
   color: string;
   race?: string; // Character race (e.g., "Human", "Elf", "Dwarf") - use "n/a" if not applicable
   sex?: string; // Character sex (e.g., "male", "female", "other") - use "n/a" if not applicable
   searchContext?: string; // Context used when loading (e.g., "D&D", "Pokemon")
+  isDefault?: boolean; // Flag to indicate if this monster was loaded from default monsters
   createdAt: string;
   updatedAt: string;
 };

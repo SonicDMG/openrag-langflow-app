@@ -8,6 +8,10 @@ import { fetchAvailableClasses, fetchClassStats, fetchAvailableMonsters, fetchMo
 import { PageHeader } from '../components/PageHeader';
 import { LandscapePrompt } from '../components/LandscapePrompt';
 import { StagingConfirmationModal } from '../components/StagingConfirmationModal';
+import { LoadDefaultHeroesCard } from '../components/LoadDefaultHeroesCard';
+import { LoadDefaultMonstersCard } from '../components/LoadDefaultMonstersCard';
+import { ExportDefaultHeroesCard } from '../components/ExportDefaultHeroesCard';
+import { ExportDefaultMonstersCard } from '../components/ExportDefaultMonstersCard';
 
 type LogEntry = {
   id: string;
@@ -862,6 +866,47 @@ export default function LoadDataPage() {
                   {isLoadingMonsters ? 'Loading Monsters...' : 'Bulk Load Monsters from OpenRAG'}
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* Load & Export Defaults Section */}
+          <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl">
+            <h2 className="text-2xl font-bold mb-4 text-amber-100" style={{ fontFamily: 'serif' }}>
+              Manage Default Heroes & Monsters
+            </h2>
+            
+            {/* Load Defaults Subsection */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-amber-200 mb-2">
+                1️⃣ Load Defaults to Database
+              </h3>
+              <p className="text-amber-200 mb-4 text-sm">
+                First, load the default heroes and monsters from JSON into the database (required before exporting)
+              </p>
+              <div className="flex flex-wrap gap-4 justify-center">
+                <LoadDefaultHeroesCard size="compact" />
+                <LoadDefaultMonstersCard size="compact" />
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-amber-700/50 my-6"></div>
+
+            {/* Export Defaults Subsection */}
+            <div>
+              <h3 className="text-lg font-semibold text-amber-200 mb-2">
+                2️⃣ Export Edited Defaults to JSON
+              </h3>
+              <p className="text-amber-200 mb-4 text-sm">
+                After editing defaults in the database, export them back to JSON files for version control
+              </p>
+              <div className="flex flex-wrap gap-4 justify-center">
+                <ExportDefaultHeroesCard size="compact" />
+                <ExportDefaultMonstersCard size="compact" />
+              </div>
+              <p className="text-xs text-amber-300 mt-4">
+                💡 After exporting, run <code className="bg-amber-950/50 px-2 py-1 rounded">npm run build</code> to rebuild the app with updated defaults
+              </p>
             </div>
           </div>
 

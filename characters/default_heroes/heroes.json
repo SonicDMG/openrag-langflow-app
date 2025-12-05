@@ -1,0 +1,408 @@
+{
+  "version": "1.0.0",
+  "description": "Default D&D hero classes with abilities",
+  "exportedAt": "2025-12-05T00:11:35.614Z",
+  "heroes": [
+    {
+      "name": "Barbarian",
+      "hitPoints": 28,
+      "maxHitPoints": 28,
+      "armorClass": 15,
+      "attackBonus": 4,
+      "damageDie": "d10",
+      "abilities": [
+        {
+          "name": "Raging Strike",
+          "type": "attack",
+          "damageDice": "1d10",
+          "attackRoll": true,
+          "attacks": 1,
+          "description": "A single, ferocious blow fueled by primal fury."
+        },
+        {
+          "name": "Blood Frenzy",
+          "type": "attack",
+          "damageDice": "1d8",
+          "attackRoll": true,
+          "attacks": 2,
+          "bonusDamageDice": "1d6",
+          "description": "A double strike that deals extra damage to a wounded foe."
+        },
+        {
+          "name": "Primal Roar",
+          "type": "attack",
+          "damageDice": "1d6",
+          "attackRoll": false,
+          "attacks": 1,
+          "description": "A roar that rattles enemies, dealing minor damage automatically."
+        },
+        {
+          "name": "Healing Blood",
+          "type": "healing",
+          "healingDice": "1d8+3",
+          "description": "Channel the warrior's inner strength to mend wounds."
+        }
+      ],
+      "description": "A towering, muscular warrior with wild, unkempt hair and fierce amber eyes, clad in tattered leather armor and wielding a massive greataxe dripping with primal energy.",
+      "color": "bg-orange-900",
+      "race": "Dark Elf (Drow)",
+      "sex": "other"
+    },
+    {
+      "name": "Ranger",
+      "hitPoints": 28,
+      "maxHitPoints": 28,
+      "armorClass": 15,
+      "attackBonus": 4,
+      "damageDie": "d10",
+      "abilities": [
+        {
+          "name": "Hunter's Mark",
+          "type": "attack",
+          "damageDice": "1d8",
+          "attackRoll": true,
+          "bonusDamageDice": "1d6",
+          "description": "Mark your prey and deal extra damage with your attacks."
+        },
+        {
+          "name": "Cure Wounds",
+          "type": "healing",
+          "healingDice": "1d8+2",
+          "description": "A creature you touch regains hit points through natural magic."
+        }
+      ],
+      "description": "A skilled tracker and archer of the wilderness.",
+      "color": "bg-green-900"
+    },
+    {
+      "name": "Monk",
+      "hitPoints": 26,
+      "maxHitPoints": 26,
+      "armorClass": 16,
+      "attackBonus": 4,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Flurry of Blows",
+          "type": "attack",
+          "damageDice": "1d4",
+          "attackRoll": true,
+          "attacks": 2,
+          "description": "Make two unarmed strikes in rapid succession."
+        },
+        {
+          "name": "Stunning Strike",
+          "type": "attack",
+          "damageDice": "1d6",
+          "attackRoll": true,
+          "description": "Strike with focused ki to stun your opponent."
+        },
+        {
+          "name": "Ki Restoration",
+          "type": "healing",
+          "healingDice": "1d8+2",
+          "description": "Channel your ki energy to restore your body and recover hit points."
+        }
+      ],
+      "description": "A master of martial arts and ki energy.",
+      "color": "bg-amber-900"
+    },
+    {
+      "name": "Sorcerer",
+      "hitPoints": 20,
+      "maxHitPoints": 20,
+      "armorClass": 13,
+      "attackBonus": 3,
+      "damageDie": "d6",
+      "abilities": [
+        {
+          "name": "Chaos Bolt",
+          "type": "attack",
+          "damageDice": "2d8",
+          "attackRoll": false,
+          "description": "Hurl a bolt of chaotic energy at your target."
+        },
+        {
+          "name": "Fire Bolt",
+          "type": "attack",
+          "damageDice": "1d10",
+          "attackRoll": true,
+          "description": "Hurl a mote of fire at a creature or object."
+        },
+        {
+          "name": "Vampiric Touch",
+          "type": "healing",
+          "healingDice": "1d8+2",
+          "description": "Channel life force to heal yourself through magical means."
+        }
+      ],
+      "description": "A spellcaster with innate magical power.",
+      "color": "bg-cyan-900"
+    },
+    {
+      "name": "Druid",
+      "hitPoints": 24,
+      "maxHitPoints": 24,
+      "armorClass": 15,
+      "attackBonus": 4,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Thorn Whip",
+          "type": "attack",
+          "damageDice": "1d6",
+          "attackRoll": true,
+          "description": "Create a long, vine-like whip covered in thorns."
+        },
+        {
+          "name": "Cure Wounds",
+          "type": "healing",
+          "healingDice": "1d8+3",
+          "description": "A creature you touch regains hit points through natural magic."
+        },
+        {
+          "name": "Goodberry",
+          "type": "healing",
+          "healingDice": "1d4+1",
+          "description": "Create berries that restore hit points when consumed."
+        }
+      ],
+      "description": "A guardian of nature who wields primal magic.",
+      "color": "bg-emerald-900"
+    },
+    {
+      "name": "Artificer",
+      "hitPoints": 24,
+      "maxHitPoints": 24,
+      "armorClass": 17,
+      "attackBonus": 4,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Arcane Weapon",
+          "type": "attack",
+          "damageDice": "1d8",
+          "attackRoll": true,
+          "bonusDamageDice": "1d6",
+          "description": "Infuse a weapon with magical energy to deal extra damage."
+        },
+        {
+          "name": "Cure Wounds",
+          "type": "healing",
+          "healingDice": "1d8+2",
+          "description": "A creature you touch regains hit points through magical tinkering."
+        }
+      ],
+      "description": "A master of magical invention and technology.",
+      "color": "bg-teal-900"
+    },
+    {
+      "name": "Cleric",
+      "hitPoints": 26,
+      "maxHitPoints": 26,
+      "armorClass": 16,
+      "attackBonus": 4,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Guided Strike",
+          "type": "attack",
+          "damageDice": "1d8",
+          "attackRoll": true,
+          "description": "Channel divine power to guide your weapon to its target."
+        },
+        {
+          "name": "Cure Wounds",
+          "type": "healing",
+          "healingDice": "1d8+3",
+          "description": "A creature you touch regains hit points through divine magic."
+        },
+        {
+          "name": "Healing Word",
+          "type": "healing",
+          "healingDice": "1d4+3",
+          "description": "A creature of your choice regains hit points with a word."
+        }
+      ],
+      "description": "A holy warrior who channels divine power.",
+      "color": "bg-yellow-900"
+    },
+    {
+      "name": "Fighter",
+      "hitPoints": 30,
+      "maxHitPoints": 30,
+      "armorClass": 18,
+      "attackBonus": 5,
+      "damageDie": "d10",
+      "abilities": [
+        {
+          "name": "Action Surge",
+          "type": "attack",
+          "damageDice": "2d8",
+          "attackRoll": true,
+          "attacks": 2,
+          "description": "Take an additional action to make two powerful attacks."
+        },
+        {
+          "name": "Second Wind",
+          "type": "healing",
+          "healingDice": "1d10+3",
+          "description": "Regain hit points through sheer determination."
+        }
+      ],
+      "description": "A master of weapons and armor, the Fighter excels in combat.",
+      "color": "bg-red-900"
+    },
+    {
+      "name": "Wizard",
+      "hitPoints": 20,
+      "maxHitPoints": 20,
+      "armorClass": 12,
+      "attackBonus": 3,
+      "damageDie": "d6",
+      "abilities": [
+        {
+          "name": "Magic Missile",
+          "type": "attack",
+          "damageDice": "1d4+1",
+          "attackRoll": false,
+          "attacks": 3,
+          "description": "Three unerring bolts of magical force strike the target."
+        },
+        {
+          "name": "Fireball",
+          "type": "attack",
+          "damageDice": "3d6",
+          "attackRoll": false,
+          "description": "A bright streak flashes from your pointing finger and explodes."
+        },
+        {
+          "name": "Arcane Recovery",
+          "type": "healing",
+          "healingDice": "1d8+2",
+          "description": "Channel arcane energy to restore your vitality and recover hit points."
+        }
+      ],
+      "description": "A wielder of arcane magic, the Wizard commands powerful spells.",
+      "color": "bg-blue-900"
+    },
+    {
+      "name": "Bard",
+      "hitPoints": 24,
+      "maxHitPoints": 24,
+      "armorClass": 14,
+      "attackBonus": 4,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Vicious Mockery",
+          "type": "attack",
+          "damageDice": "1d4",
+          "attackRoll": false,
+          "description": "Insult a creature with magical words that deal psychic damage."
+        },
+        {
+          "name": "Healing Word",
+          "type": "healing",
+          "healingDice": "1d4+3",
+          "description": "A creature of your choice regains hit points through your inspiring words."
+        }
+      ],
+      "description": "A versatile performer who uses music and magic.",
+      "color": "bg-indigo-900"
+    },
+    {
+      "name": "Warlock",
+      "hitPoints": 22,
+      "maxHitPoints": 22,
+      "armorClass": 13,
+      "attackBonus": 4,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Eldritch Blast",
+          "type": "attack",
+          "damageDice": "1d10",
+          "attackRoll": true,
+          "attacks": 2,
+          "description": "A beam of crackling energy streaks toward a creature."
+        },
+        {
+          "name": "Hex",
+          "type": "attack",
+          "damageDice": "1d6",
+          "attackRoll": true,
+          "bonusDamageDice": "1d6",
+          "description": "Place a curse on a creature that deals extra damage."
+        },
+        {
+          "name": "Dark Pact Recovery",
+          "type": "healing",
+          "healingDice": "1d8+2",
+          "description": "Draw upon your patron's power to restore your vitality."
+        }
+      ],
+      "description": "A spellcaster who made a pact with otherworldly beings.",
+      "color": "bg-violet-900"
+    },
+    {
+      "name": "Paladin",
+      "hitPoints": 30,
+      "maxHitPoints": 30,
+      "armorClass": 18,
+      "attackBonus": 5,
+      "damageDie": "d10",
+      "abilities": [
+        {
+          "name": "Divine Smite",
+          "type": "attack",
+          "damageDice": "1d8",
+          "attackRoll": true,
+          "bonusDamageDice": "2d8",
+          "description": "Channel divine energy to smite your enemies."
+        },
+        {
+          "name": "Lay on Hands",
+          "type": "healing",
+          "healingDice": "1d10+5",
+          "description": "Touch a creature to restore its hit points through divine power."
+        }
+      ],
+      "description": "A holy warrior who smites evil with divine power.",
+      "color": "bg-pink-900"
+    },
+    {
+      "name": "Rogue",
+      "hitPoints": 24,
+      "maxHitPoints": 24,
+      "armorClass": 15,
+      "attackBonus": 4,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Sneak Attack",
+          "type": "attack",
+          "damageDice": "1d8",
+          "attackRoll": true,
+          "bonusDamageDice": "2d6",
+          "description": "Strike with precision when your enemy is distracted."
+        },
+        {
+          "name": "Cunning Action",
+          "type": "attack",
+          "damageDice": "1d6",
+          "attackRoll": true,
+          "description": "Use your quick reflexes to strike and reposition."
+        },
+        {
+          "name": "Quick Recovery",
+          "type": "healing",
+          "healingDice": "1d6+2",
+          "description": "Use your quick wits and agility to patch up wounds and recover."
+        }
+      ],
+      "description": "A stealthy combatant who strikes from the shadows.",
+      "color": "bg-purple-900"
+    }
+  ]
+}

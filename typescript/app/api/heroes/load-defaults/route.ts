@@ -1,15 +1,18 @@
 import { NextResponse } from 'next/server';
 import { upsertHeroes } from '../../../../lib/db/astra';
-import { FALLBACK_CLASSES } from '../../../dnd/constants';
+import { loadDefaultHeroes } from '../../../dnd/utils/loadDefaults';
 import { DnDClass } from '../../../dnd/types';
 
 // POST - Load default heroes into database
 export async function POST() {
   try {
-    console.log('[API /heroes/load-defaults] Loading default heroes to database');
+    console.log('[API /heroes/load-defaults] Loading default heroes from JSON to database');
     
-    // Add isDefault flag to all fallback classes
-    const defaultHeroes: DnDClass[] = FALLBACK_CLASSES.map(hero => ({
+    // Load heroes from JSON file
+    const heroesFromJson = await loadDefaultHeroes();
+    
+    // Add isDefault flag to all heroes
+    const defaultHeroes: DnDClass[] = heroesFromJson.map(hero => ({
       ...hero,
       isDefault: true,
     }));
@@ -17,11 +20,11 @@ export async function POST() {
     // Save all default heroes to database
     await upsertHeroes(defaultHeroes, 'Default D&D Heroes');
     
-    console.log(`[API /heroes/load-defaults] Successfully loaded ${defaultHeroes.length} default heroes`);
+    console.log(`[API /heroes/load-defaults] Successfully loaded ${defaultHeroes.length} default heroes from JSON`);
     
-    return NextResponse.json({ 
-      success: true, 
-      message: `Successfully loaded ${defaultHeroes.length} default heroes`,
+    return NextResponse.json({
+      success: true,
+      message: `Successfully loaded ${defaultHeroes.length} default heroes from JSON`,
       count: defaultHeroes.length
     });
   } catch (error) {
