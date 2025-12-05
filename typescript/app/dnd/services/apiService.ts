@@ -1129,9 +1129,10 @@ export async function getBattleSummary(
     const victorType = victorIsMonster ? 'monster' : 'class';
     const defeatedType = defeatedIsMonster ? 'monster' : 'class';
 
-    // Include ALL battle log entries (excluding narrative since we're generating a new one)
+    // Filter battle log to only include highlights (attack/ability/system messages)
+    // Exclude detailed dice rolls ('roll' type) and old narratives
     const fullBattleLog = battleLog
-      .filter(log => log.type !== 'narrative') // Exclude old narrative entries
+      .filter(log => log.type !== 'narrative' && log.type !== 'roll') // Exclude narratives and detailed dice rolls
       .map(log => log.message);
 
     // Analyze battle log to determine if it was a close/struggling battle
@@ -1155,132 +1156,63 @@ export async function getBattleSummary(
     
     const wasCloseBattle = victorTookSignificantDamage && hasBackAndForth && !isOneSidedVictory;
 
-    // Build comprehensive character information
-    const victorAbilities = victorClass.abilities?.map(ability => {
-      const name = ability.name;
-      const description = ability.description;
-      if (ability.type === 'attack') {
-        return `- ${name}: ${description} (Damage: ${ability.damageDice}${ability.attacks && ability.attacks > 1 ? `, ${ability.attacks} attacks` : ''}${ability.attackRoll ? ', requires attack roll' : ', automatic damage'})`;
-      } else if (ability.type === 'healing') {
-        return `- ${name}: ${description} (Healing: ${ability.healingDice})`;
-      }
-      // Fallback for any other ability types (shouldn't happen but TypeScript needs this)
-      return `- ${name}: ${description}`;
-    }).join('\n') || 'None';
+    // Build simplified character information (name, description, race, sex, class only)
+    const victorInfo = `${victorClass.description || 'N/A'}${victorClass.race && victorClass.race !== 'n/a' ? ` (${victorClass.race})` : ''}${victorClass.sex && victorClass.sex !== 'n/a' ? ` - ${victorClass.sex}` : ''}${victorClass.class ? ` - ${victorClass.class} class` : ''}`;
+    
+    const defeatedInfo = `${defeatedClass.description || 'N/A'}${defeatedClass.race && defeatedClass.race !== 'n/a' ? ` (${defeatedClass.race})` : ''}${defeatedClass.sex && defeatedClass.sex !== 'n/a' ? ` - ${defeatedClass.sex}` : ''}${defeatedClass.class ? ` - ${defeatedClass.class} class` : ''}`;
 
-    const defeatedAbilities = defeatedClass.abilities?.map(ability => {
-      const name = ability.name;
-      const description = ability.description;
-      if (ability.type === 'attack') {
-        return `- ${name}: ${description} (Damage: ${ability.damageDice}${ability.attacks && ability.attacks > 1 ? `, ${ability.attacks} attacks` : ''}${ability.attackRoll ? ', requires attack roll' : ', automatic damage'})`;
-      } else if (ability.type === 'healing') {
-        return `- ${name}: ${description} (Healing: ${ability.healingDice})`;
-      }
-      // Fallback for any other ability types (shouldn't happen but TypeScript needs this)
-      return `- ${name}: ${description}`;
-    }).join('\n') || 'None';
-
-    // Build support heroes information if they exist
+    // Build support heroes information if they exist (simplified)
     let supportHeroesSection = '';
     if (supportHeroes && supportHeroes.length > 0) {
-      const supportHeroesInfo = supportHeroes.map((supportHero, index) => {
-        const supportIsMonster = isMonster(supportHero.class.name);
-        const supportType = supportIsMonster ? 'monster' : 'class';
-        const supportAbilities = supportHero.class.abilities?.map(ability => {
-          const name = ability.name;
-          const description = ability.description;
-          if (ability.type === 'attack') {
-            return `- ${name}: ${description} (Damage: ${ability.damageDice}${ability.attacks && ability.attacks > 1 ? `, ${ability.attacks} attacks` : ''}${ability.attackRoll ? ', requires attack roll' : ', automatic damage'})`;
-          } else if (ability.type === 'healing') {
-            return `- ${name}: ${description} (Healing: ${ability.healingDice})`;
-          }
-          return `- ${name}: ${description}`;
-        }).join('\n') || 'None';
+      const supportHeroesInfo = supportHeroes.map((supportHero) => {
+        const supportInfo = `${supportHero.class.description || 'N/A'}${supportHero.class.race && supportHero.class.race !== 'n/a' ? ` (${supportHero.class.race})` : ''}${supportHero.class.sex && supportHero.class.sex !== 'n/a' ? ` - ${supportHero.class.sex}` : ''}${supportHero.class.class ? ` - ${supportHero.class.class} class` : ''}`;
+        return `- **${supportHero.name}** (${supportHero.class.name}): ${supportInfo}`;
+      }).join('\n');
 
-        const supportHeroDetail = supportHeroDetails?.[supportHero.class.name] || '';
-
-        return `=== ${supportHero.name} (${supportHero.class.name} ${supportType}) - SUPPORT HERO ${index + 1} ===
-Class Description: ${supportHero.class.description || 'N/A'}
-Stats:
-- Hit Points: ${supportHero.class.hitPoints}/${supportHero.class.maxHitPoints} (final HP)
-- Armor Class: ${supportHero.class.armorClass}
-- Attack Bonus: ${supportHero.class.attackBonus}
-- Damage Die: ${supportHero.class.damageDie}${supportHero.class.meleeDamageDie ? ` (Melee: ${supportHero.class.meleeDamageDie})` : ''}${supportHero.class.rangedDamageDie ? ` (Ranged: ${supportHero.class.rangedDamageDie})` : ''}
-
-Abilities:
-${supportAbilities}
-${supportHeroDetail ? `\nVisual/Appearance Details (used for card image generation):\n${supportHeroDetail}` : ''}`;
-      }).join('\n\n');
-
-      supportHeroesSection = `\n\n=== SUPPORT HEROES (Fighting alongside ${victorName}) ===
+      supportHeroesSection = `\n\n=== SUPPORT HEROES ===
 ${supportHeroesInfo}`;
+    }
+
+    // Determine battle type and create appropriate instructions
+    let battleTypeInstructions = '';
+    let exampleNarrative = '';
+    
+    if (isOneSidedVictory) {
+      battleTypeInstructions = `This was a ONE-SIDED VICTORY - **${victorName}** dominated **${defeatedName}** decisively${supportHeroes && supportHeroes.length > 0 ? ` with help from ${supportHeroes.map(sh => `**${sh.name}**`).join(' and ')}` : ''}. Show overwhelming power and dominance. Use descriptive language like "barely scratched", "completely unscathed", or "untouched" to convey ${victorName} took minimal damage.`;
+      exampleNarrative = `Example: "**Barbed Devil** completely overwhelmed **Vespera Darkblade**, barely taking a scratch while her lightsabers fell silent. The Devil's brutal attacks left no room for recovery."`;
+    } else if (wasCloseBattle) {
+      battleTypeInstructions = `This was a CLOSE BATTLE - both **${victorName}** and **${defeatedName}** struggled, traded blows, and used healing. Show the narrow, desperate victory. Use descriptive language like "barely standing", "on death's door", or "badly wounded" to convey ${victorName} barely survived.`;
+      exampleNarrative = `Example: "**Vespara** and **Gandalf** traded blow for blow, both using healing to stay in the fight. **Vespara's** **force blade** found its mark just as her own defenses were about to fail, securing a narrow victory."`;
+    } else {
+      battleTypeInstructions = `This was a MODERATE BATTLE - **${victorName}** won but took significant damage from **${defeatedName}**. Show a clear but not overwhelming victory. Use descriptive language like "took significant damage" or "wounded but victorious".`;
+      exampleNarrative = `Example: "**Gandalf** landed several powerful strikes, but **Vespara's** relentless **force blade** attacks eventually overwhelmed his defenses."`;
     }
 
     const prompt = `A D&D battle has concluded between ${victorName} (a ${victorClass.name} ${victorType})${supportHeroes && supportHeroes.length > 0 ? ` along with ${supportHeroes.map(sh => sh.name).join(' and ')}` : ''} and ${defeatedName} (a ${defeatedClass.name} ${defeatedType}).
 
 === ${victorName} (${victorClass.name} ${victorType}) - VICTOR ===
-Class Description: ${victorClass.description || 'N/A'}
-Stats:
-- Hit Points: ${victorClass.hitPoints}/${victorClass.maxHitPoints} (final HP)
-- Armor Class: ${victorClass.armorClass}
-- Attack Bonus: ${victorClass.attackBonus}
-- Damage Die: ${victorClass.damageDie}${victorClass.meleeDamageDie ? ` (Melee: ${victorClass.meleeDamageDie})` : ''}${victorClass.rangedDamageDie ? ` (Ranged: ${victorClass.rangedDamageDie})` : ''}
-
-Abilities:
-${victorAbilities}
-
-${victorDetails ? `Visual/Appearance Details (used for card image generation):\n${victorDetails}` : ''}
+${victorInfo}
 
 === ${defeatedName} (${defeatedClass.name} ${defeatedType}) - DEFEATED ===
-Class Description: ${defeatedClass.description || 'N/A'}
-Stats:
-- Hit Points: 0/${defeatedClass.maxHitPoints} (defeated)
-- Armor Class: ${defeatedClass.armorClass}
-- Attack Bonus: ${defeatedClass.attackBonus}
-- Damage Die: ${defeatedClass.damageDie}${defeatedClass.meleeDamageDie ? ` (Melee: ${defeatedClass.meleeDamageDie})` : ''}${defeatedClass.rangedDamageDie ? ` (Ranged: ${defeatedClass.rangedDamageDie})` : ''}
-
-Abilities:
-${defeatedAbilities}
-
-${defeatedDetails ? `Visual/Appearance Details (used for card image generation):\n${defeatedDetails}` : ''}
+${defeatedInfo}
 ${supportHeroesSection}
 
-=== COMPLETE BATTLE LOG ===
-The following is the complete chronological record of the battle:
-
+=== BATTLE LOG (Key Moments) ===
 ${fullBattleLog.join('\n')}
 
-=== BATTLE ANALYSIS ===
-${isOneSidedVictory ? `⚠️ ONE-SIDED VICTORY: ${victorName} dominated this battle, finishing with ${victorClass.hitPoints}/${victorClass.maxHitPoints} HP (${Math.round(victorHPRatio * 100)}% remaining) while ${defeatedName} was completely defeated (0 HP). Despite any healing or missed attacks in the log, the final outcome shows ${victorName} barely took any damage. The narrative should reflect this decisive, one-sided victory - ${victorName} overwhelmed ${defeatedName}, not a close struggle. Use descriptive language like "barely scratched" or "completely unscathed" - DO NOT mention HP numbers or percentages in the narrative.` : wasCloseBattle ? `⚠️ CLOSE BATTLE DETECTED: This was a hard-fought, evenly matched battle. Both sides used healing (${healingCount} times), there were many missed attacks, and both combatants landed hits. The victor finished with ${victorClass.hitPoints}/${victorClass.maxHitPoints} HP (${Math.round(victorHPRatio * 100)}% remaining) - ${victorClass.hitPoints < victorClass.maxHitPoints * 0.3 ? 'barely survived' : victorClass.hitPoints < victorClass.maxHitPoints * 0.5 ? 'survived but was badly wounded' : 'took significant damage'}. The narrative should reflect this struggle and close call. Use descriptive language like "badly wounded" or "on death's door" - DO NOT mention HP numbers or percentages in the narrative.` : `This battle had a clear winner. ${victorName} finished with ${victorClass.hitPoints}/${victorClass.maxHitPoints} HP (${Math.round(victorHPRatio * 100)}% remaining) while ${defeatedName} was defeated. The narrative should reflect the actual outcome based on the final HP states. Use descriptive language - DO NOT mention HP numbers or percentages in the narrative.`}
-
 === INSTRUCTIONS ===
-Write a brief, punchy, character-driven narrative summary (just 2-3 sentences) of this battle. Use the character details, abilities, and battle log above to understand what happened, but keep it very short and entertaining.
+Write a 2-3 sentence battle summary (MAX 400 characters including spaces and markdown).
 
-**CRITICAL LENGTH CONSTRAINT**: Your response must be NO MORE than 400 characters total (including spaces and markdown formatting). This is a hard limit to ensure the text fits properly on screen.
+${battleTypeInstructions}
 
-The narrative should:
-- Be extremely concise (just 2-3 sentences total, MAX 400 characters)
-- **CRITICAL**: Always use the actual character/monster names (${victorName}${supportHeroes && supportHeroes.length > 0 ? `, ${supportHeroes.map(sh => sh.name).join(', ')}` : ''} and ${defeatedName}) throughout the narrative. Do not refer to them generically as "the victor", "the defeated", "the warrior", "the fighter", "the combatant", etc. Use their specific names to make it personal and engaging.${supportHeroes && supportHeroes.length > 0 ? ` If support heroes participated, mention them by name when relevant (e.g., "${supportHeroes[0].name} and ${supportHeroes.length > 1 ? supportHeroes[1].name : ''} joined ${victorName} in defeating ${defeatedName}").` : ''} For example, say "${victorName}${supportHeroes && supportHeroes.length > 0 ? ` and ${supportHeroes.map(sh => sh.name).join(' and ')}` : ''} defeated ${defeatedName}" not "the victor defeated the opponent".
-- **CRITICAL - NO STATS**: Do NOT mention any stats, hit points, HP percentages, health percentages, numerical values, or game mechanics in the narrative. Use descriptive language instead (e.g., "barely scratched", "badly wounded", "on death's door", "barely breathing", "completely unscathed"). Never say things like "100/110 HP", "86% health", "hit points were", etc.
-- Use character names and details to shape the outcome
-- Include playful wordplay, rhythmic wording, or clever turns of phrase
-- Feel epic but brief - like a memorable one-liner about the battle's conclusion
-- Reference key abilities or moments naturally, but don't list stats or dice rolls
-- Use **bold markdown** to emphasize important words like character names, key actions, or dramatic moments (e.g., **${victorName}** struck with their **ability name**)
-- Avoid repetitive introductions - don't start every sentence with the same character name or phrase. Vary the sentence structure and openings.
-- **CRITICAL**: Always check the FINAL HP STATES in the character stats above (for your understanding only - do NOT mention these numbers in the narrative). The final HP ratio is the most important indicator of how the battle actually went:
-  * If ${victorName} finished with >80% HP (${victorClass.hitPoints}/${victorClass.maxHitPoints} = ${Math.round(victorHPRatio * 100)}%) and ${defeatedName} has 0 HP, this was a ONE-SIDED VICTORY. ${victorName} dominated and barely took damage. Don't describe it as close or struggling - describe ${victorName} overwhelming ${defeatedName}. Use descriptive language like "barely scratched", "completely unscathed", "untouched" to convey this.
-  * If ${victorName} finished with <50% HP and there was back-and-forth, this was a CLOSE BATTLE. Show the struggle, the healing, the narrow victory. Use descriptive language like "badly wounded", "on death's door", "barely standing" to convey this.
-  * If ${victorName} finished with 50-80% HP, it was a moderate battle - not one-sided, but not extremely close either. Use descriptive language like "took significant damage", "wounded but victorious" to convey this.
-- **IF THIS WAS A ONE-SIDED VICTORY** (see analysis above): Emphasize ${victorName}'s dominance! Show how ${victorName} overwhelmed ${defeatedName} with minimal damage taken. Even if the battle log shows some hits or healing attempts by ${defeatedName}, the final outcome shows it was decisive. Don't describe it as close or struggling. Use descriptive language, NOT numbers or percentages.
-- **IF THIS WAS A CLOSE BATTLE** (see analysis above): Emphasize the struggle! Show how both combatants fought hard, how healing was used, how it was back-and-forth, and how the victor barely made it through. Use varied, creative language to convey the narrow victory - avoid clichés and repetitive phrases. Make it clear this was NOT an easy win through vivid, character-specific descriptions.
+Requirements:
+- Always use actual character names (${victorName}${supportHeroes && supportHeroes.length > 0 ? `, ${supportHeroes.map(sh => sh.name).join(', ')}` : ''}, ${defeatedName}) - never generic terms like "the victor" or "the defeated"
+- NO stats, HP numbers, percentages, or game mechanics - only descriptive language
+- Use **bold markdown** for character names and key abilities
+- Be punchy and entertaining with wordplay or clever phrasing
+- Reference abilities and battle moments naturally
 
-Think of it like a memorable quote or tagline about how the battle ended. Make it punchy, characterful, and fun to read. If there was a back-and-forth, capture that tension. Remember: MAX 400 characters total. 
-
-Examples:
-- One-sided victory (victor >80% HP): "**Barbed Devil** completely overwhelmed **Vespera Darkblade**, barely taking a scratch while her lightsabers fell silent. The Devil's brutal attacks left no room for recovery."
-- Moderate battle (victor 50-80% HP): "**Gandalf** landed several powerful strikes, but **Vespara's** relentless **force blade** attacks eventually overwhelmed his defenses."
-- Close battle (victor <50% HP, back-and-forth): "**Vespara** and **Gandalf** traded blow for blow, both using healing to stay in the fight. **Vespara's** **force blade** found its mark just as her own defenses were about to fail, securing a narrow victory."`;
+${exampleNarrative}`;
 
     const response = await fetch('/api/chat', {
       method: 'POST',
