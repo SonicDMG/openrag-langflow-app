@@ -702,6 +702,69 @@ export default function LoadDataPage() {
     }
   };
 
+  const clearAllMonsters = async () => {
+    if (!confirm('Are you sure you want to delete ALL monsters from the database? This action cannot be undone.')) {
+      return;
+    }
+
+    setLogEntries([]);
+    addLog('system', '🗑️ Clearing all monsters from database...');
+    
+    try {
+      // Get all monsters first
+      const response = await fetch('/api/monsters-db');
+      if (!response.ok) {
+        throw new Error('Failed to fetch monsters');
+      }
+      
+      const data = await response.json();
+      const monsters = data.monsters || [];
+      
+      if (monsters.length === 0) {
+        addLog('system', 'ℹ️ No monsters found in database');
+        return;
+      }
+      
+      addLog('system', `Found ${monsters.length} monsters to delete...`);
+      
+      // Delete each monster
+      let successCount = 0;
+      let failCount = 0;
+      
+      for (const monster of monsters) {
+        try {
+          const deleteResponse = await fetch(`/api/monsters-db?name=${encodeURIComponent(monster.name)}`, {
+            method: 'DELETE',
+          });
+          
+          if (deleteResponse.ok) {
+            successCount++;
+            addLog('success', `✅ Deleted: ${monster.name}`);
+          } else {
+            failCount++;
+            addLog('error', `❌ Failed to delete: ${monster.name}`);
+          }
+        } catch (error) {
+          failCount++;
+          addLog('error', `❌ Error deleting ${monster.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+      
+      // Clear localStorage cache
+      localStorage.removeItem('dnd_loaded_monsters');
+      addLog('system', '🧹 Cleared localStorage cache');
+      
+      addLog('system', `✅ Completed! Deleted ${successCount} monsters${failCount > 0 ? `, ${failCount} failed` : ''}`);
+      
+      // Reload page to refresh UI
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } catch (error) {
+      addLog('error', `❌ Error clearing monsters: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
   const getStatusIcon = (status?: LogEntry['status']) => {
     switch (status) {
       case 'loading':
@@ -747,7 +810,7 @@ export default function LoadDataPage() {
             </h2>
             <p className="text-amber-200 mb-4">Import heroes and monsters from your OpenRAG knowledge base</p>
             <div>
-              <div className="flex gap-4">
+              <div className="flex flex-wrap gap-4">
                 <button
                   onClick={saveFallbackDataToAstra}
                   className="px-4 py-2 bg-green-900 hover:bg-green-800 text-white font-semibold rounded-lg border-2 border-green-700 transition-all"
@@ -761,9 +824,16 @@ export default function LoadDataPage() {
                 >
                   🗑️ Clear All Heroes
                 </button>
+                <button
+                  onClick={clearAllMonsters}
+                  disabled={isLoadingClasses || isLoadingMonsters || isLoadingSingle}
+                  className="px-4 py-2 bg-red-900 hover:bg-red-800 text-white font-semibold rounded-lg border-2 border-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  🗑️ Clear All Monsters
+                </button>
               </div>
               <p className="text-xs text-amber-300 mt-2">
-                Save the default fallback classes and monsters to Astra DB (useful for initial setup), or clear all heroes to start fresh
+                Save the default fallback classes and monsters to Astra DB (useful for initial setup), or clear all heroes/monsters to start fresh
               </p>
             </div>
           </div>

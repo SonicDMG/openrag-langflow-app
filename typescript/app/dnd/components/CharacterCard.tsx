@@ -5,7 +5,7 @@ import { DnDClass, Ability, AttackAbility, HealingAbility } from '../types';
 import { Sparkles } from './Sparkles';
 import { Confetti } from './Confetti';
 import { applyAnimationClass } from '../utils/animations';
-import { FALLBACK_CLASSES, isMonster } from '../constants';
+import { FALLBACK_CLASSES, FALLBACK_MONSTERS, isMonster } from '../constants';
 
 /**
  * Builds a tooltip string for a basic attack that includes dice information
@@ -740,14 +740,23 @@ function CharacterCardComponent({
               if ((playerClass as any).klass) {
                 return (playerClass as any).klass;
               }
-              // If it's a custom hero (not in FALLBACK_CLASSES, not a monster, not a created monster)
-              const isCustomHero = !FALLBACK_CLASSES.some(fc => fc.name === playerClass.name) && 
-                                   !(playerClass as any).monsterId && 
-                                   !isMonster(playerClass.name);
-              if (isCustomHero) {
+              // Check if it's a default monster or hero
+              const isDefaultMonster = FALLBACK_MONSTERS.some(fm => fm.name === playerClass.name);
+              const isDefaultHero = FALLBACK_CLASSES.some(fc => fc.name === playerClass.name);
+              
+              // If it has a monsterId, it's a created monster
+              if ((playerClass as any).monsterId) {
+                return 'Monster';
+              }
+              // If it's a default monster, use its name as the class
+              if (isDefaultMonster) {
+                return playerClass.name;
+              }
+              // If it's a custom hero (not in defaults and not a monster)
+              if (!isDefaultHero && !isDefaultMonster) {
                 return 'Hero';
               }
-              // Otherwise, use name as class type
+              // Otherwise, use name as class type (for default heroes)
               return playerClass.name;
             })()}
           </p>

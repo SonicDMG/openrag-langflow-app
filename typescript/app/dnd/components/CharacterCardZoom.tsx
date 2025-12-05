@@ -64,15 +64,22 @@ export function CharacterCardZoom({
 
   if (!isOpen) return null;
 
-  // Determine edit type automatically if not provided
-  const determinedEditType = editType || (isMonster(playerClass.name) ? 'monster' : 'hero');
+  // Determine edit type - trust the provided editType if available, otherwise check fallback lists
+  // The editType is determined earlier in the component tree where the full monster list is available
+  const determinedEditType = editType || (
+    FALLBACK_MONSTERS.some(fm => fm.name === playerClass.name) ? 'monster' : 'hero'
+  );
   
   const handleEdit = () => {
     router.push(`/dnd/create-character?id=${encodeURIComponent(playerClass.name)}&type=${determinedEditType}`);
   };
 
-  const isCustomHero = !isMonster(playerClass.name) && !FALLBACK_CLASSES.some(fc => fc.name === playerClass.name);
-  const isCustomMonster = !FALLBACK_MONSTERS.some(fm => fm.name === playerClass.name) && isMonster(playerClass.name);
+  // Determine if this is a custom character based on the determined type
+  const isDefaultHero = FALLBACK_CLASSES.some(fc => fc.name === playerClass.name);
+  const isDefaultMonster = FALLBACK_MONSTERS.some(fm => fm.name === playerClass.name);
+  
+  const isCustomHero = determinedEditType === 'hero' && !isDefaultHero;
+  const isCustomMonster = determinedEditType === 'monster' && !isDefaultMonster;
   
   // Only allow delete for custom heroes and monsters (not fallback/default ones)
   const canDelete = isCustomHero || isCustomMonster;
@@ -83,7 +90,7 @@ export function CharacterCardZoom({
   const handleExportPDF = async () => {
     setIsExporting(true);
     try {
-      const characterType = isCustomHero ? 'Custom Hero' : isCustomMonster ? 'Custom Monster' : isMonster(playerClass.name) ? 'Monster' : 'Hero';
+      const characterType = isCustomHero ? 'Custom Hero' : isCustomMonster ? 'Custom Monster' : determinedEditType === 'monster' ? 'Monster' : 'Hero';
       
       await exportCharacterToPDF({
         playerClass,
@@ -351,7 +358,7 @@ export function CharacterCardZoom({
               className="text-base italic"
               style={{ color: '#8B6F47' }}
             >
-              {isCustomHero ? 'Custom Hero' : isCustomMonster ? 'Custom Monster' : isMonster(playerClass.name) ? 'Monster' : 'Hero'}
+              {isCustomHero ? 'Custom Hero' : isCustomMonster ? 'Custom Monster' : determinedEditType === 'monster' ? 'Monster' : 'Hero'}
             </p>
           </div>
 
@@ -419,7 +426,7 @@ export function CharacterCardZoom({
               className="text-xs leading-tight line-clamp-2"
               style={{ color: '#5C4033' }}
             >
-              {playerClass.description || `A ${isMonster(playerClass.name) ? 'monster' : 'hero'} named ${characterName}.`}
+              {playerClass.description || `A ${determinedEditType === 'monster' ? 'monster' : 'hero'} named ${characterName}.`}
             </p>
           </div>
 

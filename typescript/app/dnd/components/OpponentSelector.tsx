@@ -6,7 +6,7 @@ import { DnDClass } from '../types';
 import { CharacterCard } from './CharacterCard';
 import { CharacterCardZoom } from './CharacterCardZoom';
 import { ClassSelection } from './ClassSelection';
-import { isMonster } from '../constants';
+import { isMonster, FALLBACK_MONSTERS } from '../constants';
 
 type OpponentSelectorProps = {
   opponentType: 'class' | 'monster';
@@ -162,7 +162,9 @@ export function OpponentSelector({
                       : monster.name; // Regular monsters use their type name as their character name
                     
                     // Determine edit type - all characters can be edited
-                    const editType = isMonster(monster.name) ? 'monster' : 'hero';
+                    // Since this is in the monster selector, default to 'monster' unless it's clearly not
+                    const isDefaultMonster = FALLBACK_MONSTERS.some(fm => fm.name === monster.name);
+                    const editType = (isCreatedMonster || isDefaultMonster) ? 'monster' : 'hero';
                     
                     const handleZoom = () => {
                       // Priority order for getting prompt/setting:

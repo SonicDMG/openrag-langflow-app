@@ -8,7 +8,7 @@ import { CharacterCardZoom } from './CharacterCardZoom';
 import { AddHeroCard } from './AddHeroCard';
 import { LoadDefaultHeroesCard } from './LoadDefaultHeroesCard';
 import { generateDeterministicCharacterName, getCharacterName } from '../utils/names';
-import { isMonster, FALLBACK_CLASSES } from '../constants';
+import { isMonster, FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../constants';
 
 interface ClassSelectionProps {
   title: string;
@@ -139,7 +139,9 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
             const displayName = getCharacterName('', dndClass);
             
             // Determine edit type - all characters can be edited
-            const editType = isCreatedMonster ? 'monster' : (isMonster(dndClass.name) ? 'monster' : 'hero');
+            // Check if it's in FALLBACK_MONSTERS to determine if it's a monster
+            const isDefaultMonster = FALLBACK_MONSTERS.some(fm => fm.name === dndClass.name);
+            const editType = isCreatedMonster ? 'monster' : (isDefaultMonster ? 'monster' : 'hero');
             
             const handleZoom = () => {
               // Priority order for getting prompt/setting:
