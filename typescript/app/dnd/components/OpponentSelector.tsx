@@ -6,6 +6,7 @@ import { DnDClass } from '../types';
 import { CharacterCard } from './CharacterCard';
 import { CharacterCardZoom } from './CharacterCardZoom';
 import { ClassSelection } from './ClassSelection';
+import { AddMonsterCard } from './AddMonsterCard';
 import { isMonster, FALLBACK_MONSTERS } from '../constants';
 
 type OpponentSelectorProps = {
@@ -132,6 +133,16 @@ export function OpponentSelector({
                     msOverflowStyle: 'none',
                   }}
                 >
+                  {/* Always show "Add Monster" card at the beginning */}
+                  <div
+                    className="flex-shrink-0 relative group"
+                    style={{
+                      padding: '4px',
+                    }}
+                  >
+                    <AddMonsterCard size="compact" />
+                  </div>
+                  
                   {availableMonsters.map((monster, index) => {
                     // For created monsters, use klass to find associated monster; for regular monsters, use name
                     const isCreatedMonster = !!(monster as any).klass && !!(monster as any).monsterId;
