@@ -422,13 +422,14 @@ function CharacterCardComponent({
   const isInBattle = !!onAttack;
   
   return (
-    <div 
+    <div
       ref={animationRef}
       className={`relative flex flex-col ${isDefeated ? 'card-damaged card-slam-down' : isInBattle ? 'card-elevated' : ''}`}
-      style={{ 
+      style={{
         backgroundColor: '#1a1a1a', // Dark black frame background
         borderRadius: borderRadius,
-        width: '100%',
+        width: maxWidth, // Use maxWidth as the actual width for consistent sizing
+        minWidth: maxWidth, // Ensure minimum width
         maxWidth: maxWidth, // Constrain width to maintain portrait aspect
         aspectRatio: '3/4', // Portrait orientation: 3 wide by 4 tall
         padding: framePadding, // Dark frame padding
@@ -459,7 +460,7 @@ function CharacterCardComponent({
         </div>
       )}
 
-      {/* Zoom button - printed text on card */}
+      {/* Zoom button - matches overlay text style for visibility */}
       {showZoomButton && onZoom && (
         <button
           onClick={(e) => {
@@ -469,14 +470,15 @@ function CharacterCardComponent({
           className="absolute top-2 right-2 z-30 transition-all cursor-pointer"
           style={{
             backgroundColor: 'transparent',
-            color: '#5C4033',
+            color: '#F2ECDE', // Light beige to match overlay text
             fontFamily: 'serif',
             fontWeight: 'bold',
             border: 'none',
             padding: 0,
+            filter: 'drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 8px rgba(0, 0, 0, 0.6))', // Strong shadow for readability
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.opacity = '0.7';
+            e.currentTarget.style.opacity = '0.8';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.opacity = '1';
@@ -705,80 +707,92 @@ function CharacterCardComponent({
         )}
 
         {/* Card Content */}
-        <div className={`h-full flex flex-col relative z-10 ${isDefeated ? 'card-content-damaged' : ''}`} style={{ padding: padding }}>
-        {/* Header with name, type, and symbol */}
-        <div className="relative" style={{ marginBottom: isCompact ? '0.5rem' : '0.75rem' }}>
-          {/* Character name - bold, dark brown */}
-          <h3 
-            ref={nameRef}
-            className={`${titleSize} font-bold mb-1`}
-            style={{ 
-              fontFamily: 'serif',
-              color: '#5C4033', // Dark brown
-              fontWeight: 'bold',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis'
-            }}
-          >
-            {characterName}
-          </h3>
-
-          {/* Character type - smaller, lighter brown */}
-          <p 
-            className={typeSize}
-            style={{ 
-              color: '#8B6F47', // Lighter brown
-              fontStyle: 'italic'
-            }}
-          >
-            {/* For created monsters, use klass field if available */}
-            {/* For custom heroes (not in FALLBACK_CLASSES and not created monsters), we don't have a class type, so show "Hero" */}
-            {/* For regular classes/monsters, use name as class type */}
-            {(() => {
-              // If it's a created monster, use klass
-              if ((playerClass as any).klass) {
-                return (playerClass as any).klass;
-              }
-              // Check if it's a default monster or hero
-              const isDefaultMonster = FALLBACK_MONSTERS.some(fm => fm.name === playerClass.name);
-              const isDefaultHero = FALLBACK_CLASSES.some(fc => fc.name === playerClass.name);
-              
-              // If it has a monsterId, it's a created monster
-              if ((playerClass as any).monsterId) {
-                return 'Monster';
-              }
-              // If it's a default monster, use its name as the class
-              if (isDefaultMonster) {
-                return playerClass.name;
-              }
-              // If it's a custom hero (not in defaults and not a monster)
-              if (!isDefaultHero && !isDefaultMonster) {
-                return 'Hero';
-              }
-              // Otherwise, use name as class type (for default heroes)
-              return playerClass.name;
-            })()}
-          </p>
-        </div>
-
-        {/* Central pixel art image in frame - slightly darker beige */}
-        <div 
+        <div className={`h-full flex flex-col relative z-10 ${isDefeated ? 'card-content-damaged' : ''}`} style={{ padding: '0', display: 'flex', flexDirection: 'column' }}>
+        
+        {/* Central pixel art image extending to top - slightly darker beige frame */}
+        <div
           ref={characterImageRef}
-          className="rounded-lg flex justify-center items-center overflow-hidden relative"
-          style={{ 
+          className="flex justify-center items-start overflow-hidden relative"
+          style={{
             backgroundColor: '#E8E0D6', // Slightly darker beige frame
             border: isCompact ? '1.5px solid #D4C4B0' : '2px solid #D4C4B0',
-            borderRadius: isCompact ? '6px' : '8px',
-            padding: '0', // Remove padding so image fills the container
-            width: `calc(100% + ${padding} + ${padding})`, // Extend beyond padding on both sides to reach full card width
-            height: imageHeight, // Scaled height
-            aspectRatio: '280/200', // Match the actual image aspect ratio (1.4:1)
-            marginBottom: imageMarginBottom || (isCompact ? '1.5rem' : '0.75rem'),
-            marginLeft: `-${padding}`, // Negative margin to counteract parent padding
-            marginRight: `-${padding}`, // Negative margin to counteract parent padding
+            borderTopLeftRadius: innerBorderRadius,
+            borderTopRightRadius: innerBorderRadius,
+            borderBottomLeftRadius: isCompact ? '6px' : '8px',
+            borderBottomRightRadius: isCompact ? '6px' : '8px',
+            padding: '0',
+            width: '100%',
+            height: isCompact ? '130px' : '200px', // Restored original height
+            flexShrink: 0, // Don't allow image to shrink
+            marginBottom: imageMarginBottom || (isCompact ? '0.5rem' : '0.75rem'),
+            position: 'relative',
           }}
         >
+          {/* Name and class overlay on top of image */}
+          <div
+            className="absolute top-0 left-0 right-0 z-20"
+            style={{
+              background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.5) 60%, transparent 100%)',
+              padding: padding,
+              paddingBottom: isCompact ? '2rem' : '3rem', // Extra padding for gradient fade
+            }}
+          >
+            {/* Character name - bold, light colored for visibility on dark gradient */}
+            <h3
+              ref={nameRef}
+              className={`${titleSize} font-bold mb-1`}
+              style={{
+                fontFamily: 'serif',
+                color: '#F2ECDE', // Light beige for visibility
+                fontWeight: 'bold',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                textShadow: '2px 2px 4px rgba(0, 0, 0, 0.8), 0 0 8px rgba(0, 0, 0, 0.6)', // Strong shadow for readability
+              }}
+            >
+              {characterName}
+            </h3>
+
+            {/* Character type - smaller, light colored */}
+            <p
+              className={typeSize}
+              style={{
+                color: '#D4C4B0', // Lighter beige
+                fontStyle: 'italic',
+                textShadow: '1px 1px 3px rgba(0, 0, 0, 0.8), 0 0 6px rgba(0, 0, 0, 0.6)',
+              }}
+            >
+              {/* For created monsters, use klass field if available */}
+              {/* For custom heroes (not in FALLBACK_CLASSES and not created monsters), we don't have a class type, so show "Hero" */}
+              {/* For regular classes/monsters, use name as class type */}
+              {(() => {
+                // If it's a created monster, use klass
+                if ((playerClass as any).klass) {
+                  return (playerClass as any).klass;
+                }
+                // Check if it's a default monster or hero
+                const isDefaultMonster = FALLBACK_MONSTERS.some(fm => fm.name === playerClass.name);
+                const isDefaultHero = FALLBACK_CLASSES.some(fc => fc.name === playerClass.name);
+                
+                // If it has a monsterId, it's a created monster
+                if ((playerClass as any).monsterId) {
+                  return 'Monster';
+                }
+                // If it's a default monster, use its name as the class
+                if (isDefaultMonster) {
+                  return playerClass.name;
+                }
+                // If it's a custom hero (not in defaults and not a monster)
+                if (!isDefaultHero && !isDefaultMonster) {
+                  return 'Hero';
+                }
+                // Otherwise, use name as class type (for default heroes)
+                return playerClass.name;
+              })()}
+            </p>
+          </div>
+
           {monsterImageUrl && !imageError ? (
             <>
               {/* Background image layer */}
@@ -790,6 +804,7 @@ function CharacterCardComponent({
                   width: '100%',
                   height: '100%',
                   objectFit: 'cover',
+                  objectPosition: 'center top', // Align to top to show heads
                   display: 'block',
                   position: 'absolute',
                   top: 0,
@@ -858,6 +873,7 @@ function CharacterCardComponent({
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
+                objectPosition: 'center top',
                 display: 'block'
               }}
             />
@@ -866,7 +882,7 @@ function CharacterCardComponent({
 
         {/* Abilities section - hidden for compact cards since abilities are randomly generated on battle start */}
         {!isCompact && (
-        <div style={{ marginBottom: isCompact ? '0.375rem' : '0.75rem' }}>
+        <div style={{ marginBottom: isCompact ? '0.375rem' : '0.75rem', paddingLeft: padding, paddingRight: padding }}>
           <div className="flex items-center justify-between" style={{ marginBottom: isCompact ? '0.125rem' : '0.375rem' }}>
             <h4 
               className={`${abilityHeadingSize} font-semibold`}
@@ -1099,9 +1115,9 @@ function CharacterCardComponent({
         )}
 
         {/* Divider with diamond icon */}
-        <div className="flex items-center justify-center" style={{ marginBottom: isCompact ? '0.5rem' : '0.75rem' }}>
+        <div className="flex items-center justify-center" style={{ marginBottom: isCompact ? '0.5rem' : '0.75rem', paddingLeft: padding, paddingRight: padding }}>
           <div className="flex-1 border-t" style={{ borderColor: '#5C4033' }}></div>
-          <div 
+          <div
             className="mx-2"
             style={{
               width: diamondSize,
@@ -1114,7 +1130,7 @@ function CharacterCardComponent({
         </div>
 
         {/* Stats section */}
-        <div className="mt-auto">
+        <div className="mt-auto" style={{ paddingLeft: padding, paddingRight: padding, paddingBottom: padding }}>
           <div className="flex items-center justify-between">
             {/* AC (Armor Class) - left side */}
             <div className="flex items-center" style={{ gap: '0' }}>

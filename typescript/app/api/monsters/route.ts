@@ -53,7 +53,8 @@ export async function POST(req: NextRequest) {
           } else {
             imageBuffer = await downloadImage(imageUrl);
           }
-          refPngWithNewBg = await ensure16x9AspectRatio(imageBuffer);
+          // Don't crop to 16:9 - preserve original aspect ratio
+          refPngWithNewBg = imageBuffer;
         } catch (error) {
           console.error('Failed to process provided image:', error);
           return NextResponse.json(
@@ -91,10 +92,11 @@ export async function POST(req: NextRequest) {
             model: '5000',
             imageCount: 1,
             width: 1024,
-            height: 576, // 16:9 aspect ratio
+            height: 768, // 4:3 aspect ratio to match generated images
           });
           
-          refPngWithNewBg = await ensure16x9AspectRatio(characterImage.buffer);
+          // Don't crop to 16:9 - preserve original 4:3 aspect ratio
+          refPngWithNewBg = characterImage.buffer;
         } catch (error) {
           console.error('Image generation error:', error);
           return NextResponse.json(

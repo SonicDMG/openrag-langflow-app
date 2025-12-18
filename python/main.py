@@ -22,6 +22,7 @@ LANGFLOW_API_KEY = os.getenv("LANGFLOW_API_KEY")
 MODEL_ID = "1098eea1-6649-4e1d-aed1-b77249fb8dd0"
 
 
+
 def stream_response(client: OpenAI, model_id: str, user_input: str,
                    previous_response_id: str | None = None, on_chunk=None):
     """

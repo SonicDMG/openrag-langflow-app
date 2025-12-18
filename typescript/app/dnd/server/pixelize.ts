@@ -171,172 +171,62 @@ async function detectContentBounds(pngBuffer: Buffer): Promise<{ left: number; t
 }
 
 /**
- * Pixelize an image by downscaling aggressively, then upscaling with nearest-neighbor,
- * and reducing the color palette
+ * Pixelize an image by downscaling, then upscaling with nearest-neighbor,
+ * and reducing the color palette. Preserves original aspect ratio exactly.
  */
 export async function pixelize(
   pngBuffer: Buffer,
   { base, colors, preserveFullImage = false }: PixelizeOptions
 ): Promise<PixelizeResult> {
-  // Card aspect ratio: 280:200 = 1.4:1
-  const cardAspectRatio = 280 / 200; // 1.4
-  
-  // Calculate dimensions that maintain card aspect ratio
-  // Use base as the height, calculate width to match aspect ratio
-  const targetHeight = base;
-  const targetWidth = Math.round(base * cardAspectRatio); // e.g., 256 * 1.4 = 358
-  
-  // Use base/2 for pixel art effect - preserves good detail
-  const smallHeight = Math.max(64, Math.floor(base / 2));
-  const smallWidth = Math.round(smallHeight * cardAspectRatio);
-  
-  // Get image metadata
+  // Get image metadata - use original dimensions to preserve exact aspect ratio
   const metadata = await sharp(pngBuffer).metadata();
-  const inputWidth = metadata.width || targetWidth;
-  const inputHeight = metadata.height || targetHeight;
+  const inputWidth = metadata.width || base;
+  const inputHeight = metadata.height || base;
   
-  // For cutouts (preserveFullImage=true), maintain natural aspect ratio throughout
-  // For composites, resize to target aspect ratio using 'contain' to preserve entire image
-  let preprocessed: Buffer;
-  if (preserveFullImage) {
-    // For cutouts: maintain natural aspect ratio, just ensure it fits within max dimensions
-    const maxDimension = Math.max(targetWidth, targetHeight);
-    try {
-      preprocessed = await sharp(pngBuffer)
-        .resize(maxDimension, maxDimension, { 
-          fit: 'inside', // Fit entire image within bounds, maintaining aspect ratio
-          background: { r: 0, g: 0, b: 0, alpha: 0 } // Transparent padding
-        })
-        .png()
-        .toBuffer();
-    } catch (e) {
-      // Fallback: use original image
-      preprocessed = pngBuffer;
-    }
-  } else {
-    // For composites: resize to target aspect ratio
-    try {
-      preprocessed = await sharp(pngBuffer)
-        .resize(targetWidth, targetHeight, { 
-          fit: 'contain', // Fit entire image within bounds, may add padding
-          position: 'center', // Center the image
-          background: { r: 0, g: 0, b: 0, alpha: 0 } // Transparent padding
-        })
-        .png()
-        .toBuffer();
-    } catch (e) {
-      // Fallback if 'contain' fails
-      preprocessed = await sharp(pngBuffer)
-        .resize(targetWidth, targetHeight, { 
-          fit: 'cover', // Fallback to cover if contain fails
-          position: 'center',
-          background: { r: 0, g: 0, b: 0, alpha: 0 }
-        })
-        .png()
-        .toBuffer();
-    }
-  }
+  // Use original dimensions as target - no resizing, just pixelization
+  const targetWidth = inputWidth;
+  const targetHeight = inputHeight;
   
-  // Light downscale to create subtle pixel art effect (preserves more detail)
-  // For cutouts, maintain natural aspect ratio; for composites, use card aspect ratio
+  // Downscale factor for pixel art effect (divide by 4 for good pixelization)
+  const pixelFactor = 4;
+  const smallWidth = Math.max(64, Math.floor(targetWidth / pixelFactor));
+  const smallHeight = Math.max(64, Math.floor(targetHeight / pixelFactor));
+  
+  // Step 1: Use original image as-is (no preprocessing resize)
+  const preprocessed = pngBuffer;
+  
+  // Step 2: Downscale to create pixel art effect
   const smallBuf = await sharp(preprocessed)
-    .resize(smallWidth, smallHeight, { 
-      fit: preserveFullImage ? 'inside' : 'contain', // Maintain aspect ratio for cutouts
-      position: 'center',
-      kernel: sharp.kernel.nearest,
+    .resize(smallWidth, smallHeight, {
+      kernel: sharp.kernel.lanczos3, // High quality downscale
       background: { r: 0, g: 0, b: 0, alpha: 0 }
     })
     .png()
     .toBuffer();
 
-  // Upscale back - for cutouts, maintain natural aspect ratio; for composites, use target dimensions
-  let nearest: Buffer;
-  if (preserveFullImage) {
-    // For cutouts: upscale maintaining natural aspect ratio (use max dimension to preserve quality)
-    const smallMetadata = await sharp(smallBuf).metadata();
-    if (smallMetadata.width && smallMetadata.height) {
-      const scaleFactor = Math.max(targetWidth, targetHeight) / Math.max(smallMetadata.width, smallMetadata.height);
-      const upscaleWidth = Math.round(smallMetadata.width * scaleFactor);
-      const upscaleHeight = Math.round(smallMetadata.height * scaleFactor);
-      nearest = await sharp(smallBuf)
-        .resize(upscaleWidth, upscaleHeight, { 
-          kernel: sharp.kernel.nearest,
-          background: { r: 0, g: 0, b: 0, alpha: 0 }
-        })
-        .png()
-        .toBuffer();
-    } else {
-      nearest = smallBuf;
-    }
-  } else {
-    // For composites: upscale to target dimensions
-    nearest = await sharp(smallBuf)
-      .resize(targetWidth, targetHeight, { 
-        kernel: sharp.kernel.nearest,
-        background: { r: 0, g: 0, b: 0, alpha: 0 }
-      })
-      .png()
-      .toBuffer();
-  }
+  // Step 3: Upscale back to original size with nearest-neighbor for blocky pixels
+  const nearest = await sharp(smallBuf)
+    .resize(targetWidth, targetHeight, {
+      kernel: sharp.kernel.nearest, // Nearest neighbor for pixelated look
+      background: { r: 0, g: 0, b: 0, alpha: 0 }
+    })
+    .png()
+    .toBuffer();
 
-  // 2) Palette reduction (image-q NeuQuant + Floyd–Steinberg)
+  // Step 4: Palette reduction (image-q NeuQuant)
   const { out, palette } = await quantize(nearest, colors);
 
-  // 3) Also emit various sizes maintaining aspect ratio or square for other uses
-  // Card display version (280x200) - exact size needed
-  // Use 'contain' for cutouts to preserve full image, 'cover' for composites to fill canvas
-  const png280x200 = await sharp(out)
-    .resize(280, 200, { 
-      kernel: sharp.kernel.nearest,
-      fit: preserveFullImage ? 'contain' : 'cover', // Preserve full image for cutouts, fill canvas for composites
-      position: 'center',
-      background: { r: 0, g: 0, b: 0, alpha: 0 }
-    })
-    .png()
-    .toBuffer();
-  
-  // Square versions for other uses (128, 200, 256, 512)
-  const png128 = await sharp(out)
-    .resize(128, 128, { 
-      kernel: sharp.kernel.nearest,
-      fit: 'contain',
-      position: 'center',
-      background: { r: 0, g: 0, b: 0, alpha: 0 }
-    })
-    .png()
-    .toBuffer();
-  
-  const png200 = await sharp(out)
-    .resize(200, 200, { 
-      kernel: sharp.kernel.nearest,
-      fit: 'contain',
-      position: 'center',
-      background: { r: 0, g: 0, b: 0, alpha: 0 }
-    })
-    .png()
-    .toBuffer();
-  
-  const png256 = await sharp(out)
-    .resize(256, 256, { 
-      kernel: sharp.kernel.nearest,
-      fit: 'contain',
-      position: 'center',
-      background: { r: 0, g: 0, b: 0, alpha: 0 }
-    })
-    .png()
-    .toBuffer();
-  
-  const png512 = await sharp(out)
-    .resize(512, 512, { 
-      kernel: sharp.kernel.nearest,
-      fit: 'contain',
-      position: 'center',
-      background: { r: 0, g: 0, b: 0, alpha: 0 }
-    })
-    .png()
-    .toBuffer();
-
-  return { png128, png200, png280x200, png256, png512, palette };
+  // Step 5: Return the pixelized image for all outputs - no resizing
+  // All versions are the same pixelized image maintaining original aspect ratio
+  // CSS will handle display sizing
+  return {
+    png128: out,
+    png200: out,
+    png280x200: out,
+    png256: out,
+    png512: out,
+    palette
+  };
 }
 
 async function quantize(png: Buffer, colors: number): Promise<{ out: Buffer; palette: number[] }> {
