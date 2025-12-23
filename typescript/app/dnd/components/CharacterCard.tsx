@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, memo, useState } from 'react';
+import { useRef, useEffect, memo, useState, useMemo } from 'react';
 import { DnDClass, Ability, AttackAbility, HealingAbility } from '../types';
 import { Sparkles } from './Sparkles';
 import { Confetti } from './Confetti';
@@ -21,13 +21,14 @@ type DustParticle = {
 
 /**
  * Configuration for dust particle generation
+ * Increased particle counts for more dramatic slam-down effect
  */
 const DUST_PARTICLE_CONFIG = {
   counts: {
-    bottom: { min: 8, max: 15 },
-    top: { min: 6, max: 12 },
-    left: { min: 6, max: 12 },
-    right: { min: 6, max: 12 },
+    bottom: { min: 25, max: 35 }, // Increased from 8-15 for more impact
+    top: { min: 18, max: 25 },     // Increased from 6-12
+    left: { min: 18, max: 25 },    // Increased from 6-12
+    right: { min: 18, max: 25 },   // Increased from 6-12
   },
   animation: {
     maxDelay: 0.05, // 0-0.05s delay (almost immediate)
@@ -96,9 +97,12 @@ function getParticleStyle(particle: DustParticle): React.CSSProperties & { [key:
 /**
  * Dust particle effect component for defeated cards
  * Generates and renders dust particles on all four sides of the card
+ * Uses useMemo to generate particles only once, preventing continuous re-emission
  */
 function DustParticleEffect() {
-  const particles = generateDustParticles();
+  // Generate particles only once when component mounts
+  // This prevents particles from regenerating on every render
+  const particles = useMemo(() => generateDustParticles(), []);
   
   return (
     <div className="card-dust-container">

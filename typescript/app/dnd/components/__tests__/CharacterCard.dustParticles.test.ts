@@ -18,10 +18,10 @@ type DustParticle = {
 // Configuration matching the component
 const DUST_PARTICLE_CONFIG = {
   counts: {
-    bottom: { min: 8, max: 15 },
-    top: { min: 6, max: 12 },
-    left: { min: 6, max: 12 },
-    right: { min: 6, max: 12 },
+    bottom: { min: 15, max: 25 }, // Increased for more dramatic slam effect
+    top: { min: 8, max: 15 },     // Increased from 6-12
+    left: { min: 8, max: 15 },    // Increased from 6-12
+    right: { min: 8, max: 15 },   // Increased from 6-12
   },
   animation: {
     maxDelay: 0.05,
@@ -105,17 +105,17 @@ describe('Dust Particle Generation', () => {
       const leftParticles = particles.filter(p => p.side === 'left');
       const rightParticles = particles.filter(p => p.side === 'right');
       
-      // Bottom should have 8-15 particles
-      expect(bottomParticles.length).toBeGreaterThanOrEqual(8);
-      expect(bottomParticles.length).toBeLessThanOrEqual(15);
+      // Bottom should have 15-25 particles (increased for slam effect)
+      expect(bottomParticles.length).toBeGreaterThanOrEqual(15);
+      expect(bottomParticles.length).toBeLessThanOrEqual(25);
       
-      // Top, left, right should have 6-12 particles each
-      expect(topParticles.length).toBeGreaterThanOrEqual(6);
-      expect(topParticles.length).toBeLessThanOrEqual(12);
-      expect(leftParticles.length).toBeGreaterThanOrEqual(6);
-      expect(leftParticles.length).toBeLessThanOrEqual(12);
-      expect(rightParticles.length).toBeGreaterThanOrEqual(6);
-      expect(rightParticles.length).toBeLessThanOrEqual(12);
+      // Top, left, right should have 8-15 particles each (increased)
+      expect(topParticles.length).toBeGreaterThanOrEqual(8);
+      expect(topParticles.length).toBeLessThanOrEqual(15);
+      expect(leftParticles.length).toBeGreaterThanOrEqual(8);
+      expect(leftParticles.length).toBeLessThanOrEqual(15);
+      expect(rightParticles.length).toBeGreaterThanOrEqual(8);
+      expect(rightParticles.length).toBeLessThanOrEqual(15);
     });
 
     it('should generate particles with valid position values (0-100)', () => {
@@ -280,11 +280,11 @@ describe('Dust Particle Generation', () => {
 
   describe('DUST_PARTICLE_CONFIG', () => {
     it('should have valid configuration values', () => {
-      // Check counts
-      expect(DUST_PARTICLE_CONFIG.counts.bottom.min).toBe(8);
-      expect(DUST_PARTICLE_CONFIG.counts.bottom.max).toBe(15);
-      expect(DUST_PARTICLE_CONFIG.counts.top.min).toBe(6);
-      expect(DUST_PARTICLE_CONFIG.counts.top.max).toBe(12);
+      // Check counts (updated for enhanced slam effect)
+      expect(DUST_PARTICLE_CONFIG.counts.bottom.min).toBe(15);
+      expect(DUST_PARTICLE_CONFIG.counts.bottom.max).toBe(25);
+      expect(DUST_PARTICLE_CONFIG.counts.top.min).toBe(8);
+      expect(DUST_PARTICLE_CONFIG.counts.top.max).toBe(15);
       
       // Check animation values
       expect(DUST_PARTICLE_CONFIG.animation.maxDelay).toBe(0.05);
