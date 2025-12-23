@@ -8,6 +8,112 @@ import { applyAnimationClass } from '../utils/animations';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS, isMonster } from '../constants';
 
 /**
+ * Type definition for dust particle effect
+ */
+type DustParticle = {
+  side: 'bottom' | 'top' | 'left' | 'right';
+  position: number; // 0-100 for position along the edge
+  delay: number; // Animation delay in seconds
+  duration: number; // Animation duration in seconds
+  horizontalOffset: number; // Random horizontal offset for bottom/top
+  verticalOffset: number; // Random vertical offset for left/right
+};
+
+/**
+ * Configuration for dust particle generation
+ */
+const DUST_PARTICLE_CONFIG = {
+  counts: {
+    bottom: { min: 8, max: 15 },
+    top: { min: 6, max: 12 },
+    left: { min: 6, max: 12 },
+    right: { min: 6, max: 12 },
+  },
+  animation: {
+    maxDelay: 0.05, // 0-0.05s delay (almost immediate)
+    minDuration: 0.3, // Minimum animation duration
+    maxDuration: 0.5, // Maximum animation duration (0.3-0.5s quick burst)
+    offsetRange: 30, // -15px to +15px offset range
+  },
+} as const;
+
+/**
+ * Generates random dust particles for all four sides of the card
+ * @returns Array of dust particles with randomized properties
+ */
+function generateDustParticles(): DustParticle[] {
+  const getRandomCount = (min: number, max: number) =>
+    Math.floor(Math.random() * (max - min + 1)) + min;
+  
+  const getRandomPosition = () => Math.random() * 100;
+  const getRandomDelay = () => Math.random() * DUST_PARTICLE_CONFIG.animation.maxDelay;
+  const getRandomDuration = () =>
+    DUST_PARTICLE_CONFIG.animation.minDuration +
+    Math.random() * (DUST_PARTICLE_CONFIG.animation.maxDuration - DUST_PARTICLE_CONFIG.animation.minDuration);
+  const getRandomOffset = () =>
+    (Math.random() - 0.5) * DUST_PARTICLE_CONFIG.animation.offsetRange;
+
+  const sides: Array<{ side: DustParticle['side']; isHorizontal: boolean }> = [
+    { side: 'bottom', isHorizontal: true },
+    { side: 'top', isHorizontal: true },
+    { side: 'left', isHorizontal: false },
+    { side: 'right', isHorizontal: false },
+  ];
+
+  return sides.flatMap(({ side, isHorizontal }) => {
+    const config = DUST_PARTICLE_CONFIG.counts[side];
+    const count = getRandomCount(config.min, config.max);
+    
+    return Array.from({ length: count }, () => ({
+      side,
+      position: getRandomPosition(),
+      delay: getRandomDelay(),
+      duration: getRandomDuration(),
+      horizontalOffset: isHorizontal ? getRandomOffset() : 0,
+      verticalOffset: isHorizontal ? 0 : getRandomOffset(),
+    }));
+  });
+}
+
+/**
+ * Calculates the CSS style properties for a dust particle
+ * @param particle - The dust particle to style
+ * @returns CSS properties including custom CSS variables
+ */
+function getParticleStyle(particle: DustParticle): React.CSSProperties & { [key: `--${string}`]: string } {
+  const isHorizontal = particle.side === 'bottom' || particle.side === 'top';
+  
+  return {
+    '--dust-delay': `${particle.delay}s`,
+    '--dust-duration': `${particle.duration}s`,
+    '--dust-horizontal-offset': `${particle.horizontalOffset}px`,
+    '--dust-vertical-offset': `${particle.verticalOffset}px`,
+    left: isHorizontal ? `${particle.position}%` : (particle.side === 'left' ? '0%' : '100%'),
+    top: isHorizontal ? (particle.side === 'bottom' ? '100%' : '0%') : `${particle.position}%`,
+  };
+}
+
+/**
+ * Dust particle effect component for defeated cards
+ * Generates and renders dust particles on all four sides of the card
+ */
+function DustParticleEffect() {
+  const particles = generateDustParticles();
+  
+  return (
+    <div className="card-dust-container">
+      {particles.map((particle, i) => (
+        <div
+          key={i}
+          className={`card-dust-particle card-dust-${particle.side}`}
+          style={getParticleStyle(particle)}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
  * Builds a tooltip string for a basic attack that includes dice information
  */
 function buildAttackTooltip(damageDie: string, attackType?: 'melee' | 'ranged'): string {
@@ -465,112 +571,7 @@ function CharacterCardComponent({
       )}
       
       {/* Dust particles effect when card slams down */}
-      {isDefeated && isInBattle && (() => {
-        // Generate random particle counts per side (more realistic dust distribution)
-        // Each side gets a random number between min and max particles
-        const getRandomCount = (min: number, max: number) => 
-          Math.floor(Math.random() * (max - min + 1)) + min;
-        
-        // Generate random counts for each side (ensuring bottom has good coverage)
-        const bottomCount = getRandomCount(8, 15); // Bottom: 8-15 particles
-        const topCount = getRandomCount(6, 12);   // Top: 6-12 particles
-        const leftCount = getRandomCount(6, 12);  // Left: 6-12 particles
-        const rightCount = getRandomCount(6, 12); // Right: 6-12 particles
-        
-        const totalParticles = bottomCount + topCount + leftCount + rightCount;
-        const particles: Array<{ 
-          side: 'bottom' | 'top' | 'left' | 'right'; 
-          position: number; // 0-100 for position along the edge
-          delay: number; // Animation delay in seconds
-          duration: number; // Animation duration in seconds
-          horizontalOffset: number; // Random horizontal offset for bottom/top
-          verticalOffset: number; // Random vertical offset for left/right
-        }> = [];
-        
-        // Helper to generate random position along edge
-        const getRandomPosition = () => Math.random() * 100;
-        const getRandomDelay = () => Math.random() * 0.05; // 0-0.05s delay (almost immediate)
-        const getRandomDuration = () => 0.3 + Math.random() * 0.2; // 0.3-0.5s duration (quick burst)
-        const getRandomOffset = () => (Math.random() - 0.5) * 30; // -15px to +15px
-        
-        // Create bottom particles
-        for (let i = 0; i < bottomCount; i++) {
-          particles.push({ 
-            side: 'bottom', 
-            position: getRandomPosition(),
-            delay: getRandomDelay(),
-            duration: getRandomDuration(),
-            horizontalOffset: getRandomOffset(),
-            verticalOffset: 0
-          });
-        }
-        
-        // Create top particles
-        for (let i = 0; i < topCount; i++) {
-          particles.push({ 
-            side: 'top', 
-            position: getRandomPosition(),
-            delay: getRandomDelay(),
-            duration: getRandomDuration(),
-            horizontalOffset: getRandomOffset(),
-            verticalOffset: 0
-          });
-        }
-        
-        // Create left particles
-        for (let i = 0; i < leftCount; i++) {
-          particles.push({ 
-            side: 'left', 
-            position: getRandomPosition(),
-            delay: getRandomDelay(),
-            duration: getRandomDuration(),
-            horizontalOffset: 0,
-            verticalOffset: getRandomOffset()
-          });
-        }
-        
-        // Create right particles
-        for (let i = 0; i < rightCount; i++) {
-          particles.push({ 
-            side: 'right', 
-            position: getRandomPosition(),
-            delay: getRandomDelay(),
-            duration: getRandomDuration(),
-            horizontalOffset: 0,
-            verticalOffset: getRandomOffset()
-          });
-        }
-        
-        return (
-          <div className="card-dust-container">
-            {particles.map((particle, i) => {
-              // Set initial position based on side
-              const initialStyle: React.CSSProperties & { [key: `--${string}`]: string } = {
-                '--dust-delay': `${particle.delay}s`,
-                '--dust-duration': `${particle.duration}s`,
-                '--dust-horizontal-offset': `${particle.horizontalOffset}px`,
-                '--dust-vertical-offset': `${particle.verticalOffset}px`,
-              };
-              
-              if (particle.side === 'bottom' || particle.side === 'top') {
-                initialStyle.left = `${particle.position}%`;
-                initialStyle.top = particle.side === 'bottom' ? '100%' : '0%';
-              } else {
-                initialStyle.left = particle.side === 'left' ? '0%' : '100%';
-                initialStyle.top = `${particle.position}%`;
-              }
-              
-              return (
-                <div 
-                  key={i} 
-                  className={`card-dust-particle card-dust-${particle.side}`}
-                  style={initialStyle}
-                />
-              );
-            })}
-          </div>
-        );
-      })()}
+      {isDefeated && isInBattle && <DustParticleEffect />}
       {/* Texture overlay for outer frame */}
       <div 
         className="absolute inset-0 pointer-events-none"
