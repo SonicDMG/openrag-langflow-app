@@ -259,7 +259,7 @@ export function CharacterCardZoom({
         }}
       >
         {/* Inner card content area */}
-        <div 
+        <div
           className="flex flex-col h-full rounded-lg overflow-hidden relative"
           style={{
             backgroundColor: '#E8E0D6', // Light beige background (same as card front)
@@ -273,10 +273,26 @@ export function CharacterCardZoom({
             `,
           }}
         >
+          {/* Background image layer with 50% opacity */}
+          {monsterImageUrl && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                backgroundImage: `url(${monsterImageUrl})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+                opacity: 0.5,
+                zIndex: 0,
+                borderRadius: '18px', // Slightly smaller than parent to stay within border
+              }}
+            />
+          )}
           {/* Close button - printed text on card */}
           <button
             onClick={onClose}
-            className="absolute right-2 z-10 text-xl font-bold transition-all cursor-pointer"
+            className="absolute right-2 text-xl font-bold transition-all cursor-pointer"
             style={{
               top: '0.5rem',
               backgroundColor: 'transparent',
@@ -285,6 +301,7 @@ export function CharacterCardZoom({
               border: 'none',
               padding: 0,
               lineHeight: '1',
+              zIndex: 10,
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.opacity = '0.7';
@@ -298,7 +315,7 @@ export function CharacterCardZoom({
           </button>
 
           {/* Action buttons container */}
-          <div className="absolute left-2 top-2 z-10 flex flex-col gap-1.5">
+          <div className="absolute left-2 top-2 flex flex-col gap-1.5" style={{ zIndex: 10 }}>
             {/* Edit button - printed text on card */}
             {canEdit && (
               <button
@@ -453,30 +470,42 @@ export function CharacterCardZoom({
             </button>
           </div>
           {/* Card Back Header */}
-          <div className="text-center mb-1.5 pb-1 border-b-2" style={{ borderColor: '#8B6F47' }}>
-            <h2 
+          <div className="text-center mb-1.5 pb-1 border-b-2 relative" style={{ borderColor: '#8B6F47', zIndex: 1 }}>
+            <h2
               className="text-4xl font-bold mb-0.5"
-              style={{ color: '#5C4033' }}
+              style={{
+                color: '#5C4033',
+                textShadow: '0 0 8px rgba(255, 255, 255, 0.9), 0 0 12px rgba(255, 255, 255, 0.8), 2px 2px 4px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(255, 255, 255, 0.7)',
+              }}
             >
               {characterName}
             </h2>
-            <p 
+            <p
               className="text-base italic"
-              style={{ color: '#8B6F47' }}
+              style={{
+                color: '#8B6F47',
+                textShadow: '0 0 6px rgba(255, 255, 255, 0.9), 0 0 10px rgba(255, 255, 255, 0.8), 1px 1px 3px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(255, 255, 255, 0.7)',
+              }}
             >
               {isCustomHero ? 'Custom Hero' : isCustomMonster ? 'Custom Monster' : determinedEditType === 'monster' ? 'Monster' : 'Hero'}
             </p>
           </div>
 
           {/* Character Details (Race and Sex) */}
-          <div className="mb-1.5">
-            <h3 
+          <div className="mb-1.5 relative" style={{ zIndex: 1 }}>
+            <h3
               className="text-lg font-semibold mb-1"
-              style={{ color: '#8B6F47' }}
+              style={{
+                color: '#8B6F47',
+                textShadow: '0 0 6px rgba(255, 255, 255, 0.9), 0 0 10px rgba(255, 255, 255, 0.8), 1px 1px 3px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(255, 255, 255, 0.7)',
+              }}
             >
               CHARACTER DETAILS
             </h3>
-            <div className="grid grid-cols-2 gap-2 text-base" style={{ color: '#5C4033' }}>
+            <div className="grid grid-cols-2 gap-2 text-base" style={{
+              color: '#5C4033',
+              textShadow: '0 0 4px rgba(255, 255, 255, 0.9), 0 0 8px rgba(255, 255, 255, 0.8), 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 1px rgba(255, 255, 255, 0.7)',
+            }}>
               <div>
                 <span className="font-semibold">Race:</span> {playerClass.race && playerClass.race !== 'n/a' ? playerClass.race : 'n/a'}
               </div>
@@ -487,14 +516,20 @@ export function CharacterCardZoom({
           </div>
 
           {/* Stats Grid */}
-          <div className="mb-1.5">
-            <h3 
+          <div className="mb-1.5 relative" style={{ zIndex: 1 }}>
+            <h3
               className="text-lg font-semibold mb-1"
-              style={{ color: '#8B6F47' }}
+              style={{
+                color: '#8B6F47',
+                textShadow: '0 0 6px rgba(255, 255, 255, 0.9), 0 0 10px rgba(255, 255, 255, 0.8), 1px 1px 3px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(255, 255, 255, 0.7)',
+              }}
             >
               STATISTICS
             </h3>
-            <div className="grid grid-cols-2 gap-2 text-base" style={{ color: '#5C4033' }}>
+            <div className="grid grid-cols-2 gap-2 text-base" style={{
+              color: '#5C4033',
+              textShadow: '0 0 4px rgba(255, 255, 255, 0.9), 0 0 8px rgba(255, 255, 255, 0.8), 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 1px rgba(255, 255, 255, 0.7)',
+            }}>
               <div>
                 <span className="font-semibold">HP:</span> {playerClass.hitPoints}/{playerClass.maxHitPoints}
               </div>
@@ -521,16 +556,22 @@ export function CharacterCardZoom({
           </div>
 
           {/* Description */}
-          <div className="mb-1.5">
-            <h3 
+          <div className="mb-1.5 relative" style={{ zIndex: 1 }}>
+            <h3
               className="text-lg font-semibold mb-1"
-              style={{ color: '#8B6F47' }}
+              style={{
+                color: '#8B6F47',
+                textShadow: '0 0 6px rgba(255, 255, 255, 0.9), 0 0 10px rgba(255, 255, 255, 0.8), 1px 1px 3px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(255, 255, 255, 0.7)',
+              }}
             >
               DESCRIPTION
             </h3>
-            <p 
+            <p
               className="text-xs leading-tight line-clamp-2"
-              style={{ color: '#5C4033' }}
+              style={{
+                color: '#5C4033',
+                textShadow: '0 0 4px rgba(255, 255, 255, 0.9), 0 0 8px rgba(255, 255, 255, 0.8), 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 1px rgba(255, 255, 255, 0.7)',
+              }}
             >
               {playerClass.description || `A ${determinedEditType === 'monster' ? 'monster' : 'hero'} named ${characterName}.`}
             </p>
@@ -538,10 +579,13 @@ export function CharacterCardZoom({
 
           {/* Abilities */}
           {playerClass.abilities && playerClass.abilities.length > 0 && (
-            <div className="mb-1.5 flex-1 min-h-0 flex flex-col">
-              <h3 
+            <div className="mb-1.5 flex-1 min-h-0 flex flex-col relative" style={{ zIndex: 1 }}>
+              <h3
                 className="text-lg font-semibold mb-1"
-                style={{ color: '#8B6F47' }}
+                style={{
+                  color: '#8B6F47',
+                  textShadow: '0 0 6px rgba(255, 255, 255, 0.9), 0 0 10px rgba(255, 255, 255, 0.8), 1px 1px 3px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(255, 255, 255, 0.7)',
+                }}
               >
                 ABILITIES
               </h3>
@@ -554,10 +598,13 @@ export function CharacterCardZoom({
           )}
 
           {/* Footer */}
-          <div className="mt-auto pt-2 border-t-2" style={{ borderColor: '#D4C4B0' }}>
-            <div className="flex items-center justify-between text-sm" style={{ color: '#8B6F47' }}>
+          <div className="mt-auto pt-2 border-t-2 relative" style={{ borderColor: '#D4C4B0', zIndex: 1 }}>
+            <div className="flex items-center justify-between text-sm" style={{
+              color: '#8B6F47',
+              textShadow: '0 0 4px rgba(255, 255, 255, 0.9), 0 0 8px rgba(255, 255, 255, 0.8), 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 1px rgba(255, 255, 255, 0.7)',
+            }}>
               <span className="font-semibold">2025 OpenRAG</span>
-              <div 
+              <div
                 className="w-3 h-3"
                 style={{
                   backgroundColor: '#8B6F47',
@@ -578,25 +625,29 @@ function AbilityDetailCardBack({ ability }: { ability: Ability }) {
   const attackAbility = isAttack ? (ability as AttackAbility) : null;
 
   return (
-    <div 
+    <div
       className="border-2 rounded-lg p-1 flex-shrink-0"
-      style={{ 
+      style={{
         borderColor: '#D4C4B0',
-        backgroundColor: 'rgba(139, 111, 71, 0.1)',
+        backgroundColor: 'rgba(232, 224, 214, 0.7)',
       }}
     >
       <div className="flex items-start justify-between mb-0.5">
-        <h4 
+        <h4
           className="text-sm font-bold"
-          style={{ color: '#5C4033' }}
+          style={{
+            color: '#5C4033',
+            textShadow: '0 0 4px rgba(255, 255, 255, 0.9), 0 0 8px rgba(255, 255, 255, 0.8), 1px 1px 2px rgba(0, 0, 0, 0.5)',
+          }}
         >
           {ability.name}
         </h4>
-        <span 
+        <span
           className="text-xs font-semibold uppercase px-1 py-0.5 rounded"
-          style={{ 
+          style={{
             color: '#8B6F47',
-            backgroundColor: 'rgba(139, 111, 71, 0.2)',
+            backgroundColor: 'rgba(139, 111, 71, 0.3)',
+            textShadow: '0 0 3px rgba(255, 255, 255, 0.8), 1px 1px 2px rgba(0, 0, 0, 0.4)',
           }}
         >
           {isAttack ? '⚔️' : '💚'}
@@ -604,15 +655,21 @@ function AbilityDetailCardBack({ ability }: { ability: Ability }) {
       </div>
 
       {ability.description && (
-        <p 
+        <p
           className="text-xs leading-tight mb-0.5 line-clamp-1"
-          style={{ color: '#5C4033' }}
+          style={{
+            color: '#5C4033',
+            textShadow: '0 0 3px rgba(255, 255, 255, 0.9), 0 0 6px rgba(255, 255, 255, 0.8), 1px 1px 2px rgba(0, 0, 0, 0.4)',
+          }}
         >
           {ability.description}
         </p>
       )}
 
-      <div className="flex flex-wrap gap-x-1.5 gap-y-0.5 text-xs" style={{ color: '#8B6F47' }}>
+      <div className="flex flex-wrap gap-x-1.5 gap-y-0.5 text-xs" style={{
+        color: '#8B6F47',
+        textShadow: '0 0 3px rgba(255, 255, 255, 0.9), 0 0 6px rgba(255, 255, 255, 0.8), 1px 1px 2px rgba(0, 0, 0, 0.4)',
+      }}>
         {isAttack && attackAbility ? (
           <>
             <div className="flex items-center gap-0.5">
