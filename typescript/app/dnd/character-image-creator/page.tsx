@@ -4,7 +4,8 @@ import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import MonsterCreator from '../components/MonsterCreator';
 import { CharacterCard } from '../components/CharacterCard';
-import { DnDClass } from '../types';
+import { ImagePositionEditor } from '../components/ImagePositionEditor';
+import { DnDClass, ImagePosition } from '../types';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../constants';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { PageHeader } from '../components/PageHeader';
@@ -24,6 +25,7 @@ interface CreatedMonsterData {
     description?: string;
   };
   imageUrl: string;
+  imagePosition?: ImagePosition;
 }
 
 export default function MonsterCreatorPage() {
@@ -33,6 +35,10 @@ export default function MonsterCreatorPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  
+  // Image position state
+  const [imagePosition, setImagePosition] = useState<ImagePosition>({ offsetX: 50, offsetY: 50 });
+  const [isSavingPosition, setIsSavingPosition] = useState(false);
   
   // Card animation states
   const [shouldShake, setShouldShake] = useState(false);
@@ -50,7 +56,7 @@ export default function MonsterCreatorPage() {
   const [allDatabaseHeroes, setAllDatabaseHeroes] = useState<DnDClass[]>([]);
   const [allDatabaseMonsters, setAllDatabaseMonsters] = useState<DnDClass[]>([]);
   const [isLoadingCustom, setIsLoadingCustom] = useState(true);
-  const [allCreatedMonsters, setAllCreatedMonsters] = useState<Array<{ monsterId: string; klass: string; imageUrl: string; prompt?: string; createdAt?: string }>>([]);
+  const [allCreatedMonsters, setAllCreatedMonsters] = useState<Array<{ monsterId: string; klass: string; imageUrl: string; prompt?: string; createdAt?: string; imagePosition?: ImagePosition }>>([]);
   const [isLoadingMonsters, setIsLoadingMonsters] = useState(false);
   const [selectedMonsterForAssociation, setSelectedMonsterForAssociation] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -123,6 +129,7 @@ export default function MonsterCreatorPage() {
           prompt: m.prompt,
           createdAt: m.createdAt,
           lastAssociatedAt: m.lastAssociatedAt, // Include lastAssociatedAt for proper sorting
+          imagePosition: m.imagePosition || { offsetX: 50, offsetY: 50 }, // Include image position
         }));
         setAllCreatedMonsters(monsters);
       }
@@ -233,7 +240,7 @@ export default function MonsterCreatorPage() {
         const data = await response.json();
         const monster = data.monsters.find((m: any) => m.monsterId === monsterId);
         if (monster) {
-          setCreatedMonsterData({
+          const monsterData = {
             monsterId,
             klass: monster.klass || klass,
             prompt: monster.prompt || '',
@@ -245,11 +252,14 @@ export default function MonsterCreatorPage() {
               damageDie: 'd8',
             },
             imageUrl: `/cdn/monsters/${monsterId}/280x200.png`, // Use the wider version for card display
-          });
+            imagePosition: monster.imagePosition || { offsetX: 50, offsetY: 50 },
+          };
+          setCreatedMonsterData(monsterData);
+          setImagePosition(monsterData.imagePosition);
           setSelectedKlass(monster.klass || klass);
         } else {
           // Fallback if monster not found in API
-          setCreatedMonsterData({
+          const fallbackData = {
             monsterId,
             klass,
             prompt: '',
@@ -261,14 +271,17 @@ export default function MonsterCreatorPage() {
               damageDie: 'd8',
             },
             imageUrl: `/cdn/monsters/${monsterId}/280x200.png`,
-          });
+            imagePosition: { offsetX: 50, offsetY: 50 },
+          };
+          setCreatedMonsterData(fallbackData);
+          setImagePosition(fallbackData.imagePosition);
           setSelectedKlass(klass);
         }
       }
     } catch (error) {
       console.error('Failed to load monster data after creation:', error);
       // Fallback on error
-      setCreatedMonsterData({
+      const fallbackData = {
         monsterId,
         klass,
         prompt: '',
@@ -280,13 +293,65 @@ export default function MonsterCreatorPage() {
           damageDie: 'd8',
         },
         imageUrl: `/cdn/monsters/${monsterId}/280x200.png`,
-      });
+        imagePosition: { offsetX: 50, offsetY: 50 },
+      };
+      setCreatedMonsterData(fallbackData);
+      setImagePosition(fallbackData.imagePosition);
       setSelectedKlass(klass);
     }
     
     setSaveSuccess(false);
     setSaveError(null);
   }, []);
+
+  const handleSaveImagePosition = async () => {
+    if (!createdMonsterData?.monsterId) {
+      setSaveError('No monster selected');
+      return;
+    }
+
+    setIsSavingPosition(true);
+    setSaveError(null);
+
+    try {
+      const response = await fetch('/api/monsters', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          monsterId: createdMonsterData.monsterId,
+          klass: selectedKlass || createdMonsterData.klass,
+          imagePosition,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to save image position');
+      }
+
+      // Update local state
+      if (createdMonsterData) {
+        setCreatedMonsterData({
+          ...createdMonsterData,
+          imagePosition,
+        });
+      }
+
+      // Reload monsters to get updated data
+      await loadAllMonsters();
+
+      setSaveSuccess(true);
+      setTimeout(() => {
+        setSaveSuccess(false);
+      }, 3000);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save image position');
+    } finally {
+      setIsSavingPosition(false);
+    }
+  };
 
   const handleSaveAssociation = async (monsterId?: string, klass?: string) => {
     const targetMonsterId = monsterId || createdMonsterData?.monsterId;
@@ -311,6 +376,7 @@ export default function MonsterCreatorPage() {
         body: JSON.stringify({
           monsterId: targetMonsterId,
           klass: targetKlass,
+          imagePosition, // Also save current image position
         }),
       });
 
@@ -330,6 +396,7 @@ export default function MonsterCreatorPage() {
         setCreatedMonsterData({
           ...createdMonsterData,
           klass: targetKlass,
+          imagePosition,
         });
       }
       
@@ -569,16 +636,16 @@ export default function MonsterCreatorPage() {
 
           {createdMonsterData && previewMonsterClass ? (
             <div className="space-y-4 w-full">
+              {/* Association Selection */}
               <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl w-full">
                 <h2 className="text-2xl font-bold mb-4 text-amber-100" style={{ fontFamily: 'serif' }}>
-                  Image Preview & Association
+                  Class/Monster Association
                   {saveSuccess && (
                     <span className="ml-2 text-sm text-green-400">✓ Saved!</span>
                   )}
                 </h2>
                 
-                {/* Association Selection */}
-                <div className="mb-4 space-y-3">
+                <div className="space-y-3">
                   <div>
                     <SearchableSelect
                       options={allOptions}
@@ -611,44 +678,51 @@ export default function MonsterCreatorPage() {
                     </div>
                   )}
                 </div>
-
-                {/* Character Card Preview */}
-                <div className="flex justify-center">
-                  <CharacterCard
-                    playerClass={previewMonsterClass}
-                    characterName={selectedKlass || createdMonsterData.klass || 'Monster'}
-                    monsterImageUrl={createdMonsterData.imageUrl}
-                    shouldShake={shouldShake}
-                    shouldSparkle={shouldSparkle}
-                    shouldMiss={shouldMiss}
-                    shakeTrigger={shakeTrigger}
-                    sparkleTrigger={sparkleTrigger}
-                    missTrigger={missTrigger}
-                    shakeIntensity={shakeIntensity}
-                    sparkleIntensity={sparkleIntensity}
-                    onShakeComplete={() => setShouldShake(false)}
-                    onSparkleComplete={() => setShouldSparkle(false)}
-                    onMissComplete={() => setShouldMiss(false)}
-                    testButtons={[
-                      {
-                        label: 'Test Shake',
-                        onClick: testShake,
-                        className: 'px-2 py-0.5 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'
-                      },
-                      {
-                        label: 'Test Sparkle',
-                        onClick: testSparkle,
-                        className: 'px-2 py-0.5 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
-                      },
-                      {
-                        label: 'Test Miss',
-                        onClick: testMiss,
-                        className: 'px-2 py-0.5 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all'
-                      }
-                    ]}
-                  />
-                </div>
               </div>
+
+              {/* Image Position Editor with Card Preview */}
+              <ImagePositionEditor
+                imageUrl={createdMonsterData.imageUrl}
+                currentPosition={imagePosition}
+                onPositionChange={setImagePosition}
+                onSave={handleSaveImagePosition}
+                isSaving={isSavingPosition}
+              >
+                <CharacterCard
+                  playerClass={previewMonsterClass}
+                  characterName={selectedKlass || createdMonsterData.klass || 'Monster'}
+                  monsterImageUrl={createdMonsterData.imageUrl}
+                  imagePosition={imagePosition}
+                  shouldShake={shouldShake}
+                  shouldSparkle={shouldSparkle}
+                  shouldMiss={shouldMiss}
+                  shakeTrigger={shakeTrigger}
+                  sparkleTrigger={sparkleTrigger}
+                  missTrigger={missTrigger}
+                  shakeIntensity={shakeIntensity}
+                  sparkleIntensity={sparkleIntensity}
+                  onShakeComplete={() => setShouldShake(false)}
+                  onSparkleComplete={() => setShouldSparkle(false)}
+                  onMissComplete={() => setShouldMiss(false)}
+                  testButtons={[
+                    {
+                      label: 'Test Shake',
+                      onClick: testShake,
+                      className: 'px-2 py-0.5 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all'
+                    },
+                    {
+                      label: 'Test Sparkle',
+                      onClick: testSparkle,
+                      className: 'px-2 py-0.5 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all'
+                    },
+                    {
+                      label: 'Test Miss',
+                      onClick: testMiss,
+                      className: 'px-2 py-0.5 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all'
+                    }
+                  ]}
+                />
+              </ImagePositionEditor>
             </div>
           ) : (
             <div className="bg-amber-900/30 border-2 border-amber-700 rounded-lg p-6">

@@ -54,3 +54,9 @@ export interface SettingConfig {
   technologyLevel: string; // Description of technology level
 }
 
+// Image positioning for character cards
+export interface ImagePosition {
+  offsetX: number; // Horizontal offset as percentage (0-100, default: 50)
+  offsetY: number; // Vertical offset as percentage (0-100, default: 50)
+}
+

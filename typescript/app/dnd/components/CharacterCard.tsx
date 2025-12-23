@@ -133,6 +133,8 @@ interface CharacterCardProps {
   testButtons?: Array<{ label: string; onClick: () => void; className?: string }>;
   // Monster image URL (optional - for monster creator preview)
   monsterImageUrl?: string;
+  // Image positioning (optional - for custom image positioning)
+  imagePosition?: { offsetX: number; offsetY: number };
   // Size variant - 'normal' for battle cards, 'compact' for selection
   size?: 'normal' | 'compact';
   // Card position and total count (for card numbering)
@@ -185,6 +187,7 @@ function CharacterCardComponent({
   allowAllTurns = false,
   testButtons = [],
   monsterImageUrl,
+  imagePosition,
   size = 'normal',
   cardIndex,
   totalCards,
@@ -773,7 +776,9 @@ function CharacterCardComponent({
                   width: '100%',
                   height: '100%',
                   objectFit: 'cover',
-                  objectPosition: 'center top', // Align to top to show heads
+                  objectPosition: imagePosition
+                    ? `${imagePosition.offsetX}% ${imagePosition.offsetY}%`
+                    : 'center top', // Use custom position or default to center top
                   display: 'block',
                   position: 'absolute',
                   top: 0,

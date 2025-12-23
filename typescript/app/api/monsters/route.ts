@@ -181,6 +181,7 @@ export async function GET(req: NextRequest) {
             createdAt: metadata.createdAt || new Date().toISOString(),
             lastAssociatedAt: metadata.lastAssociatedAt,
             imageUrl: `/cdn/monsters/${dir.name}/280x200.png`,
+            imagePosition: metadata.imagePosition || { offsetX: 50, offsetY: 50 }, // Default to centered
           };
         } catch (error) {
           console.error(`Failed to load metadata for ${dir.name}:`, error);
@@ -204,13 +205,29 @@ export async function GET(req: NextRequest) {
 // PATCH endpoint to update monster association
 export async function PATCH(req: NextRequest) {
   try {
-    const { monsterId, klass, stats } = await req.json();
+    const { monsterId, klass, stats, imagePosition } = await req.json();
 
     if (!monsterId || !klass) {
       return NextResponse.json(
         { error: 'monsterId and klass are required' },
         { status: 400 }
       );
+    }
+
+    // Validate imagePosition if provided
+    if (imagePosition) {
+      const { offsetX, offsetY } = imagePosition;
+      if (
+        typeof offsetX !== 'number' ||
+        typeof offsetY !== 'number' ||
+        offsetX < 0 || offsetX > 100 ||
+        offsetY < 0 || offsetY > 100
+      ) {
+        return NextResponse.json(
+          { error: 'imagePosition must have offsetX and offsetY between 0 and 100' },
+          { status: 400 }
+        );
+      }
     }
 
     const monsterDir = join(MONSTERS_DIR, monsterId);
@@ -235,6 +252,7 @@ export async function PATCH(req: NextRequest) {
       klass,
       lastAssociatedAt: new Date().toISOString(),
       ...(stats && { stats: { ...existingMetadata.stats, ...stats } }),
+      ...(imagePosition && { imagePosition }),
     };
 
     // Save updated metadata
@@ -244,6 +262,7 @@ export async function PATCH(req: NextRequest) {
       success: true,
       monsterId,
       klass,
+      imagePosition: updatedMetadata.imagePosition,
       message: 'Monster association updated successfully',
     });
   } catch (error) {
