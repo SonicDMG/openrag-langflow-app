@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { DnDClass } from '../types';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS, isMonster, FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, selectRandomAbilities } from '../constants';
 import { rollDice, rollDiceWithNotation } from '../utils/dice';
@@ -22,6 +20,25 @@ import { useBattleState } from '../hooks/useBattleState';
 import { useBattleEffects } from '../hooks/useBattleEffects';
 import { useProjectileEffects } from '../hooks/useProjectileEffects';
 import { useBattleActions } from '../hooks/useBattleActions';
+
+// Test utilities and constants
+import { SUPPORT_HERO_HP_THRESHOLD, SUPPORT_HERO_AI_DELAY } from './constants';
+import {
+  calculateLowDamage,
+  calculateHighDamage,
+  calculateLowHeal,
+  calculateFullHeal,
+  getMonsterImageUrl,
+  getMonsterLookupName,
+  createTestEntity,
+} from './utils/testActions';
+import { useEffectToggles } from './hooks/useEffectToggles';
+
+// Test components
+import { TestLog } from './components/TestLog';
+import { GlobalTestControls } from './components/GlobalTestControls';
+import { EffectToggles } from './components/EffectToggles';
+import { TestButtonGroup, type TestAction } from './components/TestButtonGroup';
 
 // Mock battle narrative generator (doesn't call agent)
 const mockBattleNarrative = (eventDescription: string): string => {
@@ -147,17 +164,6 @@ export default function DnDTestPage() {
       });
     return associated.length > 0 ? associated[0] : null;
   }, [createdMonsters]);
-  
-  // Helper to create a test class/monster preserving actual abilities and monster metadata
-  const createTestEntity = useCallback((entity: DnDClass & { monsterId?: string; imageUrl?: string }): DnDClass & { monsterId?: string; imageUrl?: string } => {
-    return {
-      ...entity,
-      hitPoints: entity.maxHitPoints,
-      abilities: entity.abilities && entity.abilities.length > 0 ? entity.abilities : [],
-      ...(entity.monsterId && { monsterId: entity.monsterId }),
-      ...(entity.imageUrl && { imageUrl: entity.imageUrl }),
-    };
-  }, []);
 
   // Enhanced setPlayerClassWithMonster that includes findAssociatedMonster
   const setPlayerClassWithMonsterEnhanced = useCallback((
@@ -172,13 +178,13 @@ export default function DnDTestPage() {
   const handlePlayer1Select = useCallback((entity: DnDClass & { monsterId?: string; imageUrl?: string }) => {
     const testEntity = createTestEntity(entity);
     setPlayerClassWithMonsterEnhanced('player1', testEntity);
-  }, [createTestEntity, setPlayerClassWithMonsterEnhanced]);
+  }, [setPlayerClassWithMonsterEnhanced]);
   
   // Handle player 2 selection
   const handlePlayer2Select = useCallback((entity: DnDClass & { monsterId?: string; imageUrl?: string }) => {
     const testEntity = createTestEntity(entity);
     setPlayerClassWithMonsterEnhanced('player2', testEntity);
-  }, [createTestEntity, setPlayerClassWithMonsterEnhanced]);
+  }, [setPlayerClassWithMonsterEnhanced]);
   
   // Update monster IDs when createdMonsters loads or changes
   useEffect(() => {
@@ -196,12 +202,12 @@ export default function DnDTestPage() {
     }
   }, [createdMonsters, player1Class, player2Class, player1MonsterId, player2MonsterId, findAssociatedMonster, setPlayer1MonsterId, setPlayer2MonsterId]);
 
-  // Auto-add support heroes when fighting a monster with HP > 50
+  // Auto-add support heroes when fighting a monster with HP > SUPPORT_HERO_HP_THRESHOLD
   useEffect(() => {
     if (!player2Class || !availableClasses.length) return;
     
     const isP2Monster = isMonster(player2Class.name, availableMonsters);
-    const needsSupportHeroes = isP2Monster && player2Class.maxHitPoints > 50;
+    const needsSupportHeroes = isP2Monster && player2Class.maxHitPoints > SUPPORT_HERO_HP_THRESHOLD;
     
     if (needsSupportHeroes && supportHeroes.length === 0) {
       // Select 2 random support heroes from available classes (excluding player1's class)
@@ -280,7 +286,7 @@ export default function DnDTestPage() {
       const defaultClass = createTestEntity(availableClasses[1]);
       setPlayerClassWithMonsterEnhanced('player2', defaultClass);
     }
-  }, [availableClasses, player1Class, player2Class, createTestEntity, setPlayerClassWithMonsterEnhanced]);
+  }, [availableClasses, player1Class, player2Class, setPlayerClassWithMonsterEnhanced]);
   
   // Refs for character cards to position floating numbers
   const player1CardRef = useRef<HTMLDivElement | null>(null);
@@ -289,13 +295,20 @@ export default function DnDTestPage() {
   const support2CardRef = useRef<HTMLDivElement | null>(null);
   
   const [isAIModeActive, setIsAIModeActive] = useState(false);
-  const [particleEffectsEnabled, setParticleEffectsEnabled] = useState(true);
-  const [flashEffectsEnabled, setFlashEffectsEnabled] = useState(true);
-  const [shakeEffectsEnabled, setShakeEffectsEnabled] = useState(true);
-  const [sparkleEffectsEnabled, setSparkleEffectsEnabled] = useState(true);
-  const [hitEffectsEnabled, setHitEffectsEnabled] = useState(true);
-  const [missEffectsEnabled, setMissEffectsEnabled] = useState(true);
-  const [castEffectsEnabled, setCastEffectsEnabled] = useState(true);
+  
+  // Effect toggles hook
+  const effectToggles = useEffectToggles({
+    applyVisualEffect,
+    triggerFlashEffect,
+    showProjectileEffect,
+  });
+  const {
+    toggles: effectToggleStates,
+    setToggle: setEffectToggle,
+    applyVisualEffectWithToggles,
+    triggerFlashEffectWithToggles,
+    showProjectileEffectWithToggles,
+  } = effectToggles;
   
   // Load custom heroes and monsters from database (for filtering in UI)
   useEffect(() => {
@@ -355,57 +368,6 @@ export default function DnDTestPage() {
     
     addLog('system', `🏆 ${attackerClass.name} wins! ${defenderClass.name} has been defeated!`);
   }, [addLog, showFloatingNumbers, setDefeatedPlayer, setVictorPlayer, setConfettiTrigger]);
-  
-  // Wrapper functions that respect test mode toggles
-  const applyVisualEffectWithToggles = useCallback((effect: PendingVisualEffect) => {
-    // Respect effect toggles in test mode
-    switch (effect.type) {
-      case 'shake':
-        if (!shakeEffectsEnabled) return;
-        break;
-      case 'sparkle':
-        if (!sparkleEffectsEnabled) return;
-        break;
-      case 'miss':
-        if (!missEffectsEnabled) return;
-        break;
-      case 'hit':
-        if (!hitEffectsEnabled) return;
-        break;
-      case 'cast':
-        if (!castEffectsEnabled) return;
-        break;
-    }
-    applyVisualEffect(effect);
-  }, [shakeEffectsEnabled, sparkleEffectsEnabled, missEffectsEnabled, hitEffectsEnabled, castEffectsEnabled, applyVisualEffect]);
-  
-  const triggerFlashEffectWithToggles = useCallback((attacker: 'player1' | 'player2' | 'support1' | 'support2', projectileType?: ProjectileType) => {
-    if (!flashEffectsEnabled) return;
-    triggerFlashEffect(attacker, projectileType);
-  }, [flashEffectsEnabled, triggerFlashEffect]);
-  
-  const showProjectileEffectWithToggles = useCallback((
-    fromPlayer: 'player1' | 'player2' | 'support1' | 'support2',
-    toPlayer: 'player1' | 'player2' | 'support1' | 'support2',
-    isHit: boolean,
-    onHit?: () => void,
-    onComplete?: () => void,
-    fromCardRotation?: number,
-    delay?: number,
-    projectileType?: ProjectileType
-  ) => {
-    // If particle effects are disabled, execute callbacks immediately
-    if (!particleEffectsEnabled) {
-      if (isHit && onHit) {
-        setTimeout(() => onHit(), 50);
-      }
-      if (onComplete) {
-        setTimeout(() => onComplete(), isHit ? 100 : 150);
-      }
-      return;
-    }
-    showProjectileEffect(fromPlayer, toPlayer, isHit, onHit, onComplete, fromCardRotation, delay, projectileType);
-  }, [particleEffectsEnabled, showProjectileEffect]);
   
   // Battle actions hook
   const battleActions = useBattleActions({
@@ -546,7 +508,7 @@ export default function DnDTestPage() {
     const attackerName = target === 'player1' ? 'Test Attacker' : 'Test Attacker';
     
     // Deal minimal damage (1-2 HP) to test low intensity shake
-    const damage = Math.floor(Math.random() * 2) + 1; // 1 or 2 damage
+    const damage = calculateLowDamage();
     
     addLog('roll', `💥 ${attackerName} uses Low Damage Test!`);
     
@@ -582,7 +544,7 @@ export default function DnDTestPage() {
   const testLowHeal = (player: 'player1' | 'player2') => {
     const playerClass = getPlayerClass(player);
     if (!playerClass) return;
-    const heal = Math.floor(Math.random() * 2) + 1; // 1 or 2 healing
+    const heal = calculateLowHeal();
     
     addLog('roll', `✨ ${playerClass.name} uses Low Heal!`);
     
@@ -608,9 +570,7 @@ export default function DnDTestPage() {
     const attackerName = target === 'player1' ? 'Test Attacker' : 'Test Attacker';
     
     // Calculate high damage (40% of max HP or 50% of current HP, whichever is larger)
-    const damageFromMaxPercent = Math.ceil(targetClass.maxHitPoints * 0.4);
-    const damageFromCurrentPercent = Math.ceil(targetClass.hitPoints * 0.5);
-    const damage = Math.max(damageFromMaxPercent, damageFromCurrentPercent);
+    const damage = calculateHighDamage(targetClass);
     
     addLog('roll', `💥 ${attackerName} uses High Damage Test!`);
     
@@ -646,7 +606,7 @@ export default function DnDTestPage() {
   const testFullHeal = (player: 'player1' | 'player2') => {
     const playerClass = getPlayerClass(player);
     if (!playerClass) return;
-    const healAmount = playerClass.maxHitPoints - playerClass.hitPoints;
+    const healAmount = calculateFullHeal(playerClass);
     
     if (healAmount <= 0) {
       addLog('system', `💚 ${playerClass.name} is already at full health!`);
@@ -674,6 +634,33 @@ export default function DnDTestPage() {
     useAbility(player, abilityIndex);
   };
   
+  // Handler for test button actions
+  const handleTestAction = useCallback((player: 'player1' | 'player2', action: TestAction) => {
+    switch (action) {
+      case 'highDamage':
+        testHighDamage(player);
+        break;
+      case 'lowDamage':
+        testLowDamage(player);
+        break;
+      case 'fullHeal':
+        testFullHeal(player);
+        break;
+      case 'lowHeal':
+        testLowHeal(player);
+        break;
+      case 'miss':
+        testAttackMiss(player);
+        break;
+      case 'cast':
+        testCast(player);
+        break;
+      case 'defeat':
+        testDefeat(player);
+        break;
+    }
+  }, [testHighDamage, testLowDamage, testFullHeal, testLowHeal, testAttackMiss, testCast, testDefeat]);
+  
   // Use AI opponent hook
   const aiOpponentCleanup = useAIOpponent({
     isActive: isAIModeActive,
@@ -695,7 +682,6 @@ export default function DnDTestPage() {
   });
 
   // Use AI opponent hooks for support heroes (they auto-play after a delay to allow manual control)
-  // Reduced delay to 500ms to make support heroes hit faster
   const supportHero1Cleanup = useAIOpponent({
     isActive: isAIModeActive && supportHeroes.length > 0,
     currentTurn,
@@ -707,7 +693,7 @@ export default function DnDTestPage() {
       onAttack: () => performAttack('support1'),
       onUseAbility: (abilityIndex: number) => useAbility('support1', abilityIndex),
     },
-    delay: 500, // 500ms delay to allow manual control while making them hit faster
+    delay: SUPPORT_HERO_AI_DELAY,
     onStateChange: () => {},
     onMoveInProgressChange: setIsMoveInProgress,
   });
@@ -723,7 +709,7 @@ export default function DnDTestPage() {
       onAttack: () => performAttack('support2'),
       onUseAbility: (abilityIndex: number) => useAbility('support2', abilityIndex),
     },
-    delay: 500, // 500ms delay to allow manual control while making them hit faster
+    delay: SUPPORT_HERO_AI_DELAY,
     onStateChange: () => {},
     onMoveInProgressChange: setIsMoveInProgress,
   });
@@ -837,36 +823,14 @@ export default function DnDTestPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-0">
         <div className="space-y-6 overflow-visible">
           {/* Global Test Controls */}
-          <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-4 shadow-2xl">
-            <div className="flex flex-wrap gap-3 justify-center">
-              <button
-                onClick={() => {
-                  setIsAIModeActive(!isAIModeActive);
-                  addLog('system', isAIModeActive ? '🤖 AI mode disabled' : '🤖 AI mode enabled - Player 2 will auto-play');
-                }}
-                className={`py-2 px-4 font-semibold rounded-lg border-2 transition-all ${
-                  isAIModeActive
-                    ? 'bg-green-900 hover:bg-green-800 text-white border-green-700'
-                    : 'bg-blue-900 hover:bg-blue-800 text-white border-blue-700'
-                }`}
-              >
-                {isAIModeActive ? '🤖 AI Mode: ON' : '🤖 AI Mode: OFF'}
-              </button>
-              <button
-                onClick={resetTest}
-                className="py-2 px-4 bg-amber-800 hover:bg-amber-700 text-white font-semibold rounded-lg border-2 border-amber-700 transition-all"
-              >
-                🔄 Reset Test
-              </button>
-            </div>
-            {isAIModeActive && (
-              <div className="mt-3 text-center">
-                <p className="text-amber-200 text-sm italic">
-                  🤖 AI Mode Active: Player 2 (opponent) will automatically play when it's their turn
-                </p>
-              </div>
-            )}
-          </div>
+          <GlobalTestControls
+            isAIModeActive={isAIModeActive}
+            onToggleAIMode={() => {
+              setIsAIModeActive(!isAIModeActive);
+              addLog('system', isAIModeActive ? '🤖 AI mode disabled' : '🤖 AI mode enabled - Player 2 will auto-play');
+            }}
+            onReset={resetTest}
+          />
 
           {/* Character Selection */}
           <div className="bg-amber-900/70 border-4 border-amber-800 rounded-lg p-6 shadow-2xl">
@@ -962,12 +926,10 @@ export default function DnDTestPage() {
                       >
                         {[...FALLBACK_MONSTERS, ...customMonsters].map((monster, index) => {
                           const isSelected = player2Class?.name === monster.name;
-                          // For created monsters, use klass to find associated monster; for regular monsters, use name
-                          const isCreatedMonster = !!(monster as any).klass && !!(monster as any).monsterId;
-                          const lookupName = isCreatedMonster ? (monster as any).klass : monster.name;
+                          const lookupName = getMonsterLookupName(monster as DnDClass & { klass?: string });
                           const associatedMonster = findAssociatedMonster(lookupName);
-                          const monsterImageUrl = associatedMonster 
-                            ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
+                          const monsterImageUrl = associatedMonster
+                            ? getMonsterImageUrl(associatedMonster.monsterId)
                             : undefined;
                           
                           return (
@@ -1067,7 +1029,7 @@ export default function DnDTestPage() {
                         <CharacterCard
                           playerClass={supportHero.class}
                           characterName={supportHero.name}
-                          monsterImageUrl={supportHero.monsterId ? `/cdn/monsters/${supportHero.monsterId}/280x200.png` : undefined}
+                          monsterImageUrl={getMonsterImageUrl(supportHero.monsterId)}
                           onAttack={() => performAttack(supportPlayer)}
                           onUseAbility={(idx) => useAbility(supportPlayer, idx)}
                           shouldShake={shakingPlayer === supportPlayer}
@@ -1119,7 +1081,7 @@ export default function DnDTestPage() {
               <CharacterCard
                 playerClass={player1Class}
                 characterName={player1Name || 'Loading...'}
-                monsterImageUrl={player1MonsterId ? `/cdn/monsters/${player1MonsterId}/280x200.png` : undefined}
+                monsterImageUrl={getMonsterImageUrl(player1MonsterId)}
                 onAttack={() => {
                   setIsMoveInProgress(true);
                   testAttackHit('player1');
@@ -1159,53 +1121,10 @@ export default function DnDTestPage() {
                 imageMarginBottom="1.75rem"
               />
               {/* Test buttons for Player 1 */}
-              <div 
-                className="flex flex-wrap gap-2"
-                style={{ width: '100%', maxWidth: '320px' }}
-              >
-                <button
-                  onClick={() => testHighDamage('player1')}
-                  className="px-2 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all"
-                >
-                  💥 High Damage
-                </button>
-                <button
-                  onClick={() => testLowDamage('player1')}
-                  className="px-2 py-1 bg-orange-900 hover:bg-orange-800 text-white text-xs rounded border border-orange-700 transition-all"
-                >
-                  💥 Low Damage
-                </button>
-                <button
-                  onClick={() => testFullHeal('player1')}
-                  className="px-2 py-1 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all"
-                >
-                  💚 Full Heal
-                </button>
-                <button
-                  onClick={() => testLowHeal('player1')}
-                  className="px-2 py-1 bg-emerald-900 hover:bg-emerald-800 text-white text-xs rounded border border-emerald-700 transition-all"
-                >
-                  💚 Low Heal
-                </button>
-                <button
-                  onClick={() => testAttackMiss('player1')}
-                  className="px-2 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all"
-                >
-                  ❌ Test Miss
-                </button>
-                <button
-                  onClick={() => testCast('player1')}
-                  className="px-2 py-1 bg-purple-800 hover:bg-purple-700 text-purple-100 text-xs rounded border border-purple-600 transition-all"
-                >
-                  🔮 Test Cast
-                </button>
-                <button
-                  onClick={() => testDefeat('player1')}
-                  className="px-2 py-1 bg-red-900 hover:bg-red-800 text-red-100 text-xs rounded border border-red-700 transition-all"
-                >
-                  💀 Test Defeat
-                </button>
-              </div>
+              <TestButtonGroup
+                player="player1"
+                onTestAction={(action) => handleTestAction('player1', action)}
+              />
             </div>
             )}
             {/* VS Graphic */}
@@ -1226,7 +1145,7 @@ export default function DnDTestPage() {
               <CharacterCard
                 playerClass={player2Class}
                 characterName={player2Name || 'Loading...'}
-                monsterImageUrl={player2MonsterId ? `/cdn/monsters/${player2MonsterId}/280x200.png` : undefined}
+                monsterImageUrl={getMonsterImageUrl(player2MonsterId)}
                 onAttack={() => {
                   if (isAIModeActive) return; // Don't allow manual control in AI mode
                   setIsMoveInProgress(true);
@@ -1268,81 +1187,11 @@ export default function DnDTestPage() {
                 imageMarginBottom="1.75rem"
               />
               {/* Test buttons for Player 2 */}
-              <div 
-                className="flex flex-wrap gap-2"
-                style={{ width: '100%', maxWidth: '320px' }}
-              >
-                <button
-                  onClick={() => {
-                    if (isAIModeActive) return;
-                    testHighDamage('player2');
-                  }}
-                  disabled={isAIModeActive}
-                  className={`px-2 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded border border-red-700 transition-all ${isAIModeActive ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  💥 High Damage
-                </button>
-                <button
-                  onClick={() => {
-                    if (isAIModeActive) return;
-                    testLowDamage('player2');
-                  }}
-                  disabled={isAIModeActive}
-                  className={`px-2 py-1 bg-orange-900 hover:bg-orange-800 text-white text-xs rounded border border-orange-700 transition-all ${isAIModeActive ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  💥 Low Damage
-                </button>
-                <button
-                  onClick={() => {
-                    if (isAIModeActive) return;
-                    testFullHeal('player2');
-                  }}
-                  disabled={isAIModeActive}
-                  className={`px-2 py-1 bg-green-900 hover:bg-green-800 text-white text-xs rounded border border-green-700 transition-all ${isAIModeActive ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  💚 Full Heal
-                </button>
-                <button
-                  onClick={() => {
-                    if (isAIModeActive) return;
-                    testLowHeal('player2');
-                  }}
-                  disabled={isAIModeActive}
-                  className={`px-2 py-1 bg-emerald-900 hover:bg-emerald-800 text-white text-xs rounded border border-emerald-700 transition-all ${isAIModeActive ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  💚 Low Heal
-                </button>
-                <button
-                  onClick={() => {
-                    if (isAIModeActive) return;
-                    testAttackMiss('player2');
-                  }}
-                  disabled={isAIModeActive}
-                  className={`px-2 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 text-xs rounded border border-amber-600 transition-all ${isAIModeActive ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  ❌ Test Miss
-                </button>
-                <button
-                  onClick={() => {
-                    if (isAIModeActive) return;
-                    testCast('player2');
-                  }}
-                  disabled={isAIModeActive}
-                  className={`px-2 py-1 bg-purple-800 hover:bg-purple-700 text-purple-100 text-xs rounded border border-purple-600 transition-all ${isAIModeActive ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  🔮 Test Cast
-                </button>
-                <button
-                  onClick={() => {
-                    if (isAIModeActive) return;
-                    testDefeat('player2');
-                  }}
-                  disabled={isAIModeActive}
-                  className={`px-2 py-1 bg-red-900 hover:bg-red-800 text-red-100 text-xs rounded border border-red-700 transition-all ${isAIModeActive ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  💀 Test Defeat
-                </button>
-              </div>
+              <TestButtonGroup
+                player="player2"
+                onTestAction={(action) => handleTestAction('player2', action)}
+                isDisabled={isAIModeActive}
+              />
             </div>
             )}
           </div>
@@ -1353,114 +1202,11 @@ export default function DnDTestPage() {
               <h3 className="text-lg font-bold text-amber-100" style={{ fontFamily: 'serif' }}>
                 Test Projectile Types
               </h3>
-              <div className="flex flex-wrap items-center gap-2">
-                <label className="text-xs text-amber-200 font-semibold">Effects:</label>
-                {/* Particle Effects Toggle */}
-                <button
-                  onClick={() => {
-                    setParticleEffectsEnabled(!particleEffectsEnabled);
-                    addLog('system', `🎨 Particle effects ${!particleEffectsEnabled ? 'enabled' : 'disabled'}`);
-                  }}
-                  className={`px-3 py-1 text-xs font-semibold rounded border-2 transition-all ${
-                    particleEffectsEnabled
-                      ? 'bg-green-600 text-white border-green-500 hover:bg-green-700'
-                      : 'bg-gray-500 text-white border-gray-400 hover:bg-gray-600'
-                  }`}
-                  title="Particle Effects"
-                >
-                  Particle: {particleEffectsEnabled ? 'ON' : 'OFF'}
-                </button>
-                {/* Flash Effects Toggle */}
-                <button
-                  onClick={() => {
-                    setFlashEffectsEnabled(!flashEffectsEnabled);
-                    addLog('system', `⚡ Flash effects ${!flashEffectsEnabled ? 'enabled' : 'disabled'}`);
-                  }}
-                  className={`px-3 py-1 text-xs font-semibold rounded border-2 transition-all ${
-                    flashEffectsEnabled
-                      ? 'bg-green-600 text-white border-green-500 hover:bg-green-700'
-                      : 'bg-gray-500 text-white border-gray-400 hover:bg-gray-600'
-                  }`}
-                  title="Flash/Glow Effects"
-                >
-                  Flash: {flashEffectsEnabled ? 'ON' : 'OFF'}
-                </button>
-                {/* Shake Effects Toggle */}
-                <button
-                  onClick={() => {
-                    setShakeEffectsEnabled(!shakeEffectsEnabled);
-                    addLog('system', `💥 Shake effects ${!shakeEffectsEnabled ? 'enabled' : 'disabled'}`);
-                  }}
-                  className={`px-3 py-1 text-xs font-semibold rounded border-2 transition-all ${
-                    shakeEffectsEnabled
-                      ? 'bg-green-600 text-white border-green-500 hover:bg-green-700'
-                      : 'bg-gray-500 text-white border-gray-400 hover:bg-gray-600'
-                  }`}
-                  title="Shake Effects"
-                >
-                  Shake: {shakeEffectsEnabled ? 'ON' : 'OFF'}
-                </button>
-                {/* Sparkle Effects Toggle */}
-                <button
-                  onClick={() => {
-                    setSparkleEffectsEnabled(!sparkleEffectsEnabled);
-                    addLog('system', `✨ Sparkle effects ${!sparkleEffectsEnabled ? 'enabled' : 'disabled'}`);
-                  }}
-                  className={`px-3 py-1 text-xs font-semibold rounded border-2 transition-all ${
-                    sparkleEffectsEnabled
-                      ? 'bg-green-600 text-white border-green-500 hover:bg-green-700'
-                      : 'bg-gray-500 text-white border-gray-400 hover:bg-gray-600'
-                  }`}
-                  title="Sparkle Effects"
-                >
-                  Sparkle: {sparkleEffectsEnabled ? 'ON' : 'OFF'}
-                </button>
-                {/* Hit Effects Toggle */}
-                <button
-                  onClick={() => {
-                    setHitEffectsEnabled(!hitEffectsEnabled);
-                    addLog('system', `⚔️ Hit effects ${!hitEffectsEnabled ? 'enabled' : 'disabled'}`);
-                  }}
-                  className={`px-3 py-1 text-xs font-semibold rounded border-2 transition-all ${
-                    hitEffectsEnabled
-                      ? 'bg-green-600 text-white border-green-500 hover:bg-green-700'
-                      : 'bg-gray-500 text-white border-gray-400 hover:bg-gray-600'
-                  }`}
-                  title="Hit Effects"
-                >
-                  Hit: {hitEffectsEnabled ? 'ON' : 'OFF'}
-                </button>
-                {/* Miss Effects Toggle */}
-                <button
-                  onClick={() => {
-                    setMissEffectsEnabled(!missEffectsEnabled);
-                    addLog('system', `❌ Miss effects ${!missEffectsEnabled ? 'enabled' : 'disabled'}`);
-                  }}
-                  className={`px-3 py-1 text-xs font-semibold rounded border-2 transition-all ${
-                    missEffectsEnabled
-                      ? 'bg-green-600 text-white border-green-500 hover:bg-green-700'
-                      : 'bg-gray-500 text-white border-gray-400 hover:bg-gray-600'
-                  }`}
-                  title="Miss Effects"
-                >
-                  Miss: {missEffectsEnabled ? 'ON' : 'OFF'}
-                </button>
-                {/* Cast Effects Toggle */}
-                <button
-                  onClick={() => {
-                    setCastEffectsEnabled(!castEffectsEnabled);
-                    addLog('system', `🔮 Cast effects ${!castEffectsEnabled ? 'enabled' : 'disabled'}`);
-                  }}
-                  className={`px-3 py-1 text-xs font-semibold rounded border-2 transition-all ${
-                    castEffectsEnabled
-                      ? 'bg-green-600 text-white border-green-500 hover:bg-green-700'
-                      : 'bg-gray-500 text-white border-gray-400 hover:bg-gray-600'
-                  }`}
-                  title="Cast Effects"
-                >
-                  Cast: {castEffectsEnabled ? 'ON' : 'OFF'}
-                </button>
-              </div>
+              <EffectToggles
+                toggles={effectToggleStates}
+                onToggle={setEffectToggle}
+                onLog={(message) => addLog('system', message)}
+              />
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-8 gap-2">
               {(['fire', 'ice', 'water', 'earth', 'air', 'poison', 'psychic', 'necrotic', 'radiant', 'lightning', 'acid', 'melee', 'ranged', 'magic', 'shadow'] as ProjectileType[]).map((type) => (
@@ -1550,55 +1296,7 @@ export default function DnDTestPage() {
           </div>
 
           {/* Test Log */}
-          <div 
-            className="bg-white p-6 shadow-lg overflow-y-auto -mx-4 sm:-mx-6 border-t-4 border-l-4 border-r-4" 
-            style={{ 
-              borderColor: '#5C4033',
-              borderTopLeftRadius: '0.5rem',
-              borderTopRightRadius: '0.5rem',
-              borderBottomLeftRadius: '0',
-              borderBottomRightRadius: '0',
-              marginBottom: '-1.5rem',
-              marginLeft: '-1rem',
-              marginRight: '-1rem',
-              minHeight: 'calc(100vh - 500px)',
-              paddingBottom: '2rem',
-            }}
-          >
-            <h2 className="text-xl font-bold mb-4" style={{ fontFamily: 'serif', color: '#5C4033' }}>
-              Test Log
-            </h2>
-            <div className="space-y-2 text-sm">
-              {battleLog.length === 0 && (
-                <div className="text-gray-500 italic">Test log is empty...</div>
-              )}
-              {[...battleLog].reverse().map((log, idx) => (
-                <div
-                  key={idx}
-                  className={`p-2 rounded ${
-                    log.type === 'attack' ? 'bg-red-50 text-red-800 font-mono' :
-                    log.type === 'ability' ? 'bg-purple-50 text-purple-800 font-mono' :
-                    log.type === 'roll' ? 'text-red-600' :
-                    log.type === 'narrative' ? 'text-gray-800' :
-                    'bg-gray-50 text-gray-700 font-mono'
-                  }`}
-                >
-                  <div style={log.type === 'roll' ? { color: '#DC2626', fontFamily: 'serif' } : {}}>
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        p: ({ children }) => <span>{children}</span>,
-                        strong: ({ children }) => <strong className="font-bold" style={{ color: log.type === 'roll' ? '#DC2626' : undefined }}>{children}</strong>,
-                        em: ({ children }) => <em className="italic">{children}</em>,
-                      }}
-                    >
-                      {log.message}
-                    </ReactMarkdown>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <TestLog battleLog={battleLog} />
         </div>
       </div>
     </div>
