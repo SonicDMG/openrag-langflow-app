@@ -4,15 +4,48 @@ build-backend = "hatchling.build"
 
 [project]
 name = "openrag-langflow-app"
-version = "0.1.0"
-description = "Python CLI chat interface for interacting with Langflow flows"
+version = "0.2.0"
+description = "Python CLI chat interface for interacting with OpenRAG"
 requires-python = ">=3.13"
 dependencies = [
-    "openai>=2.7.0",
+    "openrag-sdk",
     "python-dotenv>=1.2.0",
     "rich>=14.0.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "httpx>=0.27.0",
+]
+dev = [
+    "ruff>=0.8.0",
 ]
 
 [tool.hatch.build.targets.wheel]
 packages = ["."]
 only-include = ["main.py", "utils.py"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = [
+    "E722",  # Ignore bare except (allow catching general Exception)
+    "BLE001",  # Ignore blind exception catching
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["openrag_utils", "config", "utils"]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]

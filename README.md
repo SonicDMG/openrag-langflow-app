@@ -1,6 +1,6 @@
-# OpenRAG Langflow Application
+# OpenRAG Application
 
-A monorepo containing both a Python CLI chat interface and a Next.js TypeScript web application for interacting with Langflow flows using the OpenAI Responses API.
+A monorepo containing both a Python CLI chat interface and a Next.js TypeScript web application for interacting with OpenRAG using the OpenRAG Python SDK.
 
 ## Project Structure
 
@@ -22,20 +22,21 @@ openrag-langflow-app/
 
 ## Python CLI Application
 
-A lightweight terminal chat interface for interacting with Langflow flows using the OpenAI Python SDK as the client transport. It supports live streaming of model output, rich Markdown rendering (including clickable links) via the Rich library, and maintains conversation continuity across turns.
+A lightweight terminal chat interface for interacting with OpenRAG using the official OpenRAG Python SDK. It supports live streaming of model output, rich Markdown rendering (including clickable links) via the Rich library, and maintains conversation continuity across turns.
 
 ### Features
 
 - **Streaming responses**: see tokens as they arrive for a responsive chat experience
 - **Rich Markdown output**: headings, code blocks, and clickable links via the Rich library (on supported terminals)
 - **Conversation continuity**: preserves conversation context across turns
-- **Simple setup**: point the app at your Langflow server and provide an API key
+- **Simple setup**: point the app at your OpenRAG server and provide an API key
+- **Modular utilities**: comprehensive openrag_utils package for all OpenRAG SDK endpoints
 
 ### Prerequisites
 
 - Python 3.13 or newer
-- A running Langflow server you can reach from this machine
-- A Langflow API key with access to your flow(s)
+- A running OpenRAG server (default: http://localhost:3000)
+- An OpenRAG API key
 
 ### Installation
 
@@ -77,12 +78,14 @@ pip install -e .
 Set the following environment variables. You can place them in a `.env` file in the `python/` directory (note: `.env` is git-ignored):
 
 ```
-LANGFLOW_SERVER_URL=http://localhost:7860
-LANGFLOW_API_KEY=your_langflow_api_key
+OPENRAG_API_KEY=your_openrag_api_key
+# OPENRAG_URL=http://localhost:3000  # Optional, defaults to http://localhost:3000
 ```
 
-- `LANGFLOW_SERVER_URL`: Base URL of your Langflow server
-- `LANGFLOW_API_KEY`: Your Langflow API token
+- `OPENRAG_API_KEY`: Your OpenRAG API key (required)
+- `OPENRAG_URL`: Base URL of your OpenRAG server (optional, defaults to http://localhost:3000)
+
+The application uses a centralized configuration system (`config.py`) that automatically loads settings from the `.env` file in the project root.
 
 ### Usage
 
@@ -100,9 +103,38 @@ python main.py
 
 Type your prompt and press Enter. Type `exit`, `quit`, or `q` to end the session, or use Ctrl+C to exit.
 
+### OpenRAG Utilities Package
+
+The Python application includes a comprehensive `openrag_utils` package that provides modular utilities for all OpenRAG SDK endpoints:
+
+- **chat.py**: Chat operations (simple, streaming, conversation management)
+- **search.py**: Document search with filters
+- **documents.py**: Document ingestion and management
+- **settings.py**: Settings management
+- **knowledge_filters.py**: Knowledge filter CRUD operations
+
+Each module can be imported as a library or run independently for testing:
+
+```python
+from openrag_utils import chat_simple, search_query, ingest_document
+
+# Use in your code
+response = await chat_simple("What is RAG?")
+results = await search_query("machine learning", limit=5)
+```
+
+Or run standalone:
+```bash
+cd python
+python openrag_utils/chat.py
+python openrag_utils/search.py
+```
+
+See `python/openrag_utils/README.md` for detailed documentation.
+
 ## TypeScript Web Application
 
-A Next.js TypeScript web application for interacting with Langflow flows. (Documentation to be added as the application is developed.)
+A Next.js TypeScript web application for interacting with OpenRAG. (Documentation to be added as the application is developed.)
 
 ### Installation
 
@@ -153,5 +185,5 @@ The start script will automatically detect if port 3000 is already in use and wi
 ## Notes
 
 - Clickable links in the terminal depend on terminal support (iTerm2, Windows Terminal, etc.)
-- An OpenAI API key is not required unless your Langflow flow itself calls OpenAI models
+- The Python CLI uses the official OpenRAG Python SDK with async/await patterns
 - Keep your `.env` files private and never commit them

@@ -1,14 +1,15 @@
 """
-Utility functions for the OpenRAG Langflow app.
+Utility functions for the OpenRAG app.
 
 This module contains helper functions for UI rendering, formatting, and chat loop management.
-The main.py file focuses on the core OpenAI Responses API integration.
+The main.py file focuses on the core OpenRAG SDK integration.
 """
 import re
-from openai import OpenAI
+
+from openrag_sdk import OpenRAGClient
 from rich.console import Console
-from rich.markdown import Markdown
 from rich.live import Live
+from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.spinner import Spinner
 
@@ -32,26 +33,25 @@ def render_streaming_response(accumulated_text: str):
     return Markdown(clickable_markdown)
 
 
-def run_chat_session(client: OpenAI, model_id: str, stream_func, render_func):
+async def run_chat_session(client: OpenRAGClient, stream_func, render_func):
     """
-    Run an interactive chat session with the Langflow flow.
+    Run an interactive chat session with OpenRAG.
     
     Handles user input, conversation state, error handling, and UI presentation.
     
     Args:
-        client: OpenAI client configured for Langflow
-        model_id: The Langflow model/flow ID
-        stream_func: Function to call for streaming responses (stream_response from main.py)
+        client: OpenRAG client instance
+        stream_func: Async function to call for streaming responses (stream_response from main.py)
         render_func: Function to render the accumulated text (render_streaming_response)
     """
     console = Console()
-    previous_response_id = None
+    chat_id = None
 
     # Display welcome message
     console.print(Panel.fit(
         "[bold green]Chat Session Started[/bold green]\n\n"
         "[dim]Type 'exit', 'quit', or 'q' to end the session[/dim]",
-        title="OpenRAG Langflow Chat",
+        title="OpenRAG Chat",
         border_style="green"
     ))
     console.print()
@@ -84,16 +84,12 @@ def run_chat_session(client: OpenAI, model_id: str, stream_func, render_func):
                     rendered = render_func(accumulated_text)
                     live.update(rendered)
 
-                # Stream the response using the Responses API (from main.py)
-                response_id, _ = stream_func(
-                    client, model_id, user_input, previous_response_id, on_chunk
+                # Stream the response using the OpenRAG SDK
+                chat_id, _ = await stream_func(
+                    client, user_input, chat_id, on_chunk
                 )
 
             console.print()  # Blank line for readability
-
-            # Update previous_response_id for conversation continuity
-            if response_id:
-                previous_response_id = response_id
 
         except KeyboardInterrupt:
             console.print("\n\n[dim]Session interrupted. Goodbye![/dim]")
@@ -135,3 +131,5 @@ def highlight_search_fields(text: str) -> str:
         return f'```json\n{json_obj}\n```\n\n'
 
     return re.sub(field_pattern, replace_field, text)
+
+# Made with Bob
