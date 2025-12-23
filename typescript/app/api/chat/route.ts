@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import OpenAI from 'openai';
+import { OpenRAGClient } from 'openrag-sdk';
 import { config } from 'dotenv';
 import { resolve } from 'path';
 
@@ -13,33 +13,6 @@ function formatErrorResponse(error: unknown): { error: string } {
   };
 }
 
-const langflowServerUrl = process.env.LANGFLOW_SERVER_URL;
-const langflowApiKey = process.env.LANGFLOW_API_KEY;
-const modelId = '1098eea1-6649-4e1d-aed1-b77249fb8dd0';
-
-// Initialize OpenAI client for Langflow
-function getLangflowClient() {
-  if (!langflowServerUrl || !langflowApiKey) {
-    throw new Error('LANGFLOW_SERVER_URL and LANGFLOW_API_KEY must be set');
-  }
-
-  return new OpenAI({
-    baseURL: `${langflowServerUrl}/api/v1/`,
-    defaultHeaders: {
-      'x-api-key': langflowApiKey,
-    },
-    apiKey: 'dummy-api-key', // Required by OpenAI SDK but not used by Langflow
-  });
-}
-
-// Extract response ID from chunk (handles both plain objects and class instances)
-function extractResponseId(chunk: unknown): string | null {
-  const chunkObj = typeof (chunk as { toJSON?: () => unknown })?.toJSON === 'function' 
-    ? (chunk as { toJSON: () => unknown }).toJSON() 
-    : chunk;
-  return (chunkObj as { id?: string })?.id || (chunk as { id?: string })?.id || null;
-}
-
 export async function POST(request: NextRequest) {
   try {
     const { message, previousResponseId } = await request.json();
@@ -51,104 +24,63 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const client = getLangflowClient();
-
-    // Build request parameters for the Responses API
-    // According to Langflow docs, previous_response_id should be in the request body
-    // Try both extra_body (OpenAI SDK standard) and direct parameter (some SDKs may need this)
-    const requestParams: {
-      model: string;
-      input: string;
-      stream: boolean;
-      extra_body?: { previous_response_id: string };
-      previous_response_id?: string;
-    } = {
-      model: modelId,
-      input: message,
-      stream: true,
-    };
-
-    // Add previous_response_id if provided (for conversation continuity)
-    // Use both extra_body (OpenAI SDK standard) and direct parameter to ensure compatibility
-    if (previousResponseId) {
-      requestParams.extra_body = { previous_response_id: previousResponseId };
-      requestParams.previous_response_id = previousResponseId;
-    }
-
-    // Create a streaming response
-    const stream = await client.responses.create(requestParams);
+    // Initialize OpenRAG client
+    // Client auto-discovers OPENRAG_API_KEY and OPENRAG_URL from environment
+    const client = new OpenRAGClient();
 
     // Create a ReadableStream to send chunks to the client
     const encoder = new TextEncoder();
     const readable = new ReadableStream({
       async start(controller) {
-        let responseId: string | null = null;
+        let chatId: string | null = null;
         let completed = false;
 
         try {
-          // Check if stream is iterable (it should be when stream: true)
-          if (!stream || typeof (stream as { [Symbol.asyncIterator]?: () => unknown })[Symbol.asyncIterator] !== 'function') {
-            throw new Error('Stream is not iterable');
-          }
+          // Use OpenRAG SDK's streaming API
+          // Note: previousResponseId maps to chatId in OpenRAG SDK
+          const stream = await client.chat.stream({
+            message,
+            chatId: previousResponseId || undefined
+          });
 
-          // According to Langflow docs, each chunk has an 'id' field that is the response identifier
-          // The id field is present in ALL chunks, so we can extract it from the first chunk
-          for await (const chunk of stream as unknown as AsyncIterable<unknown>) {
-            // Extract response ID from chunk (for conversation continuity)
-            // According to Langflow API docs, chunk structure is:
-            // { id: string, object: "response.chunk", created: number, model: string, delta: {...}, status: string | null }
-            // Match Python behavior: check every chunk until we find one with an id
-            if (responseId === null) {
-              responseId = extractResponseId(chunk);
-            }
-
-            // Extract content delta from chunk
-            const typedChunk = chunk as { delta?: string | { content?: string }; status?: string };
-            const delta = typedChunk.delta;
-            if (delta) {
-              // Handle both dict and string formats
-              const text = typeof delta === 'string' ? delta : delta.content || '';
-
-              if (text) {
-                // Send chunk as JSON
+          try {
+            // Process streaming events
+            for await (const event of stream) {
+              if (event.type === 'content') {
+                // Send content chunks to client
                 const chunkData = JSON.stringify({
                   type: 'chunk',
-                  content: text,
+                  content: event.delta,
                 });
                 controller.enqueue(encoder.encode(`data: ${chunkData}\n\n`));
+              } else if (event.type === 'sources') {
+                // Optional: handle sources if needed
+                // For now, we'll skip sources to match current behavior
+              } else if (event.type === 'done') {
+                // Extract chat ID for conversation continuity
+                chatId = event.chatId || null;
+                completed = true;
               }
             }
 
-            // Check for completion status
-            // According to Langflow docs, the stream continues until a chunk with "status": "completed"
-            if (typedChunk.status === 'completed') {
-              // Ensure we have the response ID (match Python behavior: try to get from this chunk if still null)
-              if (responseId === null) {
-                responseId = extractResponseId(chunk);
-              }
-
-              // Send final response ID to client (match Python: always return response_id even if None)
-              const finalData = JSON.stringify({
-                type: 'done',
-                responseId: responseId,
-              });
-              controller.enqueue(encoder.encode(`data: ${finalData}\n\n`));
-              completed = true;
-              break;
+            // After iteration, get chat ID from stream if not already set
+            if (!chatId && stream.chatId) {
+              chatId = stream.chatId;
             }
+          } finally {
+            // Always close the stream
+            stream.close();
           }
-          
-          // If stream ended without completion status, ensure we send response ID if we have it
-          // This handles edge cases where the stream might end unexpectedly
-          // Match Python behavior: always return response_id (even if None)
-          if (!completed) {
-            const finalData = JSON.stringify({
-              type: 'done',
-              responseId: responseId,
-            });
-            controller.enqueue(encoder.encode(`data: ${finalData}\n\n`));
-          }
+
+          // Send final done message with chat ID
+          const finalData = JSON.stringify({
+            type: 'done',
+            responseId: chatId,
+          });
+          controller.enqueue(encoder.encode(`data: ${finalData}\n\n`));
+
         } catch (error) {
+          console.error('Streaming error:', error);
           const errorData = JSON.stringify({
             type: 'error',
             error: error instanceof Error ? error.message : 'Unknown error',
@@ -176,3 +108,4 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// Made with Bob
