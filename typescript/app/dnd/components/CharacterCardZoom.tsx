@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { DnDClass, Ability, AttackAbility, HealingAbility } from '../types';
-import { FALLBACK_CLASSES, FALLBACK_MONSTERS, isMonster } from '../constants';
+import { FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../constants';
 import { exportCharacterToPDF, generateCharacterPDFBlob } from '../utils/pdfExport';
 
 interface CharacterCardZoomProps {
@@ -22,11 +22,139 @@ interface CharacterCardZoomProps {
   imageSetting?: string;
 }
 
+// Helper function to determine character type and classification
+function determineCharacterType(playerClass: DnDClass, editType?: 'hero' | 'monster') {
+  const editTypeResolved = editType || (
+    FALLBACK_MONSTERS.some(fm => fm.name === playerClass.name) ? 'monster' : 'hero'
+  );
+  const isDefaultHero = FALLBACK_CLASSES.some(fc => fc.name === playerClass.name);
+  const isDefaultMonster = FALLBACK_MONSTERS.some(fm => fm.name === playerClass.name);
+  
+  return {
+    editType: editTypeResolved,
+    isDefaultHero,
+    isDefaultMonster,
+    isCustomHero: editTypeResolved === 'hero' && !isDefaultHero,
+    isCustomMonster: editTypeResolved === 'monster' && !isDefaultMonster,
+  };
+}
+
+// Helper function to get character type label
+function getCharacterTypeLabel(isCustomHero: boolean, isCustomMonster: boolean, editType: string): string {
+  if (isCustomHero) return 'Custom Hero';
+  if (isCustomMonster) return 'Custom Monster';
+  return editType === 'monster' ? 'Monster' : 'Hero';
+}
+
+// Helper function to extract monster ID from various sources
+function extractMonsterIdFromSources(playerClass: DnDClass, monsterImageUrl?: string): string | null {
+  // Check if playerClass has monsterId property
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if ((playerClass as any).monsterId) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (playerClass as any).monsterId;
+  }
+  
+  // Try to extract from monsterImageUrl
+  if (monsterImageUrl) {
+    const match = monsterImageUrl.match(/\/cdn\/monsters\/([^\/]+)\//);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+  
+  return null;
+}
+
+// Helper function to build delete URL
+function buildDeleteUrl(endpoint: string, name: string, monsterId: string | null, editType: string): string {
+  const url = new URL(endpoint, window.location.origin);
+  url.searchParams.set('name', name);
+  if (monsterId && editType === 'monster') {
+    url.searchParams.set('monsterId', monsterId);
+  }
+  return url.toString();
+}
+
+// Helper function to handle delete response
+async function handleDeleteResponse(response: Response, onClose: () => void): Promise<void> {
+  if (!response.ok) {
+    const data = await response.json();
+    
+    // If hero/monster not found in database, it might be a stale cache entry
+    // Clear localStorage and reload to sync with database
+    if (data.error === 'Hero not found' || data.error === 'Monster not found') {
+      console.log('Character not found in database - clearing cache and reloading');
+      localStorage.removeItem('dnd_loaded_classes');
+      localStorage.removeItem('dnd_loaded_monsters');
+      onClose();
+      window.location.reload();
+      return;
+    }
+    
+    throw new Error(data.error || 'Failed to delete character');
+  }
+
+  // Close the modal and reload the page to refresh the character list
+  onClose();
+  window.location.reload();
+}
+
+// Shared button styles
+const baseButtonStyle = {
+  backgroundColor: 'transparent',
+  fontFamily: 'serif',
+  border: 'none',
+  padding: 0,
+  lineHeight: '1' as const,
+};
+
+const buttonTextShadow = '0 0 6px rgba(255, 200, 255, 0.9), 0 0 10px rgba(255, 180, 255, 0.8), 1px 1px 3px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(255, 220, 255, 0.7)';
+
+const iconDropShadow = 'drop-shadow(0 0 2px rgba(255, 200, 255, 0.8)) drop-shadow(0 0 4px rgba(255, 180, 255, 0.6)) drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5))';
+
+// Upload status icon component
+function UploadStatusIcon({ status }: { status: 'idle' | 'uploading' | 'success' | 'error' }) {
+  const iconStyle = { filter: iconDropShadow };
+  
+  if (status === 'uploading') {
+    return (
+      <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24" style={iconStyle}>
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+      </svg>
+    );
+  }
+  
+  if (status === 'success') {
+    return (
+      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} style={iconStyle}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+      </svg>
+    );
+  }
+  
+  if (status === 'error') {
+    return (
+      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} style={iconStyle}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    );
+  }
+  
+  // idle state
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} style={iconStyle}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+    </svg>
+  );
+}
+
 export function CharacterCardZoom({
   playerClass,
   characterName,
   monsterImageUrl,
-  monsterCutOutImageUrl,
+  monsterCutOutImageUrl: _monsterCutOutImageUrl,
   isOpen,
   onClose,
   canEdit = false,
@@ -35,6 +163,26 @@ export function CharacterCardZoom({
   imageSetting,
 }: CharacterCardZoomProps) {
   const router = useRouter();
+
+  // State hooks - must be called before any early returns
+  const [isExporting, setIsExporting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Determine character type and classification
+  const characterType = determineCharacterType(playerClass, editType);
+  const { editType: determinedEditType, isCustomHero, isCustomMonster } = characterType;
+
+  // Memoize monster ID extraction
+  const monsterId = useMemo(() =>
+    extractMonsterIdFromSources(playerClass, monsterImageUrl),
+    [playerClass, monsterImageUrl]
+  );
+
+  // Get character type label for display
+  const characterTypeLabel = getCharacterTypeLabel(isCustomHero, isCustomMonster, determinedEditType);
 
   // Close on Escape key
   useEffect(() => {
@@ -62,46 +210,24 @@ export function CharacterCardZoom({
     };
   }, [isOpen]);
 
+  // Early return after all hooks
   if (!isOpen) return null;
 
-  // Determine edit type - trust the provided editType if available, otherwise check fallback lists
-  // The editType is determined earlier in the component tree where the full monster list is available
-  const determinedEditType = editType || (
-    FALLBACK_MONSTERS.some(fm => fm.name === playerClass.name) ? 'monster' : 'hero'
-  );
-  
   const handleEdit = () => {
     router.push(`/dnd/create-character?id=${encodeURIComponent(playerClass.name)}&type=${determinedEditType}`);
   };
 
-  // Determine if this is a custom character based on the determined type
-  const isDefaultHero = FALLBACK_CLASSES.some(fc => fc.name === playerClass.name);
-  const isDefaultMonster = FALLBACK_MONSTERS.some(fm => fm.name === playerClass.name);
-  
-  const isCustomHero = determinedEditType === 'hero' && !isDefaultHero;
-  const isCustomMonster = determinedEditType === 'monster' && !isDefaultMonster;
-  
   // Allow delete for all characters to maintain consistent button spacing
-  // This prevents button overlap with character name
   const canDelete = true;
-  const [isExporting, setIsExporting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  
-  // OpenRAG upload state
-  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
-  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const handleExportPDF = async () => {
     setIsExporting(true);
     try {
-      const characterType = isCustomHero ? 'Custom Hero' : isCustomMonster ? 'Custom Monster' : determinedEditType === 'monster' ? 'Monster' : 'Hero';
-      
       await exportCharacterToPDF({
         playerClass,
         characterName,
         imageUrl: monsterImageUrl,
-        characterType,
+        characterType: characterTypeLabel,
         imagePrompt,
         imageSetting,
       });
@@ -113,24 +239,6 @@ export function CharacterCardZoom({
     }
   };
 
-  // Extract monsterId from image URL if present
-  const extractMonsterId = (): string | null => {
-    // Check if playerClass has monsterId property
-    if ((playerClass as any).monsterId) {
-      return (playerClass as any).monsterId;
-    }
-    
-    // Try to extract from monsterImageUrl
-    if (monsterImageUrl) {
-      const match = monsterImageUrl.match(/\/cdn\/monsters\/([^\/]+)\//);
-      if (match && match[1]) {
-        return match[1];
-      }
-    }
-    
-    return null;
-  };
-
   const handleDelete = async () => {
     if (!showDeleteConfirm) {
       setShowDeleteConfirm(true);
@@ -140,41 +248,13 @@ export function CharacterCardZoom({
     setIsDeleting(true);
     try {
       const endpoint = determinedEditType === 'hero' ? '/api/heroes' : '/api/monsters-db';
-      const monsterId = extractMonsterId();
+      const url = buildDeleteUrl(endpoint, playerClass.name, monsterId, determinedEditType);
       
-      // Build URL with name parameter
-      const url = new URL(endpoint, window.location.origin);
-      url.searchParams.set('name', playerClass.name);
-      if (monsterId && determinedEditType === 'monster') {
-        url.searchParams.set('monsterId', monsterId);
-      }
-      
-      const response = await fetch(url.toString(), {
+      const response = await fetch(url, {
         method: 'DELETE',
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        
-        // If hero/monster not found in database, it might be a stale cache entry
-        // Clear localStorage and reload to sync with database
-        if (data.error === 'Hero not found' || data.error === 'Monster not found') {
-          console.log('Character not found in database - clearing cache and reloading');
-          localStorage.removeItem('dnd_loaded_classes');
-          localStorage.removeItem('dnd_loaded_monsters');
-          onClose();
-          window.location.reload();
-          return;
-        }
-        
-        throw new Error(data.error || 'Failed to delete character');
-      }
-
-      // Close the modal and reload the page to refresh the character list
-      onClose();
-      router.refresh();
-      // Also reload the window to ensure all components update
-      window.location.reload();
+      await handleDeleteResponse(response, onClose);
     } catch (error) {
       console.error('Failed to delete character:', error);
       alert(error instanceof Error ? error.message : 'Failed to delete character. Please try again.');
@@ -188,14 +268,12 @@ export function CharacterCardZoom({
     setUploadError(null);
     
     try {
-      const characterType = isCustomHero ? 'Custom Hero' : isCustomMonster ? 'Custom Monster' : determinedEditType === 'monster' ? 'Monster' : 'Hero';
-      
       // Generate PDF as blob
       const { blob, filename } = await generateCharacterPDFBlob({
         playerClass,
         characterName,
         imageUrl: monsterImageUrl,
-        characterType,
+        characterType: characterTypeLabel,
         imagePrompt,
         imageSetting,
       });
@@ -295,14 +373,10 @@ export function CharacterCardZoom({
             className="absolute right-2 text-xl font-bold transition-all cursor-pointer"
             style={{
               top: '0.5rem',
-              backgroundColor: 'transparent',
+              ...baseButtonStyle,
               color: '#3D2817',
-              fontFamily: 'serif',
-              border: 'none',
-              padding: 0,
-              lineHeight: '1',
               zIndex: 10,
-              textShadow: '0 0 6px rgba(255, 200, 255, 0.9), 0 0 10px rgba(255, 180, 255, 0.8), 1px 1px 3px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(255, 220, 255, 0.7)',
+              textShadow: buttonTextShadow,
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.opacity = '0.7';
@@ -323,13 +397,9 @@ export function CharacterCardZoom({
                 onClick={handleEdit}
                 className="text-sm font-bold transition-all flex items-center gap-1 cursor-pointer"
                 style={{
-                  backgroundColor: 'transparent',
+                  ...baseButtonStyle,
                   color: '#3D2817',
-                  fontFamily: 'serif',
-                  border: 'none',
-                  padding: 0,
-                  lineHeight: '1',
-                  textShadow: '0 0 6px rgba(255, 200, 255, 0.9), 0 0 10px rgba(255, 180, 255, 0.8), 1px 1px 3px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(255, 220, 255, 0.7)',
+                  textShadow: buttonTextShadow,
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.textDecoration = 'underline';
@@ -340,7 +410,7 @@ export function CharacterCardZoom({
                   e.currentTarget.style.opacity = '1';
                 }}
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} style={{ filter: 'drop-shadow(0 0 2px rgba(255, 200, 255, 0.8)) drop-shadow(0 0 4px rgba(255, 180, 255, 0.6)) drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5))' }}>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} style={{ filter: iconDropShadow }}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
                 Edit
@@ -353,14 +423,10 @@ export function CharacterCardZoom({
                 disabled={isDeleting}
                 className="text-sm font-bold transition-all flex items-center gap-1 cursor-pointer"
                 style={{
-                  backgroundColor: 'transparent',
+                  ...baseButtonStyle,
                   color: showDeleteConfirm ? '#dc2626' : '#3D2817',
-                  fontFamily: 'serif',
-                  border: 'none',
-                  padding: 0,
-                  lineHeight: '1',
                   opacity: isDeleting ? 0.5 : 1,
-                  textShadow: showDeleteConfirm ? '0 0 6px rgba(255, 200, 255, 0.9), 0 0 10px rgba(255, 180, 255, 0.8), 1px 1px 3px rgba(0, 0, 0, 0.5)' : '0 0 6px rgba(255, 200, 255, 0.9), 0 0 10px rgba(255, 180, 255, 0.8), 1px 1px 3px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(255, 220, 255, 0.7)',
+                  textShadow: buttonTextShadow,
                 }}
                 onMouseEnter={(e) => {
                   if (!isDeleting) {
@@ -374,7 +440,7 @@ export function CharacterCardZoom({
                 }}
                 title={showDeleteConfirm ? 'Click again to confirm deletion' : 'Delete character'}
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} style={{ filter: 'drop-shadow(0 0 2px rgba(255, 200, 255, 0.8)) drop-shadow(0 0 4px rgba(255, 180, 255, 0.6)) drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5))' }}>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} style={{ filter: iconDropShadow }}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
                 {isDeleting ? 'Deleting...' : showDeleteConfirm ? 'Confirm Delete' : 'Delete'}
@@ -386,14 +452,10 @@ export function CharacterCardZoom({
               disabled={isExporting}
               className="text-sm font-bold transition-all flex items-center gap-1 cursor-pointer"
               style={{
-                backgroundColor: 'transparent',
+                ...baseButtonStyle,
                 color: '#3D2817',
-                fontFamily: 'serif',
-                border: 'none',
-                padding: 0,
-                lineHeight: '1',
                 opacity: isExporting ? 0.5 : 1,
-                textShadow: '0 0 6px rgba(255, 200, 255, 0.9), 0 0 10px rgba(255, 180, 255, 0.8), 1px 1px 3px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(255, 220, 255, 0.7)',
+                textShadow: buttonTextShadow,
               }}
               onMouseEnter={(e) => {
                 if (!isExporting) {
@@ -407,7 +469,7 @@ export function CharacterCardZoom({
               }}
               title="Export to PDF"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} style={{ filter: 'drop-shadow(0 0 2px rgba(255, 200, 255, 0.8)) drop-shadow(0 0 4px rgba(255, 180, 255, 0.6)) drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5))' }}>
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} style={{ filter: iconDropShadow }}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               {isExporting ? 'Exporting...' : 'Export PDF'}
@@ -419,14 +481,10 @@ export function CharacterCardZoom({
               disabled={uploadStatus === 'uploading'}
               className="text-sm font-bold transition-all flex items-center gap-1 cursor-pointer"
               style={{
-                backgroundColor: 'transparent',
+                ...baseButtonStyle,
                 color: uploadStatus === 'error' ? '#dc2626' : uploadStatus === 'success' ? '#22c55e' : '#3D2817',
-                fontFamily: 'serif',
-                border: 'none',
-                padding: 0,
-                lineHeight: '1',
                 opacity: uploadStatus === 'uploading' ? 0.5 : 1,
-                textShadow: '0 0 6px rgba(255, 200, 255, 0.9), 0 0 10px rgba(255, 180, 255, 0.8), 1px 1px 3px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(255, 220, 255, 0.7)',
+                textShadow: buttonTextShadow,
               }}
               onMouseEnter={(e) => {
                 if (uploadStatus !== 'uploading') {
@@ -445,29 +503,7 @@ export function CharacterCardZoom({
                 'Export to OpenRAG'
               }
             >
-              {/* Icon changes based on status */}
-              {uploadStatus === 'uploading' && (
-                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24" style={{ filter: 'drop-shadow(0 0 2px rgba(255, 200, 255, 0.8)) drop-shadow(0 0 4px rgba(255, 180, 255, 0.6)) drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5))' }}>
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-                </svg>
-              )}
-              {uploadStatus === 'success' && (
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} style={{ filter: 'drop-shadow(0 0 2px rgba(255, 200, 255, 0.8)) drop-shadow(0 0 4px rgba(255, 180, 255, 0.6)) drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5))' }}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              )}
-              {uploadStatus === 'error' && (
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} style={{ filter: 'drop-shadow(0 0 2px rgba(255, 200, 255, 0.8)) drop-shadow(0 0 4px rgba(255, 180, 255, 0.6)) drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5))' }}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              )}
-              {uploadStatus === 'idle' && (
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} style={{ filter: 'drop-shadow(0 0 2px rgba(255, 200, 255, 0.8)) drop-shadow(0 0 4px rgba(255, 180, 255, 0.6)) drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5))' }}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-              )}
-              
+              <UploadStatusIcon status={uploadStatus} />
               {uploadStatus === 'uploading' ? 'Uploading...' :
                uploadStatus === 'success' ? 'Uploaded to OpenRAG' :
                uploadStatus === 'error' ? 'Upload Failed (retry)' :
@@ -496,7 +532,7 @@ export function CharacterCardZoom({
                 textShadow: '0 0 6px rgba(200, 220, 255, 0.9), 0 0 10px rgba(180, 200, 255, 0.8), 1px 1px 3px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(210, 230, 255, 0.7)',
               }}
             >
-              {isCustomHero ? 'Custom Hero' : isCustomMonster ? 'Custom Monster' : determinedEditType === 'monster' ? 'Monster' : 'Hero'}
+              {characterTypeLabel}
             </p>
           </div>
 
@@ -582,7 +618,7 @@ export function CharacterCardZoom({
                 textShadow: '0 0 4px rgba(200, 255, 200, 0.9), 0 0 8px rgba(180, 255, 180, 0.8), 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 1px rgba(210, 255, 210, 0.7)',
               }}
             >
-              {playerClass.description || `A ${determinedEditType === 'monster' ? 'monster' : 'hero'} named ${characterName}.`}
+              {playerClass.description || `A ${characterTypeLabel.toLowerCase()} named ${characterName}.`}
             </p>
           </div>
 
