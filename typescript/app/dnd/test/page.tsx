@@ -958,13 +958,6 @@ export default function DnDTestPage() {
                           const monsterImageUrl = associatedMonster 
                             ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
                             : undefined;
-                          // Generate cutout URL if monster has cutout images (hasCutout === true)
-                          // For backward compatibility, also try if hasCutout is undefined (old monsters)
-                          // CharacterCard will handle 404s gracefully if cutout doesn't exist
-                          const hasCutout = (associatedMonster as any)?.hasCutout;
-                          const monsterCutOutImageUrl = associatedMonster && hasCutout !== false
-                            ? `/cdn/monsters/${associatedMonster.monsterId}/280x200-cutout.png`
-                            : undefined;
                           
                           return (
                             <div
@@ -980,7 +973,6 @@ export default function DnDTestPage() {
                                 playerClass={{ ...monster, hitPoints: monster.maxHitPoints }}
                                 characterName={monster.name}
                                 monsterImageUrl={monsterImageUrl}
-                                monsterCutOutImageUrl={monsterCutOutImageUrl}
                                 size="compact"
                                 cardIndex={index}
                                 totalCards={FALLBACK_MONSTERS.length + customMonsters.length}
@@ -1065,14 +1057,6 @@ export default function DnDTestPage() {
                           playerClass={supportHero.class}
                           characterName={supportHero.name}
                           monsterImageUrl={supportHero.monsterId ? `/cdn/monsters/${supportHero.monsterId}/280x200.png` : undefined}
-                          monsterCutOutImageUrl={(() => {
-                            if (!supportHero.monsterId || !supportHero.class) return undefined;
-                            const associatedMonster = findAssociatedMonster(supportHero.class.name);
-                            const hasCutout = (associatedMonster as any)?.hasCutout;
-                            return associatedMonster && hasCutout !== false
-                              ? `/cdn/monsters/${supportHero.monsterId}/280x200-cutout.png`
-                              : undefined;
-                          })()}
                           onAttack={() => performAttack(supportPlayer)}
                           onUseAbility={(idx) => useAbility(supportPlayer, idx)}
                           shouldShake={shakingPlayer === supportPlayer}
@@ -1125,15 +1109,6 @@ export default function DnDTestPage() {
                 playerClass={player1Class}
                 characterName={player1Name || 'Loading...'}
                 monsterImageUrl={player1MonsterId ? `/cdn/monsters/${player1MonsterId}/280x200.png` : undefined}
-                monsterCutOutImageUrl={(() => {
-                  if (!player1MonsterId || !player1Class) return undefined;
-                  const associatedMonster = findAssociatedMonster(player1Class.name);
-                  // For backward compatibility, try if hasCutout is not explicitly false
-                  const hasCutout = (associatedMonster as any)?.hasCutout;
-                  return associatedMonster && hasCutout !== false
-                    ? `/cdn/monsters/${player1MonsterId}/280x200-cutout.png`
-                    : undefined;
-                })()}
                 onAttack={() => {
                   setIsMoveInProgress(true);
                   testAttackHit('player1');
@@ -1235,15 +1210,6 @@ export default function DnDTestPage() {
                 playerClass={player2Class}
                 characterName={player2Name || 'Loading...'}
                 monsterImageUrl={player2MonsterId ? `/cdn/monsters/${player2MonsterId}/280x200.png` : undefined}
-                monsterCutOutImageUrl={(() => {
-                  if (!player2MonsterId || !player2Class) return undefined;
-                  const associatedMonster = findAssociatedMonster(player2Class.name);
-                  // For backward compatibility, try if hasCutout is not explicitly false
-                  const hasCutout = (associatedMonster as any)?.hasCutout;
-                  return associatedMonster && hasCutout !== false
-                    ? `/cdn/monsters/${player2MonsterId}/280x200-cutout.png`
-                    : undefined;
-                })()}
                 onAttack={() => {
                   if (isAIModeActive) return; // Don't allow manual control in AI mode
                   setIsMoveInProgress(true);

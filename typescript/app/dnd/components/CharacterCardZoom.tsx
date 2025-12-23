@@ -10,7 +10,6 @@ interface CharacterCardZoomProps {
   playerClass: DnDClass;
   characterName: string;
   monsterImageUrl?: string;
-  monsterCutOutImageUrl?: string;
   isOpen: boolean;
   onClose: () => void;
   // Determine if this character can be edited (custom heroes or created monsters)
@@ -154,7 +153,6 @@ export function CharacterCardZoom({
   playerClass,
   characterName,
   monsterImageUrl,
-  monsterCutOutImageUrl: _monsterCutOutImageUrl,
   isOpen,
   onClose,
   canEdit = false,

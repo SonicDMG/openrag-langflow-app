@@ -133,8 +133,6 @@ interface CharacterCardProps {
   testButtons?: Array<{ label: string; onClick: () => void; className?: string }>;
   // Monster image URL (optional - for monster creator preview)
   monsterImageUrl?: string;
-  // Cut-out monster image URL (optional - for animated layered display)
-  monsterCutOutImageUrl?: string;
   // Size variant - 'normal' for battle cards, 'compact' for selection
   size?: 'normal' | 'compact';
   // Card position and total count (for card numbering)
@@ -187,7 +185,6 @@ function CharacterCardComponent({
   allowAllTurns = false,
   testButtons = [],
   monsterImageUrl,
-  monsterCutOutImageUrl,
   size = 'normal',
   cardIndex,
   totalCards,
@@ -199,14 +196,12 @@ function CharacterCardComponent({
 }: CharacterCardProps) {
   const animationRef = useRef<HTMLDivElement>(null);
   const characterImageRef = useRef<HTMLDivElement>(null);
-  const cutOutCharacterRef = useRef<HTMLImageElement>(null);
   const nameRef = useRef<HTMLHeadingElement>(null);
   const effectiveIsActive = allowAllTurns ? !isDefeated : isActive;
   const isDisabled = (effectiveIsActive && isMoveInProgress) || isDefeated;
   // Only disable opponent abilities if allowAllTurns is false (i.e., it's actually auto-playing)
   const shouldDisableOpponent = isOpponent && !allowAllTurns;
   const [imageError, setImageError] = useState(false);
-  const [cutOutImageError, setCutOutImageError] = useState(false);
   const [mainImageLoaded, setMainImageLoaded] = useState(false);
   
   // Placeholder image URL for cards without associated monsters
@@ -215,8 +210,7 @@ function CharacterCardComponent({
   // Apply shake animation
   // If there's an animated character (cut-out image), shake only the cut-out character, not the background
   useEffect(() => {
-    const hasAnimatedCharacter = monsterCutOutImageUrl && !cutOutImageError;
-    const targetRef = hasAnimatedCharacter ? cutOutCharacterRef : animationRef;
+    const targetRef = animationRef;
     
     if (targetRef.current && shouldShake) {
       const intensity = shakeIntensity > 0 ? shakeIntensity : 1;
@@ -235,7 +229,7 @@ function CharacterCardComponent({
       onShakeComplete || (() => {})
     );
     return cleanup;
-  }, [shouldShake, shakeTrigger, shakeIntensity, playerClass.maxHitPoints, onShakeComplete, monsterCutOutImageUrl, cutOutImageError]);
+  }, [shouldShake, shakeTrigger, shakeIntensity, playerClass.maxHitPoints, onShakeComplete]);
 
   // Apply sparkle animation
   useEffect(() => {
@@ -314,24 +308,6 @@ function CharacterCardComponent({
     }
   }, [isSelected, selectionSyncTrigger]);
 
-  // Ensure breathing animation is applied to cutout image when it loads
-  useEffect(() => {
-    if (cutOutCharacterRef.current && monsterCutOutImageUrl && mainImageLoaded && !cutOutImageError) {
-      const element = cutOutCharacterRef.current;
-      // Ensure the character-cutout class is applied
-      if (!element.classList.contains('character-cutout')) {
-        element.classList.add('character-cutout');
-      }
-      // Force the animation to start by removing and re-adding the class
-      element.classList.remove('character-cutout');
-      requestAnimationFrame(() => {
-        if (element && !cutOutImageError) {
-          element.classList.add('character-cutout');
-        }
-      });
-    }
-  }, [monsterCutOutImageUrl, mainImageLoaded, cutOutImageError]);
-
   // Reset image error and loaded state when monsterImageUrl changes
   useEffect(() => {
     if (monsterImageUrl) {
@@ -339,13 +315,6 @@ function CharacterCardComponent({
       setMainImageLoaded(false);
     }
   }, [monsterImageUrl]);
-
-  // Reset cut-out image error when monsterCutOutImageUrl changes
-  useEffect(() => {
-    if (monsterCutOutImageUrl) {
-      setCutOutImageError(false);
-    }
-  }, [monsterCutOutImageUrl]);
 
   // Adjust font size for long names to prevent wrapping
   useEffect(() => {
@@ -813,55 +782,6 @@ function CharacterCardComponent({
                 onLoad={() => setMainImageLoaded(true)}
                 onError={() => setImageError(true)}
               />
-              {/* Cut-out character layer with animation (only load after main image loads to avoid initial 404s) */}
-              {monsterCutOutImageUrl && mainImageLoaded && !cutOutImageError && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: 0, // Align bottom of cutout with bottom of background
-                    left: '50%',
-                    transform: 'translateX(-50%) scale(0.8)', // Scale container to 80%
-                    transformOrigin: 'center bottom', // Scale from bottom center so bottom stays aligned
-                    width: '100%',
-                    height: '100%',
-                    zIndex: 1,
-                    display: 'flex',
-                    alignItems: 'flex-end', // Align image to bottom of container
-                    justifyContent: 'center',
-                  }}
-                >
-                  <img
-                    ref={cutOutCharacterRef}
-                    src={monsterCutOutImageUrl}
-                    alt={`${characterName} (cut-out)`}
-                    className="character-cutout"
-                    style={{
-                      imageRendering: 'pixelated' as const,
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'contain', // Preserve aspect ratio and fit within container
-                      objectPosition: 'center bottom', // Align character to bottom
-                      display: 'block',
-                    }}
-                    onLoad={() => {
-                      // Ensure animation starts when image loads
-                      if (cutOutCharacterRef.current) {
-                        const element = cutOutCharacterRef.current;
-                        element.classList.remove('character-cutout');
-                        requestAnimationFrame(() => {
-                          if (element) {
-                            element.classList.add('character-cutout');
-                          }
-                        });
-                      }
-                    }}
-                    onError={() => {
-                      // Silently handle missing cutout images - they're optional
-                      setCutOutImageError(true);
-                    }}
-                  />
-                </div>
-              )}
             </>
           ) : (
             // If no monsterImageUrl or image error, show placeholder image

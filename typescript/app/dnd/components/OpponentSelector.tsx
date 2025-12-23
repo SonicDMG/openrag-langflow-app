@@ -40,7 +40,7 @@ export function OpponentSelector({
 }: OpponentSelectorProps) {
   const monsterScrollRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const [zoomedCard, setZoomedCard] = useState<{ playerClass: DnDClass; characterName: string; monsterImageUrl?: string; monsterCutOutImageUrl?: string; canEdit: boolean; editType?: 'hero' | 'monster'; imagePrompt?: string; imageSetting?: string } | null>(null);
+  const [zoomedCard, setZoomedCard] = useState<{ playerClass: DnDClass; characterName: string; monsterImageUrl?: string; canEdit: boolean; editType?: 'hero' | 'monster'; imagePrompt?: string; imageSetting?: string } | null>(null);
 
   return (
     <div>
@@ -156,12 +156,8 @@ export function OpponentSelector({
                       ((m as any).klass && (m as any).klass === monster.name) ||
                       (m.monsterId && (monster as any).monsterId === m.monsterId)
                     );
-                    const monsterImageUrl = associatedMonster 
+                    const monsterImageUrl = associatedMonster
                       ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
-                      : undefined;
-                    const hasCutout = (associatedMonster as any)?.hasCutout;
-                    const monsterCutOutImageUrl = associatedMonster && hasCutout !== false
-                      ? `/cdn/monsters/${associatedMonster.monsterId}/280x200-cutout.png`
                       : undefined;
                     
                     const isSelected = player2Class?.name === monster.name;
@@ -193,7 +189,6 @@ export function OpponentSelector({
                         playerClass: { ...monster, hitPoints: monster.maxHitPoints },
                         characterName: displayName,
                         monsterImageUrl,
-                        monsterCutOutImageUrl,
                         canEdit: true, // All characters can be edited
                         editType,
                         imagePrompt: prompt || undefined, // Convert null to undefined
@@ -220,7 +215,6 @@ export function OpponentSelector({
                             playerClass={{ ...monster, hitPoints: monster.maxHitPoints }}
                             characterName={displayName}
                             monsterImageUrl={monsterImageUrl}
-                            monsterCutOutImageUrl={monsterCutOutImageUrl}
                             size="compact"
                             cardIndex={index}
                             totalCards={availableMonsters.length}
@@ -276,7 +270,6 @@ export function OpponentSelector({
           playerClass={zoomedCard.playerClass}
           characterName={zoomedCard.characterName}
           monsterImageUrl={zoomedCard.monsterImageUrl}
-          monsterCutOutImageUrl={zoomedCard.monsterCutOutImageUrl}
           isOpen={!!zoomedCard}
           onClose={() => setZoomedCard(null)}
           canEdit={zoomedCard.canEdit}

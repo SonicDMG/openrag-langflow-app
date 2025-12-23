@@ -10,9 +10,9 @@ const MONSTERS_DIR = join(process.cwd(), 'public', 'cdn', 'monsters');
 
 /**
  * Builds the base pixel art prompt template with user's description
- * Matches the logic from MonsterCreator component
+ * Always generates with background (no transparent background/cutout processing)
  */
-function buildBasePrompt(userPrompt: string = '', transparentBackground: boolean = false, setting: CardSetting = DEFAULT_SETTING as CardSetting, race?: string, sex?: string): string {
+function buildBasePrompt(userPrompt: string = '', setting: CardSetting = DEFAULT_SETTING as CardSetting, race?: string, sex?: string): string {
   const paletteDescription = 'warm earth tones with vibrant accents';
   const settingConfig = CARD_SETTINGS[setting] || CARD_SETTINGS[DEFAULT_SETTING];
   
@@ -20,12 +20,7 @@ function buildBasePrompt(userPrompt: string = '', transparentBackground: boolean
   const baseDescription = userPrompt.trim() || 'a fantasy character';
   const description = enhanceDescriptionWithRaceAndSex(baseDescription, race, sex);
   
-  if (transparentBackground) {
-    // For transparent background, focus on isolated character only - no background references
-    return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. ${description}, isolated character sprite, no background scene, no environment, no setting. Rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, ${settingConfig.technologyLevel}. Centered composition, transparent background.`;
-  }
-  
-  // Prompt with background
+  // Always generate with background
   return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. ${description}, depicted in a distinctly ${settingConfig.settingPhrase} world. Placed in a expansive ${settingConfig.settingPhrase} setting, rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Character (facing the camera), centered in frame. Retro SNES/Genesis style, ${settingConfig.technologyLevel}.`;
 }
 
@@ -122,9 +117,9 @@ export async function POST(req: NextRequest) {
     for (const monster of monstersWithoutImages) {
       try {
         // Build prompt from monster name and description
-        // When skipCutout is true, we generate character directly on background (not transparent)
+        // Always generate character with background
         const userPrompt = `${monster.name}: ${monster.description || 'a fantasy creature'}`;
-        const prompt = buildBasePrompt(userPrompt, false, DEFAULT_SETTING as CardSetting); // false = with background (for skipCutout)
+        const prompt = buildBasePrompt(userPrompt, DEFAULT_SETTING as CardSetting);
 
         // Call the monster creation API
         // Use the request URL to construct the API endpoint
@@ -140,7 +135,6 @@ export async function POST(req: NextRequest) {
             klass: monster.name,
             prompt,
             seed: Math.floor(Math.random() * 1000000),
-            skipCutout: true, // Skip cutout for batch-created monsters
             stats: {
               hitPoints: monster.hitPoints,
               maxHitPoints: monster.maxHitPoints,

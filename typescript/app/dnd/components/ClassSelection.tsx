@@ -22,7 +22,7 @@ interface ClassSelectionProps {
 export function ClassSelection({ title, availableClasses, selectedClass, onSelect, createdMonsters = [], selectionSyncTrigger = 0 }: ClassSelectionProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const [zoomedCard, setZoomedCard] = useState<{ playerClass: DnDClass; characterName: string; monsterImageUrl?: string; monsterCutOutImageUrl?: string; canEdit: boolean; editType?: 'hero' | 'monster'; imagePrompt?: string; imageSetting?: string } | null>(null);
+  const [zoomedCard, setZoomedCard] = useState<{ playerClass: DnDClass; characterName: string; monsterImageUrl?: string; canEdit: boolean; editType?: 'hero' | 'monster'; imagePrompt?: string; imageSetting?: string } | null>(null);
   
   // Helper to find associated monster for a class
   const findAssociatedMonster = (className: string): (DnDClass & { monsterId: string; imageUrl: string }) | null => {
@@ -124,13 +124,6 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
             const monsterImageUrl = associatedMonster 
               ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
               : undefined;
-            // Generate cutout URL if monster has cutout images (hasCutout === true)
-            // For backward compatibility, also try if hasCutout is undefined (old monsters)
-            // CharacterCard will handle 404s gracefully if cutout doesn't exist
-            const hasCutout = (associatedMonster as any)?.hasCutout;
-            const monsterCutOutImageUrl = associatedMonster && hasCutout !== false
-              ? `/cdn/monsters/${associatedMonster.monsterId}/280x200-cutout.png`
-              : undefined;
             
             const isSelected = selectedClass?.name === dndClass.name;
             
@@ -159,7 +152,6 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
                 playerClass: { ...dndClass, hitPoints: dndClass.maxHitPoints },
                 characterName: displayName,
                 monsterImageUrl,
-                monsterCutOutImageUrl,
                 canEdit: true, // All characters can be edited
                 editType,
                 imagePrompt: prompt || undefined, // Convert null to undefined
@@ -184,7 +176,6 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
                     playerClass={{ ...dndClass, hitPoints: dndClass.maxHitPoints }}
                     characterName={displayName}
                     monsterImageUrl={monsterImageUrl}
-                    monsterCutOutImageUrl={monsterCutOutImageUrl}
                     size="compact"
                     cardIndex={index}
                     totalCards={availableClasses.length}
@@ -217,7 +208,6 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
           playerClass={zoomedCard.playerClass}
           characterName={zoomedCard.characterName}
           monsterImageUrl={zoomedCard.monsterImageUrl}
-          monsterCutOutImageUrl={zoomedCard.monsterCutOutImageUrl}
           isOpen={!!zoomedCard}
           onClose={() => setZoomedCard(null)}
           canEdit={zoomedCard.canEdit}

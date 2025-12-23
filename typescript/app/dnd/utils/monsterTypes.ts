@@ -14,7 +14,6 @@ export interface Rig {
     class?: string;
     seed?: number;
     animationConfig?: AnimationConfig; // Custom animation configuration
-    skipCutout?: boolean; // Flag to indicate cutouts were skipped
   };
   // Removed: bones, slots, parts, expressions - these were never used
   // Only meta fields are actually used for image dimensions and configuration
@@ -43,18 +42,7 @@ export interface MonsterBundle {
     png256: Buffer;
     png512: Buffer;
   };
-  cutOutImages?: {
-    png128: Buffer;
-    png200: Buffer;
-    png280x200: Buffer; // Wider version for card display
-    png256: Buffer;
-    png512: Buffer;
-  };
-  backgroundOnlyImages?: {
-    png128: Buffer;
-    png200: Buffer;
-    png280x200: Buffer; // Wider version for card display
-    png256: Buffer;
-    png512: Buffer;
-  };
+  // Removed cutOutImages and backgroundOnlyImages - no longer generating cutouts
+  cutOutImages?: undefined;
+  backgroundOnlyImages?: undefined;
 }

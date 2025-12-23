@@ -24,7 +24,6 @@ interface CreatedMonsterData {
     description?: string;
   };
   imageUrl: string;
-  hasCutout?: boolean; // Whether cutout images exist (false when skipCutout was true)
 }
 
 export default function MonsterCreatorPage() {
@@ -166,7 +165,6 @@ export default function MonsterCreatorPage() {
                 ...createdMonsterData,
                 klass: monster.klass,
                 stats: monster.stats,
-                hasCutout: monster.hasCutout,
               });
               setSelectedKlass(monster.klass);
             }
@@ -228,7 +226,7 @@ export default function MonsterCreatorPage() {
   const handleMonsterCreated = useCallback(async (monsterId: string, klass: string, imageUrl: string) => {
     console.log('Monster created:', { monsterId, klass, imageUrl });
     
-    // Fetch monster data including hasCutout from API
+    // Fetch monster data from API
     try {
       const response = await fetch('/api/monsters');
       if (response.ok) {
@@ -247,7 +245,6 @@ export default function MonsterCreatorPage() {
               damageDie: 'd8',
             },
             imageUrl: `/cdn/monsters/${monsterId}/280x200.png`, // Use the wider version for card display
-            hasCutout: monster.hasCutout,
           });
           setSelectedKlass(monster.klass || klass);
         } else {
@@ -264,7 +261,6 @@ export default function MonsterCreatorPage() {
               damageDie: 'd8',
             },
             imageUrl: `/cdn/monsters/${monsterId}/280x200.png`,
-            hasCutout: undefined,
           });
           setSelectedKlass(klass);
         }
@@ -284,7 +280,6 @@ export default function MonsterCreatorPage() {
           damageDie: 'd8',
         },
         imageUrl: `/cdn/monsters/${monsterId}/280x200.png`,
-        hasCutout: undefined,
       });
       setSelectedKlass(klass);
     }
@@ -617,150 +612,12 @@ export default function MonsterCreatorPage() {
                   )}
                 </div>
 
-                {/* Image Version Comparison */}
-                {createdMonsterData.monsterId && (
-                  <div className="mb-6 space-y-3">
-                    <h3 className="text-lg font-semibold text-amber-100" style={{ fontFamily: 'serif' }}>
-                      Image Versions
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Background Only Version */}
-                      <div className="bg-amber-800/50 border-2 border-amber-700 rounded-lg p-4">
-                        <h4 className="text-sm font-semibold text-amber-200 mb-2">Background Only</h4>
-                        <div 
-                          className="rounded-lg overflow-hidden mx-auto flex items-center justify-center"
-                          style={{ 
-                            backgroundColor: '#E8E0D6',
-                            border: '2px solid #D4C4B0',
-                            width: '100%',
-                            maxWidth: '280px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <img
-                            src={createdMonsterData.monsterId ? `/cdn/monsters/${createdMonsterData.monsterId}/280x200-background.png` : createdMonsterData.imageUrl}
-                            alt="Background only"
-                            style={{
-                              imageRendering: 'pixelated' as const,
-                              maxWidth: '100%',
-                              height: 'auto',
-                              display: 'block',
-                            }}
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              // Fallback to placeholder if image fails to load (avoid infinite loop)
-                              const placeholderUrl = '/cdn/placeholder.png';
-                              if (!target.src.includes('placeholder.png')) {
-                                console.warn('Background-only image not found, using placeholder');
-                                target.onerror = null; // Prevent infinite loop
-                                target.src = placeholderUrl;
-                              }
-                            }}
-                          />
-                        </div>
-                        <p className="text-xs text-amber-300 mt-2 text-center">
-                          New background scene (no character)
-                        </p>
-                      </div>
-
-                      {/* Composite Version */}
-                      <div className="bg-amber-800/50 border-2 border-amber-700 rounded-lg p-4">
-                        <h4 className="text-sm font-semibold text-amber-200 mb-2">Composite Version</h4>
-                        <div 
-                          className="rounded-lg overflow-hidden mx-auto flex items-center justify-center"
-                          style={{ 
-                            backgroundColor: '#E8E0D6',
-                            border: '2px solid #D4C4B0',
-                            width: '100%',
-                            maxWidth: '280px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <img
-                            src={createdMonsterData.imageUrl}
-                            alt="Composite version"
-                            style={{
-                              imageRendering: 'pixelated' as const,
-                              maxWidth: '100%',
-                              height: 'auto',
-                              display: 'block',
-                            }}
-                          />
-                        </div>
-                        <p className="text-xs text-amber-300 mt-2 text-center">
-                          Background with character composited on top
-                        </p>
-                      </div>
-
-                      {/* Cut-out Version */}
-                      <div className="bg-amber-800/50 border-2 border-amber-700 rounded-lg p-4">
-                        <h4 className="text-sm font-semibold text-amber-200 mb-2">Cut-out Version</h4>
-                        <div 
-                          className="rounded-lg overflow-hidden mx-auto relative flex items-center justify-center"
-                          style={{ 
-                            backgroundColor: '#E8E0D6',
-                            border: '2px solid #D4C4B0',
-                            width: '100%',
-                            maxWidth: '280px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            // Checkerboard pattern to show transparency
-                            backgroundImage: `
-                              linear-gradient(45deg, #ccc 25%, transparent 25%),
-                              linear-gradient(-45deg, #ccc 25%, transparent 25%),
-                              linear-gradient(45deg, transparent 75%, #ccc 75%),
-                              linear-gradient(-45deg, transparent 75%, #ccc 75%)
-                            `,
-                            backgroundSize: '20px 20px',
-                            backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
-                          }}
-                        >
-                          <img
-                            src={`/cdn/monsters/${createdMonsterData.monsterId}/280x200-cutout.png`}
-                            alt="Cut-out version"
-                            className="character-cutout"
-                            style={{
-                              imageRendering: 'pixelated' as const,
-                              maxWidth: '100%',
-                              height: 'auto',
-                              display: 'block',
-                              position: 'relative',
-                              zIndex: 1,
-                            }}
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              // Fallback to placeholder if image fails to load (avoid infinite loop)
-                              const placeholderUrl = '/cdn/placeholder.png';
-                              if (!target.src.includes('placeholder.png')) {
-                                console.warn('Cut-out image not found, using placeholder:', `/cdn/monsters/${createdMonsterData.monsterId}/280x200-cutout.png`);
-                                target.onerror = null; // Prevent infinite loop
-                                target.src = placeholderUrl;
-                              }
-                            }}
-                          />
-                        </div>
-                        <p className="text-xs text-amber-300 mt-2 text-center">
-                          Character with transparent background (checkerboard shows transparency)
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 {/* Character Card Preview */}
                 <div className="flex justify-center">
                   <CharacterCard
                     playerClass={previewMonsterClass}
                     characterName={selectedKlass || createdMonsterData.klass || 'Monster'}
                     monsterImageUrl={createdMonsterData.imageUrl}
-                    monsterCutOutImageUrl={createdMonsterData.hasCutout !== false && createdMonsterData.monsterId 
-                      ? `/cdn/monsters/${createdMonsterData.monsterId}/280x200-cutout.png` 
-                      : undefined}
                     shouldShake={shouldShake}
                     shouldSparkle={shouldSparkle}
                     shouldMiss={shouldMiss}

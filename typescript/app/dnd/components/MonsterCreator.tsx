@@ -38,13 +38,13 @@ function enhanceDescriptionWithRaceAndSex(description: string, race?: string, se
 
 /**
  * Builds the base pixel art prompt template with user's description
+ * Always generates characters with backgrounds (no transparent background/cutout processing)
  * @param userPrompt - The user's character description
- * @param transparentBackground - If true, removes background references from prompt
  * @param setting - The card setting/theme (medieval, futuristic, etc.)
  * @param race - Character race (optional, use "n/a" if not applicable)
  * @param sex - Character sex (optional, use "n/a" if not applicable)
  */
-function buildBasePrompt(userPrompt: string = '', transparentBackground: boolean = false, setting: CardSetting = DEFAULT_SETTING as CardSetting, race?: string, sex?: string): string {
+function buildBasePrompt(userPrompt: string = '', setting: CardSetting = DEFAULT_SETTING as CardSetting, race?: string, sex?: string): string {
   const paletteDescription = 'warm earth tones with vibrant accents';
   const settingConfig = CARD_SETTINGS[setting] || CARD_SETTINGS[DEFAULT_SETTING];
   
@@ -52,12 +52,7 @@ function buildBasePrompt(userPrompt: string = '', transparentBackground: boolean
   const baseDescription = userPrompt.trim() || 'a fantasy character';
   const description = enhanceDescriptionWithRaceAndSex(baseDescription, race, sex);
   
-  if (transparentBackground) {
-    // For transparent background, focus on isolated character only - no background references
-    return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. ${description}, isolated character sprite, no background scene, no environment, no setting. Rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, ${settingConfig.technologyLevel}. Centered composition, transparent background.`;
-  }
-  
-  // Prompt with background
+  // Always generate with background
   return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. ${description}, depicted in a distinctly ${settingConfig.settingPhrase} world. Character (facing the camera), centered in frame. Placed in a expansive ${settingConfig.settingPhrase} setting, rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, ${settingConfig.technologyLevel}.`;
 }
 
@@ -72,7 +67,6 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [model, setModel] = useState('5000');
-  const [skipCutout, setSkipCutout] = useState(true);
   const [setting, setSetting] = useState<CardSetting>(DEFAULT_SETTING as CardSetting);
 
   const [customHeroes, setCustomHeroes] = useState<DnDClass[]>([]);
@@ -198,18 +192,16 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
     }
   }, [klass, selectedDescription]); // Update when klass changes or selectedDescription changes
 
-  // Update full prompt when userPrompt, skipCutout, setting, race, or sex changes
-  // Use different base prompts based on skipCutout option
+  // Update full prompt when userPrompt, setting, race, or sex changes
+  // Always generate with background (no transparent background/cutout processing)
   useEffect(() => {
     if (userPrompt.trim()) {
-      // If skipCutout is true, use background prompt (character on background)
-      // If skipCutout is false, use cutout prompt (transparent background, isolated character)
-      const basePrompt = buildBasePrompt(userPrompt, !skipCutout, setting, selectedRace, selectedSex); // !skipCutout = transparent background when false
+      const basePrompt = buildBasePrompt(userPrompt, setting, selectedRace, selectedSex);
       setFullPrompt(basePrompt);
     } else {
       setFullPrompt('');
     }
-  }, [userPrompt, skipCutout, setting, selectedRace, selectedSex]);
+  }, [userPrompt, setting, selectedRace, selectedSex]);
 
   const handleGenerateImage = async () => {
     if (!fullPrompt) {
@@ -222,48 +214,8 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
 
     try {
       // Use the full editable prompt for image generation
-      let characterPrompt = fullPrompt;
-      
-      if (skipCutout) {
-        // Generate character directly on background (no transparent background)
-        // Remove transparent background references and add background scene
-        if (characterPrompt.toLowerCase().includes('transparent') || 
-            characterPrompt.toLowerCase().includes('no background') ||
-            characterPrompt.toLowerCase().includes('isolated character')) {
-          // Rebuild prompt with background
-          const description = characterPrompt
-            .replace(/transparent background[,\s]*/gi, '')
-            .replace(/isolated character[,\s]*/gi, '')
-            .replace(/no background scene[,\s]*/gi, '')
-            .replace(/no environment[,\s]*/gi, '')
-            .replace(/no setting[,\s]*/gi, '')
-            .trim();
-          const settingConfig = CARD_SETTINGS[setting] || CARD_SETTINGS[DEFAULT_SETTING];
-          characterPrompt = `${description}, depicted in a ${settingConfig.backgroundPhrase}`;
-        } else if (!characterPrompt.toLowerCase().includes('background') && 
-                   !characterPrompt.toLowerCase().includes('setting')) {
-          // Add background if not present
-          const settingConfig = CARD_SETTINGS[setting] || CARD_SETTINGS[DEFAULT_SETTING];
-          characterPrompt = `${characterPrompt}, ${settingConfig.backgroundPhrase}`;
-        }
-      } else {
-        // Generate character with transparent background (no background scene)
-        // Rebuild prompt without background references if it's a template prompt
-        if (fullPrompt.includes('depicted in a distinctly medieval high-fantasy world') || 
-            fullPrompt.includes('Placed in a medieval high-fantasy setting')) {
-          // Extract the character description from the existing prompt
-          // Try to extract the description part (between the style description and "depicted")
-          const match = fullPrompt.match(/retro .+? aesthetic\.\s*(.+?)(?:,\s*depicted|$)/i);
-          const description = match ? match[1].trim() : userPrompt || 'a fantasy character';
-          characterPrompt = buildBasePrompt(description, true, setting, selectedRace, selectedSex); // true = transparent background
-        } else {
-          // Custom prompt - just ensure transparent background is requested
-          if (!characterPrompt.toLowerCase().includes('transparent') && 
-              !characterPrompt.toLowerCase().includes('no background')) {
-            characterPrompt = characterPrompt + ', transparent background, isolated character, no background scene, no environment';
-          }
-        }
-      }
+      // Always generate with background (no transparent background)
+      const characterPrompt = fullPrompt;
       
       const response = await fetch('/api/generate-image', {
         method: 'POST',
@@ -274,7 +226,7 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
           prompt: characterPrompt,
           seed,
           model,
-          transparentBackground: !skipCutout, // Generate with transparent background only if skipCutout is false
+          transparentBackground: false, // Always generate with background
           aspectRatio: '16:9', // 16:9 aspect ratio for perfect fit
           setting, // Include setting in the request
           race: selectedRace, // Pass race from selected class
@@ -323,7 +275,6 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
           prompt: fullPrompt,
           seed,
           imageUrl,
-          skipCutout,
           setting,
           stats: {
             hitPoints: 30,
@@ -437,23 +388,6 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
             <option value="8000">Recraft-Vector (Vector Art)</option>
           </select>
         </label>
-      </div>
-
-      <div className="space-y-2">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={skipCutout}
-            onChange={(e) => setSkipCutout(e.target.checked)}
-            className="w-4 h-4 text-blue-600 bg-amber-900/50 border-amber-700 rounded focus:ring-blue-500 focus:ring-2"
-          />
-          <span className="text-sm font-medium text-amber-100">
-            Skip cutout creation (reserve for special monsters)
-          </span>
-        </label>
-        <p className="text-xs text-amber-300 ml-6">
-          When enabled, the character will be generated directly on a background (no transparent background processing). A placeholder cutout will be created. Cutout versions are reserved for special monsters that need isolated character sprites.
-        </p>
       </div>
 
       <div className="space-y-2">

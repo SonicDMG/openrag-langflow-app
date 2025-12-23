@@ -172,14 +172,6 @@ export function BattleArena({
                   playerClass={supportHero.class}
                   characterName={supportHero.name}
                   monsterImageUrl={supportHero.monsterId ? `/cdn/monsters/${supportHero.monsterId}/280x200.png` : undefined}
-                  monsterCutOutImageUrl={(() => {
-                    if (!supportHero.monsterId || !supportHero.class) return undefined;
-                    const associatedMonster = findAssociatedMonster(supportHero.class.name);
-                    const hasCutout = (associatedMonster as any)?.hasCutout;
-                    return associatedMonster && hasCutout !== false
-                      ? `/cdn/monsters/${supportHero.monsterId}/280x200-cutout.png`
-                      : undefined;
-                  })()}
                   onAttack={() => onAttack(supportPlayer)}
                   onUseAbility={(idx) => onUseAbility(supportPlayer, idx)}
                   shouldShake={shakingPlayer === supportPlayer}
@@ -239,14 +231,6 @@ export function BattleArena({
           playerClass={player1Class}
           characterName={player1Name || 'Loading...'}
           monsterImageUrl={player1MonsterId ? `/cdn/monsters/${player1MonsterId}/280x200.png` : undefined}
-          monsterCutOutImageUrl={(() => {
-            if (!player1MonsterId || !player1Class) return undefined;
-            const associatedMonster = findAssociatedMonster(player1Class.name);
-            const hasCutout = (associatedMonster as any)?.hasCutout;
-            return associatedMonster && hasCutout !== false
-              ? `/cdn/monsters/${player1MonsterId}/280x200-cutout.png`
-              : undefined;
-          })()}
           onAttack={() => onAttack('player1')}
           onUseAbility={(idx) => onUseAbility('player1', idx)}
           shouldShake={shakingPlayer === 'player1'}
@@ -304,14 +288,6 @@ export function BattleArena({
           playerClass={player2Class}
           characterName={player2Name || 'Loading...'}
           monsterImageUrl={player2MonsterId ? `/cdn/monsters/${player2MonsterId}/280x200.png` : undefined}
-          monsterCutOutImageUrl={(() => {
-            if (!player2MonsterId || !player2Class) return undefined;
-            const associatedMonster = findAssociatedMonster(player2Class.name);
-            const hasCutout = (associatedMonster as any)?.hasCutout;
-            return associatedMonster && hasCutout !== false
-              ? `/cdn/monsters/${player2MonsterId}/280x200-cutout.png`
-              : undefined;
-          })()}
           onAttack={() => onAttack('player2')}
           onUseAbility={(idx) => onUseAbility('player2', idx)}
           shouldShake={shakingPlayer === 'player2'}
