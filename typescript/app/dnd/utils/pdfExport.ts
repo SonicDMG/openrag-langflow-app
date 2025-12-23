@@ -589,6 +589,168 @@ export async function exportMultipleCharactersToPDF(
   pdf.save(fileName);
 }
 
+/**
+ * Generate a character PDF as a Blob for programmatic use (e.g., uploading to OpenRAG)
+ *
+ * @param options - Character data and export options
+ * @returns Promise with PDF blob and filename
+ *
+ * @example
+ * ```ts
+ * const { blob, filename } = await generateCharacterPDFBlob({
+ *   playerClass: myCharacter,
+ *   characterName: "Gandalf",
+ *   imageUrl: "/cdn/monsters/123/280x200.png",
+ *   characterType: "Custom Hero"
+ * });
+ * // Use blob for uploading to services
+ * ```
+ */
+export async function generateCharacterPDFBlob({
+  playerClass,
+  characterName,
+  imageUrl,
+  characterType,
+  filename,
+  footerText = '2025 OpenRAG',
+  imagePrompt,
+  imageSetting,
+}: CharacterPDFExportOptions): Promise<{ blob: Blob; filename: string }> {
+  const pdf = new PDFDocumentBuilder('portrait', 'a4');
+
+  // Title
+  pdf.addHeading(characterName, 24);
+
+  // Subtitle
+  const typeLabel = characterType || 'Character';
+  pdf.addSubtitle(typeLabel, 12);
+  pdf.addSpacing(2);
+
+  // Character Image
+  if (imageUrl) {
+    await pdf.addImage(imageUrl);
+    pdf.addSpacing(3);
+  }
+
+  // Image Generation Details Section (if available)
+  if (imagePrompt || imageSetting) {
+    pdf.addSectionHeading('IMAGE GENERATION DETAILS', 14);
+    
+    if (imageSetting) {
+      const settingConfig = CARD_SETTINGS[imageSetting as CardSetting];
+      const settingName = settingConfig ? settingConfig.name : imageSetting;
+      pdf.addText(`Setting/Theme: ${settingName}`, 10);
+      if (settingConfig) {
+        pdf.addText(`Description: ${settingConfig.description}`, 9);
+      }
+      pdf.addSpacing(2);
+    }
+    
+    if (imagePrompt) {
+      pdf.addText('Generation Prompt:', 10);
+      pdf.addSpacing(1);
+      const promptLines = pdf.addWrappedText(imagePrompt, 9);
+      pdf.addSpacing(promptLines * 4.5);
+    }
+    
+    pdf.addSpacing(3);
+  }
+
+  // Race and Sex Section (always show, use "n/a" if not set)
+  pdf.addSectionHeading('CHARACTER DETAILS', 14);
+  
+  const raceValue = playerClass.race && playerClass.race !== 'n/a' ? playerClass.race : 'n/a';
+  const sexValue = playerClass.sex && playerClass.sex !== 'n/a' ? playerClass.sex : 'n/a';
+  
+  pdf.addText(`Race: ${raceValue}`, 11);
+  pdf.addText(`Sex: ${sexValue}`, 11);
+  
+  pdf.addSpacing(3);
+
+  // Statistics Section
+  pdf.addSectionHeading('STATISTICS', 14);
+  
+  const stats = [
+    `HP: ${playerClass.hitPoints}/${playerClass.maxHitPoints}`,
+    `AC: ${playerClass.armorClass}`,
+    `ATK: +${playerClass.attackBonus}`,
+    `DMG: ${playerClass.damageDie}`,
+  ];
+
+  if (playerClass.meleeDamageDie) {
+    stats.push(`Melee: ${playerClass.meleeDamageDie}`);
+  }
+  if (playerClass.rangedDamageDie) {
+    stats.push(`Ranged: ${playerClass.rangedDamageDie}`);
+  }
+
+  stats.forEach((stat) => {
+    pdf.addText(stat, 11);
+  });
+
+  pdf.addSpacing(3);
+
+  // Description Section
+  pdf.addSectionHeading('DESCRIPTION', 14);
+  const description = playerClass.description || `A character named ${characterName}.`;
+  const descLines = pdf.addWrappedText(description, 10);
+  pdf.addSpacing(descLines * 5 + 3);
+
+  // Abilities Section
+  if (playerClass.abilities && playerClass.abilities.length > 0) {
+    pdf.addSectionHeading('ABILITIES', 14);
+
+    playerClass.abilities.forEach((ability) => {
+      pdf.checkPageBreak(25);
+      
+      // Ability name
+      const abilityType = ability.type === 'attack' ? 'Attack' : 'Healing';
+      pdf.addText(`${ability.name} (${abilityType})`, 12, [92, 64, 51]);
+      pdf.addSpacing(1);
+
+      // Ability description
+      if (ability.description) {
+        const abilityDescLines = pdf.addWrappedText(ability.description, 9);
+        pdf.addSpacing(abilityDescLines * 4.5);
+      }
+
+      // Ability details
+      const isAttack = ability.type === 'attack';
+      const attackAbility = isAttack ? (ability as AttackAbility) : null;
+
+      if (isAttack && attackAbility) {
+        const details: string[] = [];
+        details.push(`Damage: ${attackAbility.damageDice}`);
+        if (attackAbility.bonusDamageDice) {
+          details.push(`Bonus: ${attackAbility.bonusDamageDice}`);
+        }
+        details.push(`Attack Roll: ${attackAbility.attackRoll ? 'd20' : 'Automatic'}`);
+        if (attackAbility.attacks && attackAbility.attacks > 1) {
+          details.push(`Attacks: x${attackAbility.attacks}`);
+        }
+
+        details.forEach((detail) => {
+          pdf.addIndentedText(`- ${detail}`, 5);
+        });
+      } else {
+        const healingAbility = ability as HealingAbility;
+        pdf.addIndentedText(`- Healing: ${healingAbility.healingDice}`, 5);
+      }
+
+      pdf.addSpacing(3);
+    });
+  }
+
+  // Footer
+  pdf.addFooter(footerText);
+
+  // Generate blob instead of downloading
+  const blob = pdf.getDocument().output('blob');
+  const fileName = filename || `${characterName.replace(/[^a-z0-9]/gi, '_')}_Character_Sheet.pdf`;
+  
+  return { blob, filename: fileName };
+}
+
 // Export the PDFDocumentBuilder class for advanced use cases
 export { PDFDocumentBuilder };
 
