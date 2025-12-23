@@ -21,20 +21,20 @@ type DustParticle = {
 
 /**
  * Configuration for dust particle generation
- * Increased particle counts for more dramatic slam-down effect
+ * Significantly increased for dramatic slam-down impact effect
  */
 const DUST_PARTICLE_CONFIG = {
   counts: {
-    bottom: { min: 25, max: 35 }, // Increased from 8-15 for more impact
-    top: { min: 18, max: 25 },     // Increased from 6-12
-    left: { min: 18, max: 25 },    // Increased from 6-12
-    right: { min: 18, max: 25 },   // Increased from 6-12
+    bottom: { min: 30, max: 45 }, // Dramatically increased for maximum slam impact
+    top: { min: 15, max: 25 },    // Increased for more visible effect
+    left: { min: 15, max: 25 },   // Increased for more visible effect
+    right: { min: 15, max: 25 },  // Increased for more visible effect
   },
   animation: {
     maxDelay: 0.05, // 0-0.05s delay (almost immediate)
-    minDuration: 0.3, // Minimum animation duration
-    maxDuration: 0.5, // Maximum animation duration (0.3-0.5s quick burst)
-    offsetRange: 30, // -15px to +15px offset range
+    minDuration: 0.4, // Increased from 0.3 for particles to travel further
+    maxDuration: 0.7, // Increased from 0.5 for particles to travel further
+    offsetRange: 50, // Increased from 30 (-25px to +25px) for wider spread
   },
 } as const;
 

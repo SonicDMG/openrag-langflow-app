@@ -449,6 +449,17 @@ export default function DnDTestPage() {
     addLog('system', `🔮 Cast effect triggered for ${attackerClass.name}`);
   };
 
+  const testDefeat = (player: 'player1' | 'player2') => {
+    const playerClass = getPlayerClass(player);
+    if (!playerClass) return;
+    
+    // Set player as defeated
+    setDefeatedPlayer(player);
+    // Set HP to 0
+    updatePlayerHP(player, 0);
+    addLog('system', `💀 Defeat effect triggered for ${playerClass.name}`);
+  };
+
   const testAttackMiss = (attacker: 'player1' | 'player2') => {
     const attackerClass = attacker === 'player1' ? player1Class : player2Class;
     const defenderClass = attacker === 'player1' ? player2Class : player1Class;
@@ -1188,6 +1199,12 @@ export default function DnDTestPage() {
                 >
                   🔮 Test Cast
                 </button>
+                <button
+                  onClick={() => testDefeat('player1')}
+                  className="px-2 py-1 bg-red-900 hover:bg-red-800 text-red-100 text-xs rounded border border-red-700 transition-all"
+                >
+                  💀 Test Defeat
+                </button>
               </div>
             </div>
             )}
@@ -1314,6 +1331,16 @@ export default function DnDTestPage() {
                   className={`px-2 py-1 bg-purple-800 hover:bg-purple-700 text-purple-100 text-xs rounded border border-purple-600 transition-all ${isAIModeActive ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   🔮 Test Cast
+                </button>
+                <button
+                  onClick={() => {
+                    if (isAIModeActive) return;
+                    testDefeat('player2');
+                  }}
+                  disabled={isAIModeActive}
+                  className={`px-2 py-1 bg-red-900 hover:bg-red-800 text-red-100 text-xs rounded border border-red-700 transition-all ${isAIModeActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  💀 Test Defeat
                 </button>
               </div>
             </div>

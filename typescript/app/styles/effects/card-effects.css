@@ -246,27 +246,11 @@
   opacity: 0.6;
 }
 
-/* Slam down animation when defeated - combines with damage animation */
+/* Slam down animation when defeated - single impact, no bounce */
 @keyframes card-slam-down {
   0% {
-    transform: rotate(-2deg) scale(0.98);
+    transform: translateY(0) rotate(-2deg) scale(0.98);
     filter: grayscale(0.4) brightness(0.7) contrast(1.1) drop-shadow(0 20px 40px rgba(0, 0, 0, 0.4));
-  }
-  20% {
-    transform: translateY(8px) rotate(-2deg) scale(1.0);
-    filter: grayscale(0.4) brightness(0.7) contrast(1.1) drop-shadow(0 8px 25px rgba(0, 0, 0, 0.5));
-  }
-  40% {
-    transform: translateY(12px) rotate(-2deg) scale(1.02);
-    filter: grayscale(0.4) brightness(0.7) contrast(1.1) drop-shadow(0 3px 15px rgba(0, 0, 0, 0.5));
-  }
-  60% {
-    transform: translateY(2px) rotate(-2deg) scale(0.99);
-    filter: grayscale(0.4) brightness(0.7) contrast(1.1) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
-  }
-  80% {
-    transform: translateY(1px) rotate(-2deg) scale(0.98);
-    filter: grayscale(0.4) brightness(0.7) contrast(1.1) drop-shadow(0 5px 15px rgba(0, 0, 0, 0.5));
   }
   100% {
     transform: translateY(0) rotate(-2deg) scale(0.98);
@@ -275,7 +259,7 @@
 }
 
 .card-slam-down {
-  animation: card-slam-down 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  animation: card-slam-down 0.3s ease-out forwards;
 }
 
 /* Dust particles container - covers entire card area */
@@ -304,83 +288,83 @@
   animation-timing-function: ease-out;
 }
 
-/* Bottom edge particles - start at bottom, fly downward */
+/* Bottom edge particles - start at bottom, fly downward with increased distance */
 @keyframes dust-particle-bottom {
-  0% { 
-    opacity: 0; 
-    transform: translate(calc(-50% + var(--dust-horizontal-offset, 0px)), 0) scale(0) rotate(0deg); 
+  0% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dust-horizontal-offset, 0px)), 0) scale(0) rotate(0deg);
   }
-  10% { 
-    opacity: 1; 
-    transform: translate(calc(-50% + var(--dust-horizontal-offset, 0px)), 0) scale(1) rotate(0deg); 
+  10% {
+    opacity: 1;
+    transform: translate(calc(-50% + var(--dust-horizontal-offset, 0px)), 0) scale(1) rotate(0deg);
   }
-  40% { 
-    opacity: 0.8; 
-    transform: translate(calc(-50% + var(--dust-horizontal-offset, 0px) * 1.5), 15px) scale(1.1) rotate(30deg); 
+  40% {
+    opacity: 0.8;
+    transform: translate(calc(-50% + var(--dust-horizontal-offset, 0px) * 2), 25px) scale(1.2) rotate(45deg);
   }
-  100% { 
-    opacity: 0; 
-    transform: translate(calc(-50% + var(--dust-horizontal-offset, 0px) * 2.5), 35px) scale(0.4) rotate(90deg); 
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dust-horizontal-offset, 0px) * 3.5), 60px) scale(0.3) rotate(120deg);
   }
 }
 
-/* Top edge particles - start at top, fly upward */
+/* Top edge particles - start at top, fly upward with increased distance */
 @keyframes dust-particle-top {
-  0% { 
-    opacity: 0; 
-    transform: translate(calc(-50% + var(--dust-horizontal-offset, 0px)), 0) scale(0) rotate(0deg); 
+  0% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dust-horizontal-offset, 0px)), 0) scale(0) rotate(0deg);
   }
-  10% { 
-    opacity: 1; 
-    transform: translate(calc(-50% + var(--dust-horizontal-offset, 0px)), 0) scale(1) rotate(0deg); 
+  10% {
+    opacity: 1;
+    transform: translate(calc(-50% + var(--dust-horizontal-offset, 0px)), 0) scale(1) rotate(0deg);
   }
-  40% { 
-    opacity: 0.8; 
-    transform: translate(calc(-50% + var(--dust-horizontal-offset, 0px) * 1.5), -15px) scale(1.1) rotate(30deg); 
+  40% {
+    opacity: 0.8;
+    transform: translate(calc(-50% + var(--dust-horizontal-offset, 0px) * 2), -25px) scale(1.2) rotate(45deg);
   }
-  100% { 
-    opacity: 0; 
-    transform: translate(calc(-50% + var(--dust-horizontal-offset, 0px) * 2.5), -35px) scale(0.4) rotate(90deg); 
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dust-horizontal-offset, 0px) * 3.5), -60px) scale(0.3) rotate(120deg);
   }
 }
 
-/* Left edge particles - start at left, fly leftward */
+/* Left edge particles - start at left, fly leftward with increased distance */
 @keyframes dust-particle-left {
-  0% { 
-    opacity: 0; 
-    transform: translate(0, calc(-50% + var(--dust-vertical-offset, 0px))) scale(0) rotate(0deg); 
+  0% {
+    opacity: 0;
+    transform: translate(0, calc(-50% + var(--dust-vertical-offset, 0px))) scale(0) rotate(0deg);
   }
-  10% { 
-    opacity: 1; 
-    transform: translate(0, calc(-50% + var(--dust-vertical-offset, 0px))) scale(1) rotate(0deg); 
+  10% {
+    opacity: 1;
+    transform: translate(0, calc(-50% + var(--dust-vertical-offset, 0px))) scale(1) rotate(0deg);
   }
-  40% { 
-    opacity: 0.8; 
-    transform: translate(-15px, calc(-50% + var(--dust-vertical-offset, 0px) * 1.5)) scale(1.1) rotate(30deg); 
+  40% {
+    opacity: 0.8;
+    transform: translate(-25px, calc(-50% + var(--dust-vertical-offset, 0px) * 2)) scale(1.2) rotate(45deg);
   }
-  100% { 
-    opacity: 0; 
-    transform: translate(-35px, calc(-50% + var(--dust-vertical-offset, 0px) * 2.5)) scale(0.4) rotate(90deg); 
+  100% {
+    opacity: 0;
+    transform: translate(-60px, calc(-50% + var(--dust-vertical-offset, 0px) * 3.5)) scale(0.3) rotate(120deg);
   }
 }
 
-/* Right edge particles - start at right, fly rightward */
+/* Right edge particles - start at right, fly rightward with increased distance */
 @keyframes dust-particle-right {
-  0% { 
-    opacity: 0; 
-    transform: translate(0, calc(-50% + var(--dust-vertical-offset, 0px))) scale(0) rotate(0deg); 
+  0% {
+    opacity: 0;
+    transform: translate(0, calc(-50% + var(--dust-vertical-offset, 0px))) scale(0) rotate(0deg);
   }
-  10% { 
-    opacity: 1; 
-    transform: translate(0, calc(-50% + var(--dust-vertical-offset, 0px))) scale(1) rotate(0deg); 
+  10% {
+    opacity: 1;
+    transform: translate(0, calc(-50% + var(--dust-vertical-offset, 0px))) scale(1) rotate(0deg);
   }
-  40% { 
-    opacity: 0.8; 
-    transform: translate(15px, calc(-50% + var(--dust-vertical-offset, 0px) * 1.5)) scale(1.1) rotate(30deg); 
+  40% {
+    opacity: 0.8;
+    transform: translate(25px, calc(-50% + var(--dust-vertical-offset, 0px) * 2)) scale(1.2) rotate(45deg);
   }
-  100% { 
-    opacity: 0; 
-    transform: translate(35px, calc(-50% + var(--dust-vertical-offset, 0px) * 2.5)) scale(0.4) rotate(90deg); 
+  100% {
+    opacity: 0;
+    transform: translate(60px, calc(-50% + var(--dust-vertical-offset, 0px) * 3.5)) scale(0.3) rotate(120deg);
   }
 }
 

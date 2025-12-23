@@ -18,16 +18,16 @@ type DustParticle = {
 // Configuration matching the component
 const DUST_PARTICLE_CONFIG = {
   counts: {
-    bottom: { min: 15, max: 25 }, // Increased for more dramatic slam effect
-    top: { min: 8, max: 15 },     // Increased from 6-12
-    left: { min: 8, max: 15 },    // Increased from 6-12
-    right: { min: 8, max: 15 },   // Increased from 6-12
+    bottom: { min: 30, max: 45 }, // Dramatically increased for maximum slam impact
+    top: { min: 15, max: 25 },    // Increased for more visible effect
+    left: { min: 15, max: 25 },   // Increased for more visible effect
+    right: { min: 15, max: 25 },  // Increased for more visible effect
   },
   animation: {
     maxDelay: 0.05,
-    minDuration: 0.3,
-    maxDuration: 0.5,
-    offsetRange: 30,
+    minDuration: 0.4, // Increased for particles to travel further
+    maxDuration: 0.7, // Increased for particles to travel further
+    offsetRange: 50, // Increased for wider spread
   },
 } as const;
 
@@ -105,17 +105,17 @@ describe('Dust Particle Generation', () => {
       const leftParticles = particles.filter(p => p.side === 'left');
       const rightParticles = particles.filter(p => p.side === 'right');
       
-      // Bottom should have 15-25 particles (increased for slam effect)
-      expect(bottomParticles.length).toBeGreaterThanOrEqual(15);
-      expect(bottomParticles.length).toBeLessThanOrEqual(25);
+      // Bottom should have 30-45 particles (dramatically increased for slam impact)
+      expect(bottomParticles.length).toBeGreaterThanOrEqual(30);
+      expect(bottomParticles.length).toBeLessThanOrEqual(45);
       
-      // Top, left, right should have 8-15 particles each (increased)
-      expect(topParticles.length).toBeGreaterThanOrEqual(8);
-      expect(topParticles.length).toBeLessThanOrEqual(15);
-      expect(leftParticles.length).toBeGreaterThanOrEqual(8);
-      expect(leftParticles.length).toBeLessThanOrEqual(15);
-      expect(rightParticles.length).toBeGreaterThanOrEqual(8);
-      expect(rightParticles.length).toBeLessThanOrEqual(15);
+      // Top, left, right should have 15-25 particles each (increased for visibility)
+      expect(topParticles.length).toBeGreaterThanOrEqual(15);
+      expect(topParticles.length).toBeLessThanOrEqual(25);
+      expect(leftParticles.length).toBeGreaterThanOrEqual(15);
+      expect(leftParticles.length).toBeLessThanOrEqual(25);
+      expect(rightParticles.length).toBeGreaterThanOrEqual(15);
+      expect(rightParticles.length).toBeLessThanOrEqual(25);
     });
 
     it('should generate particles with valid position values (0-100)', () => {
@@ -136,12 +136,12 @@ describe('Dust Particle Generation', () => {
       });
     });
 
-    it('should generate particles with valid duration values (0.3-0.5s)', () => {
+    it('should generate particles with valid duration values (0.4-0.7s)', () => {
       const particles = generateDustParticles();
       
       particles.forEach(particle => {
-        expect(particle.duration).toBeGreaterThanOrEqual(0.3);
-        expect(particle.duration).toBeLessThanOrEqual(0.5);
+        expect(particle.duration).toBeGreaterThanOrEqual(0.4);
+        expect(particle.duration).toBeLessThanOrEqual(0.7);
       });
     });
 
@@ -154,13 +154,13 @@ describe('Dust Particle Generation', () => {
       horizontalParticles.forEach(particle => {
         expect(particle.horizontalOffset).not.toBe(0);
         expect(particle.verticalOffset).toBe(0);
-        expect(Math.abs(particle.horizontalOffset)).toBeLessThanOrEqual(15);
+        expect(Math.abs(particle.horizontalOffset)).toBeLessThanOrEqual(25);
       });
       
       verticalParticles.forEach(particle => {
         expect(particle.horizontalOffset).toBe(0);
         expect(particle.verticalOffset).not.toBe(0);
-        expect(Math.abs(particle.verticalOffset)).toBeLessThanOrEqual(15);
+        expect(Math.abs(particle.verticalOffset)).toBeLessThanOrEqual(25);
       });
     });
 
@@ -280,17 +280,17 @@ describe('Dust Particle Generation', () => {
 
   describe('DUST_PARTICLE_CONFIG', () => {
     it('should have valid configuration values', () => {
-      // Check counts (updated for enhanced slam effect)
-      expect(DUST_PARTICLE_CONFIG.counts.bottom.min).toBe(15);
-      expect(DUST_PARTICLE_CONFIG.counts.bottom.max).toBe(25);
-      expect(DUST_PARTICLE_CONFIG.counts.top.min).toBe(8);
-      expect(DUST_PARTICLE_CONFIG.counts.top.max).toBe(15);
+      // Check counts (updated for dramatic slam effect)
+      expect(DUST_PARTICLE_CONFIG.counts.bottom.min).toBe(30);
+      expect(DUST_PARTICLE_CONFIG.counts.bottom.max).toBe(45);
+      expect(DUST_PARTICLE_CONFIG.counts.top.min).toBe(15);
+      expect(DUST_PARTICLE_CONFIG.counts.top.max).toBe(25);
       
-      // Check animation values
+      // Check animation values (updated for further travel distance)
       expect(DUST_PARTICLE_CONFIG.animation.maxDelay).toBe(0.05);
-      expect(DUST_PARTICLE_CONFIG.animation.minDuration).toBe(0.3);
-      expect(DUST_PARTICLE_CONFIG.animation.maxDuration).toBe(0.5);
-      expect(DUST_PARTICLE_CONFIG.animation.offsetRange).toBe(30);
+      expect(DUST_PARTICLE_CONFIG.animation.minDuration).toBe(0.4);
+      expect(DUST_PARTICLE_CONFIG.animation.maxDuration).toBe(0.7);
+      expect(DUST_PARTICLE_CONFIG.animation.offsetRange).toBe(50);
     });
 
     it('should have min values less than max values', () => {
