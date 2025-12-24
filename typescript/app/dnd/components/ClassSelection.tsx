@@ -1,14 +1,14 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRef, useCallback } from 'react';
 import { DnDClass } from '../types';
-import { CharacterCard } from './CharacterCard';
 import { CharacterCardZoom } from './CharacterCardZoom';
 import { AddHeroCard } from './AddHeroCard';
 import { LoadDefaultHeroesCard } from './LoadDefaultHeroesCard';
-import { generateDeterministicCharacterName, getCharacterName } from '../utils/names';
-import { isMonster, FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../constants';
+import { ScrollButton } from './ScrollButton';
+import { SelectableClassCard } from './SelectableClassCard';
+import { useMonsterAssociation } from './hooks/useMonsterAssociation';
+import { useZoomModal } from './hooks/useZoomModal';
 
 interface ClassSelectionProps {
   title: string;
@@ -19,43 +19,72 @@ interface ClassSelectionProps {
   selectionSyncTrigger?: number;
 }
 
+/**
+ * ClassSelection Component
+ *
+ * A horizontal scrollable carousel for selecting D&D characters and monsters.
+ * Displays character cards in a compact format with scroll navigation and zoom capabilities.
+ *
+ * @component
+ *
+ * ## Features
+ * - Horizontal scrollable carousel with left/right navigation buttons
+ * - Displays "Add Hero" and "Load Default Heroes" cards alongside character cards
+ * - Visual selection indicator with scale and position transform
+ * - Click-to-select functionality for each character
+ * - Zoom modal for detailed character view with edit capabilities
+ * - Automatic monster image association for created monsters
+ * - Performance optimized with memoized callbacks and custom hooks
+ *
+ * ## Architecture
+ * - Uses `useMonsterAssociation` hook for efficient monster lookup
+ * - Uses `useZoomModal` hook for clean zoom state management
+ * - Delegates card rendering to `SelectableClassCard` component
+ * - Scroll buttons extracted to reusable `ScrollButton` component
+ *
+ * ## Props
+ * @param {string} title - Header title displayed above the carousel
+ * @param {DnDClass[]} availableClasses - Array of character/monster classes to display
+ * @param {DnDClass | null} selectedClass - Currently selected character (highlighted)
+ * @param {function} onSelect - Callback when a character is selected
+ * @param {Array} [createdMonsters=[]] - Array of created monsters with image metadata
+ * @param {number} [selectionSyncTrigger=0] - Trigger value for syncing selection animations
+ *
+ * ## Usage Example
+ * ```tsx
+ * <ClassSelection
+ *   title="Choose Your Hero"
+ *   availableClasses={heroes}
+ *   selectedClass={selectedHero}
+ *   onSelect={handleHeroSelect}
+ *   createdMonsters={customMonsters}
+ *   selectionSyncTrigger={syncTrigger}
+ * />
+ * ```
+ *
+ * @see SelectableClassCard - Individual card component
+ * @see useMonsterAssociation - Monster lookup hook
+ * @see useZoomModal - Zoom state management hook
+ */
 export function ClassSelection({ title, availableClasses, selectedClass, onSelect, createdMonsters = [], selectionSyncTrigger = 0 }: ClassSelectionProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
-  const [zoomedCard, setZoomedCard] = useState<{ playerClass: DnDClass; characterName: string; monsterImageUrl?: string; canEdit: boolean; editType?: 'hero' | 'monster'; imagePrompt?: string; imageSetting?: string } | null>(null);
   
-  // Helper to find associated monster for a class
-  const findAssociatedMonster = (className: string): (DnDClass & { monsterId: string; imageUrl: string }) | null => {
-    const associated = createdMonsters
-      .filter(m => {
-        // For created monsters, match by klass field; for regular monsters, match by name
-        const monsterKlass = (m as any).klass;
-        return monsterKlass ? monsterKlass === className : m.name === className;
-      })
-      .sort((a, b) => {
-        // Sort by lastAssociatedAt (most recently associated first), then by createdAt (newest first)
-        const aTime = (a as any).lastAssociatedAt || (a as any).createdAt || '';
-        const bTime = (b as any).lastAssociatedAt || (b as any).createdAt || '';
-        if (aTime && bTime) {
-          return new Date(bTime).getTime() - new Date(aTime).getTime();
-        }
-        // Fallback to UUID sort if no timestamps
-        return b.monsterId.localeCompare(a.monsterId);
-      });
-    return associated.length > 0 ? associated[0] : null;
-  };
+  // Use custom hooks for cleaner state management
+  const { zoomedCard, openZoom, closeZoom, isOpen } = useZoomModal();
+  const findAssociatedMonster = useMonsterAssociation(createdMonsters);
 
-  const scrollLeft = () => {
+  // Memoized scroll functions to prevent unnecessary re-renders
+  const scrollLeft = useCallback(() => {
     if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: -200, behavior: 'smooth' }); // Scaled for compact cards (192px + gap)
+      scrollContainerRef.current.scrollBy({ left: -200, behavior: 'smooth' });
     }
-  };
+  }, []);
 
-  const scrollRight = () => {
+  const scrollRight = useCallback(() => {
     if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: 200, behavior: 'smooth' }); // Scaled for compact cards
+      scrollContainerRef.current.scrollBy({ left: 200, behavior: 'smooth' });
     }
-  };
+  }, []);
   
   return (
     <div>
@@ -64,15 +93,7 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
       )}
       <div className="relative">
         {/* Left scroll button */}
-        <button
-          onClick={scrollLeft}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-amber-900/90 hover:bg-amber-800 text-amber-100 p-1 sm:p-1.5 md:p-2 rounded-full border-2 border-amber-700 shadow-lg transition-all"
-          aria-label="Scroll left"
-        >
-          <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
+        <ScrollButton direction="left" onClick={scrollLeft} />
 
         {/* Scrollable container */}
         <div
@@ -108,108 +129,34 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
           )}
           
           {/* Hero cards */}
-          {availableClasses.map((dndClass, index) => {
-            // For created monsters, use klass to find associated monster; for regular classes, use name
-            const isCreatedMonster = !!(dndClass as any).klass && !!(dndClass as any).monsterId;
-            const lookupName = isCreatedMonster ? (dndClass as any).klass : dndClass.name;
-            const associatedMonster = findAssociatedMonster(lookupName);
-            
-            // Also check if this class is a created monster by looking it up directly in createdMonsters
-            // This handles cases where created monsters might be in availableClasses but without prompt/setting
-            const createdMonsterMatch = createdMonsters.find(m => 
-              m.name === dndClass.name || 
-              ((m as any).klass && (m as any).klass === dndClass.name) ||
-              (m.monsterId && (dndClass as any).monsterId === m.monsterId)
-            );
-            const monsterImageUrl = associatedMonster 
-              ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
-              : undefined;
-            
-            const isSelected = selectedClass?.name === dndClass.name;
-            
-            // Generate character name for display using the centralized utility
-            // This ensures consistency with what will be generated on selection
-            const displayName = getCharacterName('', dndClass);
-            
-            // Determine edit type - all characters can be edited
-            // Check if it's in FALLBACK_MONSTERS to determine if it's a monster
-            const isDefaultMonster = FALLBACK_MONSTERS.some(fm => fm.name === dndClass.name);
-            const editType = isCreatedMonster ? 'monster' : (isDefaultMonster ? 'monster' : 'hero');
-            
-            const handleZoom = () => {
-              // Priority order for getting prompt/setting:
-              // 1. createdMonsterMatch (from createdMonsters array - most reliable)
-              // 2. dndClass itself (if it's a created monster)
-              // 3. associatedMonster (found via findAssociatedMonster)
-              const prompt = (createdMonsterMatch as any)?.prompt 
-                || (isCreatedMonster ? (dndClass as any)?.prompt : undefined)
-                || (associatedMonster as any)?.prompt;
-              const setting = (createdMonsterMatch as any)?.setting 
-                || (isCreatedMonster ? (dndClass as any)?.setting : undefined)
-                || (associatedMonster as any)?.setting;
-              
-              setZoomedCard({
-                playerClass: { ...dndClass, hitPoints: dndClass.maxHitPoints },
-                characterName: displayName,
-                monsterImageUrl,
-                canEdit: true, // All characters can be edited
-                editType,
-                imagePrompt: prompt || undefined, // Convert null to undefined
-                imageSetting: setting || undefined, // Convert null to undefined
-              });
-            };
-            
-            return (
-              <div
-                key={dndClass.name}
-                className="flex-shrink-0 relative group"
-                style={{
-                  transform: isSelected ? 'scale(1.03) translateY(-4px)' : 'scale(1)',
-                  padding: '4px', // Add padding to accommodate zoom without overflow
-                }}
-              >
-                <div
-                  onClick={() => onSelect({ ...dndClass, hitPoints: dndClass.maxHitPoints })}
-                  className="cursor-pointer transition-all"
-                >
-                  <CharacterCard
-                    playerClass={{ ...dndClass, hitPoints: dndClass.maxHitPoints }}
-                    characterName={displayName}
-                    monsterImageUrl={monsterImageUrl}
-                    size="compact"
-                    cardIndex={index}
-                    totalCards={availableClasses.length}
-                    isSelected={isSelected}
-                    selectionSyncTrigger={selectionSyncTrigger}
-                    showZoomButton={true}
-                    onZoom={handleZoom}
-                  />
-                </div>
-              </div>
-            );
-          })}
+          {availableClasses.map((dndClass, index) => (
+            <SelectableClassCard
+              key={dndClass.name}
+              dndClass={dndClass}
+              index={index}
+              totalCards={availableClasses.length}
+              isSelected={selectedClass?.name === dndClass.name}
+              createdMonsters={createdMonsters}
+              selectionSyncTrigger={selectionSyncTrigger}
+              findAssociatedMonster={findAssociatedMonster}
+              onSelect={onSelect}
+              onZoom={openZoom}
+            />
+          ))}
         </div>
 
         {/* Right scroll button */}
-        <button
-          onClick={scrollRight}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-amber-900/90 hover:bg-amber-800 text-amber-100 p-1 sm:p-1.5 md:p-2 rounded-full border-2 border-amber-700 shadow-lg transition-all"
-          aria-label="Scroll right"
-        >
-          <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
+        <ScrollButton direction="right" onClick={scrollRight} />
       </div>
       
       {/* Zoom Modal */}
-      {zoomedCard && (
+      {isOpen && zoomedCard && (
         <CharacterCardZoom
           playerClass={zoomedCard.playerClass}
           characterName={zoomedCard.characterName}
           monsterImageUrl={zoomedCard.monsterImageUrl}
-          isOpen={!!zoomedCard}
-          onClose={() => setZoomedCard(null)}
+          isOpen={isOpen}
+          onClose={closeZoom}
           canEdit={zoomedCard.canEdit}
           editType={zoomedCard.editType}
           imagePrompt={zoomedCard.imagePrompt}
