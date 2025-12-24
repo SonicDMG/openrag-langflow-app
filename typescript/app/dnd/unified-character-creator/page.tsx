@@ -171,16 +171,61 @@ function UnifiedCharacterCreatorContent() {
           const monstersResponse = await fetch('/api/monsters');
           if (monstersResponse.ok) {
             const monstersData = await monstersResponse.json();
-            // Find image associated with this character name
-            const associatedImage = monstersData.monsters.find((m: any) => m.klass === character.name);
+            // Find the MOST RECENT image associated with this character
+            // IMPORTANT: Check both character.name AND character.class because:
+            // - Custom heroes like "Sylvan the Hunter" have name="Sylvan the Hunter", class="Ranger"
+            // - Images might be stored with klass="Ranger" (the class) or klass="Sylvan the Hunter" (the character name)
+            // - Default heroes have name=class (e.g., name="Ranger", class="Ranger")
+            // Sort by createdAt descending to get the newest first
+            const associatedImages = monstersData.monsters
+              .filter((m: any) => m.klass === character.name || m.klass === character.class)
+              .sort((a: any, b: any) => {
+                const dateA = new Date(a.createdAt || 0).getTime();
+                const dateB = new Date(b.createdAt || 0).getTime();
+                return dateB - dateA; // Most recent first
+              });
+            
+            console.log(`[Edit Character] Searching for images with klass="${character.name}" or klass="${character.class}"`);
+            console.log(`[Edit Character] Found ${associatedImages.length} image(s)`);
+            if (associatedImages.length > 0) {
+              console.log('Images sorted by date (newest first):', associatedImages.map((img: any) => ({
+                monsterId: img.monsterId,
+                createdAt: img.createdAt,
+                imageUrl: img.imageUrl
+              })));
+            }
+            
+            const associatedImage = associatedImages[0]; // Get the most recent
             if (associatedImage) {
               const imageUrl = getCharacterImageUrl(associatedImage.monsterId);
+              console.log(`[Edit Character] Loading most recent image: ${associatedImage.monsterId}`);
+              console.log(`[Edit Character] Image URL: ${imageUrl}`);
               setImageData({
                 monsterId: associatedImage.monsterId,
                 imageUrl: imageUrl || '',
                 imagePosition: associatedImage.imagePosition || { offsetX: 50, offsetY: 50 },
                 prompt: associatedImage.prompt || '',
               });
+              
+              // Clean up old images (keep only the most recent)
+              const oldImages = associatedImages.slice(1); // All except the first (most recent)
+              if (oldImages.length > 0) {
+                console.log(`[Edit Character] Cleaning up ${oldImages.length} old image(s) for character "${character.name}"`);
+                for (const oldImage of oldImages) {
+                  try {
+                    console.log(`[Edit Character] Deleting old image: ${oldImage.monsterId} (created: ${oldImage.createdAt})`);
+                    await fetch('/api/monsters', {
+                      method: 'DELETE',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ monsterId: oldImage.monsterId }),
+                    });
+                    console.log(`[Edit Character] ✓ Deleted old image ${oldImage.monsterId}`);
+                  } catch (err) {
+                    console.warn(`[Edit Character] ✗ Failed to delete old image ${oldImage.monsterId}:`, err);
+                  }
+                }
+                console.log(`[Edit Character] Cleanup complete. Kept only the most recent image.`);
+              }
             }
           }
         } else {
