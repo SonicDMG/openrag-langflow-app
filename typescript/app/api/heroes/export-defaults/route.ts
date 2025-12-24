@@ -32,8 +32,10 @@ export async function POST() {
     // Remove database-specific fields and prepare for JSON export
     const heroesForExport: DnDClass[] = defaultHeroes.map((hero: HeroRecord) => {
       // Create a clean copy without database metadata
+      // Note: hero.name now contains the display name (e.g., "Berserker Korg")
+      // and hero.class contains the original class name (e.g., "Barbarian")
       const cleanHero: DnDClass = {
-        name: hero.name,
+        name: hero.name, // This is now the display name
         hitPoints: hero.hitPoints,
         maxHitPoints: hero.maxHitPoints,
         armorClass: hero.armorClass,

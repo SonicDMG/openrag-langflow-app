@@ -148,7 +148,16 @@ function UnifiedCharacterCreatorContent() {
         const data = await response.json();
         const characters = editType === 'hero' ? data.heroes : data.monsters;
         const decodedEditId = decodeURIComponent(editId);
-        const character = characters.find((c: DnDClass) => c.name === decodedEditId);
+        
+        // Try to find character by name (primary search)
+        let character = characters.find((c: DnDClass) => c.name === decodedEditId);
+        
+        // Backward compatibility: If not found by name, try searching by class field
+        // This handles old database records where heroes were stored with class names
+        if (!character && editType === 'hero') {
+          character = characters.find((c: DnDClass) => c.class === decodedEditId);
+          console.log(`[Edit Character] Backward compatibility: Searching by class field for "${decodedEditId}"`);
+        }
 
         if (character) {
           setCharacterType(editType);
