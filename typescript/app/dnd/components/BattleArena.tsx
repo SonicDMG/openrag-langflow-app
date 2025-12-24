@@ -2,9 +2,18 @@
 
 import { useRef, useEffect } from 'react';
 import { DnDClass } from '../types';
-import { CharacterCard } from './CharacterCard';
 import { ProjectileType } from '../utils/battle';
-import { getCharacterImageUrl } from './utils/imageUtils';
+import {
+  BattleCharacterCard,
+  SupportHeroesContainer,
+  PlayerId,
+  PlayerEffects,
+  EffectCallbacks,
+  SupportHero,
+  FindAssociatedMonster,
+  extractPlayerEffects,
+  getTurnLabel,
+} from './shared';
 
 type BattleArenaProps = {
   player1Class: DnDClass;
@@ -98,26 +107,47 @@ export function BattleArena({
   triggerDropAnimation,
   onSupportHeroRefsReady,
 }: BattleArenaProps) {
-  // Create refs for support hero cards
-  const support1CardRef = useRef<HTMLDivElement | null>(null);
-  const support2CardRef = useRef<HTMLDivElement | null>(null);
-  
-  // Debug: Log support heroes
-  useEffect(() => {
-    console.log('[BattleArena] Support heroes updated:', { supportHeroes, length: supportHeroes?.length, hasSupportHeroes: supportHeroes && supportHeroes.length > 0 });
-  }, [supportHeroes]);
-  
-  // Notify parent when refs are ready
-  useEffect(() => {
-    if (onSupportHeroRefsReady && supportHeroes.length > 0) {
-      onSupportHeroRefsReady({ support1: support1CardRef, support2: support2CardRef });
-    }
-  }, [onSupportHeroRefsReady, supportHeroes.length]);
-  
   // Trigger drop animation when component mounts (battle starts)
   useEffect(() => {
     triggerDropAnimation();
   }, [triggerDropAnimation]);
+
+  // Group effect callbacks for cleaner prop passing
+  const effectCallbacks: EffectCallbacks = {
+    onShakeComplete,
+    onSparkleComplete,
+    onMissComplete,
+    onHitComplete,
+    onCastComplete,
+    onFlashComplete,
+  };
+
+  // Helper function to extract player-specific effects
+  const getPlayerEffects = (playerId: PlayerId): PlayerEffects => {
+    return extractPlayerEffects(
+      playerId,
+      shakingPlayer,
+      sparklingPlayer,
+      missingPlayer,
+      hittingPlayer,
+      castingPlayer,
+      flashingPlayer,
+      shakeTrigger,
+      sparkleTrigger,
+      missTrigger,
+      hitTrigger,
+      castTrigger,
+      flashTrigger,
+      shakeIntensity,
+      sparkleIntensity,
+      flashProjectileType,
+      castProjectileType
+    );
+  };
+
+  // Get effects for each player
+  const player1Effects = getPlayerEffects('player1');
+  const player2Effects = getPlayerEffects('player2');
 
   return (
     <div ref={battleCardsRef} className="relative flex items-center justify-center gap-4 md:gap-8 py-12 -mx-4 sm:-mx-6 overflow-visible">
@@ -135,148 +165,41 @@ export function BattleArena({
       />
       
       {/* Support Heroes - Small cards to the left of player1 */}
-      {supportHeroes && supportHeroes.length > 0 && (
-        <div className="relative z-20 flex flex-col gap-3 mr-4" style={{ minWidth: '120px' }}>
-          {/* Debug: Support heroes count: {supportHeroes.length} */}
-          {supportHeroes.map((supportHero, index) => {
-            const supportPlayer = index === 0 ? 'support1' : 'support2';
-            const isActive = currentTurn === supportPlayer;
-            const isDefeated = supportHero.class.hitPoints <= 0;
-            
-            return (
-              <div
-                key={`support-${index}-${supportHero.name}`}
-                ref={index === 0 ? support1CardRef : support2CardRef}
-                className="relative"
-                style={{
-                  transform: `rotate(${-5 + index * 2}deg) scale(0.65)`,
-                  opacity: isDefeated ? 0.5 : 1,
-                }}
-              >
-                {/* Turn indicator for support heroes */}
-                {isActive && !isDefeated && (
-                  <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-20 bg-yellow-400 text-black px-2 py-1 rounded-md text-xs font-bold shadow-lg animate-pulse">
-                    YOUR TURN
-                  </div>
-                )}
-                <div
-                  className={`transition-all duration-300 ${
-                    isActive && !isDefeated
-                      ? 'ring-4 ring-yellow-400 ring-opacity-75 shadow-2xl shadow-yellow-400/50'
-                      : ''
-                  }`}
-                  style={{
-                    borderRadius: '8px',
-                  }}
-                >
-                  <CharacterCard
-                  playerClass={supportHero.class}
-                  characterName={supportHero.name}
-                  monsterImageUrl={getCharacterImageUrl(supportHero.monsterId)}
-                  imagePosition={(() => {
-                    // Try character name first, then fall back to class name
-                    let monster = findAssociatedMonster(supportHero.name);
-                    if (!monster && supportHero.name !== supportHero.class.name) {
-                      monster = findAssociatedMonster(supportHero.class.name);
-                    }
-                    return monster?.imagePosition;
-                  })()}
-                  onAttack={() => onAttack(supportPlayer)}
-                  onUseAbility={(idx) => onUseAbility(supportPlayer, idx)}
-                  shouldShake={shakingPlayer === supportPlayer}
-                  shouldSparkle={sparklingPlayer === supportPlayer}
-                  shouldMiss={missingPlayer === supportPlayer}
-                  shouldHit={hittingPlayer === supportPlayer}
-                  shouldCast={castingPlayer === supportPlayer}
-                  shouldFlash={flashingPlayer === supportPlayer}
-                  castTrigger={castTrigger[supportPlayer]}
-                  flashTrigger={flashTrigger[supportPlayer]}
-                  flashProjectileType={flashProjectileType[supportPlayer]}
-                  castProjectileType={castProjectileType[supportPlayer]}
-                  shakeTrigger={shakeTrigger[supportPlayer]}
-                  sparkleTrigger={sparkleTrigger[supportPlayer]}
-                  missTrigger={missTrigger[supportPlayer]}
-                  hitTrigger={hitTrigger[supportPlayer]}
-                  shakeIntensity={shakeIntensity[supportPlayer]}
-                  sparkleIntensity={sparkleIntensity[supportPlayer]}
-                  isMoveInProgress={isMoveInProgress}
-                  isActive={isActive}
-                  isDefeated={isDefeated}
-                  isVictor={false}
-                  confettiTrigger={confettiTrigger}
-                  onShakeComplete={onShakeComplete}
-                  onSparkleComplete={onSparkleComplete}
-                  onMissComplete={onMissComplete}
-                  onHitComplete={onHitComplete}
-                  onCastComplete={onCastComplete}
-                  onFlashComplete={onFlashComplete}
-                  isOpponent={false}
-                  allowAllTurns={false}
-                />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <SupportHeroesContainer
+        supportHeroes={supportHeroes}
+        currentTurn={currentTurn}
+        isMoveInProgress={isMoveInProgress}
+        confettiTrigger={confettiTrigger}
+        findAssociatedMonster={findAssociatedMonster}
+        onAttack={onAttack}
+        onUseAbility={onUseAbility}
+        effectCallbacks={effectCallbacks}
+        getPlayerEffects={getPlayerEffects}
+        onRefsReady={onSupportHeroRefsReady}
+      />
       
-      {/* Left Card - Rotated counter-clockwise (outward) */}
-      <div 
-        ref={player1CardRef} 
-        className={`relative z-10 transition-all duration-300 ${
-          currentTurn === 'player1' && defeatedPlayer !== 'player1'
-            ? 'ring-4 ring-yellow-400 ring-opacity-75 shadow-2xl shadow-yellow-400/50'
-            : ''
-        }`}
-        style={{ transform: 'rotate(-5deg)', borderRadius: '8px' }}
-      >
-        {/* Turn indicator for player1 */}
-        {currentTurn === 'player1' && defeatedPlayer !== 'player1' && (
-          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-20 bg-yellow-400 text-black px-3 py-1 rounded-md text-sm font-bold shadow-lg animate-pulse">
-            YOUR TURN
-          </div>
-        )}
-        <CharacterCard
+      {/* Left Card - Player 1 */}
+      <div className="relative z-10">
+        <BattleCharacterCard
+          playerId="player1"
           playerClass={player1Class}
           characterName={player1Name || 'Loading...'}
-          monsterImageUrl={getCharacterImageUrl(player1MonsterId)}
-          imagePosition={(() => {
-            // Try character name first, then fall back to class name
-            let monster = findAssociatedMonster(player1Name);
-            if (!monster && player1Name !== player1Class.name) {
-              monster = findAssociatedMonster(player1Class.name);
-            }
-            return monster?.imagePosition;
-          })()}
-          onAttack={() => onAttack('player1')}
-          onUseAbility={(idx) => onUseAbility('player1', idx)}
-          shouldShake={shakingPlayer === 'player1'}
-          shouldSparkle={sparklingPlayer === 'player1'}
-          shouldMiss={missingPlayer === 'player1'}
-          shouldHit={hittingPlayer === 'player1'}
-          shouldCast={castingPlayer === 'player1'}
-          shouldFlash={flashingPlayer === 'player1'}
-          castTrigger={castTrigger.player1}
-          flashTrigger={flashTrigger.player1}
-          flashProjectileType={flashProjectileType.player1}
-          castProjectileType={castProjectileType.player1}
-          shakeTrigger={shakeTrigger.player1}
-          sparkleTrigger={sparkleTrigger.player1}
-          missTrigger={missTrigger.player1}
-          hitTrigger={hitTrigger.player1}
-          shakeIntensity={shakeIntensity.player1}
-          sparkleIntensity={sparkleIntensity.player1}
-          isMoveInProgress={isMoveInProgress}
+          monsterId={player1MonsterId}
+          effects={player1Effects}
           isActive={currentTurn === 'player1'}
           isDefeated={defeatedPlayer === 'player1' || (player1Class?.hitPoints ?? 0) <= 0}
           isVictor={victorPlayer === 'player1'}
+          isOpponent={false}
+          rotation={-5}
+          turnLabel="YOUR TURN"
+          showTurnIndicator={defeatedPlayer !== 'player1'}
+          findAssociatedMonster={findAssociatedMonster}
+          onAttack={() => onAttack('player1')}
+          onUseAbility={(idx: number) => onUseAbility('player1', idx)}
+          effectCallbacks={effectCallbacks}
+          isMoveInProgress={isMoveInProgress}
           confettiTrigger={confettiTrigger}
-          onShakeComplete={onShakeComplete}
-          onSparkleComplete={onSparkleComplete}
-          onMissComplete={onMissComplete}
-          onHitComplete={onHitComplete}
-          onCastComplete={onCastComplete}
-          onFlashComplete={onFlashComplete}
+          cardRef={player1CardRef}
         />
       </div>
       {/* VS Graphic */}
@@ -285,64 +208,29 @@ export function BattleArena({
           VS
         </span>
       </div>
-      {/* Right Card - Rotated clockwise (outward) */}
-      <div 
-        ref={player2CardRef} 
-        className={`relative z-10 transition-all duration-300 ${
-          currentTurn === 'player2' && defeatedPlayer !== 'player2'
-            ? 'ring-4 ring-yellow-400 ring-opacity-75 shadow-2xl shadow-yellow-400/50'
-            : ''
-        }`}
-        style={{ transform: 'rotate(5deg)', borderRadius: '8px' }}
-      >
-        {/* Turn indicator for player2 (monster) */}
-        {currentTurn === 'player2' && defeatedPlayer !== 'player2' && (
-          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-20 bg-yellow-400 text-black px-3 py-1 rounded-md text-sm font-bold shadow-lg animate-pulse">
-            ENEMY TURN
-          </div>
-        )}
-        <CharacterCard
+      
+      {/* Right Card - Player 2 (Opponent) */}
+      <div className="relative z-10">
+        <BattleCharacterCard
+          playerId="player2"
           playerClass={player2Class}
           characterName={player2Name || 'Loading...'}
-          monsterImageUrl={getCharacterImageUrl(player2MonsterId)}
-          imagePosition={(() => {
-            // Try character name first, then fall back to class name
-            let monster = findAssociatedMonster(player2Name);
-            if (!monster && player2Name !== player2Class.name) {
-              monster = findAssociatedMonster(player2Class.name);
-            }
-            return monster?.imagePosition;
-          })()}
-          onAttack={() => onAttack('player2')}
-          onUseAbility={(idx) => onUseAbility('player2', idx)}
-          shouldShake={shakingPlayer === 'player2'}
-          shouldSparkle={sparklingPlayer === 'player2'}
-          shouldMiss={missingPlayer === 'player2'}
-          shouldHit={hittingPlayer === 'player2'}
-          shouldCast={castingPlayer === 'player2'}
-          shouldFlash={flashingPlayer === 'player2'}
-          castTrigger={castTrigger.player2}
-          flashTrigger={flashTrigger.player2}
-          flashProjectileType={flashProjectileType.player2}
-          castProjectileType={castProjectileType.player2}
-          shakeTrigger={shakeTrigger.player2}
-          sparkleTrigger={sparkleTrigger.player2}
-          missTrigger={missTrigger.player2}
-          hitTrigger={hitTrigger.player2}
-          shakeIntensity={shakeIntensity.player2}
-          sparkleIntensity={sparkleIntensity.player2}
-          isMoveInProgress={isMoveInProgress}
+          monsterId={player2MonsterId}
+          effects={player2Effects}
           isActive={currentTurn === 'player2'}
           isDefeated={defeatedPlayer === 'player2' || (player2Class?.hitPoints ?? 0) <= 0}
           isVictor={victorPlayer === 'player2'}
-          confettiTrigger={confettiTrigger}
-          onShakeComplete={onShakeComplete}
-          onSparkleComplete={onSparkleComplete}
-          onMissComplete={onMissComplete}
-          onHitComplete={onHitComplete}
-          onCastComplete={onCastComplete}
-          onFlashComplete={onFlashComplete}
           isOpponent={true}
+          rotation={5}
+          turnLabel="ENEMY TURN"
+          showTurnIndicator={defeatedPlayer !== 'player2'}
+          findAssociatedMonster={findAssociatedMonster}
+          onAttack={() => onAttack('player2')}
+          onUseAbility={(idx: number) => onUseAbility('player2', idx)}
+          effectCallbacks={effectCallbacks}
+          isMoveInProgress={isMoveInProgress}
+          confettiTrigger={confettiTrigger}
+          cardRef={player2CardRef}
         />
       </div>
     </div>
