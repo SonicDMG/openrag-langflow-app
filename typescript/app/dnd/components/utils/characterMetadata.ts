@@ -56,8 +56,11 @@ export function getCharacterMetadata(
 /**
  * Determine whether a character should be edited as a hero or monster.
  *
- * Uses the _type marker added during database load to determine character type.
- * If no _type marker exists, defaults to 'hero'.
+ * Uses multiple strategies to determine character type:
+ * 1. Created monsters (with klass and monsterId)
+ * 2. _type marker (added during database load)
+ * 3. _id prefix (for fallback data: 'fallback-monster-' or 'fallback-hero-')
+ * 4. Default to 'hero'
  *
  * @param isCreatedMonster - Whether this is a created monster
  * @param dndClass - The character class object
@@ -67,18 +70,29 @@ function determineEditType(
   isCreatedMonster: boolean,
   dndClass: DnDClass
 ): 'hero' | 'monster' {
-  // Created monsters (with klass and monsterId) are always monsters
+  // Strategy 1: Created monsters (with klass and monsterId) are always monsters
   if (isCreatedMonster) {
     return 'monster';
   }
   
-  // Check for _type marker added during database load
+  // Strategy 2: Check for _type marker added during database load
   // This marker is set in dataLoader.ts when loading monsters from database
   if ((dndClass as any)._type === 'monster') {
     return 'monster';
   }
   
-  // Default to hero if no monster indicators present
+  // Strategy 3: Infer from _id prefix (for fallback data)
+  const characterId = (dndClass as any)._id;
+  if (characterId && typeof characterId === 'string') {
+    if (characterId.startsWith('fallback-monster-')) {
+      return 'monster';
+    }
+    if (characterId.startsWith('fallback-hero-')) {
+      return 'hero';
+    }
+  }
+  
+  // Strategy 4: Default to hero if no monster indicators present
   return 'hero';
 }
 

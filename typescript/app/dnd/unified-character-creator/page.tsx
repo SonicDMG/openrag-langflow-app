@@ -40,7 +40,7 @@ interface ImageFormData {
 function UnifiedCharacterCreatorContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const editId = searchParams.get('id');
+  const editId = searchParams.get('id');  // Character _id (works for both database and fallback)
   const editType = searchParams.get('type') as CharacterType | null;
 
   // Tab state
@@ -139,24 +139,40 @@ function UnifiedCharacterCreatorContent() {
 
       try {
         const endpoint = editType === 'hero' ? '/api/heroes' : '/api/monsters-db';
-        const response = await fetch(endpoint);
+        let character: DnDClass | null = null;
+
+        // Strategy 1: Try database lookup by ID
+        console.log(`[Edit Character] Looking up ${editType} by ID: ${editId}`);
+        const idResponse = await fetch(`${endpoint}?id=${encodeURIComponent(editId)}`);
         
-        if (!response.ok) {
-          throw new Error('Failed to load characters');
+        if (idResponse.ok) {
+          const idData = await idResponse.json();
+          character = editType === 'hero' ? idData.hero : idData.monster;
+          if (character) {
+            console.log(`[Edit Character] Found ${editType} in database: ${character.name}`);
+          }
         }
 
-        const data = await response.json();
-        const characters = editType === 'hero' ? data.heroes : data.monsters;
-        const decodedEditId = decodeURIComponent(editId);
-        
-        // Try to find character by name (primary search)
-        let character = characters.find((c: DnDClass) => c.name === decodedEditId);
-        
-        // Backward compatibility: If not found by name, try searching by class field
-        // This handles old database records where heroes were stored with class names
-        if (!character && editType === 'hero') {
-          character = characters.find((c: DnDClass) => c.class === decodedEditId);
-          console.log(`[Edit Character] Backward compatibility: Searching by class field for "${decodedEditId}"`);
+        // Strategy 2: If not in database, check fallback data (all fallback data now has IDs)
+        if (!character) {
+          console.log(`[Edit Character] Not in database, checking fallback data for ID: ${editId}`);
+          
+          // Import fallback data dynamically
+          const { FALLBACK_CLASSES, FALLBACK_MONSTERS } = await import('../constants');
+          const fallbackData = editType === 'hero' ? FALLBACK_CLASSES : FALLBACK_MONSTERS;
+          
+          console.log(`[Edit Character] Fallback data loaded: ${fallbackData.length} ${editType}s`);
+          console.log(`[Edit Character] First few IDs:`, fallbackData.slice(0, 3).map(c => ({ _id: c._id, name: c.name })));
+          console.log(`[Edit Character] Looking for ID: ${editId}`);
+          
+          // Find in fallback data by _id
+          character = fallbackData.find((c: DnDClass) => c._id === editId) || null;
+          
+          if (character) {
+            console.log(`[Edit Character] Found ${editType} in fallback data: ${character.name}`);
+          } else {
+            console.log(`[Edit Character] NOT FOUND in fallback data. Available IDs:`, fallbackData.map(c => c._id));
+          }
         }
 
         if (character) {
@@ -238,7 +254,7 @@ function UnifiedCharacterCreatorContent() {
             }
           }
         } else {
-          setError(`Character "${editId}" not found`);
+          setError(`Character with ID "${editId}" not found in database or fallback data`);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load character');

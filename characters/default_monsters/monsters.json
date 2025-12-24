@@ -3,6 +3,7 @@
   "description": "Default D&D monsters with abilities",
   "monsters": [
     {
+      "_id": "fallback-monster-goblin",
       "name": "Goblin",
       "hitPoints": 7,
       "maxHitPoints": 7,
@@ -29,6 +30,7 @@
       "color": "bg-green-800"
     },
     {
+      "_id": "fallback-monster-orc",
       "name": "Orc",
       "hitPoints": 15,
       "maxHitPoints": 15,
@@ -55,6 +57,7 @@
       "color": "bg-gray-800"
     },
     {
+      "_id": "fallback-monster-dragon",
       "name": "Dragon",
       "hitPoints": 200,
       "maxHitPoints": 200,
@@ -89,6 +92,7 @@
       "color": "bg-red-800"
     },
     {
+      "_id": "fallback-monster-troll",
       "name": "Troll",
       "hitPoints": 84,
       "maxHitPoints": 84,
@@ -122,6 +126,7 @@
       "color": "bg-green-700"
     },
     {
+      "_id": "fallback-monster-ogre",
       "name": "Ogre",
       "hitPoints": 59,
       "maxHitPoints": 59,
@@ -148,6 +153,7 @@
       "color": "bg-gray-700"
     },
     {
+      "_id": "fallback-monster-kobold",
       "name": "Kobold",
       "hitPoints": 5,
       "maxHitPoints": 5,
@@ -174,6 +180,7 @@
       "color": "bg-yellow-800"
     },
     {
+      "_id": "fallback-monster-skeleton",
       "name": "Skeleton",
       "hitPoints": 13,
       "maxHitPoints": 13,
@@ -200,6 +207,7 @@
       "color": "bg-gray-600"
     },
     {
+      "_id": "fallback-monster-zombie",
       "name": "Zombie",
       "hitPoints": 22,
       "maxHitPoints": 22,
@@ -219,6 +227,7 @@
       "color": "bg-green-600"
     },
     {
+      "_id": "fallback-monster-vampire",
       "name": "Vampire",
       "hitPoints": 144,
       "maxHitPoints": 144,
@@ -252,6 +261,7 @@
       "color": "bg-red-900"
     },
     {
+      "_id": "fallback-monster-werewolf",
       "name": "Werewolf",
       "hitPoints": 58,
       "maxHitPoints": 58,
@@ -278,6 +288,7 @@
       "color": "bg-gray-800"
     },
     {
+      "_id": "fallback-monster-demon",
       "name": "Demon",
       "hitPoints": 200,
       "maxHitPoints": 200,
@@ -305,6 +316,7 @@
       "color": "bg-purple-900"
     },
     {
+      "_id": "fallback-monster-devil",
       "name": "Devil",
       "hitPoints": 200,
       "maxHitPoints": 200,
@@ -331,6 +343,7 @@
       "color": "bg-red-900"
     },
     {
+      "_id": "fallback-monster-beholder",
       "name": "Beholder",
       "hitPoints": 180,
       "maxHitPoints": 180,
@@ -357,6 +370,7 @@
       "color": "bg-purple-800"
     },
     {
+      "_id": "fallback-monster-mind-flayer",
       "name": "Mind Flayer",
       "hitPoints": 71,
       "maxHitPoints": 71,
@@ -384,6 +398,7 @@
       "color": "bg-indigo-900"
     },
     {
+      "_id": "fallback-monster-lich",
       "name": "Lich",
       "hitPoints": 135,
       "maxHitPoints": 135,
@@ -410,6 +425,7 @@
       "color": "bg-gray-800"
     },
     {
+      "_id": "fallback-monster-giant",
       "name": "Giant",
       "hitPoints": 126,
       "maxHitPoints": 126,
@@ -436,6 +452,7 @@
       "color": "bg-orange-800"
     },
     {
+      "_id": "fallback-monster-elemental",
       "name": "Elemental",
       "hitPoints": 90,
       "maxHitPoints": 90,
@@ -455,6 +472,7 @@
       "color": "bg-blue-800"
     },
     {
+      "_id": "fallback-monster-undead",
       "name": "Undead",
       "hitPoints": 45,
       "maxHitPoints": 45,
@@ -474,6 +492,7 @@
       "color": "bg-gray-700"
     },
     {
+      "_id": "fallback-monster-beast",
       "name": "Beast",
       "hitPoints": 34,
       "maxHitPoints": 34,
@@ -493,6 +512,7 @@
       "color": "bg-amber-800"
     },
     {
+      "_id": "fallback-monster-aberration",
       "name": "Aberration",
       "hitPoints": 68,
       "maxHitPoints": 68,
@@ -512,6 +532,7 @@
       "color": "bg-violet-900"
     },
     {
+      "_id": "fallback-monster-allosaurus",
       "name": "Allosaurus",
       "hitPoints": 51,
       "maxHitPoints": 51,
@@ -523,6 +544,7 @@
       "color": "bg-green-700"
     },
     {
+      "_id": "fallback-monster-anklyosaurus",
       "name": "Anklyosaurus",
       "hitPoints": 68,
       "maxHitPoints": 68,
@@ -534,6 +556,7 @@
       "color": "bg-amber-700"
     },
     {
+      "_id": "fallback-monster-bugbear-stalker",
       "name": "Bugbear Stalker",
       "hitPoints": 27,
       "maxHitPoints": 27,
@@ -545,6 +568,7 @@
       "color": "bg-gray-800"
     },
     {
+      "_id": "fallback-monster-goblin-boss",
       "name": "Goblin Boss",
       "hitPoints": 21,
       "maxHitPoints": 21,
@@ -556,6 +580,7 @@
       "color": "bg-green-900"
     },
     {
+      "_id": "fallback-monster-goblin-minion",
       "name": "Goblin Minion",
       "hitPoints": 7,
       "maxHitPoints": 7,
@@ -567,6 +592,7 @@
       "color": "bg-green-800"
     },
     {
+      "_id": "fallback-monster-hobgoblin-captain",
       "name": "Hobgoblin Captain",
       "hitPoints": 39,
       "maxHitPoints": 39,
@@ -578,6 +604,7 @@
       "color": "bg-orange-800"
     },
     {
+      "_id": "fallback-monster-pirate",
       "name": "Pirate",
       "hitPoints": 11,
       "maxHitPoints": 11,
@@ -589,6 +616,7 @@
       "color": "bg-amber-800"
     },
     {
+      "_id": "fallback-monster-pirate-captain",
       "name": "Pirate Captain",
       "hitPoints": 52,
       "maxHitPoints": 52,
@@ -600,6 +628,7 @@
       "color": "bg-amber-900"
     },
     {
+      "_id": "fallback-monster-pteradon",
       "name": "Pteradon",
       "hitPoints": 13,
       "maxHitPoints": 13,
@@ -611,6 +640,7 @@
       "color": "bg-gray-600"
     },
     {
+      "_id": "fallback-monster-sphinx-of-wonder",
       "name": "Sphinx of Wonder",
       "hitPoints": 136,
       "maxHitPoints": 136,
@@ -622,6 +652,7 @@
       "color": "bg-yellow-800"
     },
     {
+      "_id": "fallback-monster-swarm-of-crawling-claws",
       "name": "Swarm of Crawling Claws",
       "hitPoints": 36,
       "maxHitPoints": 36,
@@ -633,6 +664,7 @@
       "color": "bg-gray-700"
     },
     {
+      "_id": "fallback-monster-tough-boss",
       "name": "Tough Boss",
       "hitPoints": 100,
       "maxHitPoints": 100,
@@ -644,6 +676,7 @@
       "color": "bg-red-900"
     },
     {
+      "_id": "fallback-monster-troll-limb",
       "name": "Troll Limb",
       "hitPoints": 21,
       "maxHitPoints": 21,
@@ -655,6 +688,7 @@
       "color": "bg-green-700"
     },
     {
+      "_id": "fallback-monster-vampire-familiar",
       "name": "Vampire Familiar",
       "hitPoints": 10,
       "maxHitPoints": 10,
@@ -666,6 +700,7 @@
       "color": "bg-gray-900"
     },
     {
+      "_id": "fallback-monster-hezrou",
       "name": "Hezrou",
       "hitPoints": 136,
       "maxHitPoints": 136,
@@ -693,6 +728,7 @@
       "color": "bg-purple-900"
     },
     {
+      "_id": "fallback-monster-manes",
       "name": "Manes",
       "hitPoints": 9,
       "maxHitPoints": 9,
@@ -712,6 +748,7 @@
       "color": "bg-gray-700"
     },
     {
+      "_id": "fallback-monster-marilith",
       "name": "Marilith",
       "hitPoints": 189,
       "maxHitPoints": 189,
@@ -739,6 +776,7 @@
       "color": "bg-purple-800"
     },
     {
+      "_id": "fallback-monster-nalfeshnee",
       "name": "Nalfeshnee",
       "hitPoints": 184,
       "maxHitPoints": 184,
@@ -750,6 +788,7 @@
       "color": "bg-purple-900"
     },
     {
+      "_id": "fallback-monster-quasit",
       "name": "Quasit",
       "hitPoints": 7,
       "maxHitPoints": 7,
@@ -776,6 +815,7 @@
       "color": "bg-indigo-900"
     },
     {
+      "_id": "fallback-monster-shadow-demon",
       "name": "Shadow Demon",
       "hitPoints": 66,
       "maxHitPoints": 66,
@@ -795,6 +835,7 @@
       "color": "bg-gray-900"
     },
     {
+      "_id": "fallback-monster-vrock",
       "name": "Vrock",
       "hitPoints": 104,
       "maxHitPoints": 104,
@@ -822,6 +863,7 @@
       "color": "bg-purple-800"
     },
     {
+      "_id": "fallback-monster-yochlol",
       "name": "Yochlol",
       "hitPoints": 136,
       "maxHitPoints": 136,
@@ -848,6 +890,7 @@
       "color": "bg-violet-900"
     },
     {
+      "_id": "fallback-monster-barbed-devil",
       "name": "Barbed Devil",
       "hitPoints": 110,
       "maxHitPoints": 110,
@@ -875,6 +918,7 @@
       "color": "bg-red-900"
     },
     {
+      "_id": "fallback-monster-bearded-devil",
       "name": "Bearded Devil",
       "hitPoints": 52,
       "maxHitPoints": 52,
@@ -901,6 +945,7 @@
       "color": "bg-red-800"
     },
     {
+      "_id": "fallback-monster-bone-devil",
       "name": "Bone Devil",
       "hitPoints": 142,
       "maxHitPoints": 142,
@@ -929,6 +974,7 @@
       "color": "bg-gray-700"
     },
     {
+      "_id": "fallback-monster-chain-devil",
       "name": "Chain Devil",
       "hitPoints": 85,
       "maxHitPoints": 85,
@@ -949,6 +995,7 @@
       "color": "bg-gray-800"
     },
     {
+      "_id": "fallback-monster-erinyes",
       "name": "Erinyes",
       "hitPoints": 153,
       "maxHitPoints": 153,
@@ -976,6 +1023,7 @@
       "color": "bg-red-900"
     },
     {
+      "_id": "fallback-monster-dao",
       "name": "Dao",
       "hitPoints": 187,
       "maxHitPoints": 187,
@@ -1002,6 +1050,7 @@
       "color": "bg-orange-900"
     },
     {
+      "_id": "fallback-monster-horned-devil",
       "name": "Horned Devil",
       "hitPoints": 178,
       "maxHitPoints": 178,
@@ -1028,6 +1077,7 @@
       "color": "bg-red-900"
     },
     {
+      "_id": "fallback-monster-ice-devil",
       "name": "Ice Devil",
       "hitPoints": 180,
       "maxHitPoints": 180,
@@ -1055,6 +1105,7 @@
       "color": "bg-blue-700"
     },
     {
+      "_id": "fallback-monster-efreeti",
       "name": "Efreeti",
       "hitPoints": 200,
       "maxHitPoints": 200,
@@ -1081,6 +1132,7 @@
       "color": "bg-orange-800"
     },
     {
+      "_id": "fallback-monster-imp",
       "name": "Imp",
       "hitPoints": 10,
       "maxHitPoints": 10,
@@ -1101,6 +1153,7 @@
       "color": "bg-red-800"
     },
     {
+      "_id": "fallback-monster-marid",
       "name": "Marid",
       "hitPoints": 229,
       "maxHitPoints": 229,
@@ -1127,6 +1180,7 @@
       "color": "bg-blue-800"
     },
     {
+      "_id": "fallback-monster-lemure",
       "name": "Lemure",
       "hitPoints": 13,
       "maxHitPoints": 13,
@@ -1146,6 +1200,7 @@
       "color": "bg-gray-700"
     },
     {
+      "_id": "fallback-monster-swarm-of-lemures",
       "name": "Swarm of Lemures",
       "hitPoints": 45,
       "maxHitPoints": 45,
@@ -1157,6 +1212,7 @@
       "color": "bg-gray-700"
     },
     {
+      "_id": "fallback-monster-pit-fiend",
       "name": "Pit Fiend",
       "hitPoints": 300,
       "maxHitPoints": 300,
@@ -1191,6 +1247,7 @@
       "color": "bg-red-900"
     },
     {
+      "_id": "fallback-monster-white-dragon",
       "name": "White Dragon",
       "hitPoints": 200,
       "maxHitPoints": 200,
@@ -1225,6 +1282,7 @@
       "color": "bg-blue-200"
     },
     {
+      "_id": "fallback-monster-blob-of-annihilation",
       "name": "Blob of Annihilation",
       "hitPoints": 400,
       "maxHitPoints": 400,

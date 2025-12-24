@@ -1,12 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllMonsters, upsertMonster, upsertMonsters, monsterRecordToClass, deleteMonster } from '../../../lib/db/astra';
+import { getAllMonsters, getMonsterById, upsertMonster, upsertMonsters, monsterRecordToClass, deleteMonster } from '../../../lib/db/astra';
 import { deleteMonsterBundle } from '../../dnd/server/storage';
 import { DnDClass } from '../../dnd/types';
 
-// GET - Fetch all monsters
+// GET - Fetch all monsters or a specific monster by ID
 export async function GET(req: NextRequest) {
   try {
-    console.log('[API /monsters-db] GET request received - fetching monsters from database');
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+
+    // If ID is provided, fetch specific monster
+    if (id) {
+      console.log(`[API /monsters-db] GET request for monster ID: ${id}`);
+      const monsterRecord = await getMonsterById(id);
+      
+      if (!monsterRecord) {
+        return NextResponse.json(
+          { error: 'Monster not found' },
+          { status: 404 }
+        );
+      }
+      
+      const monster = monsterRecordToClass(monsterRecord);
+      console.log(`[API /monsters-db] Returning monster: ${monster.name}`);
+      return NextResponse.json({ monster });
+    }
+
+    // Otherwise, fetch all monsters
+    console.log('[API /monsters-db] GET request received - fetching all monsters from database');
     const monsters = await getAllMonsters();
     const classes = monsters.map(monsterRecordToClass);
     console.log(`[API /monsters-db] Returning ${classes.length} monsters`);

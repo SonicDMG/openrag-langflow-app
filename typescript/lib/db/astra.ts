@@ -163,6 +163,7 @@ function classToMonsterRecord(monster: DnDClass, searchContext?: string): Omit<M
 // Helper to convert HeroRecord to DnDClass
 function heroRecordToClass(record: HeroRecord): DnDClass {
   return {
+    _id: record._id, // Preserve database ID for reliable identification
     name: record.name,
     class: record.class,
     hitPoints: record.hitPoints,
@@ -181,6 +182,7 @@ function heroRecordToClass(record: HeroRecord): DnDClass {
 // Helper to convert MonsterRecord to DnDClass
 function monsterRecordToClass(record: MonsterRecord): DnDClass {
   return {
+    _id: record._id, // Preserve database ID for reliable identification
     name: record.name,
     class: record.class,
     hitPoints: record.hitPoints,
@@ -209,6 +211,21 @@ export async function getAllHeroes(): Promise<HeroRecord[]> {
     return records;
   } catch (error) {
     console.error("getAllHeroes - Error:", error);
+    throw error;
+  }
+}
+
+export async function getHeroById(id: string): Promise<HeroRecord | null> {
+  try {
+    console.log(`getHeroById - Finding hero with ID: ${id}`);
+    
+    const collection = await getHeroesCollection();
+    const record = await collection.findOne({ _id: id });
+    console.log(`getHeroById - Found record:`, record ? 'yes' : 'no');
+
+    return record || null;
+  } catch (error) {
+    console.error("getHeroById - Error:", error);
     throw error;
   }
 }
@@ -304,6 +321,21 @@ export async function getAllMonsters(): Promise<MonsterRecord[]> {
     return records;
   } catch (error) {
     console.error("getAllMonsters - Error:", error);
+    throw error;
+  }
+}
+
+export async function getMonsterById(id: string): Promise<MonsterRecord | null> {
+  try {
+    console.log(`getMonsterById - Finding monster with ID: ${id}`);
+    
+    const collection = await getMonstersCollection();
+    const record = await collection.findOne({ _id: id });
+    console.log(`getMonsterById - Found record:`, record ? 'yes' : 'no');
+
+    return record || null;
+  } catch (error) {
+    console.error("getMonsterById - Error:", error);
     throw error;
   }
 }

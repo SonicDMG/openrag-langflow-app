@@ -1,11 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllHeroes, upsertHero, upsertHeroes, heroRecordToClass, deleteHero } from '../../../lib/db/astra';
+import { getAllHeroes, getHeroById, upsertHero, upsertHeroes, heroRecordToClass, deleteHero } from '../../../lib/db/astra';
 import { DnDClass } from '../../dnd/types';
 
-// GET - Fetch all heroes
+// GET - Fetch all heroes or a specific hero by ID
 export async function GET(req: NextRequest) {
   try {
-    console.log('[API /heroes] GET request received - fetching heroes from database');
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+
+    // If ID is provided, fetch specific hero
+    if (id) {
+      console.log(`[API /heroes] GET request for hero ID: ${id}`);
+      const heroRecord = await getHeroById(id);
+      
+      if (!heroRecord) {
+        return NextResponse.json(
+          { error: 'Hero not found' },
+          { status: 404 }
+        );
+      }
+      
+      const hero = heroRecordToClass(heroRecord);
+      console.log(`[API /heroes] Returning hero: ${hero.name}`);
+      return NextResponse.json({ hero });
+    }
+
+    // Otherwise, fetch all heroes
+    console.log('[API /heroes] GET request received - fetching all heroes from database');
     const heroes = await getAllHeroes();
     const classes = heroes.map(heroRecordToClass);
     console.log(`[API /heroes] Returning ${classes.length} heroes`);

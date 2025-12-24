@@ -21,19 +21,60 @@ interface CharacterCardZoomProps {
 }
 
 // Helper function to determine character type and classification
-// No longer uses FALLBACK_* for type detection - relies on editType prop and _type marker
+// Infers type from editType prop, _type marker, or _id prefix
 function determineCharacterType(playerClass: DnDClass, editType?: 'hero' | 'monster') {
-  // Use provided editType, or check _type marker, or default to 'hero'
-  const editTypeResolved = editType ||
-    ((playerClass as any)._type === 'monster' ? 'monster' : 'hero');
+  // Strategy 1: Use provided editType
+  if (editType) {
+    return {
+      editType,
+      isDefaultHero: false,
+      isDefaultMonster: false,
+      isCustomHero: editType === 'hero',
+      isCustomMonster: editType === 'monster',
+    };
+  }
   
+  // Strategy 2: Check _type marker
+  if ((playerClass as any)._type === 'monster') {
+    return {
+      editType: 'monster' as const,
+      isDefaultHero: false,
+      isDefaultMonster: false,
+      isCustomHero: false,
+      isCustomMonster: true,
+    };
+  }
+  
+  // Strategy 3: Infer from _id prefix (for fallback data)
+  const characterId = (playerClass as any)._id;
+  if (characterId && typeof characterId === 'string') {
+    if (characterId.startsWith('fallback-monster-')) {
+      return {
+        editType: 'monster' as const,
+        isDefaultHero: false,
+        isDefaultMonster: false,
+        isCustomHero: false,
+        isCustomMonster: true,
+      };
+    }
+    if (characterId.startsWith('fallback-hero-')) {
+      return {
+        editType: 'hero' as const,
+        isDefaultHero: false,
+        isDefaultMonster: false,
+        isCustomHero: true,
+        isCustomMonster: false,
+      };
+    }
+  }
+  
+  // Strategy 4: Default to hero
   return {
-    editType: editTypeResolved,
-    // All characters are treated the same - no distinction between "default" and "custom"
+    editType: 'hero' as const,
     isDefaultHero: false,
     isDefaultMonster: false,
-    isCustomHero: editTypeResolved === 'hero',
-    isCustomMonster: editTypeResolved === 'monster',
+    isCustomHero: true,
+    isCustomMonster: false,
   };
 }
 
@@ -210,9 +251,16 @@ export function CharacterCardZoom({
   if (!isOpen) return null;
 
   const handleEdit = () => {
-    // Use characterName prop which contains the actual character name (e.g., "Sylvan the Hunter")
-    // rather than playerClass.name which might be just the class name (e.g., "Ranger")
-    router.push(`/dnd/unified-character-creator?id=${encodeURIComponent(characterName)}&type=${determinedEditType}`);
+    // All characters now have _id (both database and fallback)
+    const characterId = (playerClass as any)._id;
+    
+    if (!characterId) {
+      console.error(`[CharacterCardZoom] Character missing _id: ${characterName}`);
+      return;
+    }
+    
+    console.log(`[CharacterCardZoom] Editing character by ID: ${characterId}`);
+    router.push(`/dnd/unified-character-creator?id=${encodeURIComponent(characterId)}&type=${determinedEditType}`);
   };
 
   // Allow delete for all characters to maintain consistent button spacing

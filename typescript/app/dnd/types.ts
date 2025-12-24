@@ -20,6 +20,7 @@ export type Ability = AttackAbility | HealingAbility;
 
 // D&D Class definitions
 export interface DnDClass {
+  _id?: string; // Database ID (optional - only present for database records, not fallback data)
   name: string;
   class?: string; // Character class (e.g., "Fighter", "Wizard", "Rogue") - separate from name
   hitPoints: number;
