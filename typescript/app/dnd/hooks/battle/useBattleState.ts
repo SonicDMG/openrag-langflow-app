@@ -29,7 +29,7 @@ export function useBattleState() {
   const [isLoadingClassDetails, setIsLoadingClassDetails] = useState(false);
 
   // Opponent selection
-  const [opponentType, setOpponentType] = useState<'class' | 'monster'>('class');
+  const [opponentType, setOpponentType] = useState<'class' | 'monster'>('monster');
 
   // Refs for tracking
   const previousTurnRef = useRef<'player1' | 'player2' | 'support1' | 'support2' | null>(null);

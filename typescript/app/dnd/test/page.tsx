@@ -138,7 +138,7 @@ export default function DnDTestPage() {
   } = useProjectileEffects();
   
   // Type selection for player 2 only (player 1 is always a class)
-  const [player2Type, setPlayer2Type] = useState<'class' | 'monster'>('class');
+  const [player2Type, setPlayer2Type] = useState<'class' | 'monster'>('monster');
   
   // Scroll ref for monster selection
   const monsterScrollRef = useRef<HTMLDivElement>(null);
