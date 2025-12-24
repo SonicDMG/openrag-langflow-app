@@ -260,6 +260,7 @@ export function OpponentSelector({
             onSelect={onSelectClass}
             createdMonsters={createdMonsters}
             selectionSyncTrigger={selectionSyncTrigger}
+            showAddHeroCard={false}
           />
         </div>
       )}

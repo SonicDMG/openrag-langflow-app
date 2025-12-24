@@ -17,6 +17,7 @@ interface ClassSelectionProps {
   onSelect: (dndClass: DnDClass) => void;
   createdMonsters?: Array<DnDClass & { monsterId: string; imageUrl: string }>;
   selectionSyncTrigger?: number;
+  showAddHeroCard?: boolean;
 }
 
 /**
@@ -66,7 +67,7 @@ interface ClassSelectionProps {
  * @see useMonsterAssociation - Monster lookup hook
  * @see useZoomModal - Zoom state management hook
  */
-export function ClassSelection({ title, availableClasses, selectedClass, onSelect, createdMonsters = [], selectionSyncTrigger = 0 }: ClassSelectionProps) {
+export function ClassSelection({ title, availableClasses, selectedClass, onSelect, createdMonsters = [], selectionSyncTrigger = 0, showAddHeroCard = true }: ClassSelectionProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   // Use custom hooks for cleaner state management
@@ -106,15 +107,17 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
             maxWidth: '100%',
           }}
         >
-          {/* Always show "Add your Hero" card at the beginning */}
-          <div
-            className="flex-shrink-0 relative group"
-            style={{
-              padding: '4px',
-            }}
-          >
-            <AddHeroCard size="compact" />
-          </div>
+          {/* Conditionally show "Add your Hero" card at the beginning */}
+          {showAddHeroCard && (
+            <div
+              className="flex-shrink-0 relative group"
+              style={{
+                padding: '4px',
+              }}
+            >
+              <AddHeroCard size="compact" />
+            </div>
+          )}
           
           {/* Show "Load Default Heroes" card if no heroes exist */}
           {availableClasses.length === 0 && (
