@@ -847,6 +847,7 @@ export default function DnDTestPage() {
                   selectedClass={player1Class}
                   onSelect={handlePlayer1Select}
                   createdMonsters={createdMonsters}
+                  showAddHeroCard={false}
                 />
               </div>
 
@@ -895,6 +896,7 @@ export default function DnDTestPage() {
                     selectedClass={player2Class}
                     onSelect={handlePlayer2Select}
                     createdMonsters={createdMonsters}
+                    showAddHeroCard={false}
                   />
                 ) : (
                   <div>
