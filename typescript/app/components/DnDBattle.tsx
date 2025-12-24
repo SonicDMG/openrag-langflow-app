@@ -163,29 +163,23 @@ export default function DnDBattle() {
   const [battleEndingImageUrl, setBattleEndingImageUrl] = useState<string | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
-  // Helper to find associated monster for a class/monster type
+  // Helper to find associated image for a character
+  // Simplified: now only one image per character (auto-cleanup on creation)
   const findAssociatedMonster = useCallback((className: string): (DnDClass & { monsterId: string; imageUrl: string }) | null => {
-    console.log('[findAssociatedMonster] Searching for:', className, 'in', createdMonsters.length, 'monsters');
-    console.log('[findAssociatedMonster] Sample monsters:', createdMonsters.slice(0, 3).map(m => ({ name: m.name, klass: (m as any).klass, monsterId: m.monsterId })));
-    const associated = createdMonsters
-      .filter(m => {
-        // For created monsters, match by klass field; for regular monsters, match by name
-        const monsterKlass = (m as any).klass;
-        const matches = monsterKlass ? monsterKlass === className : m.name === className;
-        if (matches) {
-          console.log('[findAssociatedMonster] Found match:', { name: m.name, klass: monsterKlass, monsterId: m.monsterId, imagePosition: (m as any).imagePosition });
-        }
-        return matches;
-      })
-      .sort((a, b) => {
-        const aTime = (a as any).lastAssociatedAt || (a as any).createdAt || '';
-        const bTime = (b as any).lastAssociatedAt || (b as any).createdAt || '';
-        if (aTime && bTime) {
-          return new Date(bTime).getTime() - new Date(aTime).getTime();
-        }
-        return b.monsterId.localeCompare(a.monsterId);
-      });
-    return associated.length > 0 ? associated[0] : null;
+    console.log('[findAssociatedMonster] Searching for:', className, 'in', createdMonsters.length, 'images');
+    
+    // Find the single image associated with this character
+    const associated = createdMonsters.find(m => {
+      // For created monsters, match by klass field; for regular monsters, match by name
+      const monsterKlass = (m as any).klass;
+      const matches = monsterKlass ? monsterKlass === className : m.name === className;
+      if (matches) {
+        console.log('[findAssociatedMonster] Found image:', { name: m.name, klass: monsterKlass, monsterId: m.monsterId, imagePosition: (m as any).imagePosition });
+      }
+      return matches;
+    });
+    
+    return associated || null;
   }, [createdMonsters]);
 
   // Update monster IDs when createdMonsters loads or changes

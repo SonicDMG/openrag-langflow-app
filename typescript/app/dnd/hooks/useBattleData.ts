@@ -2,49 +2,16 @@ import { useState, useEffect } from 'react';
 import { DnDClass } from '../types';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../constants';
 import { loadHeroesFromDatabase, loadMonstersFromDatabase } from '../utils/dataLoader';
-import { CLASS_NAME_LISTS } from '../utils/names';
 
 /**
- * Check if a custom hero name matches any character name in a fallback class's name list.
- * This helps filter out fallback classes when a custom hero with a matching name exists.
+ * Simplified character loading with offline-first approach:
+ * 1. Try database (network call)
+ * 2. If network fails → use localStorage cache
+ * 3. If no cache → use FALLBACK_CLASSES/MONSTERS (emergency only)
+ * 4. Save successful database loads to localStorage
+ *
+ * No more complex duplicate filtering - all characters are treated equally.
  */
-function isCustomHeroNameInClassList(customHeroName: string, className: string): boolean {
-  const nameList = CLASS_NAME_LISTS[className] || [];
-  return nameList.some(name => name.toLowerCase() === customHeroName.toLowerCase());
-}
-
-/**
- * Filter out fallback classes that have a custom hero with a matching character name.
- * This prevents duplicate cards (e.g., "Sylvan the Hunter" custom hero and "Ranger" fallback class).
- */
-function filterFallbackClassesWithCustomHeroes(heroes: DnDClass[]): DnDClass[] {
-  // Identify custom heroes (not in FALLBACK_CLASSES)
-  const customHeroes = heroes.filter(hero => 
-    !FALLBACK_CLASSES.some(fc => fc.name === hero.name)
-  );
-  
-  // If no custom heroes, return all heroes as-is
-  if (customHeroes.length === 0) {
-    return heroes;
-  }
-  
-  // Filter out fallback classes that have a custom hero with a matching name
-  return heroes.filter(hero => {
-    // Keep all custom heroes
-    const isCustomHero = !FALLBACK_CLASSES.some(fc => fc.name === hero.name);
-    if (isCustomHero) {
-      return true;
-    }
-    
-    // For fallback classes, check if any custom hero name matches this class's name list
-    const hasMatchingCustomHero = customHeroes.some(customHero => 
-      isCustomHeroNameInClassList(customHero.name, hero.name)
-    );
-    
-    // Exclude fallback class if there's a matching custom hero
-    return !hasMatchingCustomHero;
-  });
-}
 
 export function useBattleData() {
   // Start with empty arrays - no longer auto-load fallbacks
@@ -112,11 +79,17 @@ export function useBattleData() {
       try {
         const heroes = await loadHeroesFromDatabase();
         console.log(`[useBattleData] Loaded ${heroes.length} heroes from database (background refresh)`);
-        // Always update with database results, even if empty (no more fallback to FALLBACK_CLASSES)
-        // Filter out fallback classes that have matching custom heroes
-        const filteredHeroes = filterFallbackClassesWithCustomHeroes(heroes);
-        console.log(`[useBattleData] Filtered to ${filteredHeroes.length} heroes (removed ${heroes.length - filteredHeroes.length} fallback classes with matching custom heroes)`);
-        setAvailableClasses(filteredHeroes);
+        
+        // Use database results if available, otherwise fall back to FALLBACK_CLASSES
+        if (heroes.length > 0) {
+          setAvailableClasses(heroes);
+          // Cache successful load for offline use
+          localStorage.setItem('dnd_loaded_classes', JSON.stringify(heroes));
+        } else {
+          // No heroes in database - use FALLBACK_CLASSES as emergency fallback
+          console.log('[useBattleData] No heroes in database, using FALLBACK_CLASSES');
+          setAvailableClasses(FALLBACK_CLASSES);
+        }
         setClassesLoaded(true);
       } catch (error) {
         console.error('Failed to load classes:', error);
@@ -129,14 +102,25 @@ export function useBattleData() {
       try {
         const monsters = await loadMonstersFromDatabase();
         console.log(`[useBattleData] Loaded ${monsters.length} monsters from database (background refresh)`);
+        
+        // Use database results if available, otherwise fall back to FALLBACK_MONSTERS
         if (monsters.length > 0) {
           setAvailableMonsters(monsters);
-          setMonstersLoaded(true);
+          // Cache successful load for offline use
+          localStorage.setItem('dnd_loaded_monsters', JSON.stringify(monsters));
         } else {
-          console.log('[useBattleData] No monsters found in database, keeping cached/fallback monsters');
+          // No monsters in database - use FALLBACK_MONSTERS as emergency fallback
+          console.log('[useBattleData] No monsters in database, using FALLBACK_MONSTERS');
+          setAvailableMonsters(FALLBACK_MONSTERS);
         }
+        setMonstersLoaded(true);
       } catch (error) {
         console.error('Failed to load monsters:', error);
+        // On error, use FALLBACK_MONSTERS if we don't have cached data
+        if (availableMonsters.length === 0) {
+          console.log('[useBattleData] Error loading monsters, using FALLBACK_MONSTERS');
+          setAvailableMonsters(FALLBACK_MONSTERS);
+        }
       }
     };
 

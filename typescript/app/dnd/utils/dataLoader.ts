@@ -63,14 +63,20 @@ export async function loadMonstersFromDatabase(): Promise<DnDClass[]> {
       const data = await response.json();
       console.log(`[dataLoader] Received ${data.monsters?.length || 0} monsters from API`);
       if (data.monsters && data.monsters.length > 0) {
+        // Add _type marker to indicate these came from monsters database
+        const monstersWithType = data.monsters.map((m: DnDClass) => ({
+          ...m,
+          _type: 'monster' as const,
+        }));
+        
         // Successfully loaded from database - update localStorage
         try {
-          localStorage.setItem(MONSTERS_STORAGE_KEY, JSON.stringify(data.monsters));
-          console.log(`[dataLoader] Saved ${data.monsters.length} monsters to localStorage`);
+          localStorage.setItem(MONSTERS_STORAGE_KEY, JSON.stringify(monstersWithType));
+          console.log(`[dataLoader] Saved ${monstersWithType.length} monsters to localStorage`);
         } catch (storageError) {
           console.warn('Failed to save monsters to localStorage:', storageError);
         }
-        return data.monsters;
+        return monstersWithType;
       } else {
         console.log('[dataLoader] No monsters in API response');
       }

@@ -309,6 +309,32 @@ function UnifiedCharacterCreatorContent() {
 
   const handleMonsterCreated = useCallback(async (monsterId: string, klass: string, imageUrl: string) => {
     try {
+      // First, delete any old images associated with this character
+      if (formData.name) {
+        const response = await fetch('/api/monsters');
+        if (response.ok) {
+          const data = await response.json();
+          const oldImages = data.monsters.filter(
+            (m: any) => m.klass === formData.name && m.monsterId !== monsterId
+          );
+          
+          // Delete old images
+          for (const oldImage of oldImages) {
+            try {
+              await fetch('/api/monsters', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ monsterId: oldImage.monsterId }),
+              });
+              console.log(`Deleted old image ${oldImage.monsterId} for character ${formData.name}`);
+            } catch (err) {
+              console.warn(`Failed to delete old image ${oldImage.monsterId}:`, err);
+            }
+          }
+        }
+      }
+      
+      // Now load the new monster data
       const response = await fetch('/api/monsters');
       if (response.ok) {
         const data = await response.json();
@@ -338,7 +364,10 @@ function UnifiedCharacterCreatorContent() {
         prompt: '',
       });
     }
-  }, []);
+    
+    // Reload all monsters to update the list
+    await loadAllMonsters();
+  }, [formData.name, loadAllMonsters]);
 
   const validateCharacterDetails = (): boolean => {
     if (!formData.name.trim()) {
@@ -681,7 +710,7 @@ function CharacterDetailsTab({
           {/* Character Type Selection */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-amber-100 mb-2">
-              Character Type
+              Character Type <span className="text-red-400">*</span>
             </label>
             <div className="flex gap-4">
               <label className="flex items-center cursor-pointer">
@@ -707,6 +736,9 @@ function CharacterDetailsTab({
                 <span className="text-amber-100">Monster</span>
               </label>
             </div>
+            <p className="text-xs text-amber-300 mt-1">
+              <strong>Important:</strong> Select "Monster" if you're creating an enemy/creature. This determines where the character is saved and how it appears in battles.
+            </p>
           </div>
 
           {/* Description */}
@@ -1006,18 +1038,6 @@ function CharacterImageTab({
   error,
   success,
 }: CharacterImageTabProps) {
-  const handleSelectExistingImage = (monsterId: string) => {
-    const monster = allCreatedMonsters.find(m => m.monsterId === monsterId);
-    if (monster) {
-      setImageData({
-        monsterId: monster.monsterId,
-        imageUrl: monster.imageUrl,
-        imagePosition: monster.imagePosition || { offsetX: 50, offsetY: 50 },
-        prompt: monster.prompt || '',
-      });
-    }
-  };
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       {/* Image Tools Section */}
@@ -1034,34 +1054,10 @@ function CharacterImageTab({
             <p className="text-xs">
               • Your character description has been pre-filled below<br/>
               • The Class/Type dropdown is optional - you can leave it blank or select a similar class for reference<br/>
-              • The image will be automatically associated with "{characterName}" when you save
+              • The image will be automatically associated with "{characterName}" when you save<br/>
+              • Creating a new image will replace any existing image for this character
             </p>
           </div>
-
-          {/* Select Existing Image */}
-          {allCreatedMonsters.length > 0 && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-amber-100 mb-2">
-                Or Select Existing Image
-              </label>
-              <select
-                value={imageData.monsterId || ''}
-                onChange={(e) => handleSelectExistingImage(e.target.value)}
-                className="w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100"
-                disabled={isLoadingMonsters}
-              >
-                <option value="">-- Select an existing image --</option>
-                {allCreatedMonsters.map((monster) => (
-                  <option key={monster.monsterId} value={monster.monsterId}>
-                    {monster.klass || 'Unassociated'} ({monster.monsterId.substring(0, 8)}...)
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-amber-300 mt-1">
-                Choose from previously generated images
-              </p>
-            </div>
-          )}
 
           <MonsterCreator
             onMonsterCreated={handleMonsterCreated}

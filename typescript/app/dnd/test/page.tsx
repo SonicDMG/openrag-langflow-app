@@ -147,22 +147,15 @@ export default function DnDTestPage() {
   const [customHeroes, setCustomHeroes] = useState<DnDClass[]>([]);
   const [customMonsters, setCustomMonsters] = useState<DnDClass[]>([]);
   
-  // Helper to find associated monster for a class/monster type
+  // Helper to find associated image for a character
+  // Simplified: now only one image per character (auto-cleanup on creation)
   const findAssociatedMonster = useCallback((className: string): (DnDClass & { monsterId: string; imageUrl: string; imagePosition?: { offsetX: number; offsetY: number } }) | null => {
-    const associated = createdMonsters
-      .filter(m => {
-        const monsterKlass = (m as any).klass;
-        return monsterKlass ? monsterKlass === className : m.name === className;
-      })
-      .sort((a, b) => {
-        const aTime = (a as any).lastAssociatedAt || (a as any).createdAt || '';
-        const bTime = (b as any).lastAssociatedAt || (b as any).createdAt || '';
-        if (aTime && bTime) {
-          return new Date(bTime).getTime() - new Date(aTime).getTime();
-        }
-        return b.monsterId.localeCompare(a.monsterId);
-      });
-    return associated.length > 0 ? associated[0] : null;
+    // Find the single image associated with this character
+    const associated = createdMonsters.find(m => {
+      const monsterKlass = (m as any).klass;
+      return monsterKlass ? monsterKlass === className : m.name === className;
+    });
+    return associated || null;
   }, [createdMonsters]);
 
   // Enhanced setPlayerClassWithMonster that includes findAssociatedMonster

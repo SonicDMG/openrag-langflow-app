@@ -43,7 +43,7 @@ export function getCharacterMetadata(
   ) || null;
   
   // Determine edit type
-  const editType = determineEditType(isCreatedMonster, dndClass.name);
+  const editType = determineEditType(isCreatedMonster, dndClass);
   
   return {
     isCreatedMonster,
@@ -56,21 +56,26 @@ export function getCharacterMetadata(
 
 /**
  * Determine whether a character should be edited as a hero or monster.
- * 
+ *
  * @param isCreatedMonster - Whether this is a created monster
- * @param className - The class/monster name
+ * @param dndClass - The character class object
  * @returns Edit type ('hero' or 'monster')
  */
 function determineEditType(
   isCreatedMonster: boolean,
-  className: string
+  dndClass: DnDClass
 ): 'hero' | 'monster' {
   if (isCreatedMonster) {
     return 'monster';
   }
   
+  // Check if it has _type marker from database load
+  if ((dndClass as any)._type === 'monster') {
+    return 'monster';
+  }
+  
   // Check if it's in FALLBACK_MONSTERS to determine if it's a default monster
-  const isDefaultMonster = FALLBACK_MONSTERS.some(fm => fm.name === className);
+  const isDefaultMonster = FALLBACK_MONSTERS.some(fm => fm.name === dndClass.name);
   return isDefaultMonster ? 'monster' : 'hero';
 }
 
