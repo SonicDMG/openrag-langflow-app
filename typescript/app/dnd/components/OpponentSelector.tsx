@@ -9,7 +9,7 @@ import { SelectableClassCard } from './SelectableClassCard';
 import { ScrollButton } from './ScrollButton';
 import { OpponentHeader } from './OpponentHeader';
 import { OpponentTypeToggle } from './OpponentTypeToggle';
-import { useZoomModal } from './hooks/useZoomModal';
+import { useZoomModal } from '../hooks/ui/useZoomModal';
 
 type OpponentSelectorProps = {
   opponentType: 'class' | 'monster';

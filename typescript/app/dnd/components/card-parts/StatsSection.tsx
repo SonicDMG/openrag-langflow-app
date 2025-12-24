@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { DnDClass } from '../../types';
 import { CARD_THEME } from '../cardTheme';
-import { CardSizing } from '../hooks/useCardSizing';
+import { CardSizing } from '../../hooks/ui/useCardSizing';
 
 interface StatsSectionProps {
   playerClass: DnDClass;

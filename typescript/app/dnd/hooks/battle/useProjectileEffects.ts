@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { ProjectileType } from '../utils/battle';
+import { ProjectileType } from '../../utils/battle';
 
 export type ProjectileData = {
   id: string;

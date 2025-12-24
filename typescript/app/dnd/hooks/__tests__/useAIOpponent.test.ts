@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
-import { useAIOpponent, AIOpponentCallbacks } from '../useAIOpponent';
+import { useAIOpponent, AIOpponentCallbacks } from '../battle/useAIOpponent';
 import { DnDClass, Ability, AttackAbility, HealingAbility } from '../../types';
 
 /**

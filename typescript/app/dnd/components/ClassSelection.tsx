@@ -7,8 +7,8 @@ import { AddHeroCard } from './AddHeroCard';
 import { LoadDefaultHeroesCard } from './LoadDefaultHeroesCard';
 import { ScrollButton } from './ScrollButton';
 import { SelectableClassCard } from './SelectableClassCard';
-import { useMonsterAssociation } from './hooks/useMonsterAssociation';
-import { useZoomModal } from './hooks/useZoomModal';
+import { useMonsterAssociation } from '../hooks/ui/useMonsterAssociation';
+import { useZoomModal } from '../hooks/ui/useZoomModal';
 
 interface ClassSelectionProps {
   title: string;

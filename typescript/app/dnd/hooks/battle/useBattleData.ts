@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { DnDClass } from '../types';
-import { FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../constants';
-import { loadHeroesFromDatabase, loadMonstersFromDatabase } from '../utils/dataLoader';
+import { DnDClass } from '../../types';
+import { FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../../constants';
+import { loadHeroesFromDatabase, loadMonstersFromDatabase } from '../../utils/dataLoader';
 
 /**
  * Simplified character loading with offline-first approach:

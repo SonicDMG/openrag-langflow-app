@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
-import { DnDClass, BattleLog } from '../types';
-import { getBattleNarrative } from '../services/apiService';
+import { DnDClass, BattleLog } from '../../types';
+import { getBattleNarrative } from '../../services/apiService';
 
 export type QueuedNarrativeEvent = {
   eventDescription: string;

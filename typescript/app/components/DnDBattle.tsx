@@ -13,13 +13,13 @@ import { getCharacterName } from '../dnd/utils/names';
 import { getOpponent } from '../dnd/utils/battle';
 
 // Hooks
-import { useAIOpponent } from '../dnd/hooks/useAIOpponent';
-import { useBattleData } from '../dnd/hooks/useBattleData';
-import { useBattleState } from '../dnd/hooks/useBattleState';
-import { useBattleEffects } from '../dnd/hooks/useBattleEffects';
-import { useProjectileEffects } from '../dnd/hooks/useProjectileEffects';
-import { useBattleNarrative } from '../dnd/hooks/useBattleNarrative';
-import { useBattleActions } from '../dnd/hooks/useBattleActions';
+import { useAIOpponent } from '../dnd/hooks/battle/useAIOpponent';
+import { useBattleData } from '../dnd/hooks/battle/useBattleData';
+import { useBattleState } from '../dnd/hooks/battle/useBattleState';
+import { useBattleEffects } from '../dnd/hooks/battle/useBattleEffects';
+import { useProjectileEffects } from '../dnd/hooks/battle/useProjectileEffects';
+import { useBattleNarrative } from '../dnd/hooks/battle/useBattleNarrative';
+import { useBattleActions } from '../dnd/hooks/battle/useBattleActions';
 
 // Services
 import { getBattleSummary, generateBattleEndingImage } from '../dnd/services/apiService';

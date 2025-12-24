@@ -1,17 +1,17 @@
 import { useCallback } from 'react';
-import { DnDClass, Ability, AttackAbility } from '../types';
-import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../utils/dice';
-import { 
-  createHitVisualEffects, 
-  createMissVisualEffects, 
+import { DnDClass, Ability, AttackAbility } from '../../types';
+import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../../utils/dice';
+import {
+  createHitVisualEffects,
+  createMissVisualEffects,
   createHealingVisualEffects,
   getOpponent,
   buildDamageDiceArray,
   getProjectileType,
   PendingVisualEffect,
   ProjectileType
-} from '../utils/battle';
-import { FloatingNumberType } from '../components/FloatingNumber';
+} from '../../utils/battle';
+import { FloatingNumberType } from '../../components/FloatingNumber';
 
 type BattleActionsDependencies = {
   // State

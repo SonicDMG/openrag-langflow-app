@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { DnDClass } from '../../types';
-import { CardSizing } from '../hooks/useCardSizing';
+import { CardSizing } from '../../hooks/ui/useCardSizing';
 import { CARD_THEME } from '../cardTheme';
 import { buildAttackTooltip } from '../utils/tooltipUtils';
 

@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { CardSizing } from '../hooks/useCardSizing';
+import { CardSizing } from '../../hooks/ui/useCardSizing';
 
 interface CardHeaderProps {
   isDefault?: boolean;

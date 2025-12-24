@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { DnDClass, Ability } from '../types';
+import { DnDClass, Ability } from '../../types';
 
 export interface AIOpponentCallbacks {
   onAttack: () => void;

@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
-import { useBattleActions } from '../useBattleActions';
+import { useBattleActions } from '../battle/useBattleActions';
 import { DnDClass } from '../../types';
 
 /**

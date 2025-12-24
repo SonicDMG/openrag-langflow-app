@@ -4,7 +4,7 @@ import { DnDClass } from '../types';
 import { CharacterCard } from './CharacterCard';
 import { getCharacterMetadata } from './utils/characterMetadata';
 import { getCharacterImageUrl } from './utils/imageUtils';
-import { ZoomCardData } from './hooks/useZoomModal';
+import { ZoomCardData } from '../hooks/ui/useZoomModal';
 
 type CreatedMonster = DnDClass & { monsterId: string; imageUrl: string };
 

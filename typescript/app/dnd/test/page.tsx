@@ -9,17 +9,17 @@ import { createHitVisualEffects, createMissVisualEffects, createHealingVisualEff
 import { FloatingNumber, FloatingNumberType } from '../components/FloatingNumber';
 import { CharacterCard } from '../components/CharacterCard';
 import { ClassSelection } from '../components/ClassSelection';
-import { useAIOpponent } from '../hooks/useAIOpponent';
+import { useAIOpponent } from '../hooks/battle/useAIOpponent';
 import { PageHeader } from '../components/PageHeader';
 import { LandscapePrompt } from '../components/LandscapePrompt';
 import { ProjectileEffect } from '../components/ProjectileEffect';
 
 // Hooks
-import { useBattleData } from '../hooks/useBattleData';
-import { useBattleState } from '../hooks/useBattleState';
-import { useBattleEffects } from '../hooks/useBattleEffects';
-import { useProjectileEffects } from '../hooks/useProjectileEffects';
-import { useBattleActions } from '../hooks/useBattleActions';
+import { useBattleData } from '../hooks/battle/useBattleData';
+import { useBattleState } from '../hooks/battle/useBattleState';
+import { useBattleEffects } from '../hooks/battle/useBattleEffects';
+import { useProjectileEffects } from '../hooks/battle/useProjectileEffects';
+import { useBattleActions } from '../hooks/battle/useBattleActions';
 
 // Test utilities and constants
 import { SUPPORT_HERO_HP_THRESHOLD, SUPPORT_HERO_AI_DELAY } from './constants';

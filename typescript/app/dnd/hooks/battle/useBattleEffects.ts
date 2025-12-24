@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
-import { PendingVisualEffect, ProjectileType } from '../utils/battle';
-import { FloatingNumberType } from '../components/FloatingNumber';
+import { PendingVisualEffect, ProjectileType } from '../../utils/battle';
+import { FloatingNumberType } from '../../components/FloatingNumber';
 
 export type FloatingNumberData = {
   id: string;
