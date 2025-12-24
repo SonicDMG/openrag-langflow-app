@@ -42,8 +42,14 @@ export function SelectableClassCard({
   const { isCreatedMonster, lookupName, displayName, editType, createdMonsterMatch } = metadata;
   
   // Find the associated monster for image display
-  const associatedMonster = findAssociatedMonster(lookupName);
+  // Try character name first (for custom images), then fall back to class name (for default images)
+  let associatedMonster = findAssociatedMonster(displayName);
+  if (!associatedMonster && displayName !== dndClass.name) {
+    // If no image found with character name, try class name as fallback
+    associatedMonster = findAssociatedMonster(dndClass.name);
+  }
   const monsterImageUrl = getCharacterImageUrl(associatedMonster?.monsterId);
+  const imagePosition = (associatedMonster as any)?.imagePosition;
   
   const handleZoom = () => {
     // Priority order for getting prompt/setting:
@@ -88,6 +94,7 @@ export function SelectableClassCard({
           playerClass={{ ...dndClass, hitPoints: dndClass.maxHitPoints }}
           characterName={displayName}
           monsterImageUrl={monsterImageUrl}
+          imagePosition={imagePosition}
           size="compact"
           cardIndex={index}
           totalCards={totalCards}

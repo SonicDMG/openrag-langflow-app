@@ -148,7 +148,7 @@ export default function DnDTestPage() {
   const [customMonsters, setCustomMonsters] = useState<DnDClass[]>([]);
   
   // Helper to find associated monster for a class/monster type
-  const findAssociatedMonster = useCallback((className: string): (DnDClass & { monsterId: string; imageUrl: string }) | null => {
+  const findAssociatedMonster = useCallback((className: string): (DnDClass & { monsterId: string; imageUrl: string; imagePosition?: { offsetX: number; offsetY: number } }) | null => {
     const associated = createdMonsters
       .filter(m => {
         const monsterKlass = (m as any).klass;
@@ -188,19 +188,29 @@ export default function DnDTestPage() {
   
   // Update monster IDs when createdMonsters loads or changes
   useEffect(() => {
-    if (player1Class && !player1MonsterId) {
-      const associatedMonster = findAssociatedMonster(player1Class.name);
+    if (player1Class && !player1MonsterId && player1Name) {
+      // Use player1Name (character name) instead of player1Class.name (class name)
+      // Try character name first, then fall back to class name
+      let associatedMonster = findAssociatedMonster(player1Name);
+      if (!associatedMonster && player1Name !== player1Class.name) {
+        associatedMonster = findAssociatedMonster(player1Class.name);
+      }
       if (associatedMonster) {
         setPlayer1MonsterId(associatedMonster.monsterId);
       }
     }
-    if (player2Class && !player2MonsterId) {
-      const associatedMonster = findAssociatedMonster(player2Class.name);
+    if (player2Class && !player2MonsterId && player2Name) {
+      // Use player2Name (character name) instead of player2Class.name (class name)
+      // Try character name first, then fall back to class name
+      let associatedMonster = findAssociatedMonster(player2Name);
+      if (!associatedMonster && player2Name !== player2Class.name) {
+        associatedMonster = findAssociatedMonster(player2Class.name);
+      }
       if (associatedMonster) {
         setPlayer2MonsterId(associatedMonster.monsterId);
       }
     }
-  }, [createdMonsters, player1Class, player2Class, player1MonsterId, player2MonsterId, findAssociatedMonster, setPlayer1MonsterId, setPlayer2MonsterId]);
+  }, [createdMonsters, player1Class, player2Class, player1Name, player2Name, player1MonsterId, player2MonsterId, findAssociatedMonster, setPlayer1MonsterId, setPlayer2MonsterId]);
 
   // Auto-add support heroes when fighting a monster with HP > SUPPORT_HERO_HP_THRESHOLD
   useEffect(() => {
@@ -1084,6 +1094,14 @@ export default function DnDTestPage() {
                 playerClass={player1Class}
                 characterName={player1Name || 'Loading...'}
                 monsterImageUrl={getMonsterImageUrl(player1MonsterId)}
+                imagePosition={(() => {
+                  // Try character name first, then fall back to class name
+                  let monster = findAssociatedMonster(player1Name);
+                  if (!monster && player1Name !== player1Class.name) {
+                    monster = findAssociatedMonster(player1Class.name);
+                  }
+                  return monster?.imagePosition;
+                })()}
                 onAttack={() => {
                   setIsMoveInProgress(true);
                   testAttackHit('player1');
@@ -1148,6 +1166,14 @@ export default function DnDTestPage() {
                 playerClass={player2Class}
                 characterName={player2Name || 'Loading...'}
                 monsterImageUrl={getMonsterImageUrl(player2MonsterId)}
+                imagePosition={(() => {
+                  // Try character name first, then fall back to class name
+                  let monster = findAssociatedMonster(player2Name);
+                  if (!monster && player2Name !== player2Class.name) {
+                    monster = findAssociatedMonster(player2Class.name);
+                  }
+                  return monster?.imagePosition;
+                })()}
                 onAttack={() => {
                   if (isAIModeActive) return; // Don't allow manual control in AI mode
                   setIsMoveInProgress(true);

@@ -209,6 +209,7 @@ export function useBattleData() {
               color: fallback?.color || 'bg-slate-900',
               monsterId: m.monsterId,
               imageUrl: m.imageUrl?.replace('/256.png', '/280x200.png').replace('/200.png', '/280x200.png') || m.imageUrl,
+              imagePosition: m.imagePosition, // Include image position from API
               hasCutout: m.hasCutout ?? false,
               lastAssociatedAt: m.lastAssociatedAt,
               // Store the klass separately so we can use it for class type display
@@ -216,7 +217,7 @@ export function useBattleData() {
               // Preserve prompt and setting for PDF export
               prompt: m.prompt,
               setting: m.setting,
-            } as DnDClass & { monsterId: string; imageUrl: string; hasCutout?: boolean; lastAssociatedAt?: string; klass?: string; prompt?: string; setting?: string };
+            } as DnDClass & { monsterId: string; imageUrl: string; imagePosition?: { offsetX: number; offsetY: number }; hasCutout?: boolean; lastAssociatedAt?: string; klass?: string; prompt?: string; setting?: string };
           });
           setCreatedMonsters(convertedMonsters);
         }

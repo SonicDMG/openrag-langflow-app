@@ -14,7 +14,7 @@ type BattleArenaProps = {
   player1MonsterId: string | null;
   player2MonsterId: string | null;
   supportHeroes?: Array<{ class: DnDClass; name: string; monsterId: string | null }>;
-  findAssociatedMonster: (className: string) => (DnDClass & { monsterId: string; imageUrl: string }) | null;
+  findAssociatedMonster: (className: string) => (DnDClass & { monsterId: string; imageUrl: string; imagePosition?: { offsetX: number; offsetY: number } }) | null;
   onAttack: (player: 'player1' | 'player2' | 'support1' | 'support2') => void;
   onUseAbility: (player: 'player1' | 'player2' | 'support1' | 'support2', abilityIndex: number) => void;
   // Visual effects
@@ -173,6 +173,14 @@ export function BattleArena({
                   playerClass={supportHero.class}
                   characterName={supportHero.name}
                   monsterImageUrl={getCharacterImageUrl(supportHero.monsterId)}
+                  imagePosition={(() => {
+                    // Try character name first, then fall back to class name
+                    let monster = findAssociatedMonster(supportHero.name);
+                    if (!monster && supportHero.name !== supportHero.class.name) {
+                      monster = findAssociatedMonster(supportHero.class.name);
+                    }
+                    return monster?.imagePosition;
+                  })()}
                   onAttack={() => onAttack(supportPlayer)}
                   onUseAbility={(idx) => onUseAbility(supportPlayer, idx)}
                   shouldShake={shakingPlayer === supportPlayer}
@@ -232,6 +240,14 @@ export function BattleArena({
           playerClass={player1Class}
           characterName={player1Name || 'Loading...'}
           monsterImageUrl={getCharacterImageUrl(player1MonsterId)}
+          imagePosition={(() => {
+            // Try character name first, then fall back to class name
+            let monster = findAssociatedMonster(player1Name);
+            if (!monster && player1Name !== player1Class.name) {
+              monster = findAssociatedMonster(player1Class.name);
+            }
+            return monster?.imagePosition;
+          })()}
           onAttack={() => onAttack('player1')}
           onUseAbility={(idx) => onUseAbility('player1', idx)}
           shouldShake={shakingPlayer === 'player1'}
@@ -289,6 +305,14 @@ export function BattleArena({
           playerClass={player2Class}
           characterName={player2Name || 'Loading...'}
           monsterImageUrl={getCharacterImageUrl(player2MonsterId)}
+          imagePosition={(() => {
+            // Try character name first, then fall back to class name
+            let monster = findAssociatedMonster(player2Name);
+            if (!monster && player2Name !== player2Class.name) {
+              monster = findAssociatedMonster(player2Class.name);
+            }
+            return monster?.imagePosition;
+          })()}
           onAttack={() => onAttack('player2')}
           onUseAbility={(idx) => onUseAbility('player2', idx)}
           shouldShake={shakingPlayer === 'player2'}

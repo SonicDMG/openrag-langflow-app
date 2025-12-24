@@ -290,32 +290,32 @@ export function ImagePositionEditor({
             <div className="flex justify-center items-start">
               {children}
             </div>
+          </div>
+        </div>
 
-            {/* Position Info and Controls */}
-            <div className="bg-amber-800/50 border-2 border-amber-700 rounded-lg p-4 space-y-3 mt-4">
-              <div className="text-amber-100 text-sm space-y-1">
-                <p>
-                  <strong>Position:</strong> X: {position.offsetX.toFixed(1)}%, Y:{' '}
-                  {position.offsetY.toFixed(1)}%
-                </p>
-              </div>
+        {/* Position Info and Controls - Full Width Below */}
+        <div className="bg-amber-800/50 border-2 border-amber-700 rounded-lg p-4 space-y-3 mt-6">
+          <div className="text-amber-100 text-center">
+            <p className="text-lg font-semibold">
+              <strong>Position:</strong> X: {position.offsetX.toFixed(1)}%, Y:{' '}
+              {position.offsetY.toFixed(1)}%
+            </p>
+          </div>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={handleReset}
-                  className="flex-1 px-4 py-2 bg-amber-700 hover:bg-amber-600 text-white rounded-lg font-semibold transition-all border-2 border-amber-600"
-                >
-                  🔄 Reset to Center
-                </button>
-                <button
-                  onClick={onSave}
-                  disabled={isSaving}
-                  className="flex-1 px-4 py-2 bg-green-700 hover:bg-green-600 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all border-2 border-green-600"
-                >
-                  {isSaving ? '⏳ Saving...' : '💾 Save Position'}
-                </button>
-              </div>
-            </div>
+          <div className="flex gap-4 max-w-2xl mx-auto">
+            <button
+              onClick={handleReset}
+              className="flex-1 px-6 py-3 bg-amber-700 hover:bg-amber-600 text-white rounded-lg font-bold text-lg transition-all border-2 border-amber-600 shadow-lg"
+            >
+              🔄 Reset to Center
+            </button>
+            <button
+              onClick={onSave}
+              disabled={isSaving}
+              className="flex-1 px-6 py-3 bg-green-700 hover:bg-green-600 text-white rounded-lg font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all border-2 border-green-600 shadow-lg"
+            >
+              {isSaving ? '⏳ Saving...' : '💾 Save Position'}
+            </button>
           </div>
         </div>
       </div>

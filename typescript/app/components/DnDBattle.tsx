@@ -165,11 +165,17 @@ export default function DnDBattle() {
 
   // Helper to find associated monster for a class/monster type
   const findAssociatedMonster = useCallback((className: string): (DnDClass & { monsterId: string; imageUrl: string }) | null => {
+    console.log('[findAssociatedMonster] Searching for:', className, 'in', createdMonsters.length, 'monsters');
+    console.log('[findAssociatedMonster] Sample monsters:', createdMonsters.slice(0, 3).map(m => ({ name: m.name, klass: (m as any).klass, monsterId: m.monsterId })));
     const associated = createdMonsters
       .filter(m => {
         // For created monsters, match by klass field; for regular monsters, match by name
         const monsterKlass = (m as any).klass;
-        return monsterKlass ? monsterKlass === className : m.name === className;
+        const matches = monsterKlass ? monsterKlass === className : m.name === className;
+        if (matches) {
+          console.log('[findAssociatedMonster] Found match:', { name: m.name, klass: monsterKlass, monsterId: m.monsterId, imagePosition: (m as any).imagePosition });
+        }
+        return matches;
       })
       .sort((a, b) => {
         const aTime = (a as any).lastAssociatedAt || (a as any).createdAt || '';
@@ -184,19 +190,29 @@ export default function DnDBattle() {
 
   // Update monster IDs when createdMonsters loads or changes
   useEffect(() => {
-    if (player1Class && !player1MonsterId) {
-      const associatedMonster = findAssociatedMonster(player1Class.name);
+    if (player1Class && !player1MonsterId && player1Name) {
+      // Use player1Name (character name) instead of player1Class.name (class name)
+      const associatedMonster = findAssociatedMonster(player1Name);
+      console.log('[DnDBattle] Auto-association for player1:', {
+        characterName: player1Name,
+        className: player1Class.name,
+        found: !!associatedMonster,
+        monsterId: associatedMonster?.monsterId,
+        currentPlayer1MonsterId: player1MonsterId
+      });
       if (associatedMonster) {
+        console.log('[DnDBattle] Setting player1MonsterId to:', associatedMonster.monsterId);
         setPlayer1MonsterId(associatedMonster.monsterId);
       }
     }
-    if (player2Class && !player2MonsterId) {
-      const associatedMonster = findAssociatedMonster(player2Class.name);
+    if (player2Class && !player2MonsterId && player2Name) {
+      // Use player2Name (character name) instead of player2Class.name (class name)
+      const associatedMonster = findAssociatedMonster(player2Name);
       if (associatedMonster) {
         setPlayer2MonsterId(associatedMonster.monsterId);
       }
     }
-  }, [createdMonsters, player1Class, player2Class, player1MonsterId, player2MonsterId, findAssociatedMonster, setPlayer1MonsterId, setPlayer2MonsterId]);
+  }, [createdMonsters, player1Class, player2Class, player1Name, player2Name, player1MonsterId, player2MonsterId, findAssociatedMonster, setPlayer1MonsterId, setPlayer2MonsterId]);
 
   // Enhanced setPlayerClassWithMonster that includes findAssociatedMonster
   const setPlayerClassWithMonsterEnhanced = useCallback((

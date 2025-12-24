@@ -24,8 +24,7 @@ interface PageHeaderProps {
 const ALL_PAGES: BreadcrumbItem[] = [
   { label: 'Battle', path: '/dnd' },
   { label: 'Test', path: '/dnd/test' },
-  { label: 'Image Creator', path: '/dnd/character-image-creator' },
-  { label: 'Create Character', path: '/dnd/create-character' },
+  { label: 'Create Character', path: '/dnd/unified-character-creator' },
   { label: 'Load Data', path: '/dnd/load-data' },
 ];
 

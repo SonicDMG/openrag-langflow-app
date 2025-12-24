@@ -9,6 +9,10 @@ import { loadHeroesFromDatabase, loadMonstersFromDatabase } from '../utils/dataL
 
 interface MonsterCreatorProps {
   onMonsterCreated?: (monsterId: string, klass: string, imageUrl: string) => void;
+  initialKlass?: string;
+  initialDescription?: string;
+  initialRace?: string;
+  initialSex?: string;
 }
 
 /**
@@ -56,9 +60,15 @@ function buildBasePrompt(userPrompt: string = '', setting: CardSetting = DEFAULT
   return `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. ${description}, depicted in a distinctly ${settingConfig.settingPhrase} world. Character (facing the camera), centered in frame. Placed in a expansive ${settingConfig.settingPhrase} setting, rendered with simplified tile-like textures and deliberate low-color shading. Use a cohesive ${paletteDescription} palette. Retro SNES/Genesis style, ${settingConfig.technologyLevel}.`;
 }
 
-export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps) {
-  const [klass, setKlass] = useState('');
-  const [userPrompt, setUserPrompt] = useState('');
+export default function MonsterCreator({
+  onMonsterCreated,
+  initialKlass = '',
+  initialDescription = '',
+  initialRace = '',
+  initialSex = ''
+}: MonsterCreatorProps) {
+  const [klass, setKlass] = useState(initialKlass);
+  const [userPrompt, setUserPrompt] = useState(initialDescription);
   const [fullPrompt, setFullPrompt] = useState('');
   const [seed, setSeed] = useState(Math.floor(Math.random() * 1000000));
   const [imageUrl, setImageUrl] = useState('');
@@ -101,6 +111,16 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
       console.error('Failed to load custom characters:', error);
     }
   }, []);
+
+  // Update state when initial props change (e.g., when switching to image tab)
+  useEffect(() => {
+    if (initialKlass && !klass) {
+      setKlass(initialKlass);
+    }
+    if (initialDescription && !userPrompt) {
+      setUserPrompt(initialDescription);
+    }
+  }, [initialKlass, initialDescription, klass, userPrompt]);
 
   // Load custom heroes and monsters on mount
   useEffect(() => {
@@ -250,8 +270,8 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
   };
 
   const handleCreate = async () => {
-    if (!klass || !fullPrompt) {
-      setError('Class and prompt are required');
+    if (!fullPrompt) {
+      setError('Prompt is required');
       return;
     }
 
@@ -271,7 +291,7 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          klass,
+          klass: klass || 'Unassociated', // Use "Unassociated" if no class selected
           prompt: fullPrompt,
           seed,
           imageUrl,
@@ -461,10 +481,9 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
 
       <button
         onClick={handleCreate}
-        disabled={isCreating || !klass || !fullPrompt || !imageUrl}
+        disabled={isCreating || !fullPrompt || !imageUrl}
         className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         title={
-          !klass ? 'Please enter a Class/Type' :
           !fullPrompt ? 'Please ensure a prompt is generated' :
           !imageUrl ? 'Please generate an image or provide an image URL' :
           undefined
@@ -472,10 +491,9 @@ export default function MonsterCreator({ onMonsterCreated }: MonsterCreatorProps
       >
         {isCreating ? 'Creating...' : 'Create Image'}
       </button>
-      {(!klass || !fullPrompt || !imageUrl) && !isCreating && (
+      {(!fullPrompt || !imageUrl) && !isCreating && (
         <p className="text-xs text-amber-300 text-center">
-          {!klass && '⚠️ Class/Type required • '}
-          {!fullPrompt && '⚠️ Prompt required (select a class/monster) • '}
+          {!fullPrompt && '⚠️ Prompt required • '}
           {!imageUrl && '⚠️ Image URL required'}
         </p>
       )}

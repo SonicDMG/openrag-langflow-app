@@ -212,7 +212,7 @@ export function CharacterCardZoom({
   if (!isOpen) return null;
 
   const handleEdit = () => {
-    router.push(`/dnd/create-character?id=${encodeURIComponent(playerClass.name)}&type=${determinedEditType}`);
+    router.push(`/dnd/unified-character-creator?id=${encodeURIComponent(playerClass.name)}&type=${determinedEditType}`);
   };
 
   // Allow delete for all characters to maintain consistent button spacing
