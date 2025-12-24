@@ -1025,20 +1025,26 @@ try {
 export const FALLBACK_CLASSES: DnDClass[] = FALLBACK_CLASSES_DATA;
 
 /**
- * Helper function to check if a class name is a monster
+ * Helper function to check if a class name is a monster.
+ *
+ * Priority order:
+ * 1. Check availableMonsters array (from database) if provided
+ * 2. Fall back to FALLBACK_MONSTERS (for offline/emergency use)
+ *
+ * Note: This function is less reliable than checking the _type marker on a DnDClass object.
+ * Prefer using (dndClass as any)._type === 'monster' when you have the full object.
+ *
  * @param className - The class/monster name to check
- * @param availableMonsters - Optional array of monsters from database to also check against
+ * @param availableMonsters - Optional array of monsters from database to check against
  */
 export function isMonster(className: string, availableMonsters?: DnDClass[]): boolean {
-  // Check FALLBACK_MONSTERS first (for backward compatibility)
-  if (FALLBACK_MONSTERS.some(monster => monster.name === className)) {
-    return true;
+  // Prefer database monsters if available
+  if (availableMonsters && availableMonsters.length > 0) {
+    return availableMonsters.some(monster => monster.name === className);
   }
-  // If availableMonsters is provided, check that too
-  if (availableMonsters && availableMonsters.some(monster => monster.name === className)) {
-    return true;
-  }
-  return false;
+  
+  // Fall back to FALLBACK_MONSTERS (for offline/emergency use)
+  return FALLBACK_MONSTERS.some(monster => monster.name === className);
 }
 
 /**

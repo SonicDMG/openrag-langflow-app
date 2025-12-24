@@ -1,5 +1,5 @@
 import { DnDClass } from '../types';
-import { FALLBACK_CLASSES, isMonster } from '../constants';
+import { isMonster } from '../constants';
 
 /**
  * Single source of truth for character name lists by class.
@@ -54,13 +54,12 @@ export function generateDeterministicCharacterName(className: string): string {
 /**
  * Get the character name using consistent logic across the app.
  * This is the single source of truth for character name determination.
- * 
- * Logic:
- * - Created monsters: playerName is already the character name, dndClass.name is the character name, dndClass.klass is the class type
- * - Custom heroes: playerName is already the character name, dndClass.name is also the character name
- * - Regular classes: playerName might be generated, dndClass.name is the class name
- * - Regular monsters: playerName is the monster type name, dndClass.name is also the monster type name
- * 
+ *
+ * Simplified logic (no longer checks FALLBACK_* for type detection):
+ * - If playerName is provided and differs from class name, use it (custom character name)
+ * - If playerName equals class name or is empty, generate a deterministic name for heroes
+ * - For monsters, always use the monster name directly
+ *
  * @param playerName - The player's name (may be empty string if not set)
  * @param dndClass - The DnD class/monster object
  * @returns The character name to display
@@ -72,21 +71,33 @@ export function getCharacterName(playerName: string, dndClass: DnDClass | null):
   
   // Check if it's a created monster (has klass and monsterId)
   const isCreatedMonster = !!(dndClass as any).klass && !!(dndClass as any).monsterId;
-  // Check if it's a custom hero (not in FALLBACK_CLASSES, not a monster, not a created monster)
-  const isCustomHero = !isCreatedMonster && !isMonster(dndClass.name) && !FALLBACK_CLASSES.some((fc: DnDClass) => fc.name === dndClass.name);
   
-  // For created monsters and custom heroes, playerName is already the character name
-  if (isCreatedMonster || isCustomHero) {
+  // For created monsters, use the character name
+  if (isCreatedMonster) {
     return playerName || dndClass.name;
   }
   
-  // For regular classes, if playerName equals className, generate a name
-  // Otherwise, playerName is the actual character name
-  if (playerName === dndClass.name && !isMonster(dndClass.name)) {
-    return generateDeterministicCharacterName(dndClass.name);
+  // Check if it's a monster using the _type marker or isMonster function
+  const isMonsterType = (dndClass as any)._type === 'monster' || isMonster(dndClass.name);
+  
+  // For monsters, use the monster name directly
+  if (isMonsterType) {
+    return playerName || dndClass.name;
   }
   
-  // Otherwise, use playerName (which should already be set correctly)
-  return playerName || (isMonster(dndClass.name) ? dndClass.name : generateDeterministicCharacterName(dndClass.name));
+  // For heroes: check if dndClass.name is a standard class name
+  const isStandardClass = CLASS_NAME_LISTS[dndClass.name] !== undefined;
+  
+  if (isStandardClass) {
+    // Standard class: if playerName equals className or is empty, generate deterministic name
+    if (!playerName || playerName === dndClass.name) {
+      return generateDeterministicCharacterName(dndClass.name);
+    }
+    // Otherwise use the provided playerName (custom name for standard class)
+    return playerName;
+  }
+  
+  // Custom hero: use playerName if provided, otherwise use dndClass.name
+  return playerName || dndClass.name;
 }
 

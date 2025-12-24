@@ -79,36 +79,22 @@ export default function MonsterCreator({
   const [model, setModel] = useState('5000');
   const [setting, setSetting] = useState<CardSetting>(DEFAULT_SETTING as CardSetting);
 
-  const [customHeroes, setCustomHeroes] = useState<DnDClass[]>([]);
-  const [customMonsters, setCustomMonsters] = useState<DnDClass[]>([]);
-  // Store ALL heroes/monsters from database (including those that match fallback names)
+  // Store ALL heroes/monsters from database
   const [allDatabaseHeroes, setAllDatabaseHeroes] = useState<DnDClass[]>([]);
   const [allDatabaseMonsters, setAllDatabaseMonsters] = useState<DnDClass[]>([]);
 
-  // Load custom heroes and monsters from database (with localStorage fallback)
+  // Load all heroes and monsters from database (with localStorage → FALLBACK_* fallback)
   const loadCustomCharacters = useCallback(async () => {
     try {
-      // Load ALL heroes from database (with localStorage fallback)
+      // Load ALL heroes from database (includes both default and custom)
       const allHeroes = await loadHeroesFromDatabase();
-      // Store all heroes for description lookup
       setAllDatabaseHeroes(allHeroes);
-      // Store only truly custom heroes (not in fallbacks) for dropdown
-      const custom = allHeroes.filter((h: DnDClass) => 
-        !FALLBACK_CLASSES.some(fc => fc.name === h.name)
-      );
-      setCustomHeroes(custom);
 
-      // Load ALL monsters from database (with localStorage fallback)
+      // Load ALL monsters from database (includes both default and custom)
       const allMonsters = await loadMonstersFromDatabase();
-      // Store all monsters for description lookup
       setAllDatabaseMonsters(allMonsters);
-      // Store only truly custom monsters (not in fallbacks) for dropdown
-      const customMonsters = allMonsters.filter((m: DnDClass) => 
-        !FALLBACK_MONSTERS.some(fm => fm.name === m.name)
-      );
-      setCustomMonsters(customMonsters);
     } catch (error) {
-      console.error('Failed to load custom characters:', error);
+      console.error('Failed to load characters:', error);
     }
   }, []);
 
@@ -146,24 +132,23 @@ export default function MonsterCreator({
   }, [loadCustomCharacters]);
 
   // Combine all available classes and monsters for dropdown
-  const allOptions = [
-    ...FALLBACK_CLASSES.map(c => ({ name: c.name, type: 'class' as const, isCustom: false })),
-    ...FALLBACK_MONSTERS.map(m => ({ name: m.name, type: 'monster' as const, isCustom: false })),
-    ...customHeroes.map(c => ({ name: c.name, type: 'class' as const, isCustom: true })),
-    ...customMonsters.map(m => ({ name: m.name, type: 'monster' as const, isCustom: true }))
-  ].sort((a, b) => {
-    // Sort: fallback first, then custom, then alphabetically
-    if (a.isCustom !== b.isCustom) {
-      return a.isCustom ? 1 : -1;
-    }
-    return a.name.localeCompare(b.name);
-  });
+  // Use database data if available, otherwise fall back to FALLBACK_* constants
+  const allOptions = useMemo(() => {
+    const heroes = allDatabaseHeroes.length > 0 ? allDatabaseHeroes : FALLBACK_CLASSES;
+    const monsters = allDatabaseMonsters.length > 0 ? allDatabaseMonsters : FALLBACK_MONSTERS;
+    
+    return [
+      ...heroes.map(c => ({ name: c.name, type: 'class' as const })),
+      ...monsters.map(m => ({ name: m.name, type: 'monster' as const }))
+    ].sort((a, b) => a.name.localeCompare(b.name));
+  }, [allDatabaseHeroes, allDatabaseMonsters]);
 
   // Check if the selected klass is a class (not a monster)
   const isClass = useMemo(() => {
     if (!klass) return false;
-    return FALLBACK_CLASSES.some(c => c.name === klass) || customHeroes.some(c => c.name === klass);
-  }, [klass, customHeroes]);
+    return allDatabaseHeroes.some(c => c.name === klass) ||
+           (allDatabaseHeroes.length === 0 && FALLBACK_CLASSES.some(c => c.name === klass));
+  }, [klass, allDatabaseHeroes]);
 
   // Get the selected class/monster description
   // IMPORTANT: Check database first (allDatabaseHeroes/allDatabaseMonsters) to get latest data,

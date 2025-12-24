@@ -152,8 +152,8 @@ describe('dataLoader', () => {
       expect(console.warn).toHaveBeenCalled();
       // Allow for info logs but not the success fallback log
       const logCalls = (console.log as jest.Mock).mock.calls;
-      const hasFallbackLog = logCalls.some((call: any[]) => 
-        call[0]?.includes('✅ Loaded') && call[0]?.includes('heroes from localStorage fallback')
+      const hasFallbackLog = logCalls.some((call: string[]) =>
+        typeof call[0] === 'string' && call[0].includes('✅ Loaded') && call[0].includes('heroes from localStorage fallback')
       );
       expect(hasFallbackLog).toBe(false);
     });
@@ -185,7 +185,7 @@ describe('dataLoader', () => {
     it('should handle localStorage save failure gracefully', async () => {
       // Mock localStorage.setItem to throw
       const originalSetItem = localStorageMock.setItem;
-      localStorageMock.setItem = jest.fn(() => {
+      localStorageMock.setItem = jest.fn((_key: string, _value: string) => {
         throw new Error('Storage quota exceeded');
       });
 
@@ -237,6 +237,7 @@ describe('dataLoader', () => {
       // Ensure localStorage.setItem is not mocked to throw
       const originalSetItem = localStorageMock.setItem;
       localStorageMock.setItem = jest.fn((key: string, value: string) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (localStorageMock as any).store[key] = value;
       });
 
@@ -247,11 +248,13 @@ describe('dataLoader', () => {
 
       const result = await loadMonstersFromDatabase();
 
-      expect(result).toEqual(mockMonsters);
+      // Expect monsters to have _type marker added
+      const expectedMonsters = mockMonsters.map(m => ({ ...m, _type: 'monster' as const }));
+      expect(result).toEqual(expectedMonsters);
       expect(global.fetch).toHaveBeenCalledWith('/api/monsters-db');
       expect(localStorageMock.setItem).toHaveBeenCalledWith(
         'dnd_loaded_monsters',
-        JSON.stringify(mockMonsters)
+        JSON.stringify(expectedMonsters)
       );
       expect(console.warn).not.toHaveBeenCalled();
 
@@ -288,8 +291,8 @@ describe('dataLoader', () => {
       expect(console.warn).toHaveBeenCalled();
       // Allow for info logs but not the success fallback log
       const logCalls = (console.log as jest.Mock).mock.calls;
-      const hasFallbackLog = logCalls.some((call: any[]) => 
-        call[0]?.includes('✅ Loaded') && call[0]?.includes('monsters from localStorage fallback')
+      const hasFallbackLog = logCalls.some((call: string[]) =>
+        typeof call[0] === 'string' && call[0].includes('✅ Loaded') && call[0].includes('monsters from localStorage fallback')
       );
       expect(hasFallbackLog).toBe(false);
     });
@@ -321,7 +324,7 @@ describe('dataLoader', () => {
     it('should handle localStorage save failure gracefully', async () => {
       // Mock localStorage.setItem to throw
       const originalSetItem = localStorageMock.setItem;
-      localStorageMock.setItem = jest.fn(() => {
+      localStorageMock.setItem = jest.fn((_key: string, _value: string) => {
         throw new Error('Storage quota exceeded');
       });
 
@@ -332,7 +335,9 @@ describe('dataLoader', () => {
 
       const result = await loadMonstersFromDatabase();
 
-      expect(result).toEqual(mockMonsters);
+      // Expect monsters to have _type marker added
+      const expectedMonsters = mockMonsters.map(m => ({ ...m, _type: 'monster' as const }));
+      expect(result).toEqual(expectedMonsters);
       expect(console.warn).toHaveBeenCalledWith(
         'Failed to save monsters to localStorage:',
         expect.any(Error)
@@ -382,17 +387,20 @@ describe('dataLoader', () => {
 
       const result = await loadAllCharacterData();
 
+      // Expect monsters to have _type marker added
+      const expectedMonsters = mockMonsters.map(m => ({ ...m, _type: 'monster' as const }));
       expect(result).toEqual({
         heroes: mockHeroes,
-        monsters: mockMonsters,
+        monsters: expectedMonsters,
       });
       expect(global.fetch).toHaveBeenCalledTimes(2);
       expect(localStorageMock.setItem).toHaveBeenCalledTimes(2);
     });
 
     it('should handle partial failures gracefully', async () => {
-      // Set up localStorage for monsters fallback
-      localStorageMock.setItem('dnd_loaded_monsters', JSON.stringify(mockMonsters));
+      // Set up localStorage for monsters fallback with _type marker
+      const monstersWithType = mockMonsters.map(m => ({ ...m, _type: 'monster' as const }));
+      localStorageMock.setItem('dnd_loaded_monsters', JSON.stringify(monstersWithType));
 
       // Heroes succeed, monsters fail
       (global.fetch as jest.Mock)
@@ -404,9 +412,11 @@ describe('dataLoader', () => {
 
       const result = await loadAllCharacterData();
 
+      // Expect monsters from localStorage to have _type marker
+      const expectedMonsters = monstersWithType;
       expect(result).toEqual({
         heroes: mockHeroes,
-        monsters: mockMonsters,
+        monsters: expectedMonsters,
       });
       expect(console.warn).toHaveBeenCalledWith(
         expect.stringContaining('⚠️ Network error loading monsters from database'),

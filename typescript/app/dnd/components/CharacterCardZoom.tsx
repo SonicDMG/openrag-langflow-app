@@ -3,7 +3,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { DnDClass, Ability, AttackAbility, HealingAbility } from '../types';
-import { FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../constants';
 import { exportCharacterToPDF, generateCharacterPDFBlob } from '../utils/pdfExport';
 
 interface CharacterCardZoomProps {
@@ -22,26 +21,25 @@ interface CharacterCardZoomProps {
 }
 
 // Helper function to determine character type and classification
+// No longer uses FALLBACK_* for type detection - relies on editType prop and _type marker
 function determineCharacterType(playerClass: DnDClass, editType?: 'hero' | 'monster') {
-  const editTypeResolved = editType || (
-    FALLBACK_MONSTERS.some(fm => fm.name === playerClass.name) ? 'monster' : 'hero'
-  );
-  const isDefaultHero = FALLBACK_CLASSES.some(fc => fc.name === playerClass.name);
-  const isDefaultMonster = FALLBACK_MONSTERS.some(fm => fm.name === playerClass.name);
+  // Use provided editType, or check _type marker, or default to 'hero'
+  const editTypeResolved = editType ||
+    ((playerClass as any)._type === 'monster' ? 'monster' : 'hero');
   
   return {
     editType: editTypeResolved,
-    isDefaultHero,
-    isDefaultMonster,
-    isCustomHero: editTypeResolved === 'hero' && !isDefaultHero,
-    isCustomMonster: editTypeResolved === 'monster' && !isDefaultMonster,
+    // All characters are treated the same - no distinction between "default" and "custom"
+    isDefaultHero: false,
+    isDefaultMonster: false,
+    isCustomHero: editTypeResolved === 'hero',
+    isCustomMonster: editTypeResolved === 'monster',
   };
 }
 
 // Helper function to get character type label
 function getCharacterTypeLabel(isCustomHero: boolean, isCustomMonster: boolean, editType: string): string {
-  if (isCustomHero) return 'Custom Hero';
-  if (isCustomMonster) return 'Custom Monster';
+  // Simplified labels - no "Custom" prefix since all characters are treated equally
   return editType === 'monster' ? 'Monster' : 'Hero';
 }
 
@@ -212,7 +210,9 @@ export function CharacterCardZoom({
   if (!isOpen) return null;
 
   const handleEdit = () => {
-    router.push(`/dnd/unified-character-creator?id=${encodeURIComponent(playerClass.name)}&type=${determinedEditType}`);
+    // Use characterName prop which contains the actual character name (e.g., "Sylvan the Hunter")
+    // rather than playerClass.name which might be just the class name (e.g., "Ranger")
+    router.push(`/dnd/unified-character-creator?id=${encodeURIComponent(characterName)}&type=${determinedEditType}`);
   };
 
   // Allow delete for all characters to maintain consistent button spacing

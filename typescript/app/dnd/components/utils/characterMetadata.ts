@@ -1,5 +1,4 @@
 import { DnDClass } from '../../types';
-import { FALLBACK_MONSTERS } from '../../constants';
 import { getCharacterName } from '../../utils/names';
 
 type CreatedMonster = DnDClass & { monsterId: string; imageUrl: string };
@@ -57,6 +56,9 @@ export function getCharacterMetadata(
 /**
  * Determine whether a character should be edited as a hero or monster.
  *
+ * Uses the _type marker added during database load to determine character type.
+ * If no _type marker exists, defaults to 'hero'.
+ *
  * @param isCreatedMonster - Whether this is a created monster
  * @param dndClass - The character class object
  * @returns Edit type ('hero' or 'monster')
@@ -65,18 +67,19 @@ function determineEditType(
   isCreatedMonster: boolean,
   dndClass: DnDClass
 ): 'hero' | 'monster' {
+  // Created monsters (with klass and monsterId) are always monsters
   if (isCreatedMonster) {
     return 'monster';
   }
   
-  // Check if it has _type marker from database load
+  // Check for _type marker added during database load
+  // This marker is set in dataLoader.ts when loading monsters from database
   if ((dndClass as any)._type === 'monster') {
     return 'monster';
   }
   
-  // Check if it's in FALLBACK_MONSTERS to determine if it's a default monster
-  const isDefaultMonster = FALLBACK_MONSTERS.some(fm => fm.name === dndClass.name);
-  return isDefaultMonster ? 'monster' : 'hero';
+  // Default to hero if no monster indicators present
+  return 'hero';
 }
 
 // Made with Bob

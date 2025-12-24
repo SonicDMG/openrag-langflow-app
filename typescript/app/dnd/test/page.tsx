@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { DnDClass } from '../types';
-import { FALLBACK_CLASSES, FALLBACK_MONSTERS, isMonster, FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, selectRandomAbilities } from '../constants';
+import { isMonster, FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, selectRandomAbilities } from '../constants';
 import { rollDice, rollDiceWithNotation } from '../utils/dice';
 import { getCharacterName } from '../utils/names';
 import { createHitVisualEffects, createMissVisualEffects, createHealingVisualEffects, getOpponent, getProjectileType, type PendingVisualEffect, type ProjectileType } from '../utils/battle';
@@ -143,9 +143,7 @@ export default function DnDTestPage() {
   // Scroll ref for monster selection
   const monsterScrollRef = useRef<HTMLDivElement>(null);
   
-  // Custom heroes and monsters from database (for filtering)
-  const [customHeroes, setCustomHeroes] = useState<DnDClass[]>([]);
-  const [customMonsters, setCustomMonsters] = useState<DnDClass[]>([]);
+  // No longer need separate custom heroes/monsters state - use availableClasses and availableMonsters from useBattleData
   
   // Helper to find associated image for a character
   // Simplified: now only one image per character (auto-cleanup on creation)
@@ -314,35 +312,7 @@ export default function DnDTestPage() {
   } = effectToggles;
   
   // Load custom heroes and monsters from database (for filtering in UI)
-  useEffect(() => {
-    const loadCustomCharacters = async () => {
-      try {
-        // Load custom heroes
-        const heroesResponse = await fetch('/api/heroes');
-        if (heroesResponse.ok) {
-          const heroesData = await heroesResponse.json();
-          const custom = (heroesData.heroes || []).filter((h: DnDClass) => 
-            !FALLBACK_CLASSES.some(fc => fc.name === h.name)
-          );
-          setCustomHeroes(custom);
-        }
-
-        // Load custom monsters
-        const monstersResponse = await fetch('/api/monsters-db');
-        if (monstersResponse.ok) {
-          const monstersData = await monstersResponse.json();
-          const custom = (monstersData.monsters || []).filter((m: DnDClass) => 
-            !FALLBACK_MONSTERS.some(fm => fm.name === m.name)
-          );
-          setCustomMonsters(custom);
-        }
-      } catch (error) {
-        console.error('Failed to load custom characters:', error);
-      }
-    };
-
-    loadCustomCharacters();
-  }, []);
+  // Removed custom character loading - now using availableClasses and availableMonsters from useBattleData hook
   // Enhanced switchTurn - no narrative processing during battle
   const switchTurn = useCallback(async (attacker: 'player1' | 'player2' | 'support1' | 'support2') => {
     await switchTurnBase(attacker, defeatedPlayer, async () => {});
@@ -846,7 +816,7 @@ export default function DnDTestPage() {
                 <h3 className="text-lg font-semibold mb-3 text-amber-200">Player 1 (Class)</h3>
                 <ClassSelection
                   title="Select Class"
-                  availableClasses={[...FALLBACK_CLASSES, ...customHeroes]}
+                  availableClasses={availableClasses}
                   selectedClass={player1Class}
                   onSelect={handlePlayer1Select}
                   createdMonsters={createdMonsters}
@@ -862,7 +832,7 @@ export default function DnDTestPage() {
                     <button
                       onClick={() => {
                         setPlayer2Type('class');
-                        const firstClass = FALLBACK_CLASSES[1];
+                        const firstClass = availableClasses[1] || availableClasses[0];
                         const testEntity = createTestEntity(firstClass);
                         setPlayer2Class(testEntity);
                         setPlayer2Name(getCharacterName('', testEntity));
@@ -878,7 +848,7 @@ export default function DnDTestPage() {
                     <button
                       onClick={() => {
                         setPlayer2Type('monster');
-                        const firstMonster = FALLBACK_MONSTERS[0];
+                        const firstMonster = availableMonsters[0];
                         setPlayer2Class(createTestEntity(firstMonster));
                         setPlayer2Name(firstMonster.name); // Monsters use their type name directly
                       }}
@@ -895,7 +865,7 @@ export default function DnDTestPage() {
                 {player2Type === 'class' ? (
                   <ClassSelection
                     title="Select Class"
-                    availableClasses={[...FALLBACK_CLASSES, ...customHeroes]}
+                    availableClasses={availableClasses}
                     selectedClass={player2Class}
                     onSelect={handlePlayer2Select}
                     createdMonsters={createdMonsters}
@@ -929,7 +899,7 @@ export default function DnDTestPage() {
                           msOverflowStyle: 'none',
                         }}
                       >
-                        {[...FALLBACK_MONSTERS, ...customMonsters].map((monster, index) => {
+                        {availableMonsters.map((monster, index) => {
                           const isSelected = player2Class?.name === monster.name;
                           const lookupName = getMonsterLookupName(monster as DnDClass & { klass?: string });
                           const associatedMonster = findAssociatedMonster(lookupName);
@@ -953,7 +923,7 @@ export default function DnDTestPage() {
                                 monsterImageUrl={monsterImageUrl}
                                 size="compact"
                                 cardIndex={index}
-                                totalCards={FALLBACK_MONSTERS.length + customMonsters.length}
+                                totalCards={availableMonsters.length}
                                 isSelected={isSelected}
                               />
                             </div>
