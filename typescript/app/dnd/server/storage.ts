@@ -36,6 +36,7 @@ export async function saveMonsterBundle(bundle: MonsterBundle): Promise<string> 
 
   // Save metadata
   const setting = (bundle as any).setting; // Get setting from bundle if available
+  const imageUrl = (bundle as any).imageUrl; // Get Everart URL if available
   const metadata = {
     monsterId: bundle.monsterId,
     klass: bundle.klass,
@@ -45,6 +46,7 @@ export async function saveMonsterBundle(bundle: MonsterBundle): Promise<string> 
     palette: bundle.palette,
     hasCutout: false, // Always false - no cutouts generated
     setting, // Store the setting/theme used for image generation
+    imageUrl, // Store Everart cloud URL for cross-machine sharing
     createdAt: new Date().toISOString(),
   };
   await fs.writeFile(join(monsterDir, 'metadata.json'), JSON.stringify(metadata, null, 2));

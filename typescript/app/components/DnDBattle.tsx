@@ -185,25 +185,45 @@ export default function DnDBattle() {
   // Update monster IDs when createdMonsters loads or changes
   useEffect(() => {
     if (player1Class && !player1MonsterId && player1Name) {
-      // Use player1Name (character name) instead of player1Class.name (class name)
-      const associatedMonster = findAssociatedMonster(player1Name);
-      console.log('[DnDBattle] Auto-association for player1:', {
-        characterName: player1Name,
-        className: player1Class.name,
-        found: !!associatedMonster,
-        monsterId: associatedMonster?.monsterId,
-        currentPlayer1MonsterId: player1MonsterId
-      });
-      if (associatedMonster) {
-        console.log('[DnDBattle] Setting player1MonsterId to:', associatedMonster.monsterId);
-        setPlayer1MonsterId(associatedMonster.monsterId);
+      // Priority order for getting monsterId:
+      // 1. Check if the character itself has a monsterId (for database-saved characters with images)
+      // 2. Find associated monster by name lookup (for created monsters)
+      const characterMonsterId = (player1Class as any).monsterId;
+      
+      if (characterMonsterId) {
+        console.log('[DnDBattle] Using monsterId from player1Class:', characterMonsterId);
+        setPlayer1MonsterId(characterMonsterId);
+      } else {
+        // Fall back to name-based lookup
+        const associatedMonster = findAssociatedMonster(player1Name);
+        console.log('[DnDBattle] Auto-association for player1:', {
+          characterName: player1Name,
+          className: player1Class.name,
+          found: !!associatedMonster,
+          monsterId: associatedMonster?.monsterId,
+          currentPlayer1MonsterId: player1MonsterId
+        });
+        if (associatedMonster) {
+          console.log('[DnDBattle] Setting player1MonsterId to:', associatedMonster.monsterId);
+          setPlayer1MonsterId(associatedMonster.monsterId);
+        }
       }
     }
     if (player2Class && !player2MonsterId && player2Name) {
-      // Use player2Name (character name) instead of player2Class.name (class name)
-      const associatedMonster = findAssociatedMonster(player2Name);
-      if (associatedMonster) {
-        setPlayer2MonsterId(associatedMonster.monsterId);
+      // Priority order for getting monsterId:
+      // 1. Check if the character itself has a monsterId (for database-saved characters with images)
+      // 2. Find associated monster by name lookup (for created monsters)
+      const characterMonsterId = (player2Class as any).monsterId;
+      
+      if (characterMonsterId) {
+        console.log('[DnDBattle] Using monsterId from player2Class:', characterMonsterId);
+        setPlayer2MonsterId(characterMonsterId);
+      } else {
+        // Fall back to name-based lookup
+        const associatedMonster = findAssociatedMonster(player2Name);
+        if (associatedMonster) {
+          setPlayer2MonsterId(associatedMonster.monsterId);
+        }
       }
     }
   }, [createdMonsters, player1Class, player2Class, player1Name, player2Name, player1MonsterId, player2MonsterId, findAssociatedMonster, setPlayer1MonsterId, setPlayer2MonsterId]);

@@ -34,6 +34,9 @@ export type HeroRecord = {
   color: string;
   race?: string; // Character race (e.g., "Human", "Elf", "Dwarf") - use "n/a" if not applicable
   sex?: string; // Character sex (e.g., "male", "female", "other") - use "n/a" if not applicable
+  monsterId?: string; // Reference to character's image in /cdn/monsters/{monsterId}/
+  imageUrl?: string; // Full URL to character's image
+  imagePosition?: { offsetX: number; offsetY: number }; // Image positioning data
   searchContext?: string; // Context used when loading (e.g., "D&D", "Pokemon")
   isDefault?: boolean; // Flag to indicate if this hero was loaded from default heroes
   createdAt: string;
@@ -56,6 +59,9 @@ export type MonsterRecord = {
   color: string;
   race?: string; // Character race (e.g., "Human", "Elf", "Dwarf") - use "n/a" if not applicable
   sex?: string; // Character sex (e.g., "male", "female", "other") - use "n/a" if not applicable
+  monsterId?: string; // Reference to character's image in /cdn/monsters/{monsterId}/
+  imageUrl?: string; // Full URL to character's image
+  imagePosition?: { offsetX: number; offsetY: number }; // Image positioning data
   searchContext?: string; // Context used when loading (e.g., "D&D", "Pokemon")
   isDefault?: boolean; // Flag to indicate if this monster was loaded from default monsters
   createdAt: string;
@@ -137,6 +143,9 @@ function classToHeroRecord(klass: DnDClass, searchContext?: string): Omit<HeroRe
     color: klass.color || 'bg-slate-900',
     race: klass.race,
     sex: klass.sex,
+    monsterId: (klass as any).monsterId, // Preserve image reference
+    imageUrl: (klass as any).imageUrl, // Preserve image URL
+    imagePosition: (klass as any).imagePosition, // Preserve image position
     searchContext,
   };
 }
@@ -156,6 +165,9 @@ function classToMonsterRecord(monster: DnDClass, searchContext?: string): Omit<M
     color: monster.color || 'bg-slate-900',
     race: monster.race,
     sex: monster.sex,
+    monsterId: (monster as any).monsterId, // Preserve image reference
+    imageUrl: (monster as any).imageUrl, // Preserve image URL
+    imagePosition: (monster as any).imagePosition, // Preserve image position
     searchContext,
   };
 }
@@ -176,6 +188,9 @@ function heroRecordToClass(record: HeroRecord): DnDClass {
     color: record.color,
     race: record.race,
     sex: record.sex,
+    ...(record.monsterId && { monsterId: record.monsterId }), // Preserve image reference
+    ...(record.imageUrl && { imageUrl: record.imageUrl }), // Preserve image URL
+    ...(record.imagePosition && { imagePosition: record.imagePosition }), // Preserve image position
   };
 }
 
@@ -195,6 +210,9 @@ function monsterRecordToClass(record: MonsterRecord): DnDClass {
     color: record.color,
     race: record.race,
     sex: record.sex,
+    ...(record.monsterId && { monsterId: record.monsterId }), // Preserve image reference
+    ...(record.imageUrl && { imageUrl: record.imageUrl }), // Preserve image URL
+    ...(record.imagePosition && { imagePosition: record.imagePosition }), // Preserve image position
   };
 }
 

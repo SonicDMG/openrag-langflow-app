@@ -3,7 +3,7 @@
 import { DnDClass } from '../types';
 import { CharacterCard } from './CharacterCard';
 import { getCharacterMetadata } from './utils/characterMetadata';
-import { getCharacterImageUrl } from './utils/imageUtils';
+import { getCharacterImageUrls } from './utils/imageUtils';
 import { ZoomCardData } from '../hooks/ui/useZoomModal';
 
 type CreatedMonster = DnDClass & { monsterId: string; imageUrl: string };
@@ -41,15 +41,47 @@ export function SelectableClassCard({
   const metadata = getCharacterMetadata(dndClass, createdMonsters);
   const { isCreatedMonster, lookupName, displayName, editType, createdMonsterMatch } = metadata;
   
-  // Find the associated monster for image display
-  // Try character name first (for custom images), then fall back to class name (for default images)
-  let associatedMonster = findAssociatedMonster(displayName);
-  if (!associatedMonster && displayName !== dndClass.name) {
-    // If no image found with character name, try class name as fallback
-    associatedMonster = findAssociatedMonster(dndClass.name);
+  // Priority order for getting monsterId, imageUrl, and imagePosition:
+  // 1. Check if the character itself has image data (for database-saved characters)
+  // 2. Find associated monster by name lookup (for created monsters)
+  const characterMonsterId = (dndClass as any).monsterId;
+  const characterEverartUrl = (dndClass as any).imageUrl;
+  const characterImagePosition = (dndClass as any).imagePosition;
+  
+  let associatedMonster = null;
+  let monsterImageUrl = null;
+  let everartFallbackUrl = null;
+  let imagePosition = null;
+  
+  if (characterMonsterId || characterEverartUrl) {
+    // Character has image data stored directly - use it with fallback strategy
+    const imageUrls = getCharacterImageUrls(characterMonsterId, characterEverartUrl);
+    monsterImageUrl = imageUrls.primaryUrl;
+    everartFallbackUrl = imageUrls.fallbackUrl;
+    // Use character's imagePosition if available, otherwise try to find associated monster for position
+    if (characterImagePosition) {
+      imagePosition = characterImagePosition;
+    } else {
+      // Character has image but no imagePosition - look up the monster for position data
+      associatedMonster = findAssociatedMonster(displayName);
+      if (!associatedMonster && displayName !== dndClass.name) {
+        associatedMonster = findAssociatedMonster(dndClass.name);
+      }
+      imagePosition = (associatedMonster as any)?.imagePosition;
+    }
+  } else {
+    // Fall back to name-based lookup for created monsters
+    // Try character name first (for custom images), then fall back to class name (for default images)
+    associatedMonster = findAssociatedMonster(displayName);
+    if (!associatedMonster && displayName !== dndClass.name) {
+      // If no image found with character name, try class name as fallback
+      associatedMonster = findAssociatedMonster(dndClass.name);
+    }
+    const imageUrls = getCharacterImageUrls(associatedMonster?.monsterId, (associatedMonster as any)?.imageUrl);
+    monsterImageUrl = imageUrls.primaryUrl;
+    everartFallbackUrl = imageUrls.fallbackUrl;
+    imagePosition = (associatedMonster as any)?.imagePosition;
   }
-  const monsterImageUrl = getCharacterImageUrl(associatedMonster?.monsterId);
-  const imagePosition = (associatedMonster as any)?.imagePosition;
   
   const handleZoom = () => {
     // Priority order for getting prompt/setting:
@@ -94,6 +126,7 @@ export function SelectableClassCard({
           playerClass={{ ...dndClass, hitPoints: dndClass.maxHitPoints }}
           characterName={displayName}
           monsterImageUrl={monsterImageUrl}
+          everartFallbackUrl={everartFallbackUrl}
           imagePosition={imagePosition}
           size="compact"
           cardIndex={index}

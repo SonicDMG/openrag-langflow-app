@@ -14,7 +14,8 @@
 
 import { CharacterCard } from '../CharacterCard';
 import { BattleCharacterCardProps } from './types';
-import { resolveImagePosition, getCharacterImage } from './utils';
+import { resolveImagePosition } from './utils';
+import { getCharacterImageUrls } from '../utils/imageUtils';
 
 /**
  * Wrapper component that adds battle-specific functionality to CharacterCard
@@ -42,15 +43,21 @@ export function BattleCharacterCard({
   confettiTrigger,
   cardRef,
 }: BattleCharacterCardProps) {
+  // Get Everart URL from character data
+  const characterEverartUrl = (playerClass as any).imageUrl;
+  
+  // Get both primary (local CDN) and fallback (Everart) URLs
+  const { primaryUrl, fallbackUrl } = getCharacterImageUrls(monsterId, characterEverartUrl);
+  
   // Resolve image position using shared utility
+  // Priority: character's own imagePosition > name-based lookup
+  const characterImagePosition = (playerClass as any).imagePosition;
   const imagePosition = resolveImagePosition(
     characterName,
     playerClass.name,
-    findAssociatedMonster
+    findAssociatedMonster,
+    characterImagePosition
   );
-
-  // Get image URL
-  const monsterImageUrl = getCharacterImage(monsterId);
 
   return (
     <div
@@ -82,7 +89,8 @@ export function BattleCharacterCard({
         <CharacterCard
           playerClass={playerClass}
           characterName={characterName}
-          monsterImageUrl={monsterImageUrl}
+          monsterImageUrl={primaryUrl}
+          everartFallbackUrl={fallbackUrl}
           imagePosition={imagePosition}
           onAttack={onAttack}
           onUseAbility={onUseAbility}

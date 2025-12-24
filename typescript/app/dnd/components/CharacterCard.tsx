@@ -160,6 +160,8 @@ interface CharacterCardProps {
   testButtons?: Array<{ label: string; onClick: () => void; className?: string }>;
   // Monster image URL (optional - for monster creator preview)
   monsterImageUrl?: string;
+  // Everart fallback URL (optional - for fallback when local CDN fails)
+  everartFallbackUrl?: string;
   // Image positioning (optional - for custom image positioning)
   imagePosition?: { offsetX: number; offsetY: number };
   // Size variant - 'normal' for battle cards, 'compact' for selection
@@ -214,6 +216,7 @@ function CharacterCardComponent({
   allowAllTurns = false,
   testButtons = [],
   monsterImageUrl,
+  everartFallbackUrl,
   imagePosition,
   size = 'normal',
   cardIndex,
@@ -370,6 +373,8 @@ function CharacterCardComponent({
             playerClass={playerClass}
             characterName={characterName}
             monsterImageUrl={monsterImageUrl}
+            everartFallbackUrl={everartFallbackUrl}
+            monsterId={(playerClass as any).monsterId}
             imagePosition={imagePosition}
             imageError={imageState.imageError}
             setImageError={imageState.setImageError}

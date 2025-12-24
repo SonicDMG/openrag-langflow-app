@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
       },
     };
 
-    const bundle: MonsterBundle & { setting?: string } = {
+    const bundle: MonsterBundle & { setting?: string; imageUrl?: string } = {
       monsterId,
       klass,
       seed,
@@ -125,6 +125,7 @@ export async function POST(req: NextRequest) {
       palette,
       rig,
       setting: setting as string,
+      imageUrl: imageUrl || undefined, // Store Everart cloud URL for cross-machine sharing
       images: {
         png128,
         png200,
@@ -180,7 +181,7 @@ export async function GET(req: NextRequest) {
             setting: metadata.setting || null,
             createdAt: metadata.createdAt || new Date().toISOString(),
             lastAssociatedAt: metadata.lastAssociatedAt,
-            imageUrl: `/cdn/monsters/${dir.name}/280x200.png`,
+            imageUrl: metadata.imageUrl || `/cdn/monsters/${dir.name}/280x200.png`, // Use Everart URL from metadata, fallback to local CDN
             imagePosition: metadata.imagePosition || { offsetX: 50, offsetY: 50 }, // Default to centered
           };
         } catch (error) {

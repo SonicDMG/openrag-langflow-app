@@ -5,12 +5,14 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { DnDClass, Ability, AttackAbility, HealingAbility, ImagePosition } from '../types';
 import { CharacterCard } from '../components/CharacterCard';
 import { generateCharacterStats } from '../services/characterGeneration';
+import { getCharacterImageUrls } from '../components/utils/imageUtils';
 import { CLASS_COLORS, MONSTER_COLORS } from '../constants';
 import { PageHeader } from '../components/PageHeader';
 import { LandscapePrompt } from '../components/LandscapePrompt';
 import MonsterCreator from '../components/MonsterCreator';
 import { ImagePositionEditor } from '../components/ImagePositionEditor';
 import { getCharacterImageUrl } from '../components/utils/imageUtils';
+import { deleteOldCharacterImage, cleanupOldImageOnUpdate } from '../utils/imageCleanup';
 
 type CharacterType = 'hero' | 'monster';
 type TabType = 'details' | 'image';
@@ -192,66 +194,21 @@ function UnifiedCharacterCreatorContent() {
             color: character.color || (editType === 'hero' ? CLASS_COLORS['Fighter'] : MONSTER_COLORS['Goblin']) || 'bg-slate-900',
           });
 
-          // Load associated image from monsters API
-          const monstersResponse = await fetch('/api/monsters');
-          if (monstersResponse.ok) {
-            const monstersData = await monstersResponse.json();
-            // Find the MOST RECENT image associated with this character
-            // IMPORTANT: Check both character.name AND character.class because:
-            // - Custom heroes like "Sylvan the Hunter" have name="Sylvan the Hunter", class="Ranger"
-            // - Images might be stored with klass="Ranger" (the class) or klass="Sylvan the Hunter" (the character name)
-            // - Default heroes have name=class (e.g., name="Ranger", class="Ranger")
-            // Sort by createdAt descending to get the newest first
-            const associatedImages = monstersData.monsters
-              .filter((m: any) => m.klass === character.name || m.klass === character.class)
-              .sort((a: any, b: any) => {
-                const dateA = new Date(a.createdAt || 0).getTime();
-                const dateB = new Date(b.createdAt || 0).getTime();
-                return dateB - dateA; // Most recent first
-              });
-            
-            console.log(`[Edit Character] Searching for images with klass="${character.name}" or klass="${character.class}"`);
-            console.log(`[Edit Character] Found ${associatedImages.length} image(s)`);
-            if (associatedImages.length > 0) {
-              console.log('Images sorted by date (newest first):', associatedImages.map((img: any) => ({
-                monsterId: img.monsterId,
-                createdAt: img.createdAt,
-                imageUrl: img.imageUrl
-              })));
-            }
-            
-            const associatedImage = associatedImages[0]; // Get the most recent
-            if (associatedImage) {
-              const imageUrl = getCharacterImageUrl(associatedImage.monsterId);
-              console.log(`[Edit Character] Loading most recent image: ${associatedImage.monsterId}`);
-              console.log(`[Edit Character] Image URL: ${imageUrl}`);
-              setImageData({
-                monsterId: associatedImage.monsterId,
-                imageUrl: imageUrl || '',
-                imagePosition: associatedImage.imagePosition || { offsetX: 50, offsetY: 50 },
-                prompt: associatedImage.prompt || '',
-              });
-              
-              // Clean up old images (keep only the most recent)
-              const oldImages = associatedImages.slice(1); // All except the first (most recent)
-              if (oldImages.length > 0) {
-                console.log(`[Edit Character] Cleaning up ${oldImages.length} old image(s) for character "${character.name}"`);
-                for (const oldImage of oldImages) {
-                  try {
-                    console.log(`[Edit Character] Deleting old image: ${oldImage.monsterId} (created: ${oldImage.createdAt})`);
-                    await fetch('/api/monsters', {
-                      method: 'DELETE',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ monsterId: oldImage.monsterId }),
-                    });
-                    console.log(`[Edit Character] ✓ Deleted old image ${oldImage.monsterId}`);
-                  } catch (err) {
-                    console.warn(`[Edit Character] ✗ Failed to delete old image ${oldImage.monsterId}:`, err);
-                  }
-                }
-                console.log(`[Edit Character] Cleanup complete. Kept only the most recent image.`);
-              }
-            }
+          // Load image data directly from character if it exists
+          const characterMonsterId = (character as any).monsterId;
+          const characterImageUrl = (character as any).imageUrl;
+          const characterImagePosition = (character as any).imagePosition;
+          
+          if (characterMonsterId && characterImageUrl) {
+            // Character already has image data stored - use it directly
+            console.log(`[Edit Character] Using character's own image data: ${characterMonsterId}`);
+            console.log(`[Edit Character] Everart URL: ${characterImageUrl}`);
+            setImageData({
+              monsterId: characterMonsterId,
+              imageUrl: characterImageUrl,
+              imagePosition: characterImagePosition || { offsetX: 50, offsetY: 50 },
+              prompt: (character as any).prompt || '',
+            });
           }
         } else {
           setError(`Character with ID "${editId}" not found in database or fallback data`);
@@ -379,32 +336,16 @@ function UnifiedCharacterCreatorContent() {
 
   const handleMonsterCreated = useCallback(async (monsterId: string, klass: string, imageUrl: string) => {
     try {
-      // First, delete any old images associated with this character
-      if (formData.name) {
-        const response = await fetch('/api/monsters');
-        if (response.ok) {
-          const data = await response.json();
-          const oldImages = data.monsters.filter(
-            (m: any) => m.klass === formData.name && m.monsterId !== monsterId
-          );
-          
-          // Delete old images
-          for (const oldImage of oldImages) {
-            try {
-              await fetch('/api/monsters', {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ monsterId: oldImage.monsterId }),
-              });
-              console.log(`Deleted old image ${oldImage.monsterId} for character ${formData.name}`);
-            } catch (err) {
-              console.warn(`Failed to delete old image ${oldImage.monsterId}:`, err);
-            }
-          }
-        }
+      // Clean up old image if editing existing character
+      if (editId && imageData.monsterId && imageData.monsterId !== monsterId) {
+        console.log(`[handleMonsterCreated] Cleaning up old image: ${imageData.monsterId}`);
+        await deleteOldCharacterImage(imageData.monsterId);
       }
       
-      // Now load the new monster data
+      // Store the Everart URL (imageUrl parameter) - this is the cloud URL for sharing
+      console.log(`[handleMonsterCreated] Storing Everart URL: ${imageUrl}`);
+      
+      // Load the new monster data for imagePosition
       const response = await fetch('/api/monsters');
       if (response.ok) {
         const data = await response.json();
@@ -412,14 +353,14 @@ function UnifiedCharacterCreatorContent() {
         if (monster) {
           setImageData({
             monsterId,
-            imageUrl: getCharacterImageUrl(monsterId) || imageUrl,
+            imageUrl: imageUrl, // Store Everart cloud URL for cross-machine sharing
             imagePosition: monster.imagePosition || { offsetX: 50, offsetY: 50 },
             prompt: monster.prompt || '',
           });
         } else {
           setImageData({
             monsterId,
-            imageUrl: getCharacterImageUrl(monsterId) || imageUrl,
+            imageUrl: imageUrl, // Store Everart cloud URL for cross-machine sharing
             imagePosition: { offsetX: 50, offsetY: 50 },
             prompt: '',
           });
@@ -429,7 +370,7 @@ function UnifiedCharacterCreatorContent() {
       console.error('Failed to load monster data:', error);
       setImageData({
         monsterId,
-        imageUrl: getCharacterImageUrl(monsterId) || imageUrl,
+        imageUrl: imageUrl, // Store Everart cloud URL for cross-machine sharing
         imagePosition: { offsetX: 50, offsetY: 50 },
         prompt: '',
       });
@@ -502,7 +443,19 @@ function UnifiedCharacterCreatorContent() {
     setSuccess(null);
 
     try {
-      // 1. Save character data
+      // 1. If editing, fetch old monsterId for cleanup
+      let oldMonsterId: string | null = null;
+      if (editId) {
+        const endpoint = characterType === 'hero' ? '/api/heroes' : '/api/monsters-db';
+        const fetchResponse = await fetch(`${endpoint}?id=${encodeURIComponent(editId)}`);
+        if (fetchResponse.ok) {
+          const data = await fetchResponse.json();
+          const existingCharacter = characterType === 'hero' ? data.hero : data.monster;
+          oldMonsterId = (existingCharacter as any)?.monsterId || null;
+        }
+      }
+
+      // 2. Save character data with image references (monsterId, imageUrl from Everart, imagePosition)
       const character: DnDClass = {
         name: formData.name.trim(),
         class: formData.class.trim() || undefined,
@@ -516,6 +469,11 @@ function UnifiedCharacterCreatorContent() {
         color: formData.color,
         race: formData.race.trim() || undefined,
         sex: formData.sex.trim() || undefined,
+        ...(imageData.monsterId && {
+          monsterId: imageData.monsterId, // Reference to local CDN directory (for caching)
+          imageUrl: imageData.imageUrl, // Everart cloud URL (source of truth for sharing)
+        }),
+        ...(imageData.imagePosition && { imagePosition: imageData.imagePosition }), // Image positioning data
       };
 
       const endpoint = characterType === 'hero' ? '/api/heroes' : '/api/monsters-db';
@@ -536,33 +494,14 @@ function UnifiedCharacterCreatorContent() {
         throw new Error(data.error || 'Failed to save character');
       }
 
-      // 2. If image exists, clean up old images and associate the new one
-      if (imageData.monsterId) {
-        // First, get all images associated with this character
-        const monstersResponse = await fetch('/api/monsters');
-        if (monstersResponse.ok) {
-          const monstersData = await monstersResponse.json();
-          const oldImages = monstersData.monsters.filter(
-            (m: any) => m.klass === formData.name && m.monsterId !== imageData.monsterId
-          );
-          
-          // Delete all old images for this character
-          for (const oldImage of oldImages) {
-            try {
-              await fetch('/api/monsters', {
-                method: 'DELETE',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ monsterId: oldImage.monsterId }),
-              });
-            } catch (err) {
-              console.warn(`Failed to delete old image ${oldImage.monsterId}:`, err);
-            }
-          }
-        }
+      // 3. Clean up old image if it changed
+      if (oldMonsterId && imageData.monsterId && oldMonsterId !== imageData.monsterId) {
+        console.log(`[handleSave] Cleaning up old image: ${oldMonsterId}`);
+        await deleteOldCharacterImage(oldMonsterId);
+      }
 
-        // Now associate the new image
+      // 4. Associate the image with character name in metadata
+      if (imageData.monsterId) {
         const imageResponse = await fetch('/api/monsters', {
           method: 'PATCH',
           headers: {
@@ -1024,12 +963,18 @@ function CharacterDetailsTab({
             Preview
           </h2>
           <div className="flex justify-center">
-            <CharacterCard
-              playerClass={previewCharacter}
-              characterName={previewCharacter.name}
-              monsterImageUrl={imageData.imageUrl || undefined}
-              imagePosition={imageData.imagePosition}
-            />
+            {(() => {
+              const { primaryUrl, fallbackUrl } = getCharacterImageUrls(imageData.monsterId, imageData.imageUrl);
+              return (
+                <CharacterCard
+                  playerClass={previewCharacter}
+                  characterName={previewCharacter.name}
+                  monsterImageUrl={primaryUrl}
+                  everartFallbackUrl={fallbackUrl}
+                  imagePosition={imageData.imagePosition}
+                />
+              );
+            })()}
           </div>
         </div>
       </div>
@@ -1152,7 +1097,8 @@ function CharacterImageTab({
             <CharacterCard
               playerClass={previewCharacter}
               characterName={characterName || 'Character'}
-              monsterImageUrl={imageData.imageUrl}
+              monsterImageUrl={getCharacterImageUrls(imageData.monsterId, imageData.imageUrl).primaryUrl}
+              everartFallbackUrl={getCharacterImageUrls(imageData.monsterId, imageData.imageUrl).fallbackUrl}
               imagePosition={imageData.imagePosition}
               shouldShake={shouldShake}
               shouldSparkle={shouldSparkle}

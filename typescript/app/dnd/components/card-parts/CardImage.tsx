@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useState, useEffect } from 'react';
 import { DnDClass } from '../../types';
 import { CardSizing } from '../../hooks/ui/useCardSizing';
 import { CARD_THEME } from '../cardTheme';
@@ -9,6 +9,8 @@ interface CardImageProps {
   playerClass: DnDClass;
   characterName: string;
   monsterImageUrl?: string;
+  everartFallbackUrl?: string;
+  monsterId?: string;
   imagePosition?: { offsetX: number; offsetY: number };
   imageError: boolean;
   setImageError: (error: boolean) => void;
@@ -27,6 +29,8 @@ export const CardImage = memo(function CardImage({
   playerClass,
   characterName,
   monsterImageUrl,
+  everartFallbackUrl,
+  monsterId,
   imagePosition,
   imageError,
   setImageError,
@@ -37,6 +41,66 @@ export const CardImage = memo(function CardImage({
   imageMarginBottom,
 }: CardImageProps) {
   const characterType = getCharacterType(playerClass);
+  const [currentImageUrl, setCurrentImageUrl] = useState(monsterImageUrl);
+  const [hasTriedFallback, setHasTriedFallback] = useState(false);
+  const [isCaching, setIsCaching] = useState(false);
+
+  // Reset state when monsterImageUrl or everartFallbackUrl changes
+  useEffect(() => {
+    setCurrentImageUrl(monsterImageUrl);
+    setHasTriedFallback(false);
+    setImageError(false);
+  }, [monsterImageUrl, everartFallbackUrl, characterName, monsterId, setImageError]);
+
+  // Cache Everart image to local CDN via API
+  const cacheImageToLocal = async (imageUrl: string, mId: string) => {
+    if (isCaching) return; // Prevent duplicate requests
+    
+    setIsCaching(true);
+    try {
+      console.log(`[CardImage] Caching ${characterName} image to local CDN`);
+      const response = await fetch('/api/cache-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ monsterId: mId, imageUrl }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`[CardImage] ✓ ${characterName} image cached successfully`);
+      } else {
+        console.error(`[CardImage] Failed to cache ${characterName} image:`, await response.text());
+      }
+    } catch (error) {
+      console.error(`[CardImage] Error caching ${characterName} image:`, error);
+    } finally {
+      setIsCaching(false);
+    }
+  };
+
+  // Handle image load error with fallback to Everart URL
+  const handleImageError = () => {
+    if (!hasTriedFallback && everartFallbackUrl && currentImageUrl !== everartFallbackUrl) {
+      // Try the Everart fallback URL
+      console.log(`[CardImage] Local CDN failed for ${characterName}, trying Everart fallback`);
+      setCurrentImageUrl(everartFallbackUrl);
+      setHasTriedFallback(true);
+    } else {
+      // No fallback available or fallback also failed
+      setImageError(true);
+    }
+  };
+
+  // Handle successful image load
+  const handleImageLoad = () => {
+    setMainImageLoaded(true);
+    
+    // If we successfully loaded from Everart (fallback), cache it to local CDN
+    if (hasTriedFallback && currentImageUrl === everartFallbackUrl && monsterId && everartFallbackUrl) {
+      console.log(`[CardImage] ${characterName} loaded from Everart, caching to local CDN for future use`);
+      cacheImageToLocal(everartFallbackUrl, monsterId);
+    }
+  };
   
   return (
     <div
@@ -97,9 +161,9 @@ export const CardImage = memo(function CardImage({
       </div>
 
       {/* Character image */}
-      {monsterImageUrl && !imageError ? (
+      {currentImageUrl && !imageError ? (
         <img
-          src={monsterImageUrl}
+          src={currentImageUrl}
           alt={characterName}
           style={{
             imageRendering: 'pixelated' as const,
@@ -114,8 +178,8 @@ export const CardImage = memo(function CardImage({
             top: 0,
             left: 0,
           }}
-          onLoad={() => setMainImageLoaded(true)}
-          onError={() => setImageError(true)}
+          onLoad={handleImageLoad}
+          onError={handleImageError}
         />
       ) : (
         <img

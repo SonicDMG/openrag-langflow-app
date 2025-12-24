@@ -1,32 +1,44 @@
 /**
  * Shared utility functions for battle arena components
- * 
+ *
  * These utilities are used by both the main battle page and test page
  * to ensure consistent behavior across the application.
  */
 
 import { DnDClass, ImagePosition } from '../../types';
 import { ProjectileType } from '../../utils/battle';
-import { getCharacterImageUrl } from '../utils/imageUtils';
+import { getCharacterImageUrlWithFallback } from '../utils/imageUtils';
 import { PlayerId, PlayerEffects, FindAssociatedMonster } from './types';
 
 /**
- * Resolves the image position for a character by checking both character name and class name
- * 
+ * Resolves the image position for a character
+ *
+ * Priority order:
+ * 1. Use imagePosition from the character itself (if stored in database)
+ * 2. Look up by character name in created monsters
+ * 3. Look up by class name in created monsters
+ *
  * @param characterName - The character's display name
  * @param className - The character's class name
  * @param findAssociatedMonster - Function to find monster data
+ * @param characterImagePosition - Image position stored directly on character (optional)
  * @returns Image position or undefined if not found
  */
 export function resolveImagePosition(
   characterName: string,
   className: string,
-  findAssociatedMonster: FindAssociatedMonster
+  findAssociatedMonster: FindAssociatedMonster,
+  characterImagePosition?: ImagePosition
 ): ImagePosition | undefined {
-  // Try character name first
+  // Priority 1: Use imagePosition from character itself if available
+  if (characterImagePosition) {
+    return characterImagePosition;
+  }
+  
+  // Priority 2: Try character name lookup
   let monster = findAssociatedMonster(characterName);
   
-  // Fall back to class name if character name doesn't match
+  // Priority 3: Fall back to class name if character name doesn't match
   if (!monster && characterName !== className) {
     monster = findAssociatedMonster(className);
   }
@@ -96,13 +108,19 @@ export function extractPlayerEffects(
 }
 
 /**
- * Gets the character image URL, resolving from monsterId
- * 
- * @param monsterId - The monster ID to get image for
+ * Gets the character image URL with Everart fallback
+ * Priority: Local CDN (fast) > Everart cloud URL (sharing)
+ *
+ * @deprecated Use getCharacterImageUrls from imageUtils.ts instead for better fallback handling
+ * @param monsterId - The monster ID for local CDN image
+ * @param everartUrl - The Everart cloud URL (fallback for cross-machine sharing)
  * @returns Image URL or undefined
  */
-export function getCharacterImage(monsterId: string | null): string | undefined {
-  return getCharacterImageUrl(monsterId);
+export function getCharacterImage(
+  monsterId: string | null,
+  everartUrl?: string | null
+): string | undefined {
+  return getCharacterImageUrlWithFallback(monsterId, everartUrl);
 }
 
 /**
