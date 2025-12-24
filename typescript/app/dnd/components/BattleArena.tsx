@@ -4,6 +4,7 @@ import { useRef, useEffect } from 'react';
 import { DnDClass } from '../types';
 import { CharacterCard } from './CharacterCard';
 import { ProjectileType } from '../utils/battle';
+import { getCharacterImageUrl } from './utils/imageUtils';
 
 type BattleArenaProps = {
   player1Class: DnDClass;
@@ -171,7 +172,7 @@ export function BattleArena({
                   <CharacterCard
                   playerClass={supportHero.class}
                   characterName={supportHero.name}
-                  monsterImageUrl={supportHero.monsterId ? `/cdn/monsters/${supportHero.monsterId}/280x200.png` : undefined}
+                  monsterImageUrl={getCharacterImageUrl(supportHero.monsterId)}
                   onAttack={() => onAttack(supportPlayer)}
                   onUseAbility={(idx) => onUseAbility(supportPlayer, idx)}
                   shouldShake={shakingPlayer === supportPlayer}
@@ -230,7 +231,7 @@ export function BattleArena({
         <CharacterCard
           playerClass={player1Class}
           characterName={player1Name || 'Loading...'}
-          monsterImageUrl={player1MonsterId ? `/cdn/monsters/${player1MonsterId}/280x200.png` : undefined}
+          monsterImageUrl={getCharacterImageUrl(player1MonsterId)}
           onAttack={() => onAttack('player1')}
           onUseAbility={(idx) => onUseAbility('player1', idx)}
           shouldShake={shakingPlayer === 'player1'}
@@ -287,7 +288,7 @@ export function BattleArena({
         <CharacterCard
           playerClass={player2Class}
           characterName={player2Name || 'Loading...'}
-          monsterImageUrl={player2MonsterId ? `/cdn/monsters/${player2MonsterId}/280x200.png` : undefined}
+          monsterImageUrl={getCharacterImageUrl(player2MonsterId)}
           onAttack={() => onAttack('player2')}
           onUseAbility={(idx) => onUseAbility('player2', idx)}
           shouldShake={shakingPlayer === 'player2'}

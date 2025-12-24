@@ -3,6 +3,7 @@
 import { DnDClass } from '../types';
 import { CharacterCard } from './CharacterCard';
 import { getCharacterMetadata } from './utils/characterMetadata';
+import { getCharacterImageUrl } from './utils/imageUtils';
 import { ZoomCardData } from './hooks/useZoomModal';
 
 type CreatedMonster = DnDClass & { monsterId: string; imageUrl: string };
@@ -42,9 +43,7 @@ export function SelectableClassCard({
   
   // Find the associated monster for image display
   const associatedMonster = findAssociatedMonster(lookupName);
-  const monsterImageUrl = associatedMonster 
-    ? `/cdn/monsters/${associatedMonster.monsterId}/280x200.png`
-    : undefined;
+  const monsterImageUrl = getCharacterImageUrl(associatedMonster?.monsterId);
   
   const handleZoom = () => {
     // Priority order for getting prompt/setting:

@@ -3,6 +3,7 @@ import { DnDClass } from '../../types';
 import { CardSizing } from '../hooks/useCardSizing';
 import { CARD_THEME } from '../cardTheme';
 import { getCharacterType } from '../utils/characterTypeUtils';
+import { PLACEHOLDER_IMAGE_URL } from '../utils/imageUtils';
 
 interface CardImageProps {
   playerClass: DnDClass;
@@ -18,7 +19,6 @@ interface CardImageProps {
   imageMarginBottom?: string;
 }
 
-const PLACEHOLDER_IMAGE_URL = '/cdn/placeholder.png';
 
 /**
  * Card image component with character name overlay

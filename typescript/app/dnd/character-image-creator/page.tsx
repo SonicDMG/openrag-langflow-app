@@ -11,6 +11,7 @@ import { SearchableSelect } from '../components/SearchableSelect';
 import { PageHeader } from '../components/PageHeader';
 import { LandscapePrompt } from '../components/LandscapePrompt';
 import { loadHeroesFromDatabase, loadMonstersFromDatabase } from '../utils/dataLoader';
+import { getCharacterImageUrl, PLACEHOLDER_IMAGE_URL } from '../components/utils/imageUtils';
 
 interface CreatedMonsterData {
   monsterId: string;
@@ -125,7 +126,7 @@ export default function MonsterCreatorPage() {
         const monsters = (data.monsters || []).map((m: any) => ({
           monsterId: m.monsterId,
           klass: m.klass || 'Unassociated',
-          imageUrl: m.imageUrl || `/cdn/monsters/${m.monsterId}/280x200.png`,
+          imageUrl: m.imageUrl || getCharacterImageUrl(m.monsterId) || '',
           prompt: m.prompt,
           createdAt: m.createdAt,
           lastAssociatedAt: m.lastAssociatedAt, // Include lastAssociatedAt for proper sorting
@@ -251,7 +252,7 @@ export default function MonsterCreatorPage() {
               attackBonus: 4,
               damageDie: 'd8',
             },
-            imageUrl: `/cdn/monsters/${monsterId}/280x200.png`, // Use the wider version for card display
+            imageUrl: getCharacterImageUrl(monsterId) || '', // Use the wider version for card display
             imagePosition: monster.imagePosition || { offsetX: 50, offsetY: 50 },
           };
           setCreatedMonsterData(monsterData);
@@ -270,7 +271,7 @@ export default function MonsterCreatorPage() {
               attackBonus: 4,
               damageDie: 'd8',
             },
-            imageUrl: `/cdn/monsters/${monsterId}/280x200.png`,
+            imageUrl: getCharacterImageUrl(monsterId) || '',
             imagePosition: { offsetX: 50, offsetY: 50 },
           };
           setCreatedMonsterData(fallbackData);
@@ -292,7 +293,7 @@ export default function MonsterCreatorPage() {
           attackBonus: 4,
           damageDie: 'd8',
         },
-        imageUrl: `/cdn/monsters/${monsterId}/280x200.png`,
+        imageUrl: getCharacterImageUrl(monsterId) || '',
         imagePosition: { offsetX: 50, offsetY: 50 },
       };
       setCreatedMonsterData(fallbackData);
@@ -863,7 +864,7 @@ export default function MonsterCreatorPage() {
                                   className="w-20 h-20 object-cover rounded border-2 border-amber-600"
                                   style={{ imageRendering: 'pixelated' as const }}
                                   onError={(e) => {
-                                    (e.target as HTMLImageElement).src = '/cdn/placeholder.png';
+                                    (e.target as HTMLImageElement).src = PLACEHOLDER_IMAGE_URL;
                                   }}
                                 />
                                 <div className="flex-1 min-w-0">

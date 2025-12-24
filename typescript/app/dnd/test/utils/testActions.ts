@@ -4,6 +4,7 @@
  */
 
 import { DnDClass } from '../../types';
+import { getCharacterImageUrl } from '../../components/utils/imageUtils';
 import {
   TEST_DAMAGE_LOW_MIN,
   TEST_DAMAGE_LOW_MAX,
@@ -44,13 +45,15 @@ export function calculateFullHeal(playerClass: DnDClass): number {
 }
 
 /**
- * Get monster image URL from associated monster
+ * Get monster image URL from associated monster.
+ * Re-exported from imageUtils for backward compatibility in test code.
+ *
+ * @deprecated Use getCharacterImageUrl from imageUtils directly
  */
 export function getMonsterImageUrl(
   monsterId: string | null | undefined
 ): string | undefined {
-  if (!monsterId) return undefined;
-  return `/cdn/monsters/${monsterId}/280x200.png`;
+  return getCharacterImageUrl(monsterId);
 }
 
 /**

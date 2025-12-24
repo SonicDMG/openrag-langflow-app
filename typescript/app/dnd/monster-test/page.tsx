@@ -8,6 +8,7 @@ import { Sparkles } from '../components/Sparkles';
 import { applyAnimationClass } from '../utils/animations';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../constants';
 import { DnDClass } from '../types';
+import { getCharacterImageUrl } from '../components/utils/imageUtils';
 
 interface CreatedMonster {
   monsterId: string;
@@ -98,7 +99,7 @@ export default function MonsterTestPage() {
       klass: klass || 'Unknown',
       prompt: '',
       createdAt: new Date().toISOString(),
-      imageUrl: `/cdn/monsters/${monsterId}/280x200.png`,
+      imageUrl: getCharacterImageUrl(monsterId) || '',
     };
     const updated = [newMonster, ...createdMonsters];
     setCreatedMonsters(updated);
@@ -344,7 +345,7 @@ export default function MonsterTestPage() {
         throw new Error(data.error || 'Failed to create monster');
       }
 
-      const imageUrl = `/cdn/monsters/${data.monsterId}/280x200.png`;
+      const imageUrl = getCharacterImageUrl(data.monsterId) || '';
       handleMonsterCreated(data.monsterId, klass, imageUrl);
       alert(`Monster created successfully! ID: ${data.monsterId}`);
     } catch (err) {
@@ -517,7 +518,7 @@ export default function MonsterTestPage() {
               <CharacterCard
                 playerClass={selectedMonsterClass}
                 characterName={selectedKlass || selectedMonsterClass.name || 'Monster'}
-                monsterImageUrl={`/cdn/monsters/${selectedMonsterId}/280x200.png`}
+                monsterImageUrl={getCharacterImageUrl(selectedMonsterId)}
                 shouldShake={shouldShake}
                 shouldSparkle={shouldSparkle}
                 shouldMiss={shouldMiss}
