@@ -13,6 +13,7 @@ interface MonsterCreatorProps {
   initialDescription?: string;
   initialRace?: string;
   initialSex?: string;
+  onDescriptionChange?: (description: string) => void;
 }
 
 /**
@@ -65,7 +66,8 @@ export default function MonsterCreator({
   initialKlass = '',
   initialDescription = '',
   initialRace = '',
-  initialSex = ''
+  initialSex = '',
+  onDescriptionChange
 }: MonsterCreatorProps) {
   const [klass, setKlass] = useState(initialKlass);
   const [userPrompt, setUserPrompt] = useState(initialDescription);
@@ -329,13 +331,19 @@ export default function MonsterCreator({
           Description
           <textarea
             value={userPrompt}
-            onChange={(e) => setUserPrompt(e.target.value)}
+            onChange={(e) => {
+              setUserPrompt(e.target.value);
+              // Notify parent of description change
+              if (onDescriptionChange) {
+                onDescriptionChange(e.target.value);
+              }
+            }}
             placeholder="Describe the character (e.g., 'A master of weapons and armor, the Fighter excels in combat')"
             className="mt-1 w-full px-3 py-2 border border-amber-700 rounded bg-amber-900/50 text-amber-100 placeholder-amber-400"
             rows={3}
           />
           <p className="text-xs text-amber-300 mt-1">
-            {klass && selectedDescription 
+            {klass && selectedDescription
               ? 'The description from the selected class/monster has been pre-filled. You can edit it to customize your character.'
               : 'Enter a description of your character. If you select a class/monster, its description will be pre-filled here.'}
           </p>

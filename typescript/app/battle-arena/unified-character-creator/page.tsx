@@ -21,6 +21,7 @@ interface CharacterFormData {
   name: string;
   class: string;
   description: string;
+  imagePrompt: string; // Separate prompt for image generation
   race: string;
   sex: string;
   hitPoints: number;
@@ -54,6 +55,7 @@ function UnifiedCharacterCreatorContent() {
     name: '',
     class: '',
     description: '',
+    imagePrompt: '', // Initialize as empty, will be set from description when needed
     race: '',
     sex: '',
     hitPoints: 25,
@@ -193,6 +195,7 @@ function UnifiedCharacterCreatorContent() {
             name: character.name,
             class: character.class || '',
             description: character.description || '',
+            imagePrompt: (character as any).imagePrompt || character.description || '', // Use stored imagePrompt or fall back to description
             race: character.race || '',
             sex: character.sex || '',
             hitPoints: character.hitPoints,
@@ -286,7 +289,7 @@ function UnifiedCharacterCreatorContent() {
           armorClass: stats.armorClass || prev.armorClass,
           attackBonus: stats.attackBonus || prev.attackBonus,
           damageDie: stats.damageDie || prev.damageDie,
-          description: stats.description || prev.description,
+          // Preserve user's original description - don't overwrite it
           race: result.race || stats?.race || prev.race,
           sex: result.sex || stats?.sex || prev.sex,
         }));
@@ -489,6 +492,7 @@ function UnifiedCharacterCreatorContent() {
         color: formData.color,
         race: formData.race.trim() || undefined,
         sex: formData.sex.trim() || undefined,
+        ...(formData.imagePrompt && { imagePrompt: formData.imagePrompt }), // Store separate image prompt
         ...(imageData.monsterId && {
           monsterId: imageData.monsterId, // Reference to local CDN directory (for caching)
           imageUrl: imageData.imageUrl, // Everart cloud URL (source of truth for sharing)
@@ -663,6 +667,8 @@ function UnifiedCharacterCreatorContent() {
             imageData={imageData}
             setImageData={setImageData}
             previewCharacter={previewCharacter}
+            imagePrompt={formData.imagePrompt}
+            setImagePrompt={(value) => setFormData(prev => ({ ...prev, imagePrompt: value }))}
             handleMonsterCreated={handleMonsterCreated}
             allCreatedMonsters={allCreatedMonsters}
             isLoadingMonsters={isLoadingMonsters}
@@ -1012,6 +1018,8 @@ interface CharacterImageTabProps {
   imageData: ImageFormData;
   setImageData: React.Dispatch<React.SetStateAction<ImageFormData>>;
   previewCharacter: Character;
+  imagePrompt: string;
+  setImagePrompt: (value: string) => void;
   handleMonsterCreated: (monsterId: string, klass: string, imageUrl: string) => void;
   allCreatedMonsters: Array<{
     monsterId: string;
@@ -1051,6 +1059,8 @@ function CharacterImageTab({
   imageData,
   setImageData,
   previewCharacter,
+  imagePrompt,
+  setImagePrompt,
   handleMonsterCreated,
   allCreatedMonsters,
   isLoadingMonsters,
@@ -1076,6 +1086,8 @@ function CharacterImageTab({
   error,
   success,
 }: CharacterImageTabProps) {
+  // Initialize imagePrompt from description if empty
+  const effectiveImagePrompt = imagePrompt || previewCharacter.description || '';
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       {/* Image Tools Section */}
@@ -1085,24 +1097,26 @@ function CharacterImageTab({
             Character Image
           </h2>
 
-          <div className="mb-4 p-3 bg-blue-900/30 border border-blue-700 rounded text-sm text-amber-200">
-            <p className="mb-2">
-              <strong className="text-amber-100">💡 Tip:</strong> Generate or upload a pixel art image for <strong>{characterName || 'your character'}</strong>.
-            </p>
-            <p className="text-xs">
-              • Your character description has been pre-filled below<br/>
-              • The Class/Type dropdown is optional - you can leave it blank or select a similar class for reference<br/>
-              • The image will be automatically associated with "{characterName}" when you save<br/>
-              • Creating a new image will replace any existing image for this character
+          {/* Character Description Reference */}
+          <div className="mb-4 p-3 bg-blue-900/30 border border-blue-700 rounded">
+            <label className="block text-sm font-bold text-amber-100 mb-2" style={{ fontFamily: 'serif' }}>
+              📝 Character Description (Reference)
+            </label>
+            <div className="p-3 bg-slate-800/50 border-2 border-slate-600 rounded text-amber-200 text-sm">
+              {previewCharacter.description || 'No description provided'}
+            </div>
+            <p className="text-xs text-amber-300 mt-2 italic">
+              This is your character's description from the Details tab (read-only). The "Description" field below is for image generation and can be customized separately.
             </p>
           </div>
 
           <MonsterCreator
             onMonsterCreated={handleMonsterCreated}
             initialKlass=""
-            initialDescription={previewCharacter.description || `${characterName || 'A character'}`}
+            initialDescription={effectiveImagePrompt}
             initialRace={previewCharacter.race}
             initialSex={previewCharacter.sex}
+            onDescriptionChange={setImagePrompt}
           />
         </div>
       </div>
