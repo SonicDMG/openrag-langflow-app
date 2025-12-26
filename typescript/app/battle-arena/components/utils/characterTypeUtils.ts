@@ -13,20 +13,26 @@ export function getCharacterType(playerClass: Character): string {
     return playerClass.class;
   }
   
-  // Priority 2: If it's a created monster with a klass field, use that
+  // Priority 2: Check for _type marker (added when loading from database)
+  // This must come BEFORE monsterId check because heroes can have images too
+  if ((playerClass as any)._type === 'hero') {
+    // For heroes without a class field, use "Hero" as the type
+    return 'Hero';
+  }
+  
+  if ((playerClass as any)._type === 'monster') {
+    return playerClass.name;
+  }
+  
+  // Priority 3: If it's a created monster with a klass field, use that
   if ((playerClass as any).klass) {
     return (playerClass as any).klass;
   }
   
-  // Priority 3: If it has a monsterId but no class, it's a created monster
+  // Priority 4: If it has a monsterId but no class and no _type marker, it's a created monster
+  // This should rarely be reached now that _type is checked earlier
   if ((playerClass as any).monsterId) {
     return 'Monster';
-  }
-  
-  // Priority 4: Check for _type marker (added when loading from database)
-  // Monsters loaded from database will have _type: 'monster'
-  if ((playerClass as any)._type === 'monster') {
-    return playerClass.name;
   }
   
   // Priority 5: Fallback to character name

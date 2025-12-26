@@ -16,14 +16,20 @@ export async function loadHeroesFromDatabase(): Promise<Character[]> {
       const data = await response.json();
       console.log(`[dataLoader] Received ${data.heroes?.length || 0} heroes from API`);
       if (data.heroes && data.heroes.length > 0) {
+        // Add _type marker to indicate these came from heroes database
+        const heroesWithType = data.heroes.map((h: Character) => ({
+          ...h,
+          _type: 'hero' as const,
+        }));
+        
         // Successfully loaded from database - update localStorage
         try {
-          localStorage.setItem(HEROES_STORAGE_KEY, JSON.stringify(data.heroes));
-          console.log(`[dataLoader] Saved ${data.heroes.length} heroes to localStorage`);
+          localStorage.setItem(HEROES_STORAGE_KEY, JSON.stringify(heroesWithType));
+          console.log(`[dataLoader] Saved ${heroesWithType.length} heroes to localStorage`);
         } catch (storageError) {
           console.warn('Failed to save heroes to localStorage:', storageError);
         }
-        return data.heroes;
+        return heroesWithType;
       } else {
         console.log('[dataLoader] No heroes in API response');
       }
