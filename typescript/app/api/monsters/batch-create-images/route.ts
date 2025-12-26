@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllMonsters } from '../../../../lib/db/astra';
+import { getAllMonsters, upsertMonster } from '../../../../lib/db/astra';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { CARD_SETTINGS, DEFAULT_SETTING } from '@/app/battle-arena/constants';
@@ -154,6 +154,17 @@ export async function POST(req: NextRequest) {
 
         const result = await response.json();
         console.log(`Created image for ${monster.name}: ${result.monsterId}`);
+        
+        // Update the monster in the database with the monsterId and imageUrl (Everart URL)
+        const updatedMonster = {
+          ...monster,
+          monsterId: result.monsterId,
+          imageUrl: result.imageUrl, // Use Everart URL from response
+        };
+        
+        await upsertMonster(updatedMonster, 'Batch Image Creation');
+        console.log(`Updated database for ${monster.name} with monsterId: ${result.monsterId}`);
+        
         results.created++;
       } catch (error) {
         results.errors.push({

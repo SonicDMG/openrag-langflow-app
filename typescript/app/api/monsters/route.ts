@@ -20,7 +20,9 @@ function formatErrorResponse(error: unknown): { error: string } {
 
 export async function POST(req: NextRequest) {
   try {
-    const { klass, prompt, seed = Math.floor(Math.random() * 1000000), stats, imageUrl, animationConfig, setting = DEFAULT_SETTING } = await req.json();
+    const body = await req.json();
+    const { klass, prompt, seed = Math.floor(Math.random() * 1000000), stats, animationConfig, setting = DEFAULT_SETTING } = body;
+    let imageUrl = body.imageUrl; // Use let so we can update it with Everart URL
 
     if (!klass || !prompt) {
       return NextResponse.json(
@@ -61,7 +63,7 @@ export async function POST(req: NextRequest) {
       try {
         let characterPrompt = prompt;
         // Ensure background is included in prompt
-        if (!characterPrompt.toLowerCase().includes('background') && 
+        if (!characterPrompt.toLowerCase().includes('background') &&
             !characterPrompt.toLowerCase().includes('setting')) {
           const settingConfig = CARD_SETTINGS[setting as CardSetting] || CARD_SETTINGS[DEFAULT_SETTING];
           characterPrompt = `${characterPrompt}, ${settingConfig.backgroundPhrase}`;
@@ -76,6 +78,10 @@ export async function POST(req: NextRequest) {
         });
         
         refPngWithNewBg = characterImage.buffer;
+        // Store the Everart URL if not already provided
+        if (!imageUrl) {
+          imageUrl = characterImage.url;
+        }
       } catch (error) {
         console.error('Image generation error:', error);
         return NextResponse.json(
@@ -142,6 +148,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       monsterId,
       url: `/cdn/monsters/${monsterId}`,
+      imageUrl: imageUrl || `/cdn/monsters/${monsterId}/280x200.png`, // Return Everart URL if available
     });
   } catch (error) {
     console.error('Monster creation error:', error);
