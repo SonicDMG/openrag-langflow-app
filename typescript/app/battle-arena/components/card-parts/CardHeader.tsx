@@ -1,31 +1,34 @@
 import React, { memo } from 'react';
-import { CardSizing } from '../../hooks/ui/useCardSizing';
+import { CharacterSource, BADGE_CONFIGS } from '../../utils/characterSource';
 
 interface CardHeaderProps {
-  isDefault?: boolean;
+  source?: CharacterSource;
   showZoomButton: boolean;
   onZoom?: () => void;
   isCompact: boolean;
 }
 
 /**
- * Card header component displaying default badge and zoom button
+ * Card header component displaying character source badge and zoom button
  */
 export const CardHeader = memo(function CardHeader({
-  isDefault,
+  source,
   showZoomButton,
   onZoom,
   isCompact,
 }: CardHeaderProps) {
+  // Get badge configuration if source is provided
+  const badge = source ? BADGE_CONFIGS[source] : null;
+
   return (
     <>
-      {/* Default Hero Badge - top left corner */}
-      {isDefault && (
+      {/* Character Source Badge - top left corner */}
+      {badge && (
         <div
-          className="absolute top-2 left-2 z-30 bg-amber-600/90 text-white text-xs font-bold px-2 py-1 rounded-md shadow-lg border border-amber-400/50"
-          title="Default Hero - loaded from game defaults"
+          className={`absolute top-1 left-1 z-30 ${badge.bg} text-white text-[8px] font-medium px-1 py-0.5 rounded-sm shadow-sm border ${badge.border} leading-none`}
+          title={badge.tooltip}
         >
-          DEFAULT
+          {badge.text}
         </div>
       )}
 

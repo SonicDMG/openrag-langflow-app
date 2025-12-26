@@ -39,6 +39,7 @@ export type HeroRecord = {
   imagePosition?: { offsetX: number; offsetY: number }; // Image positioning data
   searchContext?: string; // Context used when loading (e.g., "Battle Arena", "Pokemon")
   isDefault?: boolean; // Flag to indicate if this hero was loaded from default heroes
+  fromOpenRAG?: boolean; // Flag to indicate if this character was loaded from OpenRAG knowledge base
   createdAt: string;
   updatedAt: string;
 };
@@ -64,6 +65,7 @@ export type MonsterRecord = {
   imagePosition?: { offsetX: number; offsetY: number }; // Image positioning data
   searchContext?: string; // Context used when loading (e.g., "Battle Arena", "Pokemon")
   isDefault?: boolean; // Flag to indicate if this monster was loaded from default monsters
+  fromOpenRAG?: boolean; // Flag to indicate if this character was loaded from OpenRAG knowledge base
   createdAt: string;
   updatedAt: string;
 };
@@ -146,6 +148,8 @@ function classToHeroRecord(klass: Character, searchContext?: string): Omit<HeroR
     monsterId: (klass as any).monsterId, // Preserve image reference
     imageUrl: (klass as any).imageUrl, // Preserve image URL
     imagePosition: (klass as any).imagePosition, // Preserve image position
+    isDefault: klass.isDefault, // Preserve default flag
+    fromOpenRAG: (klass as any).fromOpenRAG, // Preserve OpenRAG flag
     searchContext,
   };
 }
@@ -168,6 +172,8 @@ function classToMonsterRecord(monster: Character, searchContext?: string): Omit<
     monsterId: (monster as any).monsterId, // Preserve image reference
     imageUrl: (monster as any).imageUrl, // Preserve image URL
     imagePosition: (monster as any).imagePosition, // Preserve image position
+    isDefault: monster.isDefault, // Preserve default flag
+    fromOpenRAG: (monster as any).fromOpenRAG, // Preserve OpenRAG flag
     searchContext,
   };
 }
@@ -188,6 +194,8 @@ function heroRecordToClass(record: HeroRecord): Character {
     color: record.color,
     race: record.race,
     sex: record.sex,
+    isDefault: record.isDefault, // Preserve default flag
+    fromOpenRAG: record.fromOpenRAG, // Preserve OpenRAG flag
     ...(record.monsterId && { monsterId: record.monsterId }), // Preserve image reference
     ...(record.imageUrl && { imageUrl: record.imageUrl }), // Preserve image URL
     ...(record.imagePosition && { imagePosition: record.imagePosition }), // Preserve image position
@@ -210,6 +218,8 @@ function monsterRecordToClass(record: MonsterRecord): Character {
     color: record.color,
     race: record.race,
     sex: record.sex,
+    isDefault: record.isDefault, // Preserve default flag
+    fromOpenRAG: record.fromOpenRAG, // Preserve OpenRAG flag
     ...(record.monsterId && { monsterId: record.monsterId }), // Preserve image reference
     ...(record.imageUrl && { imageUrl: record.imageUrl }), // Preserve image URL
     ...(record.imagePosition && { imagePosition: record.imagePosition }), // Preserve image position

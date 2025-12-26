@@ -7,6 +7,7 @@ import { Confetti } from './Confetti';
 import { useCardAnimations } from '../hooks/ui/useCardAnimations';
 import { useCardSizing } from '../hooks/ui/useCardSizing';
 import { useImageState } from '../hooks/ui/useImageState';
+import { getCharacterSource } from '../utils/characterSource';
 import { CARD_THEME, getCardBoxShadow } from './cardTheme';
 import { CardHeader } from './card-parts/CardHeader';
 import { CardFooter } from './card-parts/CardFooter';
@@ -291,9 +292,9 @@ function CharacterCardComponent({
         overflow: 'visible',
       }}
     >
-      {/* Header: Default badge and zoom button */}
+      {/* Header: Character source badge and zoom button */}
       <CardHeader
-        isDefault={playerClass.isDefault}
+        source={getCharacterSource(playerClass)}
         showZoomButton={showZoomButton}
         onZoom={onZoom}
         isCompact={sizing.isCompact}

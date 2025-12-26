@@ -183,6 +183,7 @@ export default function LoadDataPage() {
                 color: CLASS_COLORS[className] || 'bg-slate-900',
                 race: stats.race,
                 sex: stats.sex,
+                fromOpenRAG: true, // Mark as loaded from OpenRAG
               };
               loadedClasses.push(newClass);
               processedItemsRef.current.push(newClass); // Track for incremental save
@@ -367,6 +368,7 @@ export default function LoadDataPage() {
                 abilities: abilities,
                 description: stats.description || `A ${monsterName} monster.`,
                 color: MONSTER_COLORS[monsterName] || 'bg-slate-900',
+                fromOpenRAG: true, // Mark as loaded from OpenRAG
               };
               loadedMonsters.push(newMonster);
               processedItemsRef.current.push(newMonster); // Track for incremental save
@@ -529,6 +531,7 @@ export default function LoadDataPage() {
         color: colorMap[characterName] || colorMap[singleLookupName] || 'bg-slate-900',
         race: result.stats.race,
         sex: result.stats.sex,
+        fromOpenRAG: true, // Mark as loaded from OpenRAG
       };
 
       // Merge with existing items and save to localStorage

@@ -7,25 +7,30 @@ import { Character } from '../../types';
  * No longer relies on FALLBACK_* constants for runtime type checking.
  */
 export function getCharacterType(playerClass: Character): string {
-  // If it's a created monster with a klass field, use that
+  // Priority 1: If it has a class field, use that (heroes with class names like "Rogue", "Wizard")
+  // This must come BEFORE monsterId check because heroes can have images (monsterId) too
+  if (playerClass.class) {
+    return playerClass.class;
+  }
+  
+  // Priority 2: If it's a created monster with a klass field, use that
   if ((playerClass as any).klass) {
     return (playerClass as any).klass;
   }
   
-  // If it has a monsterId, it's a created monster
+  // Priority 3: If it has a monsterId but no class, it's a created monster
   if ((playerClass as any).monsterId) {
     return 'Monster';
   }
   
-  // Check for _type marker (added when loading from database)
+  // Priority 4: Check for _type marker (added when loading from database)
   // Monsters loaded from database will have _type: 'monster'
   if ((playerClass as any)._type === 'monster') {
     return playerClass.name;
   }
   
-  // For heroes, use the class name if available, otherwise use character name
-  // This handles both default heroes (e.g., "Fighter") and custom heroes (e.g., "Sylvan the Hunter")
-  return playerClass.class || playerClass.name;
+  // Priority 5: Fallback to character name
+  return playerClass.name;
 }
 
 // Made with Bob

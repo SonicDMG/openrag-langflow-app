@@ -53,6 +53,11 @@ export async function POST() {
       if (hero.race) cleanHero.race = hero.race;
       if (hero.sex) cleanHero.sex = hero.sex;
       
+      // Add image references if they exist (for Everart images)
+      if (hero.monsterId) (cleanHero as any).monsterId = hero.monsterId;
+      if (hero.imageUrl) (cleanHero as any).imageUrl = hero.imageUrl;
+      if (hero.imagePosition) (cleanHero as any).imagePosition = hero.imagePosition;
+      
       return cleanHero;
     });
     

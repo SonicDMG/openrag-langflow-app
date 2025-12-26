@@ -36,6 +36,7 @@ export interface Character {
   race?: string; // Character race (e.g., "Human", "Elf", "Dwarf") - use "n/a" if not applicable
   sex?: string; // Character sex (e.g., "male", "female", "other") - use "n/a" if not applicable
   isDefault?: boolean; // Flag to indicate if this hero was loaded from default heroes
+  fromOpenRAG?: boolean; // Flag to indicate if this character was loaded from OpenRAG knowledge base
 }
 
 

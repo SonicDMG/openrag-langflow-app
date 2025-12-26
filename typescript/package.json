@@ -25,7 +25,7 @@
     "html2canvas": "^1.4.1",
     "image-q": "^4.0.0",
     "jspdf": "^3.0.4",
-    "next": "16.0.1",
+    "next": "16.1.1",
     "openai": "^6.8.1",
     "openrag-sdk": "^0.1.0",
     "pixi.js": "^8.0.0",

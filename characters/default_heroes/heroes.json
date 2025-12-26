@@ -1,11 +1,121 @@
 {
   "version": "1.0.0",
   "description": "Default hero classes with abilities",
-  "exportedAt": "2025-12-05T00:11:35.614Z",
+  "exportedAt": "2025-12-26T17:35:30.143Z",
   "heroes": [
     {
-      "_id": "fallback-hero-barbarian",
-      "name": "Barbarian",
+      "name": "Whisper Nightshade",
+      "hitPoints": 24,
+      "maxHitPoints": 24,
+      "armorClass": 15,
+      "attackBonus": 4,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Sneak Attack",
+          "type": "attack",
+          "damageDice": "1d8",
+          "attackRoll": true,
+          "bonusDamageDice": "2d6",
+          "description": "Strike with precision when your enemy is distracted."
+        },
+        {
+          "name": "Cunning Action",
+          "type": "attack",
+          "damageDice": "1d6",
+          "attackRoll": true,
+          "description": "Use your quick reflexes to strike and reposition."
+        },
+        {
+          "name": "Quick Recovery",
+          "type": "healing",
+          "healingDice": "1d6+2",
+          "description": "Use your quick wits and agility to patch up wounds and recover."
+        }
+      ],
+      "description": "A stealthy combatant who strikes from the shadows.",
+      "color": "bg-purple-900",
+      "class": "Rogue",
+      "monsterId": "4457e248-e55e-4d06-8b16-042717d48f62",
+      "imageUrl": "https://storage.googleapis.com/storage.catbird.ai/predictions/355353560378126336/94d6e088-ebb3-4be9-bff7-e0d77f87372e.png",
+      "imagePosition": {
+        "offsetX": 50,
+        "offsetY": 50
+      }
+    },
+    {
+      "name": "Sylvan the Hunter",
+      "hitPoints": 28,
+      "maxHitPoints": 28,
+      "armorClass": 15,
+      "attackBonus": 4,
+      "damageDie": "d10",
+      "abilities": [
+        {
+          "name": "Hunter's Mark",
+          "type": "attack",
+          "damageDice": "1d8",
+          "attackRoll": true,
+          "bonusDamageDice": "1d6",
+          "description": "Mark your prey and deal extra damage with your attacks."
+        },
+        {
+          "name": "Cure Wounds",
+          "type": "healing",
+          "healingDice": "1d8+2",
+          "description": "A creature you touch regains hit points through natural magic."
+        }
+      ],
+      "description": "A skilled tracker and archer of the wilderness.",
+      "color": "bg-green-900",
+      "class": "Ranger",
+      "monsterId": "98bbe06b-3369-4376-84fc-613ad0a47d9e",
+      "imageUrl": "https://storage.googleapis.com/storage.catbird.ai/predictions/355349553626624000/4e143f45-0fc0-4efd-b329-aaf7c627027a.png",
+      "imagePosition": {
+        "offsetX": 62.1,
+        "offsetY": 50
+      }
+    },
+    {
+      "name": "Brother Marcus",
+      "hitPoints": 26,
+      "maxHitPoints": 26,
+      "armorClass": 16,
+      "attackBonus": 4,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Guided Strike",
+          "type": "attack",
+          "damageDice": "1d8",
+          "attackRoll": true,
+          "description": "Channel divine power to guide your weapon to its target."
+        },
+        {
+          "name": "Cure Wounds",
+          "type": "healing",
+          "healingDice": "1d8+3",
+          "description": "A creature you touch regains hit points through divine magic."
+        },
+        {
+          "name": "Healing Word",
+          "type": "healing",
+          "healingDice": "1d4+3",
+          "description": "A creature of your choice regains hit points with a word."
+        }
+      ],
+      "description": "A holy warrior who channels divine power.",
+      "color": "bg-yellow-900",
+      "class": "Cleric",
+      "monsterId": "c5f153a9-6d0b-4c40-8b69-57d9ebb27b49",
+      "imageUrl": "https://storage.googleapis.com/storage.catbird.ai/predictions/355349795394691072/3b9b9f25-3c0a-4294-8e05-dc015fa85c05.png",
+      "imagePosition": {
+        "offsetX": 46,
+        "offsetY": 48.1
+      }
+    },
+    {
+      "name": "Berserker Korg",
       "hitPoints": 28,
       "maxHitPoints": 28,
       "armorClass": 15,
@@ -46,224 +156,18 @@
       ],
       "description": "A towering, muscular warrior with wild, unkempt hair and fierce amber eyes, clad in tattered leather armor and wielding a massive greataxe dripping with primal energy.",
       "color": "bg-orange-900",
+      "class": "Barbarian",
       "race": "Dark Elf (Drow)",
-      "sex": "other"
+      "sex": "other",
+      "monsterId": "ef092a67-9f2d-44c8-8248-cfff83fd8912",
+      "imageUrl": "https://storage.googleapis.com/storage.catbird.ai/predictions/355349937971683328/2e3eaa73-3980-4668-b0de-37c6db83ed78.png",
+      "imagePosition": {
+        "offsetX": 50,
+        "offsetY": 50
+      }
     },
     {
-      "_id": "fallback-hero-ranger",
-      "name": "Ranger",
-      "hitPoints": 28,
-      "maxHitPoints": 28,
-      "armorClass": 15,
-      "attackBonus": 4,
-      "damageDie": "d10",
-      "abilities": [
-        {
-          "name": "Hunter's Mark",
-          "type": "attack",
-          "damageDice": "1d8",
-          "attackRoll": true,
-          "bonusDamageDice": "1d6",
-          "description": "Mark your prey and deal extra damage with your attacks."
-        },
-        {
-          "name": "Cure Wounds",
-          "type": "healing",
-          "healingDice": "1d8+2",
-          "description": "A creature you touch regains hit points through natural magic."
-        }
-      ],
-      "description": "A skilled tracker and archer of the wilderness.",
-      "color": "bg-green-900"
-    },
-    {
-      "_id": "fallback-hero-monk",
-      "name": "Monk",
-      "hitPoints": 26,
-      "maxHitPoints": 26,
-      "armorClass": 16,
-      "attackBonus": 4,
-      "damageDie": "d8",
-      "abilities": [
-        {
-          "name": "Flurry of Blows",
-          "type": "attack",
-          "damageDice": "1d4",
-          "attackRoll": true,
-          "attacks": 2,
-          "description": "Make two unarmed strikes in rapid succession."
-        },
-        {
-          "name": "Stunning Strike",
-          "type": "attack",
-          "damageDice": "1d6",
-          "attackRoll": true,
-          "description": "Strike with focused ki to stun your opponent."
-        },
-        {
-          "name": "Ki Restoration",
-          "type": "healing",
-          "healingDice": "1d8+2",
-          "description": "Channel your ki energy to restore your body and recover hit points."
-        }
-      ],
-      "description": "A master of martial arts and ki energy.",
-      "color": "bg-amber-900"
-    },
-    {
-      "_id": "fallback-hero-sorcerer",
-      "name": "Sorcerer",
-      "hitPoints": 20,
-      "maxHitPoints": 20,
-      "armorClass": 13,
-      "attackBonus": 3,
-      "damageDie": "d6",
-      "abilities": [
-        {
-          "name": "Chaos Bolt",
-          "type": "attack",
-          "damageDice": "2d8",
-          "attackRoll": false,
-          "description": "Hurl a bolt of chaotic energy at your target."
-        },
-        {
-          "name": "Fire Bolt",
-          "type": "attack",
-          "damageDice": "1d10",
-          "attackRoll": true,
-          "description": "Hurl a mote of fire at a creature or object."
-        },
-        {
-          "name": "Vampiric Touch",
-          "type": "healing",
-          "healingDice": "1d8+2",
-          "description": "Channel life force to heal yourself through magical means."
-        }
-      ],
-      "description": "A spellcaster with innate magical power.",
-      "color": "bg-cyan-900"
-    },
-    {
-      "_id": "fallback-hero-druid",
-      "name": "Druid",
-      "hitPoints": 24,
-      "maxHitPoints": 24,
-      "armorClass": 15,
-      "attackBonus": 4,
-      "damageDie": "d8",
-      "abilities": [
-        {
-          "name": "Thorn Whip",
-          "type": "attack",
-          "damageDice": "1d6",
-          "attackRoll": true,
-          "description": "Create a long, vine-like whip covered in thorns."
-        },
-        {
-          "name": "Cure Wounds",
-          "type": "healing",
-          "healingDice": "1d8+3",
-          "description": "A creature you touch regains hit points through natural magic."
-        },
-        {
-          "name": "Goodberry",
-          "type": "healing",
-          "healingDice": "1d4+1",
-          "description": "Create berries that restore hit points when consumed."
-        }
-      ],
-      "description": "A guardian of nature who wields primal magic.",
-      "color": "bg-emerald-900"
-    },
-    {
-      "_id": "fallback-hero-artificer",
-      "name": "Artificer",
-      "hitPoints": 24,
-      "maxHitPoints": 24,
-      "armorClass": 17,
-      "attackBonus": 4,
-      "damageDie": "d8",
-      "abilities": [
-        {
-          "name": "Arcane Weapon",
-          "type": "attack",
-          "damageDice": "1d8",
-          "attackRoll": true,
-          "bonusDamageDice": "1d6",
-          "description": "Infuse a weapon with magical energy to deal extra damage."
-        },
-        {
-          "name": "Cure Wounds",
-          "type": "healing",
-          "healingDice": "1d8+2",
-          "description": "A creature you touch regains hit points through magical tinkering."
-        }
-      ],
-      "description": "A master of magical invention and technology.",
-      "color": "bg-teal-900"
-    },
-    {
-      "_id": "fallback-hero-cleric",
-      "name": "Cleric",
-      "hitPoints": 26,
-      "maxHitPoints": 26,
-      "armorClass": 16,
-      "attackBonus": 4,
-      "damageDie": "d8",
-      "abilities": [
-        {
-          "name": "Guided Strike",
-          "type": "attack",
-          "damageDice": "1d8",
-          "attackRoll": true,
-          "description": "Channel divine power to guide your weapon to its target."
-        },
-        {
-          "name": "Cure Wounds",
-          "type": "healing",
-          "healingDice": "1d8+3",
-          "description": "A creature you touch regains hit points through divine magic."
-        },
-        {
-          "name": "Healing Word",
-          "type": "healing",
-          "healingDice": "1d4+3",
-          "description": "A creature of your choice regains hit points with a word."
-        }
-      ],
-      "description": "A holy warrior who channels divine power.",
-      "color": "bg-yellow-900"
-    },
-    {
-      "_id": "fallback-hero-fighter",
-      "name": "Fighter",
-      "hitPoints": 30,
-      "maxHitPoints": 30,
-      "armorClass": 18,
-      "attackBonus": 5,
-      "damageDie": "d10",
-      "abilities": [
-        {
-          "name": "Action Surge",
-          "type": "attack",
-          "damageDice": "2d8",
-          "attackRoll": true,
-          "attacks": 2,
-          "description": "Take an additional action to make two powerful attacks."
-        },
-        {
-          "name": "Second Wind",
-          "type": "healing",
-          "healingDice": "1d10+3",
-          "description": "Regain hit points through sheer determination."
-        }
-      ],
-      "description": "A master of weapons and armor, the Fighter excels in combat.",
-      "color": "bg-red-900"
-    },
-    {
-      "_id": "fallback-hero-wizard",
-      "name": "Wizard",
+      "name": "Lyra Moonwhisper",
       "hitPoints": 20,
       "maxHitPoints": 20,
       "armorClass": 12,
@@ -293,37 +197,89 @@
         }
       ],
       "description": "A wielder of arcane magic, the Wizard commands powerful spells.",
-      "color": "bg-blue-900"
+      "color": "bg-blue-900",
+      "class": "Wizard",
+      "monsterId": "93d7b0f1-e9bf-4f56-96a4-ece5cc5ea5a5",
+      "imageUrl": "https://storage.googleapis.com/storage.catbird.ai/predictions/355354266053005312/836d6810-c7c5-4d70-baed-0891ec999ea1.png",
+      "imagePosition": {
+        "offsetX": 50,
+        "offsetY": 50
+      }
     },
     {
-      "_id": "fallback-hero-bard",
-      "name": "Bard",
+      "name": "Starfire",
+      "hitPoints": 20,
+      "maxHitPoints": 20,
+      "armorClass": 13,
+      "attackBonus": 3,
+      "damageDie": "d6",
+      "abilities": [
+        {
+          "name": "Chaos Bolt",
+          "type": "attack",
+          "damageDice": "2d8",
+          "attackRoll": false,
+          "description": "Hurl a bolt of chaotic energy at your target."
+        },
+        {
+          "name": "Fire Bolt",
+          "type": "attack",
+          "damageDice": "1d10",
+          "attackRoll": true,
+          "description": "Hurl a mote of fire at a creature or object."
+        },
+        {
+          "name": "Vampiric Touch",
+          "type": "healing",
+          "healingDice": "1d8+2",
+          "description": "Channel life force to heal yourself through magical means."
+        }
+      ],
+      "description": "A spellcaster with innate magical power.",
+      "color": "bg-cyan-900",
+      "class": "Sorcerer",
+      "monsterId": "a5e64c59-e3cf-4b11-ba07-8679adf692df",
+      "imageUrl": "https://storage.googleapis.com/storage.catbird.ai/predictions/355350410334183424/50937a57-6afc-4427-9b56-130f00e7f9de.png",
+      "imagePosition": {
+        "offsetX": 50,
+        "offsetY": 50
+      }
+    },
+    {
+      "name": "Gear the Builder",
       "hitPoints": 24,
       "maxHitPoints": 24,
-      "armorClass": 14,
+      "armorClass": 17,
       "attackBonus": 4,
       "damageDie": "d8",
       "abilities": [
         {
-          "name": "Vicious Mockery",
+          "name": "Arcane Weapon",
           "type": "attack",
-          "damageDice": "1d4",
-          "attackRoll": false,
-          "description": "Insult a creature with magical words that deal psychic damage."
+          "damageDice": "1d8",
+          "attackRoll": true,
+          "bonusDamageDice": "1d6",
+          "description": "Infuse a weapon with magical energy to deal extra damage."
         },
         {
-          "name": "Healing Word",
+          "name": "Cure Wounds",
           "type": "healing",
-          "healingDice": "1d4+3",
-          "description": "A creature of your choice regains hit points through your inspiring words."
+          "healingDice": "1d8+2",
+          "description": "A creature you touch regains hit points through magical tinkering."
         }
       ],
-      "description": "A versatile performer who uses music and magic.",
-      "color": "bg-indigo-900"
+      "description": "A master of magical invention and technology.",
+      "color": "bg-teal-900",
+      "class": "Artificer",
+      "monsterId": "34ccb962-cec9-4bb8-a5bd-07eeb1f40a2b",
+      "imageUrl": "https://storage.googleapis.com/storage.catbird.ai/predictions/355350545281720320/b7ac2d28-5cf8-4bd8-afda-10100feab311.png",
+      "imagePosition": {
+        "offsetX": 50,
+        "offsetY": 50
+      }
     },
     {
-      "_id": "fallback-hero-warlock",
-      "name": "Warlock",
+      "name": "Raven the Cursed",
       "hitPoints": 22,
       "maxHitPoints": 22,
       "armorClass": 13,
@@ -354,11 +310,122 @@
         }
       ],
       "description": "A spellcaster who made a pact with otherworldly beings.",
-      "color": "bg-violet-900"
+      "color": "bg-violet-900",
+      "class": "Warlock",
+      "monsterId": "3d78df00-c0e2-47f2-b053-47b775f8725b",
+      "imageUrl": "https://storage.googleapis.com/storage.catbird.ai/predictions/355354725983592448/3e52dc6a-08fb-4e99-ab9d-c62ad5c2cb70.png",
+      "imagePosition": {
+        "offsetX": 50,
+        "offsetY": 18
+      }
     },
     {
-      "_id": "fallback-hero-paladin",
-      "name": "Paladin",
+      "name": "Merry the Minstrel",
+      "hitPoints": 24,
+      "maxHitPoints": 24,
+      "armorClass": 14,
+      "attackBonus": 4,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Vicious Mockery",
+          "type": "attack",
+          "damageDice": "1d4",
+          "attackRoll": false,
+          "description": "Insult a creature with magical words that deal psychic damage."
+        },
+        {
+          "name": "Healing Word",
+          "type": "healing",
+          "healingDice": "1d4+3",
+          "description": "A creature of your choice regains hit points through your inspiring words."
+        }
+      ],
+      "description": "A versatile performer who uses music and magic.",
+      "color": "bg-indigo-900",
+      "class": "Bard",
+      "monsterId": "0ff93f80-6a30-4698-9a70-2619a4f0963e",
+      "imageUrl": "https://storage.googleapis.com/storage.catbird.ai/predictions/355354987624292352/ad15fd92-b5fd-49c7-b521-a37e93886578.png",
+      "imagePosition": {
+        "offsetX": 50,
+        "offsetY": 50
+      }
+    },
+    {
+      "name": "Kaelen Bladeborn",
+      "hitPoints": 30,
+      "maxHitPoints": 30,
+      "armorClass": 18,
+      "attackBonus": 5,
+      "damageDie": "d10",
+      "abilities": [
+        {
+          "name": "Action Surge",
+          "type": "attack",
+          "damageDice": "2d8",
+          "attackRoll": true,
+          "attacks": 2,
+          "description": "Take an additional action to make two powerful attacks."
+        },
+        {
+          "name": "Second Wind",
+          "type": "healing",
+          "healingDice": "1d10+3",
+          "description": "Regain hit points through sheer determination."
+        }
+      ],
+      "description": "A master of weapons and armor, the Fighter excels in combat.",
+      "color": "bg-red-900",
+      "class": "Fighter",
+      "monsterId": "e7fcfd19-53e4-4e7e-913d-9b906e03e75d",
+      "imageUrl": "https://storage.googleapis.com/storage.catbird.ai/predictions/355350767210749952/2a77534e-6ffa-4117-9db8-79ea155e7263.png",
+      "imagePosition": {
+        "offsetX": 39.9,
+        "offsetY": 82.9
+      }
+    },
+    {
+      "name": "Crane the Graceful",
+      "hitPoints": 26,
+      "maxHitPoints": 26,
+      "armorClass": 16,
+      "attackBonus": 4,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Flurry of Blows",
+          "type": "attack",
+          "damageDice": "1d4",
+          "attackRoll": true,
+          "attacks": 2,
+          "description": "Make two unarmed strikes in rapid succession."
+        },
+        {
+          "name": "Stunning Strike",
+          "type": "attack",
+          "damageDice": "1d6",
+          "attackRoll": true,
+          "description": "Strike with focused ki to stun your opponent."
+        },
+        {
+          "name": "Ki Restoration",
+          "type": "healing",
+          "healingDice": "1d8+2",
+          "description": "Channel your ki energy to restore your body and recover hit points."
+        }
+      ],
+      "description": "A master of martial arts and ki energy.",
+      "color": "bg-amber-900",
+      "class": "Monk",
+      "monsterId": "749ac2e1-af30-43dc-b7b7-5cb6b7961ac4",
+      "imageUrl": "https://storage.googleapis.com/storage.catbird.ai/predictions/355351319789318144/5f939651-1cfa-4820-8c57-faca13dcfb42.png",
+      "imagePosition": {
+        "offsetX": 50,
+        "offsetY": 50
+      }
+    },
+    {
+      "name": "Sir Percival",
       "hitPoints": 30,
       "maxHitPoints": 30,
       "armorClass": 18,
@@ -381,11 +448,17 @@
         }
       ],
       "description": "A holy warrior who smites evil with divine power.",
-      "color": "bg-pink-900"
+      "color": "bg-pink-900",
+      "class": "Paladin",
+      "monsterId": "3723898d-ed59-4895-85c7-757f55075c0f",
+      "imageUrl": "https://storage.googleapis.com/storage.catbird.ai/predictions/355355360594370560/caec9868-4761-43f1-855b-ff38229a572c.png",
+      "imagePosition": {
+        "offsetX": 50,
+        "offsetY": 50
+      }
     },
     {
-      "_id": "fallback-hero-rogue",
-      "name": "Rogue",
+      "name": "Thorn the Wild",
       "hitPoints": 24,
       "maxHitPoints": 24,
       "armorClass": 15,
@@ -393,29 +466,34 @@
       "damageDie": "d8",
       "abilities": [
         {
-          "name": "Sneak Attack",
-          "type": "attack",
-          "damageDice": "1d8",
-          "attackRoll": true,
-          "bonusDamageDice": "2d6",
-          "description": "Strike with precision when your enemy is distracted."
-        },
-        {
-          "name": "Cunning Action",
+          "name": "Thorn Whip",
           "type": "attack",
           "damageDice": "1d6",
           "attackRoll": true,
-          "description": "Use your quick reflexes to strike and reposition."
+          "description": "Create a long, vine-like whip covered in thorns."
         },
         {
-          "name": "Quick Recovery",
+          "name": "Cure Wounds",
           "type": "healing",
-          "healingDice": "1d6+2",
-          "description": "Use your quick wits and agility to patch up wounds and recover."
+          "healingDice": "1d8+3",
+          "description": "A creature you touch regains hit points through natural magic."
+        },
+        {
+          "name": "Goodberry",
+          "type": "healing",
+          "healingDice": "1d4+1",
+          "description": "Create berries that restore hit points when consumed."
         }
       ],
-      "description": "A stealthy combatant who strikes from the shadows.",
-      "color": "bg-purple-900"
+      "description": "A guardian of nature who wields primal magic.",
+      "color": "bg-emerald-900",
+      "class": "Druid",
+      "monsterId": "af2049f7-af56-42ab-bc4b-9ca2b56ffb7f",
+      "imageUrl": "https://storage.googleapis.com/storage.catbird.ai/predictions/355356119893417984/37c96625-755e-4142-bfd0-b48b1358b2de.png",
+      "imagePosition": {
+        "offsetX": 64.1,
+        "offsetY": 61.3
+      }
     }
   ]
 }

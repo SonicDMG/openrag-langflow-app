@@ -16,8 +16,17 @@ export async function POST() {
     // This ensures heroes are stored with their display names (e.g., "Berserker Korg")
     // rather than just class names (e.g., "Barbarian")
     const defaultHeroes: Character[] = heroesFromJson.map(hero => {
-      // Check if hero.name is a standard class name (exists in CLASS_NAME_LISTS)
-      // If so, generate a deterministic display name
+      // If hero already has a class field, it means it was exported with a custom name
+      // In that case, keep the existing name and class
+      if (hero.class) {
+        console.log(`[API /heroes/load-defaults] Processing hero with existing name: ${hero.name} (${hero.class})`);
+        return {
+          ...hero,
+          isDefault: true,
+        };
+      }
+      
+      // Otherwise, generate a deterministic display name from the class name
       const displayName = generateDeterministicCharacterName(hero.name);
       
       console.log(`[API /heroes/load-defaults] Processing hero: ${hero.name} -> ${displayName}`);

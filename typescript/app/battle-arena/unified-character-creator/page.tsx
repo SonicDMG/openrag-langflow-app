@@ -65,6 +65,9 @@ function UnifiedCharacterCreatorContent() {
     color: CLASS_COLORS['Fighter'] || 'bg-slate-900',
   });
 
+  // Source flags state (to preserve fromOpenRAG and isDefault through edits)
+  const [sourceFlags, setSourceFlags] = useState<{ fromOpenRAG?: boolean; isDefault?: boolean }>({});
+
   // Image state
   const [imageData, setImageData] = useState<ImageFormData>({
     monsterId: null,
@@ -179,6 +182,13 @@ function UnifiedCharacterCreatorContent() {
 
         if (character) {
           setCharacterType(editType);
+          
+          // Store source flags to preserve through edits
+          setSourceFlags({
+            fromOpenRAG: (character as any).fromOpenRAG,
+            isDefault: (character as any).isDefault,
+          });
+          
           setFormData({
             name: character.name,
             class: character.class || '',
@@ -474,6 +484,9 @@ function UnifiedCharacterCreatorContent() {
           imageUrl: imageData.imageUrl, // Everart cloud URL (source of truth for sharing)
         }),
         ...(imageData.imagePosition && { imagePosition: imageData.imagePosition }), // Image positioning data
+        // Preserve source flags from original character (if editing)
+        ...(sourceFlags.fromOpenRAG && { fromOpenRAG: true }),
+        ...(sourceFlags.isDefault && { isDefault: true }),
       };
 
       const endpoint = characterType === 'hero' ? '/api/heroes' : '/api/monsters-db';
