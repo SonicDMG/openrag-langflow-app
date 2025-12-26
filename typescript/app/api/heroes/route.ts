@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAllHeroes, getHeroById, upsertHero, upsertHeroes, heroRecordToClass, deleteHero } from '../../../lib/db/astra';
-import { DnDClass } from '../../dnd/types';
+import { Character } from '../../battle-arena/types';
 
 // GET - Fetch all heroes or a specific hero by ID
 export async function GET(req: NextRequest) {
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await upsertHero(hero as DnDClass, searchContext);
+    await upsertHero(hero as Character, searchContext);
     
     return NextResponse.json({ success: true, message: 'Hero saved successfully' });
   } catch (error) {
@@ -79,7 +79,7 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    await upsertHeroes(heroes as DnDClass[], searchContext);
+    await upsertHeroes(heroes as Character[], searchContext);
     
     return NextResponse.json({ 
       success: true, 

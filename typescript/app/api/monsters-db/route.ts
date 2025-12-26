@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAllMonsters, getMonsterById, upsertMonster, upsertMonsters, monsterRecordToClass, deleteMonster } from '../../../lib/db/astra';
-import { deleteMonsterBundle } from '../../dnd/server/storage';
-import { DnDClass } from '../../dnd/types';
+import { deleteMonsterBundle } from '../../battle-arena/server/storage';
+import { Character } from '../../battle-arena/types';
 
 // GET - Fetch all monsters or a specific monster by ID
 export async function GET(req: NextRequest) {
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await upsertMonster(monster as DnDClass, searchContext);
+    await upsertMonster(monster as Character, searchContext);
     
     return NextResponse.json({ success: true, message: 'Monster saved successfully' });
   } catch (error) {
@@ -80,7 +80,7 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    await upsertMonsters(monsters as DnDClass[], searchContext);
+    await upsertMonsters(monsters as Character[], searchContext);
     
     return NextResponse.json({ 
       success: true, 

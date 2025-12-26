@@ -1,5 +1,5 @@
-import { generateReferenceImage } from '../app/dnd/server/imageGeneration';
-import { pixelize } from '../app/dnd/server/pixelize';
+import { generateReferenceImage } from '../app/battle-arena/server/imageGeneration';
+import { pixelize } from '../app/battle-arena/server/pixelize';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 

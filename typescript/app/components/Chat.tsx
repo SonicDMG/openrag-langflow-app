@@ -509,7 +509,7 @@ export default function Chat() {
               const newCount = easterEggClicks + 1;
               setEasterEggClicks(newCount);
               if (newCount >= 3) {
-                router.push('/dnd');
+                router.push('/battle-arena');
                 setEasterEggClicks(0);
               }
             }}

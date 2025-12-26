@@ -16,7 +16,7 @@ Default heroes and monsters data has been moved from hardcoded TypeScript consta
 ```json
 {
   "version": "1.0.0",
-  "description": "Default D&D hero classes with abilities",
+  "description": "Default Battle Arena hero classes with abilities",
   "heroes": [
     {
       "name": "Fighter",
@@ -49,7 +49,7 @@ Default heroes and monsters data has been moved from hardcoded TypeScript consta
 ```json
 {
   "version": "1.0.0",
-  "description": "Default D&D monsters with abilities",
+  "description": "Default Battle Arena monsters with abilities",
   "monsters": [
     {
       "name": "Goblin",
@@ -78,11 +78,11 @@ Default heroes and monsters data has been moved from hardcoded TypeScript consta
 
 ### Build-Time Loading
 
-The JSON files are loaded at build time using Node.js `require()` in `typescript/app/dnd/constants.ts`:
+The JSON files are loaded at build time using Node.js `require()` in `typescript/app/battle arena/constants.ts`:
 
 ```typescript
 // Load default heroes from JSON file
-let FALLBACK_CLASSES_DATA: DnDClass[] = [];
+let FALLBACK_CLASSES_DATA: Character[] = [];
 try {
   const heroesJson = require('../../../characters/default_heroes/heroes.json');
   FALLBACK_CLASSES_DATA = heroesJson.heroes || [];
@@ -91,15 +91,15 @@ try {
   FALLBACK_CLASSES_DATA = [];
 }
 
-export const FALLBACK_CLASSES: DnDClass[] = FALLBACK_CLASSES_DATA;
+export const FALLBACK_CLASSES: Character[] = FALLBACK_CLASSES_DATA;
 ```
 
 ### Runtime Loading (API Routes)
 
-For API routes that need to load defaults dynamically, use the utility functions in `typescript/app/dnd/utils/loadDefaults.ts`:
+For API routes that need to load defaults dynamically, use the utility functions in `typescript/app/battle arena/utils/loadDefaults.ts`:
 
 ```typescript
-import { loadDefaultHeroes, loadDefaultMonsters } from '@/app/dnd/utils/loadDefaults';
+import { loadDefaultHeroes, loadDefaultMonsters } from '@/app/battle arena/utils/loadDefaults';
 
 // Async loading
 const heroes = await loadDefaultHeroes();
@@ -156,7 +156,7 @@ const monsters = await loadDefaultMonsters();
 ### Modifying Existing Data
 
 1. Edit the JSON file directly
-2. Ensure the structure matches the TypeScript `DnDClass` interface
+2. Ensure the structure matches the TypeScript `Character` interface
 3. Rebuild the application
 
 ## Field Reference
@@ -203,7 +203,7 @@ const monsters = await loadDefaultMonsters();
 
 ### What Changed
 
-- **Before**: Heroes and monsters were hardcoded in `typescript/app/dnd/constants.ts`
+- **Before**: Heroes and monsters were hardcoded in `typescript/app/battle arena/constants.ts`
 - **After**: Data is loaded from JSON files at build time
 
 ### Backward Compatibility
@@ -245,7 +245,7 @@ POST /api/monsters/export-defaults
 
 #### Using the UI (Recommended)
 
-1. Navigate to the **Load Data** page (`/dnd/load-data`)
+1. Navigate to the **Load Data** page (`/battle arena/load-data`)
 2. Scroll to the **Export Defaults to JSON** section
 3. Click the **Export Heroes to JSON** or **Export Monsters to JSON** button
 4. Wait for the success confirmation alert
@@ -320,7 +320,7 @@ After making changes to JSON files:
    ```
 
 2. **Test hero loading**:
-   - Navigate to `/dnd/load-data`
+   - Navigate to `/battle arena/load-data`
    - Click "Load Default Heroes"
    - Verify all heroes load correctly
 
@@ -331,7 +331,7 @@ After making changes to JSON files:
    - Rebuild and verify changes persist
 
 4. **Test monster loading and export**:
-   - Navigate to `/dnd/test`
+   - Navigate to `/battle arena/test`
    - Verify monsters appear in selection
    - Make changes to default monsters
    - Call `POST /api/monsters/export-defaults`
@@ -362,7 +362,7 @@ If heroes/monsters don't appear:
 
 If TypeScript compilation fails:
 1. Ensure all required fields are present
-2. Check field types match `DnDClass` interface
+2. Check field types match `Character` interface
 3. Verify ability structures match `Ability` type
 
 ## Future Enhancements
@@ -377,10 +377,10 @@ Potential improvements for this system:
 
 ## Related Files
 
-- `typescript/app/dnd/constants.ts` - Loads JSON at build time
-- `typescript/app/dnd/utils/loadDefaults.ts` - Runtime loading utilities
+- `typescript/app/battle arena/constants.ts` - Loads JSON at build time
+- `typescript/app/battle arena/utils/loadDefaults.ts` - Runtime loading utilities
 - `typescript/app/api/heroes/load-defaults/route.ts` - API endpoint for loading heroes
-- `typescript/app/dnd/types.ts` - TypeScript interfaces for data structures
+- `typescript/app/battle arena/types.ts` - TypeScript interfaces for data structures
 
 ---
 

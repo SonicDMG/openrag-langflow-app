@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { DataInitializer } from "./dnd/components/DataInitializer";
+import { DataInitializer } from "./battle-arena/components/DataInitializer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OpenRAG Next.js Chat",
-  description: "Streaming chat interface powered by OpenRAG",
+  title: "Battle Arena - OpenRAG",
+  description: "Turn-based battle arena powered by OpenRAG",
 };
 
 export const viewport: Viewport = {

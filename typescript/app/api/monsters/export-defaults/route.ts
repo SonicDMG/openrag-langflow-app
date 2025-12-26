@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { getAllMonsters, MonsterRecord } from '../../../../lib/db/astra';
-import { DnDClass } from '../../../dnd/types';
-import { loadDefaultMonsters } from '../../../dnd/utils/loadDefaults';
+import { Character } from '../../../battle-arena/types';
+import { loadDefaultMonsters } from '../../../battle-arena/utils/loadDefaults';
 
 // POST - Export default monsters from database to JSON file
 export async function POST() {
@@ -30,9 +30,9 @@ export async function POST() {
     }
     
     // Remove database-specific fields and prepare for JSON export
-    const monstersForExport: DnDClass[] = defaultMonsters.map((monster: MonsterRecord) => {
+    const monstersForExport: Character[] = defaultMonsters.map((monster: MonsterRecord) => {
       // Create a clean copy without database metadata
-      const cleanMonster: DnDClass = {
+      const cleanMonster: Character = {
         name: monster.name,
         hitPoints: monster.hitPoints,
         maxHitPoints: monster.maxHitPoints,
@@ -57,7 +57,7 @@ export async function POST() {
     // Create JSON structure
     const jsonData = {
       version: '1.0.0',
-      description: 'Default D&D monsters with abilities',
+      description: 'Default monsters with abilities',
       exportedAt: new Date().toISOString(),
       monsters: monstersForExport,
     };

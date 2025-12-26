@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "description": "Default D&D monsters with abilities",
+  "description": "Default monsters with abilities",
   "monsters": [
     {
       "_id": "fallback-monster-goblin",

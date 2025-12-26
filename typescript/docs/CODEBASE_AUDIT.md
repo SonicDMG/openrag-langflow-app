@@ -27,9 +27,9 @@ This audit identified several areas of code duplication and potential improvemen
 **Test Coverage:** Indirect (used in battle system tests)
 
 **Locations:**
-1. [`app/dnd/utils/names.ts:6-20`](typescript/app/dnd/utils/names.ts:6) - `generateCharacterName()` function
-2. [`app/dnd/utils/names.ts:29-43`](typescript/app/dnd/utils/names.ts:29) - `generateDeterministicCharacterName()` function  
-3. [`app/dnd/hooks/useBattleData.ts:7-21`](typescript/app/dnd/hooks/useBattleData.ts:7) - `CLASS_NAME_LISTS` constant
+1. [`app/battle arena/utils/names.ts:6-20`](typescript/app/battle arena/utils/names.ts:6) - `generateCharacterName()` function
+2. [`app/battle arena/utils/names.ts:29-43`](typescript/app/battle arena/utils/names.ts:29) - `generateDeterministicCharacterName()` function  
+3. [`app/battle arena/hooks/useBattleData.ts:7-21`](typescript/app/battle arena/hooks/useBattleData.ts:7) - `CLASS_NAME_LISTS` constant
 
 **Details:**
 All three locations contain identical name lists for 13 character classes:
@@ -39,8 +39,8 @@ All three locations contain identical name lists for 13 character classes:
 Each list contains 8 character names per class (104 total names × 3 locations = 312 duplicate entries).
 
 **Recommendation:**
-1. Create a single source of truth: Export `CLASS_NAME_LISTS` from [`names.ts`](typescript/app/dnd/utils/names.ts:6)
-2. Import and reuse in [`useBattleData.ts`](typescript/app/dnd/hooks/useBattleData.ts:7)
+1. Create a single source of truth: Export `CLASS_NAME_LISTS` from [`names.ts`](typescript/app/battle arena/utils/names.ts:6)
+2. Import and reuse in [`useBattleData.ts`](typescript/app/battle arena/hooks/useBattleData.ts:7)
 3. Refactor both name generation functions to use the shared constant
 4. Run tests to verify no functionality breaks
 
@@ -78,11 +78,11 @@ import { CLASS_NAME_LISTS } from '../utils/names';
 **Locations:**
 1. [`scripts/generate-placeholder.ts`](typescript/scripts/generate-placeholder.ts:18) - Standalone script
 2. [`scripts/generate-skipped-placeholder.ts`](typescript/scripts/generate-skipped-placeholder.ts:17) - Standalone script
-3. [`app/dnd/server/imageGeneration.ts:142`](typescript/app/dnd/server/imageGeneration.ts:142) - Server function
+3. [`app/battle arena/server/imageGeneration.ts:142`](typescript/app/battle arena/server/imageGeneration.ts:142) - Server function
 
 **Details:**
 - Both scripts contain nearly identical EverArt image generation logic
-- The server function [`generateSkippedPlaceholder()`](typescript/app/dnd/server/imageGeneration.ts:142) duplicates the script logic
+- The server function [`generateSkippedPlaceholder()`](typescript/app/battle arena/server/imageGeneration.ts:142) duplicates the script logic
 - All three use the same prompt structure, API calls, and processing pipeline
 
 **Recommendation:**
@@ -157,7 +157,7 @@ Two files have similar description enhancement logic:
 2. [`app/api/monsters/batch-create-images/route.ts:17`](typescript/app/api/monsters/batch-create-images/route.ts:17) - `enhanceDescriptionWithRaceAndSex()`
 
 **Recommendation:**
-- Move to shared utility: `app/dnd/utils/promptEnhancement.ts`
+- Move to shared utility: `app/battle arena/utils/promptEnhancement.ts`
 - Both functions appear identical - consolidate to single implementation
 - **Medium priority** - reduces maintenance burden
 
@@ -169,14 +169,14 @@ Two files have similar description enhancement logic:
 
 #### A. Test Helper Functions
 Test files contain similar setup functions - this is **acceptable**:
-- [`hpCalculationAndDefeat.test.ts:23`](typescript/app/dnd/hooks/__tests__/hpCalculationAndDefeat.test.ts:23) - `createMockDependencies()`
-- [`useBattleActions.test.ts:23`](typescript/app/dnd/hooks/__tests__/useBattleActions.test.ts:23) - `createMockDependencies()`
-- [`teamBattleDefeat.test.ts:29`](typescript/app/dnd/hooks/__tests__/teamBattleDefeat.test.ts:29) - `createMockDependencies()`
+- [`hpCalculationAndDefeat.test.ts:23`](typescript/app/battle arena/hooks/__tests__/hpCalculationAndDefeat.test.ts:23) - `createMockDependencies()`
+- [`useBattleActions.test.ts:23`](typescript/app/battle arena/hooks/__tests__/useBattleActions.test.ts:23) - `createMockDependencies()`
+- [`teamBattleDefeat.test.ts:29`](typescript/app/battle arena/hooks/__tests__/teamBattleDefeat.test.ts:29) - `createMockDependencies()`
 
 **Rationale:** Test isolation is more important than DRY principle in tests.
 
 #### B. Fallback Data in Constants
-[`app/dnd/constants.ts`](typescript/app/dnd/constants.ts:1212) contains extensive fallback data for monsters and classes.
+[`app/battle arena/constants.ts`](typescript/app/battle arena/constants.ts:1212) contains extensive fallback data for monsters and classes.
 - This is **intentional** - provides offline/fallback functionality
 - Well-organized and documented
 - **No action needed**
@@ -188,13 +188,13 @@ Test files contain similar setup functions - this is **acceptable**:
 ### Positive Findings
 
 1. **Excellent Test Coverage**
-   - 9 comprehensive test files in [`app/dnd/hooks/__tests__/`](typescript/app/dnd/hooks/__tests__)
+   - 9 comprehensive test files in [`app/battle arena/hooks/__tests__/`](typescript/app/battle arena/hooks/__tests__)
    - Tests cover battle mechanics, HP calculations, AI opponent, effects
    - Jest configuration properly set up with coverage reporting
 
 2. **Good Code Organization**
    - Clear separation: hooks, utils, services, server
-   - Type definitions in dedicated [`types.ts`](typescript/app/dnd/types.ts)
+   - Type definitions in dedicated [`types.ts`](typescript/app/battle arena/types.ts)
    - Consistent naming conventions
 
 3. **Proper Error Handling**
@@ -223,8 +223,8 @@ Test files contain similar setup functions - this is **acceptable**:
    - Risk: Low (well-tested area)
    - Impact: Eliminates 264 lines of duplicate code
    - Steps:
-     1. Export `CLASS_NAME_LISTS` from [`names.ts`](typescript/app/dnd/utils/names.ts)
-     2. Update [`useBattleData.ts`](typescript/app/dnd/hooks/useBattleData.ts) to import
+     1. Export `CLASS_NAME_LISTS` from [`names.ts`](typescript/app/battle arena/utils/names.ts)
+     2. Update [`useBattleData.ts`](typescript/app/battle arena/hooks/useBattleData.ts) to import
      3. Refactor both name generation functions
      4. Run test suite: `npm test`
      5. Verify battle system still works
@@ -232,7 +232,7 @@ Test files contain similar setup functions - this is **acceptable**:
 ### Phase 2: Medium Priority Improvements
 2. ✅ **Consolidate Description Enhancement Functions**
    - Estimated effort: 30 minutes
-   - Create `app/dnd/utils/promptEnhancement.ts`
+   - Create `app/battle arena/utils/promptEnhancement.ts`
    - Move shared function, update imports
    - Run tests
 
@@ -280,10 +280,10 @@ After each refactoring step:
 ## 📝 Notes
 
 ### Files Reviewed
-- ✅ All TypeScript files in `app/dnd/`
+- ✅ All TypeScript files in `app/battle arena/`
 - ✅ API routes in `app/api/`
-- ✅ Server utilities in `app/dnd/server/`
-- ✅ Test files in `app/dnd/hooks/__tests__/`
+- ✅ Server utilities in `app/battle arena/server/`
+- ✅ Test files in `app/battle arena/hooks/__tests__/`
 - ✅ Utility scripts in `scripts/`
 
 ### Excluded from Audit
@@ -335,17 +335,17 @@ After each refactoring step:
 
 All three locations contain identical data:
 
-**Location 1:** [`app/dnd/utils/names.ts:6-20`](typescript/app/dnd/utils/names.ts:6)
+**Location 1:** [`app/battle arena/utils/names.ts:6-20`](typescript/app/battle arena/utils/names.ts:6)
 - Function: `generateCharacterName()`
 - Usage: Random name generation
 - Lines: 88 lines (including function)
 
-**Location 2:** [`app/dnd/utils/names.ts:29-43`](typescript/app/dnd/utils/names.ts:29)
+**Location 2:** [`app/battle arena/utils/names.ts:29-43`](typescript/app/battle arena/utils/names.ts:29)
 - Function: `generateDeterministicCharacterName()`
 - Usage: Consistent name generation (same input → same output)
 - Lines: 88 lines (including function)
 
-**Location 3:** [`app/dnd/hooks/useBattleData.ts:7-21`](typescript/app/dnd/hooks/useBattleData.ts:7)
+**Location 3:** [`app/battle arena/hooks/useBattleData.ts:7-21`](typescript/app/battle arena/hooks/useBattleData.ts:7)
 - Constant: `CLASS_NAME_LISTS`
 - Usage: Custom hero name filtering
 - Lines: 88 lines (constant only)
@@ -366,7 +366,7 @@ All three locations contain identical data:
 - Output: `public/cdn/skipped-placeholder.png`
 - Pixelization: No (done at runtime)
 
-**Server Function:** [`app/dnd/server/imageGeneration.ts:142`](typescript/app/dnd/server/imageGeneration.ts:142)
+**Server Function:** [`app/battle arena/server/imageGeneration.ts:142`](typescript/app/battle arena/server/imageGeneration.ts:142)
 - Purpose: Runtime generation of "SKIPPED" placeholder
 - Caching: Memory + disk cache
 - Fallback: Loads from disk if available

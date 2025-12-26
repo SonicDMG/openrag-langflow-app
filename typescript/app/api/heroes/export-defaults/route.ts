@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { getAllHeroes, HeroRecord } from '../../../../lib/db/astra';
-import { DnDClass } from '../../../dnd/types';
-import { loadDefaultHeroes } from '../../../dnd/utils/loadDefaults';
+import { Character } from '../../../battle-arena/types';
+import { loadDefaultHeroes } from '../../../battle-arena/utils/loadDefaults';
 
 // POST - Export default heroes from database to JSON file
 export async function POST() {
@@ -30,11 +30,11 @@ export async function POST() {
     }
     
     // Remove database-specific fields and prepare for JSON export
-    const heroesForExport: DnDClass[] = defaultHeroes.map((hero: HeroRecord) => {
+    const heroesForExport: Character[] = defaultHeroes.map((hero: HeroRecord) => {
       // Create a clean copy without database metadata
       // Note: hero.name now contains the display name (e.g., "Berserker Korg")
       // and hero.class contains the original class name (e.g., "Barbarian")
-      const cleanHero: DnDClass = {
+      const cleanHero: Character = {
         name: hero.name, // This is now the display name
         hitPoints: hero.hitPoints,
         maxHitPoints: hero.maxHitPoints,
@@ -59,7 +59,7 @@ export async function POST() {
     // Create JSON structure
     const jsonData = {
       version: '1.0.0',
-      description: 'Default D&D hero classes with abilities',
+      description: 'Default hero classes with abilities',
       exportedAt: new Date().toISOString(),
       heroes: heroesForExport,
     };

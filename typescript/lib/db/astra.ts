@@ -3,7 +3,7 @@
 import { DataAPIClient } from "@datastax/astra-db-ts";
 import { config } from "dotenv";
 import { resolve } from "path";
-import { DnDClass, Ability } from "../../app/dnd/types";
+import { Character, Ability } from "../../app/battle-arena/types";
 
 // Load environment variables from the root .env file
 // Try both root directory and typescript directory
@@ -37,7 +37,7 @@ export type HeroRecord = {
   monsterId?: string; // Reference to character's image in /cdn/monsters/{monsterId}/
   imageUrl?: string; // Full URL to character's image
   imagePosition?: { offsetX: number; offsetY: number }; // Image positioning data
-  searchContext?: string; // Context used when loading (e.g., "D&D", "Pokemon")
+  searchContext?: string; // Context used when loading (e.g., "Battle Arena", "Pokemon")
   isDefault?: boolean; // Flag to indicate if this hero was loaded from default heroes
   createdAt: string;
   updatedAt: string;
@@ -62,7 +62,7 @@ export type MonsterRecord = {
   monsterId?: string; // Reference to character's image in /cdn/monsters/{monsterId}/
   imageUrl?: string; // Full URL to character's image
   imagePosition?: { offsetX: number; offsetY: number }; // Image positioning data
-  searchContext?: string; // Context used when loading (e.g., "D&D", "Pokemon")
+  searchContext?: string; // Context used when loading (e.g., "Battle Arena", "Pokemon")
   isDefault?: boolean; // Flag to indicate if this monster was loaded from default monsters
   createdAt: string;
   updatedAt: string;
@@ -128,8 +128,8 @@ async function getMonstersCollection() {
   return client.collection("monsters");
 }
 
-// Helper to convert DnDClass to HeroRecord
-function classToHeroRecord(klass: DnDClass, searchContext?: string): Omit<HeroRecord, '_id' | 'createdAt' | 'updatedAt'> {
+// Helper to convert Character to HeroRecord
+function classToHeroRecord(klass: Character, searchContext?: string): Omit<HeroRecord, '_id' | 'createdAt' | 'updatedAt'> {
   return {
     name: klass.name,
     class: klass.class,
@@ -150,8 +150,8 @@ function classToHeroRecord(klass: DnDClass, searchContext?: string): Omit<HeroRe
   };
 }
 
-// Helper to convert DnDClass to MonsterRecord
-function classToMonsterRecord(monster: DnDClass, searchContext?: string): Omit<MonsterRecord, '_id' | 'createdAt' | 'updatedAt'> {
+// Helper to convert Character to MonsterRecord
+function classToMonsterRecord(monster: Character, searchContext?: string): Omit<MonsterRecord, '_id' | 'createdAt' | 'updatedAt'> {
   return {
     name: monster.name,
     class: monster.class,
@@ -172,8 +172,8 @@ function classToMonsterRecord(monster: DnDClass, searchContext?: string): Omit<M
   };
 }
 
-// Helper to convert HeroRecord to DnDClass
-function heroRecordToClass(record: HeroRecord): DnDClass {
+// Helper to convert HeroRecord to Character
+function heroRecordToClass(record: HeroRecord): Character {
   return {
     _id: record._id, // Preserve database ID for reliable identification
     name: record.name,
@@ -194,8 +194,8 @@ function heroRecordToClass(record: HeroRecord): DnDClass {
   };
 }
 
-// Helper to convert MonsterRecord to DnDClass
-function monsterRecordToClass(record: MonsterRecord): DnDClass {
+// Helper to convert MonsterRecord to Character
+function monsterRecordToClass(record: MonsterRecord): Character {
   return {
     _id: record._id, // Preserve database ID for reliable identification
     name: record.name,
@@ -270,7 +270,7 @@ export async function getHeroByName(name: string): Promise<HeroRecord | null> {
   }
 }
 
-export async function upsertHero(hero: DnDClass, searchContext?: string): Promise<any> {
+export async function upsertHero(hero: Character, searchContext?: string): Promise<any> {
   try {
     const normalizedName = hero.name.toLowerCase();
     console.log(`upsertHero - Processing hero ${hero.name}`);
@@ -313,7 +313,7 @@ export async function upsertHero(hero: DnDClass, searchContext?: string): Promis
   }
 }
 
-export async function upsertHeroes(heroes: DnDClass[], searchContext?: string): Promise<void> {
+export async function upsertHeroes(heroes: Character[], searchContext?: string): Promise<void> {
   try {
     console.log(`upsertHeroes - Processing ${heroes.length} heroes`);
     for (const hero of heroes) {
@@ -380,7 +380,7 @@ export async function getMonsterByName(name: string): Promise<MonsterRecord | nu
   }
 }
 
-export async function upsertMonster(monster: DnDClass, searchContext?: string): Promise<any> {
+export async function upsertMonster(monster: Character, searchContext?: string): Promise<any> {
   try {
     const normalizedName = monster.name.toLowerCase();
     console.log(`upsertMonster - Processing monster ${monster.name}`);
@@ -423,7 +423,7 @@ export async function upsertMonster(monster: DnDClass, searchContext?: string): 
   }
 }
 
-export async function upsertMonsters(monsters: DnDClass[], searchContext?: string): Promise<void> {
+export async function upsertMonsters(monsters: Character[], searchContext?: string): Promise<void> {
   try {
     console.log(`upsertMonsters - Processing ${monsters.length} monsters`);
     for (const monster of monsters) {

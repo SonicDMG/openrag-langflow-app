@@ -42,7 +42,7 @@ export default function PortalButton() {
       
       // Navigate after animation completes
       const timeoutId = setTimeout(() => {
-        router.push('/dnd');
+        router.push('/battle-arena');
       }, 500); // Match animation duration
       
       return () => clearTimeout(timeoutId);

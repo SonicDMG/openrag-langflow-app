@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { upsertMonsters } from '../../../../lib/db/astra';
-import { loadDefaultMonsters } from '../../../dnd/utils/loadDefaults';
-import { DnDClass } from '../../../dnd/types';
+import { loadDefaultMonsters } from '../../../battle-arena/utils/loadDefaults';
+import { Character } from '../../../battle-arena/types';
 
 // POST - Load default monsters into database
 export async function POST() {
@@ -12,13 +12,13 @@ export async function POST() {
     const monstersFromJson = await loadDefaultMonsters();
     
     // Add isDefault flag to all monsters
-    const defaultMonsters: DnDClass[] = monstersFromJson.map(monster => ({
+    const defaultMonsters: Character[] = monstersFromJson.map(monster => ({
       ...monster,
       isDefault: true,
     }));
     
     // Save all default monsters to database
-    await upsertMonsters(defaultMonsters, 'Default D&D Monsters');
+    await upsertMonsters(defaultMonsters, 'Default Monsters');
     
     console.log(`[API /monsters/load-defaults] Successfully loaded ${defaultMonsters.length} default monsters from JSON`);
     

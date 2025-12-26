@@ -1,4 +1,4 @@
-import { DnDClass, Ability } from '../../../app/dnd/types';
+import { Character, Ability } from '../../../app/battle-arena/types';
 import { HeroRecord, MonsterRecord } from '../astra';
 
 // Mock the conversion functions - we'll need to export them or test them indirectly
@@ -14,7 +14,7 @@ describe('Database Conversions - Race and Sex', () => {
     description: 'Test description',
   };
 
-  const createMockDnDClass = (overrides?: Partial<DnDClass>): DnDClass => ({
+  const createMockCharacter = (overrides?: Partial<Character>): Character => ({
     name: 'Test Character',
     hitPoints: 25,
     maxHitPoints: 30,
@@ -95,9 +95,9 @@ describe('Database Conversions - Race and Sex', () => {
     });
   });
 
-  describe('DnDClass with race and sex', () => {
+  describe('Character with race and sex', () => {
     it('should support race and sex fields', () => {
-      const character: DnDClass = createMockDnDClass({
+      const character: Character = createMockCharacter({
         race: 'Elf',
         sex: 'other',
       });
@@ -107,7 +107,7 @@ describe('Database Conversions - Race and Sex', () => {
     });
 
     it('should allow undefined race and sex', () => {
-      const character: DnDClass = createMockDnDClass();
+      const character: Character = createMockCharacter();
 
       expect(character.race).toBeUndefined();
       expect(character.sex).toBeUndefined();
@@ -124,7 +124,7 @@ describe('Database Conversions - Race and Sex', () => {
     it('should maintain race and sex through conversion cycle', () => {
       // This is a conceptual test - in practice, the conversion functions
       // would be tested through integration tests with the actual database operations
-      const originalClass: DnDClass = createMockDnDClass({
+      const originalClass: Character = createMockCharacter({
         race: 'Dwarf',
         sex: 'male',
       });
@@ -145,7 +145,7 @@ describe('Database Conversions - Race and Sex', () => {
       };
 
       // Simulate converting back
-      const convertedClass: DnDClass = {
+      const convertedClass: Character = {
         ...originalClass,
         race: recordData.race,
         sex: recordData.sex,
@@ -156,7 +156,7 @@ describe('Database Conversions - Race and Sex', () => {
     });
 
     it('should handle undefined race and sex in conversion cycle', () => {
-      const originalClass: DnDClass = createMockDnDClass();
+      const originalClass: Character = createMockCharacter();
 
       const recordData = {
         name: originalClass.name,
@@ -172,7 +172,7 @@ describe('Database Conversions - Race and Sex', () => {
         sex: originalClass.sex,
       };
 
-      const convertedClass: DnDClass = {
+      const convertedClass: Character = {
         ...originalClass,
         race: recordData.race,
         sex: recordData.sex,

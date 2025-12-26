@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { promises as fs } from 'fs';
 import { join } from 'path';
-import { pixelize } from '@/app/dnd/server/pixelize';
-import { saveMonsterBundle } from '@/app/dnd/server/storage';
-import { generateReferenceImage, downloadImage } from '@/app/dnd/server/imageGeneration';
-import { MonsterBundle } from '@/app/dnd/utils/monsterTypes';
-import { CARD_SETTINGS, DEFAULT_SETTING } from '@/app/dnd/constants';
-import { CardSetting } from '@/app/dnd/types';
+import { pixelize } from '@/app/battle-arena/server/pixelize';
+import { saveMonsterBundle } from '@/app/battle-arena/server/storage';
+import { generateReferenceImage, downloadImage } from '@/app/battle-arena/server/imageGeneration';
+import { MonsterBundle } from '@/app/battle-arena/utils/monsterTypes';
+import { CARD_SETTINGS, DEFAULT_SETTING } from '@/app/battle-arena/constants';
+import { CardSetting } from '@/app/battle-arena/types';
 
 const MONSTERS_DIR = join(process.cwd(), 'public', 'cdn', 'monsters');
 

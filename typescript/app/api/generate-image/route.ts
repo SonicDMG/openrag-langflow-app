@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { config } from 'dotenv';
 import { resolve } from 'path';
 import EverArt from 'everart';
-import { downloadImage } from '@/app/dnd/server/imageGeneration';
-import { removeBackground } from '@/app/dnd/server/backgroundRemoval';
-import { CARD_SETTINGS, DEFAULT_SETTING } from '@/app/dnd/constants';
-import { CardSetting } from '@/app/dnd/types';
-import { enhanceDescriptionWithRaceAndSex } from '@/app/dnd/utils/promptEnhancement';
+import { downloadImage } from '@/app/battle-arena/server/imageGeneration';
+import { removeBackground } from '@/app/battle-arena/server/backgroundRemoval';
+import { CARD_SETTINGS, DEFAULT_SETTING } from '@/app/battle-arena/constants';
+import { CardSetting } from '@/app/battle-arena/types';
+import { enhanceDescriptionWithRaceAndSex } from '@/app/battle-arena/utils/promptEnhancement';
 
 // Load environment variables from the root .env file
 config({ path: resolve(process.cwd(), '..', '.env') });
@@ -231,7 +231,7 @@ export async function POST(req: NextRequest) {
           // Pixelize if requested
           if (shouldPixelize) {
             console.log('Pixelizing image to match app style...');
-            const { ensure16x9AspectRatio } = await import('@/app/dnd/server/imageGeneration');
+            const { ensure16x9AspectRatio } = await import('@/app/battle-arena/server/imageGeneration');
             const sharp = (await import('sharp')).default;
             const IQ = await import('image-q');
             

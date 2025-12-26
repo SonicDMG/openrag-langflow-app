@@ -19,61 +19,61 @@ Move ALL heroes and monsters to the database, eliminating FALLBACK_* constants e
 ## Implementation Strategy
 
 ### Phase 1: Ensure Defaults in Database ✅
-- Default heroes/monsters already loadable via `/dnd/load-data` page
+- Default heroes/monsters already loadable via `/battle arena/load-data` page
 - "Load Default Heroes" and "Load Default Monsters" buttons available
 - User can manually load defaults if needed
 
 ### Phase 2: Update Core Loading Logic
 **Files to modify:**
-1. `typescript/app/dnd/utils/dataLoader.ts`
+1. `typescript/app/battle arena/utils/dataLoader.ts`
    - Remove FALLBACK_* fallback logic
    - Always load from database → localStorage → empty array
    
-2. `typescript/app/dnd/hooks/useBattleData.ts`
+2. `typescript/app/battle arena/hooks/useBattleData.ts`
    - Remove FALLBACK_* emergency fallback
    - Rely on database + localStorage only
 
 ### Phase 3: Update Type Detection Logic
 **Files to modify:**
-1. `typescript/app/dnd/components/utils/characterMetadata.ts`
+1. `typescript/app/battle arena/components/utils/characterMetadata.ts`
    - Remove FALLBACK_MONSTERS checks
    - Use `_type` marker and `isCreatedMonster` flag only
    
-2. `typescript/app/dnd/components/utils/characterTypeUtils.ts`
+2. `typescript/app/battle arena/components/utils/characterTypeUtils.ts`
    - Remove FALLBACK_* checks
    - Use `_type` marker and character metadata
 
 ### Phase 4: Update Image Lookup
 **Files to modify:**
-1. `typescript/app/dnd/unified-character-creator/page.tsx`
+1. `typescript/app/battle arena/unified-character-creator/page.tsx`
    - Always match images by character name (not class)
    - Remove class name fallback logic
 
 ### Phase 5: Update Helper Functions
 **Files to modify:**
-1. `typescript/app/dnd/constants.ts`
+1. `typescript/app/battle arena/constants.ts`
    - Keep FALLBACK_* for JSON loading (build time)
    - Mark as deprecated, only for initial database seeding
    - Update `isMonster()` to not rely on FALLBACK_MONSTERS
    
-2. `typescript/app/dnd/utils/names.ts`
+2. `typescript/app/battle arena/utils/names.ts`
    - Remove FALLBACK_CLASSES checks
    - Simplify character name logic
 
 ### Phase 6: Update Components
 **Files to modify:**
-1. `typescript/app/dnd/components/MonsterCreator.tsx`
+1. `typescript/app/battle arena/components/MonsterCreator.tsx`
    - Remove FALLBACK_* filtering logic
    - All characters from database are "custom" if not in database
 
-2. `typescript/app/dnd/components/CharacterCardZoom.tsx`
+2. `typescript/app/battle arena/components/CharacterCardZoom.tsx`
    - Remove FALLBACK_* checks for determining default vs custom
 
 3. Test pages (can keep FALLBACK_* for testing purposes)
 
 ### Phase 7: Update Tests
 **Files to modify:**
-1. `typescript/app/dnd/utils/__tests__/names.test.ts`
+1. `typescript/app/battle arena/utils/__tests__/names.test.ts`
    - Update tests to not rely on FALLBACK_* being available
 
 ## Migration Path

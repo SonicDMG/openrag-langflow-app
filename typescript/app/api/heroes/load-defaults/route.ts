@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { upsertHeroes } from '../../../../lib/db/astra';
-import { loadDefaultHeroes } from '../../../dnd/utils/loadDefaults';
-import { generateDeterministicCharacterName } from '../../../dnd/utils/names';
-import { DnDClass } from '../../../dnd/types';
+import { loadDefaultHeroes } from '../../../battle-arena/utils/loadDefaults';
+import { generateDeterministicCharacterName } from '../../../battle-arena/utils/names';
+import { Character } from '../../../battle-arena/types';
 
 // POST - Load default heroes into database
 export async function POST() {
@@ -15,7 +15,7 @@ export async function POST() {
     // Generate display names for default heroes and update their names
     // This ensures heroes are stored with their display names (e.g., "Berserker Korg")
     // rather than just class names (e.g., "Barbarian")
-    const defaultHeroes: DnDClass[] = heroesFromJson.map(hero => {
+    const defaultHeroes: Character[] = heroesFromJson.map(hero => {
       // Check if hero.name is a standard class name (exists in CLASS_NAME_LISTS)
       // If so, generate a deterministic display name
       const displayName = generateDeterministicCharacterName(hero.name);
@@ -31,7 +31,7 @@ export async function POST() {
     });
     
     // Save all default heroes to database
-    await upsertHeroes(defaultHeroes, 'Default D&D Heroes');
+    await upsertHeroes(defaultHeroes, 'Default Heroes');
     
     console.log(`[API /heroes/load-defaults] Successfully loaded ${defaultHeroes.length} default heroes from JSON`);
     
