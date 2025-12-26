@@ -23,7 +23,7 @@ export function AddHeroCard({ size = 'compact' }: AddHeroCardProps) {
   const innerBorderRadius = isCompact ? '8px' : '12px';
 
   const handleClick = () => {
-    router.push('/battle-arena/load-data');
+    router.push('/battle-arena/unified-character-creator?type=hero');
   };
 
   return (
@@ -217,7 +217,7 @@ export function AddHeroCard({ size = 'compact' }: AddHeroCardProps) {
                 fontStyle: 'italic'
               }}
             >
-              Navigate to load data page
+              Create a new hero
             </p>
           </div>
         </div>

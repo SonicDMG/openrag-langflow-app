@@ -23,7 +23,7 @@ export function AddMonsterCard({ size = 'compact' }: AddMonsterCardProps) {
   const innerBorderRadius = isCompact ? '8px' : '12px';
 
   const handleClick = () => {
-    router.push('/battle-arena/load-data');
+    router.push('/battle-arena/unified-character-creator?type=monster');
   };
 
   return (
@@ -217,7 +217,7 @@ export function AddMonsterCard({ size = 'compact' }: AddMonsterCardProps) {
                 fontStyle: 'italic'
               }}
             >
-              Navigate to load data page
+              Create a new monster
             </p>
           </div>
         </div>

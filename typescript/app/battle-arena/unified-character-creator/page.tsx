@@ -233,6 +233,16 @@ function UnifiedCharacterCreatorContent() {
     loadCharacter();
   }, [editId, editType]);
 
+  // Set initial character type from URL parameter for new character creation
+  useEffect(() => {
+    // Only set character type from URL if we're NOT editing (no editId)
+    // and a type parameter is provided
+    if (!editId && editType) {
+      console.log(`[New Character] Setting character type from URL: ${editType}`);
+      setCharacterType(editType);
+    }
+  }, [editId, editType]);
+
   // Update color when character type changes
   useEffect(() => {
     if (!editId && !editType) {
