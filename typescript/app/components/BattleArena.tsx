@@ -291,7 +291,7 @@ export default function BattleArena() {
       console.log('defenderClass.name:', defenderClass.name);
       console.log('=== END VICTORY HANDLER DEBUG ===');
       
-      const victorName = victor === 'player1' 
+      const victorName = victor === 'player1'
         ? getCharacterName(player1Name || '', victorClass)
         : getCharacterName(player2Name || '', victorClass);
       
@@ -303,16 +303,21 @@ export default function BattleArena() {
         throw new Error('Missing class information for battle summary');
       }
       
+      // Use imagePrompt for visual descriptions if available, otherwise fall back to passed-in details
+      const victorVisualDetails = victorClass.imagePrompt || attackerDetails || '';
+      const defeatedVisualDetails = defeatedClass.imagePrompt || defenderDetails || '';
+      
       // Only include support heroes if they're on the victor's side (support heroes always join player1)
       const supportHeroesForChronicle = victor === 'player1' ? supportHeroes : undefined;
       
-      // Get support hero details from classDetails
+      // Get support hero details - use imagePrompt if available, otherwise classDetails
       const supportHeroDetails: Record<string, string> = {};
       if (supportHeroesForChronicle) {
         supportHeroesForChronicle.forEach(sh => {
-          const details = classDetails[sh.class.name];
-          if (details) {
-            supportHeroDetails[sh.class.name] = details;
+          // Prefer imagePrompt for visual description, fall back to classDetails
+          const visualDetails = sh.class.imagePrompt || classDetails[sh.class.name] || '';
+          if (visualDetails) {
+            supportHeroDetails[sh.class.name] = visualDetails;
           }
         });
       }
@@ -321,8 +326,8 @@ export default function BattleArena() {
         battleLog,
         victorClass,
         { ...defeatedClass, hitPoints: 0 },
-        attackerDetails,
-        defenderDetails,
+        victorVisualDetails,
+        defeatedVisualDetails,
         victorName,
         defeatedName,
         (chunk: string) => {
@@ -343,8 +348,8 @@ export default function BattleArena() {
             victorName,
             defeatedName,
             finalSummary,
-            attackerDetails,
-            defenderDetails,
+            victorVisualDetails,
+            defeatedVisualDetails,
             supportHeroesForChronicle,
             supportHeroDetails
           );

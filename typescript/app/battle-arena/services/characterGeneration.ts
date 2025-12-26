@@ -21,6 +21,126 @@ interface GenerationResult {
 }
 
 /**
+ * Entity scale categories with stat ranges
+ * These ranges serve as guidelines, not absolute constraints
+ */
+interface EntityScale {
+  category: string;
+  hitPoints: { min: number; max: number };
+  armorClass: { min: number; max: number };
+  attackBonus: { min: number; max: number };
+  description: string;
+}
+
+const ENTITY_SCALES: Record<string, EntityScale> = {
+  tiny: {
+    category: 'Tiny',
+    hitPoints: { min: 5, max: 15 },
+    armorClass: { min: 15, max: 20 },
+    attackBonus: { min: 2, max: 4 },
+    description: 'Very small creatures like fairies, pixies, sprites, insects, or mice',
+  },
+  small: {
+    category: 'Small',
+    hitPoints: { min: 10, max: 25 },
+    armorClass: { min: 13, max: 17 },
+    attackBonus: { min: 2, max: 5 },
+    description: 'Small creatures like goblins, kobolds, halflings, gnomes, or children',
+  },
+  medium: {
+    category: 'Medium',
+    hitPoints: { min: 20, max: 40 },
+    armorClass: { min: 12, max: 18 },
+    attackBonus: { min: 3, max: 6 },
+    description: 'Human-sized creatures like humans, elves, dwarves, or orcs',
+  },
+  large: {
+    category: 'Large',
+    hitPoints: { min: 50, max: 100 },
+    armorClass: { min: 13, max: 17 },
+    attackBonus: { min: 4, max: 8 },
+    description: 'Large creatures like ogres, trolls, bears, lions, or horses',
+  },
+  huge: {
+    category: 'Huge',
+    hitPoints: { min: 100, max: 200 },
+    armorClass: { min: 14, max: 19 },
+    attackBonus: { min: 6, max: 10 },
+    description: 'Huge creatures like giants, young dragons, elephants, or whales',
+  },
+  gargantuan: {
+    category: 'Gargantuan',
+    hitPoints: { min: 200, max: 400 },
+    armorClass: { min: 16, max: 22 },
+    attackBonus: { min: 8, max: 12 },
+    description: 'Massive creatures like ancient dragons, krakens, titans, or colossal beings',
+  },
+  vehicle: {
+    category: 'Vehicle/Construct',
+    hitPoints: { min: 150, max: 500 },
+    armorClass: { min: 16, max: 24 },
+    attackBonus: { min: 5, max: 10 },
+    description: 'Vehicles, constructs, or machines like spaceships, war machines, mechs, or golems',
+  },
+  swarm: {
+    category: 'Swarm',
+    hitPoints: { min: 30, max: 60 },
+    armorClass: { min: 10, max: 14 },
+    attackBonus: { min: 3, max: 6 },
+    description: 'Swarms or hordes of small creatures acting as one entity',
+  },
+  ethereal: {
+    category: 'Ethereal/Spirit',
+    hitPoints: { min: 20, max: 50 },
+    armorClass: { min: 10, max: 16 },
+    attackBonus: { min: 3, max: 7 },
+    description: 'Incorporeal or spiritual entities like ghosts, wraiths, shadows, or phantoms',
+  },
+};
+
+/**
+ * Keywords for detecting entity scale from description
+ */
+const SCALE_KEYWORDS: Record<string, string[]> = {
+  tiny: ['tiny', 'pixie', 'fairy', 'sprite', 'insect', 'mouse', 'rat', 'butterfly', 'bee', 'miniature', 'diminutive'],
+  small: ['small', 'goblin', 'kobold', 'halfling', 'gnome', 'child', 'imp', 'cat', 'dog'],
+  large: ['large', 'ogre', 'troll', 'bear', 'lion', 'horse', 'minotaur', 'centaur', 'wyvern'],
+  huge: ['huge', 'giant', 'dragon', 'elephant', 'whale', 'hydra', 'behemoth', 'massive', 'enormous'],
+  gargantuan: ['gargantuan', 'ancient dragon', 'kraken', 'titan', 'colossal', 'tarrasque', 'leviathan', 'elder'],
+  vehicle: ['spaceship', 'ship', 'vehicle', 'tank', 'mech', 'war machine', 'construct', 'golem', 'automaton', 'robot', 'airship', 'battleship'],
+  swarm: ['swarm', 'horde', 'colony', 'pack', 'flock', 'school'],
+  ethereal: ['ghost', 'wraith', 'spirit', 'phantom', 'ethereal', 'shadow', 'specter', 'apparition', 'incorporeal'],
+};
+
+/**
+ * Analyze description to determine entity scale category
+ * Returns the most specific/powerful scale detected, or default based on character type
+ */
+export function analyzeEntityScale(description: string, characterType: 'hero' | 'monster'): EntityScale {
+  const descLower = description.toLowerCase();
+  
+  // Priority order: more specific/powerful categories first
+  const priorityOrder = ['gargantuan', 'vehicle', 'huge', 'large', 'ethereal', 'swarm', 'small', 'tiny'];
+  
+  for (const scaleKey of priorityOrder) {
+    const keywords = SCALE_KEYWORDS[scaleKey];
+    for (const keyword of keywords) {
+      // Use word boundaries to avoid partial matches
+      const regex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+      if (regex.test(descLower)) {
+        console.log(`Detected entity scale: ${scaleKey} (keyword: "${keyword}")`);
+        return ENTITY_SCALES[scaleKey];
+      }
+    }
+  }
+  
+  // Default fallback based on character type
+  const defaultScale = characterType === 'hero' ? 'medium' : 'large';
+  console.log(`No scale keywords detected, using default: ${defaultScale}`);
+  return ENTITY_SCALES[defaultScale];
+}
+
+/**
  * Extract race from description text by matching against known races
  */
 export function extractRaceFromDescription(description: string): string | undefined {
@@ -139,6 +259,9 @@ export async function generateCharacterStats(
     // Use extracted name if found, otherwise use provided name
     const nameToUse = extractedName || (name && name.trim() ? name : '');
     
+    // Analyze entity scale from description
+    const entityScale = analyzeEntityScale(description, characterType);
+    
     // Generate name and stats
     // If no name provided or name is empty, always generate one
     const shouldGenerateName = !nameToUse || !nameToUse.trim();
@@ -146,16 +269,25 @@ export async function generateCharacterStats(
 
 ${shouldGenerateName ? 'Generate an appropriate name for this character.' : `Character name: ${nameToUse}`}
 
+IMPORTANT: This character appears to be in the "${entityScale.category}" category (${entityScale.description}).
+
 Provide the following information in JSON format:
 {
   "name": string (${shouldGenerateName ? 'generate an appropriate fantasy name fitting the description' : 'use the provided name'}),
-  "hitPoints": number (typical HP for a ${characterType === 'hero' ? 'level 1-3 character, around 20-35' : 'challenging encounter, 25-50'}),
-  "armorClass": number (typical AC, between ${characterType === 'hero' ? '12-18' : '10-20'}),
-  "attackBonus": number (typical attack bonus modifier, between ${characterType === 'hero' ? '3-5' : '2-8'}),
-  "damageDie": string (typical weapon damage die like "d6", "d8", "d10", or "d12"),
+  "hitPoints": number (suggested range: ${entityScale.hitPoints.min}-${entityScale.hitPoints.max}, but adjust based on special abilities, armor, or circumstances mentioned in the description),
+  "armorClass": number (suggested range: ${entityScale.armorClass.min}-${entityScale.armorClass.max}, but adjust for magical protection, shields, or special defenses mentioned),
+  "attackBonus": number (suggested range: ${entityScale.attackBonus.min}-${entityScale.attackBonus.max}, but adjust for weapon mastery, magical enhancement, or special combat abilities),
+  "damageDie": string (typical weapon damage die like "d6", "d8", "d10", or "d12" - scale appropriately for entity size),
   "race": string (extract race from description if mentioned, e.g., "Human", "Elf", "Dwarf", or "n/a" if not applicable),
   "sex": string (extract sex/gender from description if mentioned, e.g., "male", "female", "other", or "n/a" if not applicable)
 }
+
+GUIDELINES (not strict limits):
+- The suggested ranges are guidelines based on the entity's apparent scale
+- Feel free to exceed these ranges if the description mentions special abilities, magical enhancements, or unique circumstances
+- For example: a tiny fairy with a "protection sphere" could have much higher AC than typical for tiny creatures
+- A spaceship should have significantly more HP and AC than a humanoid
+- Consider the full context of the description when determining appropriate stats
 
 Return ONLY valid JSON, no other text.`;
 
@@ -207,7 +339,12 @@ Return ONLY valid JSON, no other text.`;
           damageDie = 'd' + damageDie.split('d')[1];
         }
 
-        const hitPoints = parsed.hitPoints || (characterType === 'hero' ? 25 : 30);
+        // Use midpoint of entity scale range as fallback
+        const fallbackHP = Math.floor((entityScale.hitPoints.min + entityScale.hitPoints.max) / 2);
+        const fallbackAC = Math.floor((entityScale.armorClass.min + entityScale.armorClass.max) / 2);
+        const fallbackAttack = Math.floor((entityScale.attackBonus.min + entityScale.attackBonus.max) / 2);
+        
+        const hitPoints = parsed.hitPoints || fallbackHP;
         // Use race/sex from parsed JSON if available, otherwise use extracted from description
         // Filter out "n/a" values - treat them as undefined
         let race = parsed.race && parsed.race !== 'n/a' ? parsed.race : extractedRace;
@@ -216,8 +353,8 @@ Return ONLY valid JSON, no other text.`;
         stats = {
           hitPoints,
           maxHitPoints: hitPoints,
-          armorClass: parsed.armorClass || (characterType === 'hero' ? 14 : 14),
-          attackBonus: parsed.attackBonus || (characterType === 'hero' ? 4 : 4),
+          armorClass: parsed.armorClass || fallbackAC,
+          attackBonus: parsed.attackBonus || fallbackAttack,
           damageDie,
           race,
           sex,
@@ -230,7 +367,6 @@ Return ONLY valid JSON, no other text.`;
         const armorClassMatch = statsJsonString.match(/"armorClass"\s*:\s*(\d+)/);
         const attackBonusMatch = statsJsonString.match(/"attackBonus"\s*:\s*(\d+)/);
         const damageDieMatch = statsJsonString.match(/"damageDie"\s*:\s*"([^"]+)"/);
-        const descriptionMatch = statsJsonString.match(/"description"\s*:\s*"([^"]*)"/);
 
         if (nameMatch) {
           if (!name || !name.trim()) {
@@ -245,12 +381,17 @@ Return ONLY valid JSON, no other text.`;
             damageDie = 'd' + damageDie.split('d')[1];
           }
 
-          const hitPoints = hitPointsMatch ? parseInt(hitPointsMatch[1]) : (characterType === 'hero' ? 25 : 30);
+          // Use midpoint of entity scale range as fallback
+          const fallbackHP = Math.floor((entityScale.hitPoints.min + entityScale.hitPoints.max) / 2);
+          const fallbackAC = Math.floor((entityScale.armorClass.min + entityScale.armorClass.max) / 2);
+          const fallbackAttack = Math.floor((entityScale.attackBonus.min + entityScale.attackBonus.max) / 2);
+          
+          const hitPoints = hitPointsMatch ? parseInt(hitPointsMatch[1]) : fallbackHP;
           stats = {
             hitPoints,
             maxHitPoints: hitPoints,
-            armorClass: armorClassMatch ? parseInt(armorClassMatch[1]) : 14,
-            attackBonus: attackBonusMatch ? parseInt(attackBonusMatch[1]) : 4,
+            armorClass: armorClassMatch ? parseInt(armorClassMatch[1]) : fallbackAC,
+            attackBonus: attackBonusMatch ? parseInt(attackBonusMatch[1]) : fallbackAttack,
             damageDie,
           };
         }
