@@ -1,349 +1,9 @@
-,{
+{
   "version": "1.0.0",
   "description": "Default monsters with abilities",
+  "exportedAt": "2025-12-26T19:51:36.733Z",
   "monsters": [
     {
-      "_id": "fallback-monster-goblin",
-      "name": "Goblin",
-      "hitPoints": 7,
-      "maxHitPoints": 7,
-      "armorClass": 15,
-      "attackBonus": 2,
-      "damageDie": "d6",
-      "abilities": [
-        {
-          "name": "Scimitar",
-          "type": "attack",
-          "damageDice": "1d6",
-          "attackRoll": true,
-          "description": "A quick slash with a curved blade."
-        },
-        {
-          "name": "Shortbow",
-          "type": "attack",
-          "damageDice": "1d6",
-          "attackRoll": true,
-          "description": "A ranged attack with a small bow."
-        }
-      ],
-      "description": "A small, green humanoid with pointed ears.",
-      "color": "bg-green-800"
-    },
-    {
-      "_id": "fallback-monster-orc",
-      "name": "Orc",
-      "hitPoints": 15,
-      "maxHitPoints": 15,
-      "armorClass": 13,
-      "attackBonus": 3,
-      "damageDie": "d8",
-      "abilities": [
-        {
-          "name": "Greataxe",
-          "type": "attack",
-          "damageDice": "1d12+3",
-          "attackRoll": true,
-          "description": "A powerful axe attack."
-        },
-        {
-          "name": "Javelin",
-          "type": "attack",
-          "damageDice": "1d6+3",
-          "attackRoll": true,
-          "description": "A thrown javelin attack."
-        }
-      ],
-      "description": "A brutish humanoid with gray-green skin.",
-      "color": "bg-gray-800"
-    },
-    {
-      "_id": "fallback-monster-dragon",
-      "name": "Dragon",
-      "hitPoints": 200,
-      "maxHitPoints": 200,
-      "armorClass": 19,
-      "attackBonus": 8,
-      "damageDie": "d12",
-      "abilities": [
-        {
-          "name": "Bite",
-          "type": "attack",
-          "damageDice": "2d10",
-          "attackRoll": true,
-          "description": "A powerful bite attack."
-        },
-        {
-          "name": "Claw",
-          "type": "attack",
-          "damageDice": "2d6",
-          "attackRoll": true,
-          "attacks": 2,
-          "description": "Two devastating claw attacks."
-        },
-        {
-          "name": "Breath Weapon",
-          "type": "attack",
-          "damageDice": "6d6",
-          "attackRoll": false,
-          "description": "A devastating breath attack."
-        }
-      ],
-      "description": "A massive, powerful reptilian creature.",
-      "color": "bg-red-800"
-    },
-    {
-      "_id": "fallback-monster-troll",
-      "name": "Troll",
-      "hitPoints": 84,
-      "maxHitPoints": 84,
-      "armorClass": 15,
-      "attackBonus": 5,
-      "damageDie": "d8",
-      "abilities": [
-        {
-          "name": "Bite",
-          "type": "attack",
-          "damageDice": "1d6",
-          "attackRoll": true,
-          "description": "A savage bite."
-        },
-        {
-          "name": "Claw",
-          "type": "attack",
-          "damageDice": "2d4",
-          "attackRoll": true,
-          "attacks": 2,
-          "description": "Two claw attacks."
-        },
-        {
-          "name": "Regeneration",
-          "type": "healing",
-          "healingDice": "1d10+3",
-          "description": "The troll regenerates lost hit points."
-        }
-      ],
-      "description": "A large, regenerating humanoid with green skin.",
-      "color": "bg-green-700"
-    },
-    {
-      "_id": "fallback-monster-ogre",
-      "name": "Ogre",
-      "hitPoints": 59,
-      "maxHitPoints": 59,
-      "armorClass": 11,
-      "attackBonus": 5,
-      "damageDie": "d10",
-      "abilities": [
-        {
-          "name": "Greatclub",
-          "type": "attack",
-          "damageDice": "2d8+4",
-          "attackRoll": true,
-          "description": "A massive club attack."
-        },
-        {
-          "name": "Javelin",
-          "type": "attack",
-          "damageDice": "2d6+4",
-          "attackRoll": true,
-          "description": "A thrown javelin attack."
-        }
-      ],
-      "description": "A large, brutish giant.",
-      "color": "bg-gray-700"
-    },
-    {
-      "_id": "fallback-monster-kobold",
-      "name": "Kobold",
-      "hitPoints": 5,
-      "maxHitPoints": 5,
-      "armorClass": 12,
-      "attackBonus": 2,
-      "damageDie": "d4",
-      "abilities": [
-        {
-          "name": "Dagger",
-          "type": "attack",
-          "damageDice": "1d4+2",
-          "attackRoll": true,
-          "description": "A quick dagger attack."
-        },
-        {
-          "name": "Sling",
-          "type": "attack",
-          "damageDice": "1d4+2",
-          "attackRoll": true,
-          "description": "A sling attack."
-        }
-      ],
-      "description": "A small, reptilian humanoid.",
-      "color": "bg-yellow-800"
-    },
-    {
-      "_id": "fallback-monster-skeleton",
-      "name": "Skeleton",
-      "hitPoints": 13,
-      "maxHitPoints": 13,
-      "armorClass": 13,
-      "attackBonus": 2,
-      "damageDie": "d6",
-      "abilities": [
-        {
-          "name": "Shortsword",
-          "type": "attack",
-          "damageDice": "1d6+2",
-          "attackRoll": true,
-          "description": "A sword attack."
-        },
-        {
-          "name": "Shortbow",
-          "type": "attack",
-          "damageDice": "1d6+2",
-          "attackRoll": true,
-          "description": "A ranged bow attack."
-        }
-      ],
-      "description": "An animated skeleton warrior.",
-      "color": "bg-gray-600"
-    },
-    {
-      "_id": "fallback-monster-zombie",
-      "name": "Zombie",
-      "hitPoints": 22,
-      "maxHitPoints": 22,
-      "armorClass": 8,
-      "attackBonus": 1,
-      "damageDie": "d6",
-      "abilities": [
-        {
-          "name": "Slam",
-          "type": "attack",
-          "damageDice": "1d6+1",
-          "attackRoll": true,
-          "description": "A slow slam attack."
-        }
-      ],
-      "description": "A shambling undead creature.",
-      "color": "bg-green-600"
-    },
-    {
-      "_id": "fallback-monster-vampire",
-      "name": "Vampire",
-      "hitPoints": 144,
-      "maxHitPoints": 144,
-      "armorClass": 16,
-      "attackBonus": 6,
-      "damageDie": "d8",
-      "abilities": [
-        {
-          "name": "Bite",
-          "type": "attack",
-          "damageDice": "1d6+3",
-          "attackRoll": true,
-          "description": "A draining bite attack."
-        },
-        {
-          "name": "Claw",
-          "type": "attack",
-          "damageDice": "1d8+3",
-          "attackRoll": true,
-          "attacks": 2,
-          "description": "Two claw attacks."
-        },
-        {
-          "name": "Regeneration",
-          "type": "healing",
-          "healingDice": "2d10",
-          "description": "The vampire regenerates lost hit points."
-        }
-      ],
-      "description": "An undead creature that feeds on blood.",
-      "color": "bg-red-900"
-    },
-    {
-      "_id": "fallback-monster-werewolf",
-      "name": "Werewolf",
-      "hitPoints": 58,
-      "maxHitPoints": 58,
-      "armorClass": 11,
-      "attackBonus": 4,
-      "damageDie": "d8",
-      "abilities": [
-        {
-          "name": "Bite",
-          "type": "attack",
-          "damageDice": "2d8+3",
-          "attackRoll": true,
-          "description": "Melee bite attack in wolf or hybrid form."
-        },
-        {
-          "name": "Claw",
-          "type": "attack",
-          "damageDice": "2d6+3",
-          "attackRoll": true,
-          "description": "Melee claw attack."
-        }
-      ],
-      "description": "A humanoid that transforms into a wolf.",
-      "color": "bg-gray-800"
-    },
-    {
-      "_id": "fallback-monster-demon",
-      "name": "Demon",
-      "hitPoints": 200,
-      "maxHitPoints": 200,
-      "armorClass": 19,
-      "attackBonus": 8,
-      "damageDie": "d10",
-      "abilities": [
-        {
-          "name": "Claw",
-          "type": "attack",
-          "damageDice": "2d6",
-          "attackRoll": true,
-          "attacks": 2,
-          "description": "Two demonic claw attacks."
-        },
-        {
-          "name": "Tail Sting",
-          "type": "attack",
-          "damageDice": "1d8+4",
-          "attackRoll": true,
-          "description": "A poisonous tail attack."
-        }
-      ],
-      "description": "A powerful fiend from the Abyss.",
-      "color": "bg-purple-900"
-    },
-    {
-      "_id": "fallback-monster-devil",
-      "name": "Devil",
-      "hitPoints": 200,
-      "maxHitPoints": 200,
-      "armorClass": 19,
-      "attackBonus": 8,
-      "damageDie": "d10",
-      "abilities": [
-        {
-          "name": "Searing Fork",
-          "type": "attack",
-          "damageDice": "2d8+4",
-          "attackRoll": true,
-          "description": "Melee weapon attack dealing fire damage."
-        },
-        {
-          "name": "Hurl Flame",
-          "type": "attack",
-          "damageDice": "2d8+4",
-          "attackRoll": true,
-          "description": "Ranged spell attack dealing fire damage."
-        }
-      ],
-      "description": "A powerful fiend from the Nine Hells.",
-      "color": "bg-red-900"
-    },
-    {
-      "_id": "fallback-monster-beholder",
       "name": "Beholder",
       "hitPoints": 180,
       "maxHitPoints": 180,
@@ -367,184 +27,15 @@
         }
       ],
       "description": "A floating eye with many magical abilities.",
-      "color": "bg-purple-800"
+      "color": "bg-purple-800",
+      "monsterId": "92370ea6-9dae-439a-814d-51e8cd78e54a",
+      "imageUrl": "https://storage.googleapis.com/storage.catbird.ai/predictions/354666726899736576/d32c452f-2c30-45bc-91bd-bf2d54e7b475.png",
+      "imagePosition": {
+        "offsetX": 52,
+        "offsetY": 65.1
+      }
     },
     {
-      "_id": "fallback-monster-mind-flayer",
-      "name": "Mind Flayer",
-      "hitPoints": 71,
-      "maxHitPoints": 71,
-      "armorClass": 15,
-      "attackBonus": 5,
-      "damageDie": "d8",
-      "abilities": [
-        {
-          "name": "Mind Blast",
-          "type": "attack",
-          "damageDice": "6d8",
-          "attackRoll": false,
-          "description": "Psychic damage in a cone, stuns targets."
-        },
-        {
-          "name": "Tentacles",
-          "type": "attack",
-          "damageDice": "4d10",
-          "attackRoll": true,
-          "attacks": 3,
-          "description": "Three tentacle attacks dealing psychic damage."
-        }
-      ],
-      "description": "A psionic humanoid with tentacles on its face.",
-      "color": "bg-indigo-900"
-    },
-    {
-      "_id": "fallback-monster-lich",
-      "name": "Lich",
-      "hitPoints": 135,
-      "maxHitPoints": 135,
-      "armorClass": 17,
-      "attackBonus": 7,
-      "damageDie": "d10",
-      "abilities": [
-        {
-          "name": "Paralyzing Touch",
-          "type": "attack",
-          "damageDice": "3d6",
-          "attackRoll": true,
-          "description": "A touch that paralyzes the target."
-        },
-        {
-          "name": "Disrupt Life",
-          "type": "attack",
-          "damageDice": "4d8",
-          "attackRoll": false,
-          "description": "Drains life force from nearby creatures."
-        }
-      ],
-      "description": "An undead spellcaster of great power.",
-      "color": "bg-gray-800"
-    },
-    {
-      "_id": "fallback-monster-giant",
-      "name": "Giant",
-      "hitPoints": 126,
-      "maxHitPoints": 126,
-      "armorClass": 13,
-      "attackBonus": 6,
-      "damageDie": "d12",
-      "abilities": [
-        {
-          "name": "Slam",
-          "type": "attack",
-          "damageDice": "2d10+5",
-          "attackRoll": true,
-          "description": "Melee slam attack dealing bludgeoning damage."
-        },
-        {
-          "name": "Rock",
-          "type": "attack",
-          "damageDice": "3d10+5",
-          "attackRoll": true,
-          "description": "Ranged rock attack."
-        }
-      ],
-      "description": "A massive humanoid creature.",
-      "color": "bg-orange-800"
-    },
-    {
-      "_id": "fallback-monster-elemental",
-      "name": "Elemental",
-      "hitPoints": 90,
-      "maxHitPoints": 90,
-      "armorClass": 14,
-      "attackBonus": 5,
-      "damageDie": "d8",
-      "abilities": [
-        {
-          "name": "Slam",
-          "type": "attack",
-          "damageDice": "2d8+4",
-          "attackRoll": true,
-          "description": "Melee slam attack."
-        }
-      ],
-      "description": "A creature of pure elemental energy.",
-      "color": "bg-blue-800"
-    },
-    {
-      "_id": "fallback-monster-undead",
-      "name": "Undead",
-      "hitPoints": 45,
-      "maxHitPoints": 45,
-      "armorClass": 12,
-      "attackBonus": 3,
-      "damageDie": "d6",
-      "abilities": [
-        {
-          "name": "Slam",
-          "type": "attack",
-          "damageDice": "1d8+2",
-          "attackRoll": true,
-          "description": "Melee slam attack."
-        }
-      ],
-      "description": "A generic undead creature.",
-      "color": "bg-gray-700"
-    },
-    {
-      "_id": "fallback-monster-beast",
-      "name": "Beast",
-      "hitPoints": 34,
-      "maxHitPoints": 34,
-      "armorClass": 13,
-      "attackBonus": 4,
-      "damageDie": "d8",
-      "abilities": [
-        {
-          "name": "Bite",
-          "type": "attack",
-          "damageDice": "1d8+2",
-          "attackRoll": true,
-          "description": "Melee bite attack."
-        }
-      ],
-      "description": "A wild animal or magical beast.",
-      "color": "bg-amber-800"
-    },
-    {
-      "_id": "fallback-monster-aberration",
-      "name": "Aberration",
-      "hitPoints": 68,
-      "maxHitPoints": 68,
-      "armorClass": 15,
-      "attackBonus": 5,
-      "damageDie": "d8",
-      "abilities": [
-        {
-          "name": "Tentacles",
-          "type": "attack",
-          "damageDice": "2d6+3",
-          "attackRoll": true,
-          "description": "Tentacle attack."
-        }
-      ],
-      "description": "An alien creature from beyond reality.",
-      "color": "bg-violet-900"
-    },
-    {
-      "_id": "fallback-monster-allosaurus",
-      "name": "Allosaurus",
-      "hitPoints": 51,
-      "maxHitPoints": 51,
-      "armorClass": 13,
-      "attackBonus": 5,
-      "damageDie": "d10",
-      "abilities": [],
-      "description": "A large carnivorous dinosaur.",
-      "color": "bg-green-700"
-    },
-    {
-      "_id": "fallback-monster-anklyosaurus",
       "name": "Anklyosaurus",
       "hitPoints": 68,
       "maxHitPoints": 68,
@@ -553,34 +44,15 @@
       "damageDie": "d10",
       "abilities": [],
       "description": "An armored herbivorous dinosaur.",
-      "color": "bg-amber-700"
+      "color": "bg-amber-700",
+      "monsterId": "1dce0d79-bfad-427a-9b31-3c436ab7d15f",
+      "imageUrl": "https://storage.googleapis.com/storage.catbird.ai/predictions/355345971070263296/250251f9-632c-4d27-90b7-052ef1169c11.png",
+      "imagePosition": {
+        "offsetX": 50,
+        "offsetY": 55.6
+      }
     },
     {
-      "_id": "fallback-monster-bugbear-stalker",
-      "name": "Bugbear Stalker",
-      "hitPoints": 27,
-      "maxHitPoints": 27,
-      "armorClass": 14,
-      "attackBonus": 3,
-      "damageDie": "d8",
-      "abilities": [],
-      "description": "A large, stealthy goblinoid.",
-      "color": "bg-gray-800"
-    },
-    {
-      "_id": "fallback-monster-goblin-boss",
-      "name": "Goblin Boss",
-      "hitPoints": 21,
-      "maxHitPoints": 21,
-      "armorClass": 17,
-      "attackBonus": 3,
-      "damageDie": "d6",
-      "abilities": [],
-      "description": "A goblin leader with better equipment.",
-      "color": "bg-green-900"
-    },
-    {
-      "_id": "fallback-monster-goblin-minion",
       "name": "Goblin Minion",
       "hitPoints": 7,
       "maxHitPoints": 7,
@@ -589,308 +61,77 @@
       "damageDie": "d6",
       "abilities": [],
       "description": "A weak goblin follower.",
-      "color": "bg-green-800"
+      "color": "bg-green-800",
+      "monsterId": "1cae84d1-40ce-4dd1-8826-b2c442141c7f",
+      "imageUrl": "/cdn/monsters/1cae84d1-40ce-4dd1-8826-b2c442141c7f/280x200.png"
     },
     {
-      "_id": "fallback-monster-hobgoblin-captain",
-      "name": "Hobgoblin Captain",
-      "hitPoints": 39,
-      "maxHitPoints": 39,
-      "armorClass": 17,
-      "attackBonus": 4,
-      "damageDie": "d8",
-      "abilities": [],
-      "description": "A disciplined goblinoid military leader.",
-      "color": "bg-orange-800"
-    },
-    {
-      "_id": "fallback-monster-pirate",
-      "name": "Pirate",
-      "hitPoints": 11,
-      "maxHitPoints": 11,
-      "armorClass": 12,
-      "attackBonus": 2,
-      "damageDie": "d6",
-      "abilities": [],
-      "description": "A seafaring bandit.",
-      "color": "bg-amber-800"
-    },
-    {
-      "_id": "fallback-monster-pirate-captain",
-      "name": "Pirate Captain",
-      "hitPoints": 52,
-      "maxHitPoints": 52,
-      "armorClass": 15,
-      "attackBonus": 5,
-      "damageDie": "d8",
-      "abilities": [],
-      "description": "A skilled pirate leader.",
-      "color": "bg-amber-900"
-    },
-    {
-      "_id": "fallback-monster-pteradon",
-      "name": "Pteradon",
-      "hitPoints": 13,
-      "maxHitPoints": 13,
-      "armorClass": 13,
-      "attackBonus": 3,
-      "damageDie": "d6",
-      "abilities": [],
-      "description": "A flying reptile with wings.",
-      "color": "bg-gray-600"
-    },
-    {
-      "_id": "fallback-monster-sphinx-of-wonder",
-      "name": "Sphinx of Wonder",
-      "hitPoints": 136,
-      "maxHitPoints": 136,
-      "armorClass": 17,
-      "attackBonus": 7,
-      "damageDie": "d10",
-      "abilities": [],
-      "description": "A magical creature with a lion body and human head.",
-      "color": "bg-yellow-800"
-    },
-    {
-      "_id": "fallback-monster-swarm-of-crawling-claws",
-      "name": "Swarm of Crawling Claws",
-      "hitPoints": 36,
-      "maxHitPoints": 36,
-      "armorClass": 12,
-      "attackBonus": 3,
-      "damageDie": "d4",
-      "abilities": [],
-      "description": "A swarm of animated severed hands.",
-      "color": "bg-gray-700"
-    },
-    {
-      "_id": "fallback-monster-tough-boss",
-      "name": "Tough Boss",
-      "hitPoints": 100,
-      "maxHitPoints": 100,
+      "name": "Dao",
+      "hitPoints": 187,
+      "maxHitPoints": 187,
       "armorClass": 18,
       "attackBonus": 7,
-      "damageDie": "d12",
-      "abilities": [],
-      "description": "A powerful boss monster.",
-      "color": "bg-red-900"
-    },
-    {
-      "_id": "fallback-monster-troll-limb",
-      "name": "Troll Limb",
-      "hitPoints": 21,
-      "maxHitPoints": 21,
-      "armorClass": 13,
-      "attackBonus": 3,
-      "damageDie": "d6",
-      "abilities": [],
-      "description": "A regenerating troll body part.",
-      "color": "bg-green-700"
-    },
-    {
-      "_id": "fallback-monster-vampire-familiar",
-      "name": "Vampire Familiar",
-      "hitPoints": 10,
-      "maxHitPoints": 10,
-      "armorClass": 12,
-      "attackBonus": 2,
-      "damageDie": "d4",
-      "abilities": [],
-      "description": "A small creature serving a vampire.",
-      "color": "bg-gray-900"
-    },
-    {
-      "_id": "fallback-monster-hezrou",
-      "name": "Hezrou",
-      "hitPoints": 136,
-      "maxHitPoints": 136,
-      "armorClass": 16,
-      "attackBonus": 6,
       "damageDie": "d10",
       "abilities": [
         {
-          "name": "Bite",
+          "name": "Slam",
           "type": "attack",
-          "damageDice": "2d8+6",
+          "damageDice": "2d8+7",
           "attackRoll": true,
-          "description": "Melee bite attack."
+          "description": "Melee slam attack."
         },
         {
-          "name": "Claw",
+          "name": "Earth Glide",
           "type": "attack",
-          "damageDice": "2d6+6",
+          "damageDice": "2d10+7",
           "attackRoll": true,
-          "attacks": 2,
-          "description": "Two claw attacks."
+          "description": "Attack while moving through earth."
         }
       ],
-      "description": "A large, toad-like demon.",
-      "color": "bg-purple-900"
+      "description": "An earth genie with rocky skin.",
+      "color": "bg-orange-900",
+      "monsterId": "a3edbca6-0a84-4a1c-b96e-fffb28c2ecfe",
+      "imageUrl": "https://storage.googleapis.com/storage.catbird.ai/predictions/355346247328088064/91a350dc-324a-4a62-a3f1-ef19c57721d6.png",
+      "imagePosition": {
+        "offsetX": 48,
+        "offsetY": 67.9
+      }
     },
     {
-      "_id": "fallback-monster-manes",
-      "name": "Manes",
-      "hitPoints": 9,
-      "maxHitPoints": 9,
-      "armorClass": 9,
+      "name": "Lemure",
+      "hitPoints": 13,
+      "maxHitPoints": 13,
+      "armorClass": 7,
       "attackBonus": 1,
       "damageDie": "d4",
       "abilities": [
         {
-          "name": "Claw",
+          "name": "Fist",
           "type": "attack",
           "damageDice": "1d4+1",
           "attackRoll": true,
-          "description": "Melee claw attack."
+          "description": "Melee fist attack."
         }
       ],
-      "description": "A weak, mindless demon.",
-      "color": "bg-gray-700"
+      "description": "A mindless, blob-like devil.",
+      "color": "bg-gray-700",
+      "monsterId": "06252cac-b530-4769-909a-63bf8d2cbf92",
+      "imageUrl": "/cdn/monsters/06252cac-b530-4769-909a-63bf8d2cbf92/280x200.png"
     },
     {
-      "_id": "fallback-monster-marilith",
-      "name": "Marilith",
-      "hitPoints": 189,
-      "maxHitPoints": 189,
-      "armorClass": 18,
-      "attackBonus": 8,
-      "damageDie": "d10",
-      "abilities": [
-        {
-          "name": "Longsword",
-          "type": "attack",
-          "damageDice": "1d10+5",
-          "attackRoll": true,
-          "attacks": 6,
-          "description": "Six longsword attacks."
-        },
-        {
-          "name": "Tail",
-          "type": "attack",
-          "damageDice": "2d10+4",
-          "attackRoll": true,
-          "description": "Tail attack that grapples."
-        }
-      ],
-      "description": "A six-armed snake-bodied demon.",
-      "color": "bg-purple-800"
-    },
-    {
-      "_id": "fallback-monster-nalfeshnee",
-      "name": "Nalfeshnee",
-      "hitPoints": 184,
-      "maxHitPoints": 184,
-      "armorClass": 18,
-      "attackBonus": 7,
-      "damageDie": "d10",
-      "abilities": [],
-      "description": "A large, boar-like demon.",
-      "color": "bg-purple-900"
-    },
-    {
-      "_id": "fallback-monster-quasit",
-      "name": "Quasit",
-      "hitPoints": 7,
-      "maxHitPoints": 7,
-      "armorClass": 13,
-      "attackBonus": 2,
-      "damageDie": "d4",
-      "abilities": [
-        {
-          "name": "Claw",
-          "type": "attack",
-          "damageDice": "1d4+3",
-          "attackRoll": true,
-          "description": "Melee claw attack."
-        },
-        {
-          "name": "Bite",
-          "type": "attack",
-          "damageDice": "1d4+3",
-          "attackRoll": true,
-          "description": "Melee bite attack."
-        }
-      ],
-      "description": "A small, mischievous demon.",
-      "color": "bg-indigo-900"
-    },
-    {
-      "_id": "fallback-monster-shadow-demon",
-      "name": "Shadow Demon",
-      "hitPoints": 66,
-      "maxHitPoints": 66,
+      "name": "Allosaurus",
+      "hitPoints": 51,
+      "maxHitPoints": 51,
       "armorClass": 13,
       "attackBonus": 5,
-      "damageDie": "d8",
-      "abilities": [
-        {
-          "name": "Claw",
-          "type": "attack",
-          "damageDice": "2d6+3",
-          "attackRoll": true,
-          "description": "Melee claw attack."
-        }
-      ],
-      "description": "A demon made of shadow.",
-      "color": "bg-gray-900"
+      "damageDie": "d10",
+      "abilities": [],
+      "description": "A large carnivorous dinosaur.",
+      "color": "bg-green-700",
+      "monsterId": "66f88e14-b09b-414b-a035-f047ff299aac",
+      "imageUrl": "/cdn/monsters/66f88e14-b09b-414b-a035-f047ff299aac/280x200.png"
     },
     {
-      "_id": "fallback-monster-vrock",
-      "name": "Vrock",
-      "hitPoints": 104,
-      "maxHitPoints": 104,
-      "armorClass": 15,
-      "attackBonus": 6,
-      "damageDie": "d8",
-      "abilities": [
-        {
-          "name": "Beak",
-          "type": "attack",
-          "damageDice": "2d6+4",
-          "attackRoll": true,
-          "description": "Melee beak attack."
-        },
-        {
-          "name": "Talons",
-          "type": "attack",
-          "damageDice": "2d6+4",
-          "attackRoll": true,
-          "attacks": 2,
-          "description": "Two talon attacks."
-        }
-      ],
-      "description": "A vulture-like demon with wings.",
-      "color": "bg-purple-800"
-    },
-    {
-      "_id": "fallback-monster-yochlol",
-      "name": "Yochlol",
-      "hitPoints": 136,
-      "maxHitPoints": 136,
-      "armorClass": 15,
-      "attackBonus": 6,
-      "damageDie": "d8",
-      "abilities": [
-        {
-          "name": "Pseudopod",
-          "type": "attack",
-          "damageDice": "2d6+4",
-          "attackRoll": true,
-          "description": "Melee pseudopod attack."
-        },
-        {
-          "name": "Bite",
-          "type": "attack",
-          "damageDice": "2d8+4",
-          "attackRoll": true,
-          "description": "Melee bite attack."
-        }
-      ],
-      "description": "A spider-like demon servant.",
-      "color": "bg-violet-900"
-    },
-    {
-      "_id": "fallback-monster-barbed-devil",
       "name": "Barbed Devil",
       "hitPoints": 110,
       "maxHitPoints": 110,
@@ -915,142 +156,65 @@
         }
       ],
       "description": "A devil covered in sharp barbs.",
-      "color": "bg-red-900"
+      "color": "bg-red-900",
+      "monsterId": "c997f30b-e5a6-4522-bbfa-34127cf87e37",
+      "imageUrl": "/cdn/monsters/c997f30b-e5a6-4522-bbfa-34127cf87e37/280x200.png"
     },
     {
-      "_id": "fallback-monster-bearded-devil",
-      "name": "Bearded Devil",
-      "hitPoints": 52,
-      "maxHitPoints": 52,
-      "armorClass": 13,
-      "attackBonus": 4,
-      "damageDie": "d8",
-      "abilities": [
-        {
-          "name": "Glaive",
-          "type": "attack",
-          "damageDice": "1d10+3",
-          "attackRoll": true,
-          "description": "Melee glaive attack."
-        },
-        {
-          "name": "Beard",
-          "type": "attack",
-          "damageDice": "1d8+3",
-          "attackRoll": true,
-          "description": "Beard tentacle attack."
-        }
-      ],
-      "description": "A devil with a long beard of tentacles.",
-      "color": "bg-red-800"
-    },
-    {
-      "_id": "fallback-monster-bone-devil",
-      "name": "Bone Devil",
-      "hitPoints": 142,
-      "maxHitPoints": 142,
-      "armorClass": 19,
-      "attackBonus": 6,
-      "damageDie": "d8",
-      "abilities": [
-        {
-          "name": "Claw",
-          "type": "attack",
-          "damageDice": "2d8+4",
-          "attackRoll": true,
-          "attacks": 2,
-          "description": "Two claw attacks."
-        },
-        {
-          "name": "Sting",
-          "type": "attack",
-          "damageDice": "2d10+4",
-          "attackRoll": true,
-          "bonusDamageDice": "4d8",
-          "description": "Sting attack with poison damage."
-        }
-      ],
-      "description": "A skeletal devil with sharp claws.",
-      "color": "bg-gray-700"
-    },
-    {
-      "_id": "fallback-monster-chain-devil",
-      "name": "Chain Devil",
-      "hitPoints": 85,
-      "maxHitPoints": 85,
-      "armorClass": 16,
+      "name": "Ogre",
+      "hitPoints": 59,
+      "maxHitPoints": 59,
+      "armorClass": 11,
       "attackBonus": 5,
-      "damageDie": "d8",
-      "abilities": [
-        {
-          "name": "Chain",
-          "type": "attack",
-          "damageDice": "2d6+4",
-          "attackRoll": true,
-          "attacks": 2,
-          "description": "Two chain attacks."
-        }
-      ],
-      "description": "A devil wrapped in chains.",
-      "color": "bg-gray-800"
-    },
-    {
-      "_id": "fallback-monster-erinyes",
-      "name": "Erinyes",
-      "hitPoints": 153,
-      "maxHitPoints": 153,
-      "armorClass": 18,
-      "attackBonus": 7,
-      "damageDie": "d8",
-      "abilities": [
-        {
-          "name": "Longsword",
-          "type": "attack",
-          "damageDice": "2d8+4",
-          "attackRoll": true,
-          "bonusDamageDice": "2d10",
-          "description": "Longsword attack with necrotic damage."
-        },
-        {
-          "name": "Longbow",
-          "type": "attack",
-          "damageDice": "1d8+4",
-          "attackRoll": true,
-          "description": "Ranged bow attack."
-        }
-      ],
-      "description": "A winged female devil with a bow.",
-      "color": "bg-red-900"
-    },
-    {
-      "_id": "fallback-monster-dao",
-      "name": "Dao",
-      "hitPoints": 187,
-      "maxHitPoints": 187,
-      "armorClass": 18,
-      "attackBonus": 7,
       "damageDie": "d10",
       "abilities": [
         {
-          "name": "Slam",
+          "name": "Greatclub",
           "type": "attack",
-          "damageDice": "2d8+7",
+          "damageDice": "2d8+4",
           "attackRoll": true,
-          "description": "Melee slam attack."
+          "description": "A massive club attack."
         },
         {
-          "name": "Earth Glide",
+          "name": "Javelin",
           "type": "attack",
-          "damageDice": "2d10+7",
+          "damageDice": "2d6+4",
           "attackRoll": true,
-          "description": "Attack while moving through earth."
+          "description": "A thrown javelin attack."
         }
       ],
-      "description": "An earth genie with rocky skin.",
-      "color": "bg-orange-900"
+      "description": "A large, brutish giant.",
+      "color": "bg-gray-700",
+      "monsterId": "fbe25c2b-94f9-49af-85e4-de33e3079142",
+      "imageUrl": "/cdn/monsters/fbe25c2b-94f9-49af-85e4-de33e3079142/280x200.png"
     },
     {
-      "_id": "fallback-monster-horned-devil",
+      "name": "Goblin Boss",
+      "hitPoints": 21,
+      "maxHitPoints": 21,
+      "armorClass": 17,
+      "attackBonus": 3,
+      "damageDie": "d6",
+      "abilities": [],
+      "description": "A goblin leader with better equipment.",
+      "color": "bg-green-900",
+      "monsterId": "b7d1b8f5-1c5e-4817-82a3-5efd0e109060",
+      "imageUrl": "/cdn/monsters/b7d1b8f5-1c5e-4817-82a3-5efd0e109060/280x200.png"
+    },
+    {
+      "name": "Nalfeshnee",
+      "hitPoints": 184,
+      "maxHitPoints": 184,
+      "armorClass": 18,
+      "attackBonus": 7,
+      "damageDie": "d10",
+      "abilities": [],
+      "description": "A large, boar-like demon.",
+      "color": "bg-purple-900",
+      "monsterId": "a5c8b46d-54a0-4942-b5fe-d6ed7a94840e",
+      "imageUrl": "/cdn/monsters/a5c8b46d-54a0-4942-b5fe-d6ed7a94840e/280x200.png"
+    },
+    {
       "name": "Horned Devil",
       "hitPoints": 178,
       "maxHitPoints": 178,
@@ -1074,38 +238,108 @@
         }
       ],
       "description": "A powerful devil with large horns.",
-      "color": "bg-red-900"
+      "color": "bg-red-900",
+      "monsterId": "c1352034-8233-414e-84b0-74d9188d9f69",
+      "imageUrl": "/cdn/monsters/c1352034-8233-414e-84b0-74d9188d9f69/280x200.png"
     },
     {
-      "_id": "fallback-monster-ice-devil",
-      "name": "Ice Devil",
-      "hitPoints": 180,
-      "maxHitPoints": 180,
-      "armorClass": 18,
-      "attackBonus": 7,
-      "damageDie": "d10",
+      "name": "Bugbear Stalker",
+      "hitPoints": 27,
+      "maxHitPoints": 27,
+      "armorClass": 14,
+      "attackBonus": 3,
+      "damageDie": "d8",
+      "abilities": [],
+      "description": "A large, stealthy goblinoid.",
+      "color": "bg-gray-800",
+      "monsterId": "74d8193b-5965-42c6-bd71-b7480e1c8645",
+      "imageUrl": "/cdn/monsters/74d8193b-5965-42c6-bd71-b7480e1c8645/280x200.png"
+    },
+    {
+      "name": "Yochlol",
+      "hitPoints": 136,
+      "maxHitPoints": 136,
+      "armorClass": 15,
+      "attackBonus": 6,
+      "damageDie": "d8",
       "abilities": [
         {
-          "name": "Spear",
+          "name": "Pseudopod",
           "type": "attack",
-          "damageDice": "2d8+5",
+          "damageDice": "2d6+4",
           "attackRoll": true,
-          "bonusDamageDice": "3d6",
-          "description": "Ice spear attack with cold damage."
+          "description": "Melee pseudopod attack."
         },
         {
-          "name": "Tail",
+          "name": "Bite",
           "type": "attack",
-          "damageDice": "2d6+5",
+          "damageDice": "2d8+4",
           "attackRoll": true,
-          "description": "Tail attack."
+          "description": "Melee bite attack."
         }
       ],
-      "description": "A blue-white devil of ice and cold.",
-      "color": "bg-blue-700"
+      "description": "A spider-like demon servant.",
+      "color": "bg-violet-900",
+      "monsterId": "798b1442-acdb-4be9-bd75-1fc5f6ec4a11",
+      "imageUrl": "/cdn/monsters/798b1442-acdb-4be9-bd75-1fc5f6ec4a11/280x200.png"
     },
     {
-      "_id": "fallback-monster-efreeti",
+      "name": "Werewolf",
+      "hitPoints": 58,
+      "maxHitPoints": 58,
+      "armorClass": 11,
+      "attackBonus": 4,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Bite",
+          "type": "attack",
+          "damageDice": "2d8+3",
+          "attackRoll": true,
+          "description": "Melee bite attack in wolf or hybrid form."
+        },
+        {
+          "name": "Claw",
+          "type": "attack",
+          "damageDice": "2d6+3",
+          "attackRoll": true,
+          "description": "Melee claw attack."
+        }
+      ],
+      "description": "A humanoid that transforms into a wolf.",
+      "color": "bg-gray-800",
+      "monsterId": "4dfc9dd9-2910-4a43-8e4f-e3ae0abf2238",
+      "imageUrl": "/cdn/monsters/4dfc9dd9-2910-4a43-8e4f-e3ae0abf2238/280x200.png"
+    },
+    {
+      "name": "Kobold",
+      "hitPoints": 5,
+      "maxHitPoints": 5,
+      "armorClass": 12,
+      "attackBonus": 2,
+      "damageDie": "d4",
+      "abilities": [
+        {
+          "name": "Dagger",
+          "type": "attack",
+          "damageDice": "1d4+2",
+          "attackRoll": true,
+          "description": "A quick dagger attack."
+        },
+        {
+          "name": "Sling",
+          "type": "attack",
+          "damageDice": "1d4+2",
+          "attackRoll": true,
+          "description": "A sling attack."
+        }
+      ],
+      "description": "A small, reptilian humanoid.",
+      "color": "bg-yellow-800",
+      "monsterId": "4a0868b9-378c-4000-b429-3f516e686ad9",
+      "imageUrl": "/cdn/monsters/4a0868b9-378c-4000-b429-3f516e686ad9/280x200.png"
+    },
+    {
       "name": "Efreeti",
       "hitPoints": 200,
       "maxHitPoints": 200,
@@ -1129,125 +363,121 @@
         }
       ],
       "description": "A fire genie from the Elemental Plane of Fire.",
-      "color": "bg-orange-800"
+      "color": "bg-orange-800",
+      "monsterId": "a68450aa-9198-4b8e-8ccd-1dfcafecc66c",
+      "imageUrl": "/cdn/monsters/a68450aa-9198-4b8e-8ccd-1dfcafecc66c/280x200.png"
     },
     {
-      "_id": "fallback-monster-imp",
-      "name": "Imp",
-      "hitPoints": 10,
-      "maxHitPoints": 10,
+      "name": "Bearded Devil",
+      "hitPoints": 52,
+      "maxHitPoints": 52,
       "armorClass": 13,
-      "attackBonus": 2,
-      "damageDie": "d4",
+      "attackBonus": 4,
+      "damageDie": "d8",
       "abilities": [
         {
-          "name": "Sting",
+          "name": "Glaive",
           "type": "attack",
-          "damageDice": "1d6+3",
+          "damageDice": "1d10+3",
           "attackRoll": true,
-          "bonusDamageDice": "2d6",
-          "description": "Sting attack with poison damage."
+          "description": "Melee glaive attack."
+        },
+        {
+          "name": "Beard",
+          "type": "attack",
+          "damageDice": "1d8+3",
+          "attackRoll": true,
+          "description": "Beard tentacle attack."
         }
       ],
-      "description": "A small, weak devil.",
-      "color": "bg-red-800"
+      "description": "A devil with a long beard of tentacles.",
+      "color": "bg-red-800",
+      "monsterId": "4438636a-d3b7-4338-a3be-ce9f0feab43b",
+      "imageUrl": "/cdn/monsters/4438636a-d3b7-4338-a3be-ce9f0feab43b/280x200.png"
     },
     {
-      "_id": "fallback-monster-marid",
-      "name": "Marid",
-      "hitPoints": 229,
-      "maxHitPoints": 229,
+      "name": "Lich",
+      "hitPoints": 135,
+      "maxHitPoints": 135,
       "armorClass": 17,
       "attackBonus": 7,
       "damageDie": "d10",
       "abilities": [
         {
-          "name": "Trident",
-          "type": "attack",
-          "damageDice": "2d6+5",
-          "attackRoll": true,
-          "description": "Melee trident attack."
-        },
-        {
-          "name": "Water Blast",
+          "name": "Paralyzing Touch",
           "type": "attack",
           "damageDice": "3d6",
+          "attackRoll": true,
+          "description": "A touch that paralyzes the target."
+        },
+        {
+          "name": "Disrupt Life",
+          "type": "attack",
+          "damageDice": "4d8",
           "attackRoll": false,
-          "description": "Ranged water attack."
+          "description": "Drains life force from nearby creatures."
         }
       ],
-      "description": "A water genie from the Elemental Plane of Water.",
-      "color": "bg-blue-800"
+      "description": "An undead spellcaster of great power.",
+      "color": "bg-gray-800",
+      "monsterId": "2491a0f8-7aa9-4a27-abdc-e1340f67bcf7",
+      "imageUrl": "/cdn/monsters/2491a0f8-7aa9-4a27-abdc-e1340f67bcf7/280x200.png"
     },
     {
-      "_id": "fallback-monster-lemure",
-      "name": "Lemure",
+      "name": "Skeleton",
       "hitPoints": 13,
       "maxHitPoints": 13,
-      "armorClass": 7,
-      "attackBonus": 1,
-      "damageDie": "d4",
+      "armorClass": 13,
+      "attackBonus": 2,
+      "damageDie": "d6",
       "abilities": [
         {
-          "name": "Fist",
+          "name": "Shortsword",
           "type": "attack",
-          "damageDice": "1d4+1",
+          "damageDice": "1d6+2",
           "attackRoll": true,
-          "description": "Melee fist attack."
+          "description": "A sword attack."
+        },
+        {
+          "name": "Shortbow",
+          "type": "attack",
+          "damageDice": "1d6+2",
+          "attackRoll": true,
+          "description": "A ranged bow attack."
         }
       ],
-      "description": "A mindless, blob-like devil.",
-      "color": "bg-gray-700"
+      "description": "An animated skeleton warrior.",
+      "color": "bg-gray-600",
+      "monsterId": "66d9ee05-b9d4-464c-9608-4bcd8eb63ef9",
+      "imageUrl": "/cdn/monsters/66d9ee05-b9d4-464c-9608-4bcd8eb63ef9/280x200.png"
     },
     {
-      "_id": "fallback-monster-swarm-of-lemures",
-      "name": "Swarm of Lemures",
-      "hitPoints": 45,
-      "maxHitPoints": 45,
-      "armorClass": 9,
+      "name": "Tough Boss",
+      "hitPoints": 100,
+      "maxHitPoints": 100,
+      "armorClass": 18,
+      "attackBonus": 7,
+      "damageDie": "d12",
+      "abilities": [],
+      "description": "A powerful boss monster.",
+      "color": "bg-red-900",
+      "monsterId": "5fc5f837-58ff-4a87-a3b4-49b3e7d2cae9",
+      "imageUrl": "/cdn/monsters/5fc5f837-58ff-4a87-a3b4-49b3e7d2cae9/280x200.png"
+    },
+    {
+      "name": "Vampire Familiar",
+      "hitPoints": 10,
+      "maxHitPoints": 10,
+      "armorClass": 12,
       "attackBonus": 2,
       "damageDie": "d4",
       "abilities": [],
-      "description": "A swarm of mindless devils.",
-      "color": "bg-gray-700"
+      "description": "A small creature serving a vampire.",
+      "color": "bg-gray-900",
+      "monsterId": "3e139ed8-0e49-458a-9e67-5fdb46c9b116",
+      "imageUrl": "/cdn/monsters/3e139ed8-0e49-458a-9e67-5fdb46c9b116/280x200.png"
     },
     {
-      "_id": "fallback-monster-pit-fiend",
-      "name": "Pit Fiend",
-      "hitPoints": 300,
-      "maxHitPoints": 300,
-      "armorClass": 19,
-      "attackBonus": 9,
-      "damageDie": "d12",
-      "abilities": [
-        {
-          "name": "Bite",
-          "type": "attack",
-          "damageDice": "3d6+8",
-          "attackRoll": true,
-          "description": "Melee bite attack."
-        },
-        {
-          "name": "Claw",
-          "type": "attack",
-          "damageDice": "4d8+8",
-          "attackRoll": true,
-          "description": "Melee claw attack."
-        },
-        {
-          "name": "Mace",
-          "type": "attack",
-          "damageDice": "4d6+8",
-          "attackRoll": true,
-          "bonusDamageDice": "6d6",
-          "description": "Melee mace attack with fire damage."
-        }
-      ],
-      "description": "The most powerful type of devil.",
-      "color": "bg-red-900"
-    },
-    {
-      "_id": "fallback-monster-white-dragon",
       "name": "White Dragon",
       "hitPoints": 200,
       "maxHitPoints": 200,
@@ -1279,10 +509,371 @@
         }
       ],
       "description": "A powerful ice dragon.",
-      "color": "bg-blue-200"
+      "color": "bg-blue-200",
+      "monsterId": "727b205f-d215-4110-af05-cd358ec49f1e",
+      "imageUrl": "/cdn/monsters/727b205f-d215-4110-af05-cd358ec49f1e/280x200.png"
     },
     {
-      "_id": "fallback-monster-blob-of-annihilation",
+      "name": "Undead",
+      "hitPoints": 45,
+      "maxHitPoints": 45,
+      "armorClass": 12,
+      "attackBonus": 3,
+      "damageDie": "d6",
+      "abilities": [
+        {
+          "name": "Slam",
+          "type": "attack",
+          "damageDice": "1d8+2",
+          "attackRoll": true,
+          "description": "Melee slam attack."
+        }
+      ],
+      "description": "A generic undead creature.",
+      "color": "bg-gray-700",
+      "monsterId": "34754d86-4172-475f-b3de-3da6ef674792",
+      "imageUrl": "/cdn/monsters/34754d86-4172-475f-b3de-3da6ef674792/280x200.png"
+    },
+    {
+      "name": "Troll",
+      "hitPoints": 84,
+      "maxHitPoints": 84,
+      "armorClass": 15,
+      "attackBonus": 5,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Bite",
+          "type": "attack",
+          "damageDice": "1d6",
+          "attackRoll": true,
+          "description": "A savage bite."
+        },
+        {
+          "name": "Claw",
+          "type": "attack",
+          "damageDice": "2d4",
+          "attackRoll": true,
+          "attacks": 2,
+          "description": "Two claw attacks."
+        },
+        {
+          "name": "Regeneration",
+          "type": "healing",
+          "healingDice": "1d10+3",
+          "description": "The troll regenerates lost hit points."
+        }
+      ],
+      "description": "A large, regenerating humanoid with green skin.",
+      "color": "bg-green-700",
+      "monsterId": "89aa2741-4282-4874-840f-56c8dbb28c71",
+      "imageUrl": "/cdn/monsters/89aa2741-4282-4874-840f-56c8dbb28c71/280x200.png"
+    },
+    {
+      "name": "Quasit",
+      "hitPoints": 7,
+      "maxHitPoints": 7,
+      "armorClass": 13,
+      "attackBonus": 2,
+      "damageDie": "d4",
+      "abilities": [
+        {
+          "name": "Claw",
+          "type": "attack",
+          "damageDice": "1d4+3",
+          "attackRoll": true,
+          "description": "Melee claw attack."
+        },
+        {
+          "name": "Bite",
+          "type": "attack",
+          "damageDice": "1d4+3",
+          "attackRoll": true,
+          "description": "Melee bite attack."
+        }
+      ],
+      "description": "A small, mischievous demon.",
+      "color": "bg-indigo-900",
+      "monsterId": "f065ae6c-bcee-4688-ba0e-d3b45080c059",
+      "imageUrl": "/cdn/monsters/f065ae6c-bcee-4688-ba0e-d3b45080c059/280x200.png"
+    },
+    {
+      "name": "Goblin",
+      "hitPoints": 7,
+      "maxHitPoints": 7,
+      "armorClass": 15,
+      "attackBonus": 2,
+      "damageDie": "d6",
+      "abilities": [
+        {
+          "name": "Scimitar",
+          "type": "attack",
+          "damageDice": "1d6",
+          "attackRoll": true,
+          "description": "A quick slash with a curved blade."
+        },
+        {
+          "name": "Shortbow",
+          "type": "attack",
+          "damageDice": "1d6",
+          "attackRoll": true,
+          "description": "A ranged attack with a small bow."
+        }
+      ],
+      "description": "A small, green humanoid with pointed ears.",
+      "color": "bg-green-800",
+      "monsterId": "303a8a48-838c-4f24-9d37-b821d7bb923e",
+      "imageUrl": "https://storage.googleapis.com/storage.catbird.ai/predictions/354661203102031872/8813b3cb-923c-4ac0-8a22-de32f9733f07.png",
+      "imagePosition": {
+        "offsetX": 41.9,
+        "offsetY": 18.1
+      }
+    },
+    {
+      "name": "Ice Devil",
+      "hitPoints": 180,
+      "maxHitPoints": 180,
+      "armorClass": 18,
+      "attackBonus": 7,
+      "damageDie": "d10",
+      "abilities": [
+        {
+          "name": "Spear",
+          "type": "attack",
+          "damageDice": "2d8+5",
+          "attackRoll": true,
+          "bonusDamageDice": "3d6",
+          "description": "Ice spear attack with cold damage."
+        },
+        {
+          "name": "Tail",
+          "type": "attack",
+          "damageDice": "2d6+5",
+          "attackRoll": true,
+          "description": "Tail attack."
+        }
+      ],
+      "description": "A blue-white devil of ice and cold.",
+      "color": "bg-blue-700",
+      "monsterId": "dbdfaff8-69fc-4fb9-8676-5e764fe4677b",
+      "imageUrl": "/cdn/monsters/dbdfaff8-69fc-4fb9-8676-5e764fe4677b/280x200.png"
+    },
+    {
+      "name": "Elemental",
+      "hitPoints": 90,
+      "maxHitPoints": 90,
+      "armorClass": 14,
+      "attackBonus": 5,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Slam",
+          "type": "attack",
+          "damageDice": "2d8+4",
+          "attackRoll": true,
+          "description": "Melee slam attack."
+        }
+      ],
+      "description": "A creature of pure elemental energy.",
+      "color": "bg-blue-800",
+      "monsterId": "9fb6599b-2d63-46ac-b71a-352acd6ecba9",
+      "imageUrl": "/cdn/monsters/9fb6599b-2d63-46ac-b71a-352acd6ecba9/280x200.png"
+    },
+    {
+      "name": "Imp",
+      "hitPoints": 10,
+      "maxHitPoints": 10,
+      "armorClass": 13,
+      "attackBonus": 2,
+      "damageDie": "d4",
+      "abilities": [
+        {
+          "name": "Sting",
+          "type": "attack",
+          "damageDice": "1d6+3",
+          "attackRoll": true,
+          "bonusDamageDice": "2d6",
+          "description": "Sting attack with poison damage."
+        }
+      ],
+      "description": "A small, weak devil.",
+      "color": "bg-red-800",
+      "monsterId": "b316fb95-ffb7-4896-ab80-d6aa2662811b",
+      "imageUrl": "/cdn/monsters/b316fb95-ffb7-4896-ab80-d6aa2662811b/280x200.png"
+    },
+    {
+      "name": "Beast",
+      "hitPoints": 34,
+      "maxHitPoints": 34,
+      "armorClass": 13,
+      "attackBonus": 4,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Bite",
+          "type": "attack",
+          "damageDice": "1d8+2",
+          "attackRoll": true,
+          "description": "Melee bite attack."
+        }
+      ],
+      "description": "A wild animal or magical beast.",
+      "color": "bg-amber-800",
+      "monsterId": "6cd1858a-a5e8-4361-8bea-019100e38ce9",
+      "imageUrl": "/cdn/monsters/6cd1858a-a5e8-4361-8bea-019100e38ce9/280x200.png"
+    },
+    {
+      "name": "Swarm of Crawling Claws",
+      "hitPoints": 36,
+      "maxHitPoints": 36,
+      "armorClass": 12,
+      "attackBonus": 3,
+      "damageDie": "d4",
+      "abilities": [],
+      "description": "A swarm of animated severed hands.",
+      "color": "bg-gray-700",
+      "monsterId": "07612002-adab-42f6-b61f-43055af8be81",
+      "imageUrl": "/cdn/monsters/07612002-adab-42f6-b61f-43055af8be81/280x200.png"
+    },
+    {
+      "name": "Pirate",
+      "hitPoints": 11,
+      "maxHitPoints": 11,
+      "armorClass": 12,
+      "attackBonus": 2,
+      "damageDie": "d6",
+      "abilities": [],
+      "description": "A seafaring bandit.",
+      "color": "bg-amber-800",
+      "monsterId": "4cf60be3-4d4a-42ff-a84f-7eb311a83172",
+      "imageUrl": "/cdn/monsters/4cf60be3-4d4a-42ff-a84f-7eb311a83172/280x200.png"
+    },
+    {
+      "name": "Hezrou",
+      "hitPoints": 136,
+      "maxHitPoints": 136,
+      "armorClass": 16,
+      "attackBonus": 6,
+      "damageDie": "d10",
+      "abilities": [
+        {
+          "name": "Bite",
+          "type": "attack",
+          "damageDice": "2d8+6",
+          "attackRoll": true,
+          "description": "Melee bite attack."
+        },
+        {
+          "name": "Claw",
+          "type": "attack",
+          "damageDice": "2d6+6",
+          "attackRoll": true,
+          "attacks": 2,
+          "description": "Two claw attacks."
+        }
+      ],
+      "description": "A large, toad-like demon.",
+      "color": "bg-purple-900",
+      "monsterId": "c41cabd7-02bc-4c34-ae78-0ee459f6eb2e",
+      "imageUrl": "/cdn/monsters/c41cabd7-02bc-4c34-ae78-0ee459f6eb2e/280x200.png"
+    },
+    {
+      "name": "Manes",
+      "hitPoints": 9,
+      "maxHitPoints": 9,
+      "armorClass": 9,
+      "attackBonus": 1,
+      "damageDie": "d4",
+      "abilities": [
+        {
+          "name": "Claw",
+          "type": "attack",
+          "damageDice": "1d4+1",
+          "attackRoll": true,
+          "description": "Melee claw attack."
+        }
+      ],
+      "description": "A weak, mindless demon.",
+      "color": "bg-gray-700",
+      "monsterId": "96f144bd-6179-4a9a-a7e6-21f56550beba",
+      "imageUrl": "/cdn/monsters/96f144bd-6179-4a9a-a7e6-21f56550beba/280x200.png"
+    },
+    {
+      "name": "Troll Limb",
+      "hitPoints": 21,
+      "maxHitPoints": 21,
+      "armorClass": 13,
+      "attackBonus": 3,
+      "damageDie": "d6",
+      "abilities": [],
+      "description": "A regenerating troll body part.",
+      "color": "bg-green-700",
+      "monsterId": "a8d98e98-cbb5-4930-9d70-b65b4c2eac9b",
+      "imageUrl": "/cdn/monsters/a8d98e98-cbb5-4930-9d70-b65b4c2eac9b/280x200.png"
+    },
+    {
+      "name": "Swarm of Lemures",
+      "hitPoints": 45,
+      "maxHitPoints": 45,
+      "armorClass": 9,
+      "attackBonus": 2,
+      "damageDie": "d4",
+      "abilities": [],
+      "description": "A swarm of mindless devils.",
+      "color": "bg-gray-700",
+      "monsterId": "ebb7a7a1-409c-4501-8427-3a2ce8f41504",
+      "imageUrl": "/cdn/monsters/ebb7a7a1-409c-4501-8427-3a2ce8f41504/280x200.png"
+    },
+    {
+      "name": "Zombie",
+      "hitPoints": 22,
+      "maxHitPoints": 22,
+      "armorClass": 8,
+      "attackBonus": 1,
+      "damageDie": "d6",
+      "abilities": [
+        {
+          "name": "Slam",
+          "type": "attack",
+          "damageDice": "1d6+1",
+          "attackRoll": true,
+          "description": "A slow slam attack."
+        }
+      ],
+      "description": "A shambling undead creature.",
+      "color": "bg-green-600",
+      "monsterId": "f95874f5-9dfd-4f71-8b08-c6bacbbea90d",
+      "imageUrl": "/cdn/monsters/f95874f5-9dfd-4f71-8b08-c6bacbbea90d/280x200.png"
+    },
+    {
+      "name": "Marid",
+      "hitPoints": 229,
+      "maxHitPoints": 229,
+      "armorClass": 17,
+      "attackBonus": 7,
+      "damageDie": "d10",
+      "abilities": [
+        {
+          "name": "Trident",
+          "type": "attack",
+          "damageDice": "2d6+5",
+          "attackRoll": true,
+          "description": "Melee trident attack."
+        },
+        {
+          "name": "Water Blast",
+          "type": "attack",
+          "damageDice": "3d6",
+          "attackRoll": false,
+          "description": "Ranged water attack."
+        }
+      ],
+      "description": "A water genie from the Elemental Plane of Water.",
+      "color": "bg-blue-800",
+      "monsterId": "448ceafd-d5cb-4092-967e-21dd54532d3e",
+      "imageUrl": "/cdn/monsters/448ceafd-d5cb-4092-967e-21dd54532d3e/280x200.png"
+    },
+    {
       "name": "Blob of Annihilation",
       "hitPoints": 400,
       "maxHitPoints": 400,
@@ -1291,7 +882,495 @@
       "damageDie": "d12",
       "abilities": [],
       "description": "A formless entity of pure destruction.",
-      "color": "bg-gray-900"
+      "color": "bg-gray-900",
+      "monsterId": "6ec1a643-8382-4826-9b60-71be0cd0ca8d",
+      "imageUrl": "/cdn/monsters/6ec1a643-8382-4826-9b60-71be0cd0ca8d/280x200.png"
+    },
+    {
+      "name": "Mind Flayer",
+      "hitPoints": 71,
+      "maxHitPoints": 71,
+      "armorClass": 15,
+      "attackBonus": 5,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Mind Blast",
+          "type": "attack",
+          "damageDice": "6d8",
+          "attackRoll": false,
+          "description": "Psychic damage in a cone, stuns targets."
+        },
+        {
+          "name": "Tentacles",
+          "type": "attack",
+          "damageDice": "4d10",
+          "attackRoll": true,
+          "attacks": 3,
+          "description": "Three tentacle attacks dealing psychic damage."
+        }
+      ],
+      "description": "A psionic humanoid with tentacles on its face.",
+      "color": "bg-indigo-900",
+      "monsterId": "443e86cb-9089-4618-a706-306455fb1777",
+      "imageUrl": "/cdn/monsters/443e86cb-9089-4618-a706-306455fb1777/280x200.png"
+    },
+    {
+      "name": "Marilith",
+      "hitPoints": 189,
+      "maxHitPoints": 189,
+      "armorClass": 18,
+      "attackBonus": 8,
+      "damageDie": "d10",
+      "abilities": [
+        {
+          "name": "Longsword",
+          "type": "attack",
+          "damageDice": "1d10+5",
+          "attackRoll": true,
+          "attacks": 6,
+          "description": "Six longsword attacks."
+        },
+        {
+          "name": "Tail",
+          "type": "attack",
+          "damageDice": "2d10+4",
+          "attackRoll": true,
+          "description": "Tail attack that grapples."
+        }
+      ],
+      "description": "A six-armed snake-bodied demon.",
+      "color": "bg-purple-800",
+      "monsterId": "c1763866-29f5-4a0b-8a2b-15de93e32357",
+      "imageUrl": "/cdn/monsters/c1763866-29f5-4a0b-8a2b-15de93e32357/280x200.png"
+    },
+    {
+      "name": "Pirate Captain",
+      "hitPoints": 52,
+      "maxHitPoints": 52,
+      "armorClass": 15,
+      "attackBonus": 5,
+      "damageDie": "d8",
+      "abilities": [],
+      "description": "A skilled pirate leader.",
+      "color": "bg-amber-900",
+      "monsterId": "2b741477-2a90-4bb5-bfa8-6838de557b61",
+      "imageUrl": "/cdn/monsters/2b741477-2a90-4bb5-bfa8-6838de557b61/280x200.png"
+    },
+    {
+      "name": "Devil",
+      "hitPoints": 200,
+      "maxHitPoints": 200,
+      "armorClass": 19,
+      "attackBonus": 8,
+      "damageDie": "d10",
+      "abilities": [
+        {
+          "name": "Searing Fork",
+          "type": "attack",
+          "damageDice": "2d8+4",
+          "attackRoll": true,
+          "description": "Melee weapon attack dealing fire damage."
+        },
+        {
+          "name": "Hurl Flame",
+          "type": "attack",
+          "damageDice": "2d8+4",
+          "attackRoll": true,
+          "description": "Ranged spell attack dealing fire damage."
+        }
+      ],
+      "description": "A powerful fiend from the Nine Hells.",
+      "color": "bg-red-900",
+      "monsterId": "be186b9a-8a69-48af-aeff-dce87d31113b",
+      "imageUrl": "/cdn/monsters/be186b9a-8a69-48af-aeff-dce87d31113b/280x200.png"
+    },
+    {
+      "name": "Hobgoblin Captain",
+      "hitPoints": 39,
+      "maxHitPoints": 39,
+      "armorClass": 17,
+      "attackBonus": 4,
+      "damageDie": "d8",
+      "abilities": [],
+      "description": "A disciplined goblinoid military leader.",
+      "color": "bg-orange-800",
+      "monsterId": "4643d340-b3f2-4324-ae34-d3e556358b22",
+      "imageUrl": "/cdn/monsters/4643d340-b3f2-4324-ae34-d3e556358b22/280x200.png"
+    },
+    {
+      "name": "Bone Devil",
+      "hitPoints": 142,
+      "maxHitPoints": 142,
+      "armorClass": 19,
+      "attackBonus": 6,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Claw",
+          "type": "attack",
+          "damageDice": "2d8+4",
+          "attackRoll": true,
+          "attacks": 2,
+          "description": "Two claw attacks."
+        },
+        {
+          "name": "Sting",
+          "type": "attack",
+          "damageDice": "2d10+4",
+          "attackRoll": true,
+          "bonusDamageDice": "4d8",
+          "description": "Sting attack with poison damage."
+        }
+      ],
+      "description": "A skeletal devil with sharp claws.",
+      "color": "bg-gray-700",
+      "monsterId": "2c892339-10f7-4137-a4e8-a7b6d38a4271",
+      "imageUrl": "/cdn/monsters/2c892339-10f7-4137-a4e8-a7b6d38a4271/280x200.png"
+    },
+    {
+      "name": "Giant",
+      "hitPoints": 126,
+      "maxHitPoints": 126,
+      "armorClass": 13,
+      "attackBonus": 6,
+      "damageDie": "d12",
+      "abilities": [
+        {
+          "name": "Slam",
+          "type": "attack",
+          "damageDice": "2d10+5",
+          "attackRoll": true,
+          "description": "Melee slam attack dealing bludgeoning damage."
+        },
+        {
+          "name": "Rock",
+          "type": "attack",
+          "damageDice": "3d10+5",
+          "attackRoll": true,
+          "description": "Ranged rock attack."
+        }
+      ],
+      "description": "A massive humanoid creature.",
+      "color": "bg-orange-800",
+      "monsterId": "c31ed8f2-2cd1-4764-a0c2-0160047889b2",
+      "imageUrl": "/cdn/monsters/c31ed8f2-2cd1-4764-a0c2-0160047889b2/280x200.png"
+    },
+    {
+      "name": "Shadow Demon",
+      "hitPoints": 66,
+      "maxHitPoints": 66,
+      "armorClass": 13,
+      "attackBonus": 5,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Claw",
+          "type": "attack",
+          "damageDice": "2d6+3",
+          "attackRoll": true,
+          "description": "Melee claw attack."
+        }
+      ],
+      "description": "A demon made of shadow.",
+      "color": "bg-gray-900",
+      "monsterId": "b16d60c0-1fd0-47de-83c0-5c3a4cc100d0",
+      "imageUrl": "/cdn/monsters/b16d60c0-1fd0-47de-83c0-5c3a4cc100d0/280x200.png"
+    },
+    {
+      "name": "Erinyes",
+      "hitPoints": 153,
+      "maxHitPoints": 153,
+      "armorClass": 18,
+      "attackBonus": 7,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Longsword",
+          "type": "attack",
+          "damageDice": "2d8+4",
+          "attackRoll": true,
+          "bonusDamageDice": "2d10",
+          "description": "Longsword attack with necrotic damage."
+        },
+        {
+          "name": "Longbow",
+          "type": "attack",
+          "damageDice": "1d8+4",
+          "attackRoll": true,
+          "description": "Ranged bow attack."
+        }
+      ],
+      "description": "A winged female devil with a bow.",
+      "color": "bg-red-900",
+      "monsterId": "4e842b30-b217-4e80-8ff1-9f8a0f6a87a4",
+      "imageUrl": "/cdn/monsters/4e842b30-b217-4e80-8ff1-9f8a0f6a87a4/280x200.png"
+    },
+    {
+      "name": "Dragon",
+      "hitPoints": 200,
+      "maxHitPoints": 200,
+      "armorClass": 19,
+      "attackBonus": 8,
+      "damageDie": "d12",
+      "abilities": [
+        {
+          "name": "Bite",
+          "type": "attack",
+          "damageDice": "2d10",
+          "attackRoll": true,
+          "description": "A powerful bite attack."
+        },
+        {
+          "name": "Claw",
+          "type": "attack",
+          "damageDice": "2d6",
+          "attackRoll": true,
+          "attacks": 2,
+          "description": "Two devastating claw attacks."
+        },
+        {
+          "name": "Breath Weapon",
+          "type": "attack",
+          "damageDice": "6d6",
+          "attackRoll": false,
+          "description": "A devastating breath attack."
+        }
+      ],
+      "description": "A massive, powerful reptilian creature.",
+      "color": "bg-red-800",
+      "monsterId": "09d6ce1b-2ae2-4201-92d9-3725d06a4a05",
+      "imageUrl": "/cdn/monsters/09d6ce1b-2ae2-4201-92d9-3725d06a4a05/280x200.png"
+    },
+    {
+      "name": "Orc",
+      "hitPoints": 15,
+      "maxHitPoints": 15,
+      "armorClass": 13,
+      "attackBonus": 3,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Greataxe",
+          "type": "attack",
+          "damageDice": "1d12+3",
+          "attackRoll": true,
+          "description": "A powerful axe attack."
+        },
+        {
+          "name": "Javelin",
+          "type": "attack",
+          "damageDice": "1d6+3",
+          "attackRoll": true,
+          "description": "A thrown javelin attack."
+        }
+      ],
+      "description": "A brutish humanoid with gray-green skin.",
+      "color": "bg-gray-800",
+      "monsterId": "82f2b34d-79a2-4f2e-9558-b36a00b4c17b",
+      "imageUrl": "/cdn/monsters/82f2b34d-79a2-4f2e-9558-b36a00b4c17b/280x200.png"
+    },
+    {
+      "name": "Aberration",
+      "hitPoints": 68,
+      "maxHitPoints": 68,
+      "armorClass": 15,
+      "attackBonus": 5,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Tentacles",
+          "type": "attack",
+          "damageDice": "2d6+3",
+          "attackRoll": true,
+          "description": "Tentacle attack."
+        }
+      ],
+      "description": "An alien creature from beyond reality.",
+      "color": "bg-violet-900",
+      "monsterId": "2678098c-8f60-48dd-abf6-e218860714f2",
+      "imageUrl": "/cdn/monsters/2678098c-8f60-48dd-abf6-e218860714f2/280x200.png"
+    },
+    {
+      "name": "Pit Fiend",
+      "hitPoints": 300,
+      "maxHitPoints": 300,
+      "armorClass": 19,
+      "attackBonus": 9,
+      "damageDie": "d12",
+      "abilities": [
+        {
+          "name": "Bite",
+          "type": "attack",
+          "damageDice": "3d6+8",
+          "attackRoll": true,
+          "description": "Melee bite attack."
+        },
+        {
+          "name": "Claw",
+          "type": "attack",
+          "damageDice": "4d8+8",
+          "attackRoll": true,
+          "description": "Melee claw attack."
+        },
+        {
+          "name": "Mace",
+          "type": "attack",
+          "damageDice": "4d6+8",
+          "attackRoll": true,
+          "bonusDamageDice": "6d6",
+          "description": "Melee mace attack with fire damage."
+        }
+      ],
+      "description": "The most powerful type of devil.",
+      "color": "bg-red-900",
+      "monsterId": "06cd0569-a5ae-4447-bd26-dba1af0a0fc7",
+      "imageUrl": "/cdn/monsters/06cd0569-a5ae-4447-bd26-dba1af0a0fc7/280x200.png"
+    },
+    {
+      "name": "Demon",
+      "hitPoints": 200,
+      "maxHitPoints": 200,
+      "armorClass": 19,
+      "attackBonus": 8,
+      "damageDie": "d10",
+      "abilities": [
+        {
+          "name": "Claw",
+          "type": "attack",
+          "damageDice": "2d6",
+          "attackRoll": true,
+          "attacks": 2,
+          "description": "Two demonic claw attacks."
+        },
+        {
+          "name": "Tail Sting",
+          "type": "attack",
+          "damageDice": "1d8+4",
+          "attackRoll": true,
+          "description": "A poisonous tail attack."
+        }
+      ],
+      "description": "A powerful fiend from the Abyss.",
+      "color": "bg-purple-900",
+      "monsterId": "a8e88041-b37d-4ca1-9a7c-fbdbc843b68d",
+      "imageUrl": "/cdn/monsters/a8e88041-b37d-4ca1-9a7c-fbdbc843b68d/280x200.png"
+    },
+    {
+      "name": "Chain Devil",
+      "hitPoints": 85,
+      "maxHitPoints": 85,
+      "armorClass": 16,
+      "attackBonus": 5,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Chain",
+          "type": "attack",
+          "damageDice": "2d6+4",
+          "attackRoll": true,
+          "attacks": 2,
+          "description": "Two chain attacks."
+        }
+      ],
+      "description": "A devil wrapped in chains.",
+      "color": "bg-gray-800",
+      "monsterId": "6c669a69-760c-40cd-885b-0c4eca3c4f5e",
+      "imageUrl": "/cdn/monsters/6c669a69-760c-40cd-885b-0c4eca3c4f5e/280x200.png"
+    },
+    {
+      "name": "Pteradon",
+      "hitPoints": 13,
+      "maxHitPoints": 13,
+      "armorClass": 13,
+      "attackBonus": 3,
+      "damageDie": "d6",
+      "abilities": [],
+      "description": "A flying reptile with wings.",
+      "color": "bg-gray-600",
+      "monsterId": "7c41df99-cbdf-4ea1-a2c0-fd098d5037d7",
+      "imageUrl": "/cdn/monsters/7c41df99-cbdf-4ea1-a2c0-fd098d5037d7/280x200.png"
+    },
+    {
+      "name": "Sphinx of Wonder",
+      "hitPoints": 136,
+      "maxHitPoints": 136,
+      "armorClass": 17,
+      "attackBonus": 7,
+      "damageDie": "d10",
+      "abilities": [],
+      "description": "A magical creature with a lion body and human head.",
+      "color": "bg-yellow-800",
+      "monsterId": "b51890cf-a8bc-49e3-9f75-fc4069fae0d7",
+      "imageUrl": "/cdn/monsters/b51890cf-a8bc-49e3-9f75-fc4069fae0d7/280x200.png"
+    },
+    {
+      "name": "Vrock",
+      "hitPoints": 104,
+      "maxHitPoints": 104,
+      "armorClass": 15,
+      "attackBonus": 6,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Beak",
+          "type": "attack",
+          "damageDice": "2d6+4",
+          "attackRoll": true,
+          "description": "Melee beak attack."
+        },
+        {
+          "name": "Talons",
+          "type": "attack",
+          "damageDice": "2d6+4",
+          "attackRoll": true,
+          "attacks": 2,
+          "description": "Two talon attacks."
+        }
+      ],
+      "description": "A vulture-like demon with wings.",
+      "color": "bg-purple-800",
+      "monsterId": "cf158518-842d-4a4b-9cf4-8e733c91e0ce",
+      "imageUrl": "/cdn/monsters/cf158518-842d-4a4b-9cf4-8e733c91e0ce/280x200.png"
+    },
+    {
+      "name": "Vampire",
+      "hitPoints": 144,
+      "maxHitPoints": 144,
+      "armorClass": 16,
+      "attackBonus": 6,
+      "damageDie": "d8",
+      "abilities": [
+        {
+          "name": "Bite",
+          "type": "attack",
+          "damageDice": "1d6+3",
+          "attackRoll": true,
+          "description": "A draining bite attack."
+        },
+        {
+          "name": "Claw",
+          "type": "attack",
+          "damageDice": "1d8+3",
+          "attackRoll": true,
+          "attacks": 2,
+          "description": "Two claw attacks."
+        },
+        {
+          "name": "Regeneration",
+          "type": "healing",
+          "healingDice": "2d10",
+          "description": "The vampire regenerates lost hit points."
+        }
+      ],
+      "description": "An undead creature that feeds on blood.",
+      "color": "bg-red-900",
+      "monsterId": "367c0a3f-a204-4a81-b73d-56540a6a0b6d",
+      "imageUrl": "/cdn/monsters/367c0a3f-a204-4a81-b73d-56540a6a0b6d/280x200.png",
+      "imagePosition": {
+        "offsetX": 50,
+        "offsetY": 79.2
+      }
     }
   ]
 }
