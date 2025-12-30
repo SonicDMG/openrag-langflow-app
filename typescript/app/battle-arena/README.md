@@ -283,13 +283,12 @@ The battle system implements authentic RPG mechanics:
 
 ### AI Opponent Strategy
 
-The AI uses OpenRAG to make intelligent decisions:
+The AI uses a probability-based decision system:
 
-- **Threat Assessment** - Identifies most dangerous targets
-- **Ability Selection** - Chooses optimal abilities for the situation
-- **Resource Management** - Conserves powerful abilities
-- **Team Coordination** - Considers team composition
-- **Adaptive Strategy** - Learns from battle context
+- **HP-Based Healing** - Heals when HP is low (30% chance at <30% HP, 20% chance at <50% HP, 10% otherwise)
+- **Random Ability Selection** - 70% chance to use a random attack ability, 30% chance for basic attack
+- **Automatic Turn Management** - Takes actions after a configurable delay (default 800ms)
+- **Smart Fallbacks** - Uses basic attack when no abilities are available
 
 ### Dynamic Stat Scaling
 

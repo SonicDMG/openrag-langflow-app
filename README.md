@@ -101,7 +101,7 @@ Open [http://localhost:3000](http://localhost:3000) to start chatting!
 
 **For the adventurous**
 
-An RPG battle simulator where OpenRAG generates characters from PDFs or text descriptions, controls AI opponents, and narrates epic battles. Watch heroes and monsters clash with stunning visual effects!
+An RPG battle simulator where OpenRAG generates characters from PDFs or text descriptions, and narrates epic battles. Watch heroes and monsters clash with stunning visual effects and probability-based AI opponents!
 
 ```bash
 cd typescript
