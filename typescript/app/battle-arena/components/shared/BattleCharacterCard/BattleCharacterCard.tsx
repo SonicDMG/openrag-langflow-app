@@ -12,10 +12,10 @@
 
 'use client';
 
-import { CharacterCard } from '../CharacterCard';
-import { BattleCharacterCardProps } from '../../lib/types';
-import { resolveImagePosition } from './utils';
-import { getCharacterImageUrls } from '../utils/imageUtils';
+import { CharacterCard } from '../../CharacterCard';
+import { BattleCharacterCardProps } from '../../../lib/types';
+import { resolveImagePosition } from '../../../utils/imagePosition';
+import { getCharacterImageUrls } from '../../utils/imageUtils';
 
 /**
  * Wrapper component that adds battle-specific functionality to CharacterCard
