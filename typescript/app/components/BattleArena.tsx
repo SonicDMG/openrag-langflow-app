@@ -25,15 +25,15 @@ import { useBattleActions } from '../battle-arena/hooks/battle/useBattleActions'
 import { getBattleSummary, generateBattleEndingImage } from '../battle-arena/services/apiService';
 
 // Components
-import { ClassSelection } from '../battle-arena/components/ClassSelection';
+import { ClassSelection } from '../battle-arena/components/battle/ClassSelection';
 import { FloatingNumber } from '../battle-arena/components/effects/FloatingNumber';
 import { PageHeader } from '../battle-arena/components/ui/PageHeader';
 import { LandscapePrompt } from '../battle-arena/components/ui/LandscapePrompt';
 import { ProjectileEffect } from '../battle-arena/components/effects/ProjectileEffect';
 import { BattleArena as BattleArenaComponent } from '../battle-arena/components/BattleArena';
-import { BattleLog } from '../battle-arena/components/BattleLog';
-import { OpponentSelector } from '../battle-arena/components/OpponentSelector';
-import { BattleSummaryOverlay } from '../battle-arena/components/BattleSummaryOverlay';
+import { BattleLog } from '../battle-arena/components/battle/BattleLog';
+import { OpponentSelector } from '../battle-arena/components/battle/OpponentSelector';
+import { BattleSummaryOverlay } from '../battle-arena/components/battle/BattleSummaryOverlay';
 
 export default function BattleArena() {
   // Data loading hook

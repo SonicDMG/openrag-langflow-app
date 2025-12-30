@@ -1,0 +1,1 @@
+export { OpponentTypeToggle } from './OpponentTypeToggle';

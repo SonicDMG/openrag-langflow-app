@@ -1,15 +1,15 @@
 'use client';
 
 import { useRef } from 'react';
-import { Character } from '../types';
-import { CharacterCardZoom } from './CharacterCardZoom';
-import { ClassSelection } from './ClassSelection';
-import { AddMonsterCard } from './cards/AddMonsterCard';
-import { SelectableClassCard } from './cards/SelectableClassCard';
-import { ScrollButton } from './ui/ScrollButton';
-import { OpponentHeader } from './OpponentHeader';
-import { OpponentTypeToggle } from './OpponentTypeToggle';
-import { useZoomModal } from '../hooks/ui/useZoomModal';
+import { Character } from '../../../types';
+import { CharacterCardZoom } from '../CharacterCardZoom';
+import { ClassSelection } from '../ClassSelection';
+import { AddMonsterCard } from '../../cards/AddMonsterCard';
+import { SelectableClassCard } from '../../cards/SelectableClassCard';
+import { ScrollButton } from '../../ui/ScrollButton';
+import { OpponentHeader } from '../OpponentHeader';
+import { OpponentTypeToggle } from '../OpponentTypeToggle';
+import { useZoomModal } from '../../../hooks/ui/useZoomModal';
 
 type OpponentSelectorProps = {
   opponentType: 'class' | 'monster';

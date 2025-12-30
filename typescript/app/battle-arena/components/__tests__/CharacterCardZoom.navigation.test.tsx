@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
-import { CharacterCardZoom } from '../CharacterCardZoom';
+import { CharacterCardZoom } from '../battle/CharacterCardZoom';
 import { Character } from '../../types';
 
 // Mock next/navigation

@@ -1,0 +1,1 @@
+export { OpponentHeader } from './OpponentHeader';

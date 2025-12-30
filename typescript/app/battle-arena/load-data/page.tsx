@@ -7,7 +7,7 @@ import { FALLBACK_CLASSES, FALLBACK_MONSTERS, CLASS_COLORS, FALLBACK_ABILITIES, 
 import { fetchAvailableClasses, fetchClassStats, fetchAvailableMonsters, fetchMonsterStats, extractMonsterAbilities, processSingleCharacter } from '../services/apiService';
 import { PageHeader } from '../components/ui/PageHeader';
 import { LandscapePrompt } from '../components/ui/LandscapePrompt';
-import { StagingConfirmationModal } from '../components/StagingConfirmationModal';
+import { StagingConfirmationModal } from '../components/battle/StagingConfirmationModal';
 import { LoadDefaultHeroesCard } from '../components/cards/LoadDefaultHeroesCard';
 import { LoadDefaultMonstersCard } from '../components/cards/LoadDefaultMonstersCard';
 import { ExportDefaultHeroesCard } from '../components/cards/ExportDefaultHeroesCard';

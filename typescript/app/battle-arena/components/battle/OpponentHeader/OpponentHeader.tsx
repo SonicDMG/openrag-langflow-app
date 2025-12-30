@@ -1,5 +1,5 @@
-import { Character } from '../types';
-import { getCharacterImageUrlOrPlaceholder } from './utils/imageUtils';
+import { Character } from '../../../types';
+import { getCharacterImageUrlOrPlaceholder } from '../../utils/imageUtils';
 
 interface OpponentHeaderProps {
   player2Class: Character | null;

@@ -1,14 +1,14 @@
 'use client';
 
 import { useRef, useCallback } from 'react';
-import { Character } from '../types';
-import { CharacterCardZoom } from './CharacterCardZoom';
-import { AddHeroCard } from './cards/AddHeroCard';
-import { LoadDefaultHeroesCard } from './cards/LoadDefaultHeroesCard';
-import { ScrollButton } from './ui/ScrollButton';
-import { SelectableClassCard } from './cards/SelectableClassCard';
-import { useMonsterAssociation } from '../hooks/ui/useMonsterAssociation';
-import { useZoomModal } from '../hooks/ui/useZoomModal';
+import { Character } from '../../../types';
+import { CharacterCardZoom } from '../CharacterCardZoom';
+import { AddHeroCard } from '../../cards/AddHeroCard';
+import { LoadDefaultHeroesCard } from '../../cards/LoadDefaultHeroesCard';
+import { ScrollButton } from '../../ui/ScrollButton';
+import { SelectableClassCard } from '../../cards/SelectableClassCard';
+import { useMonsterAssociation } from '../../../hooks/ui/useMonsterAssociation';
+import { useZoomModal } from '../../../hooks/ui/useZoomModal';
 
 interface ClassSelectionProps {
   title: string;
