@@ -63,7 +63,7 @@ type BattleArenaProps = {
   onSupportHeroRefsReady?: (refs: { support1: React.RefObject<HTMLDivElement | null>; support2: React.RefObject<HTMLDivElement | null> }) => void;
 };
 
-export function BattleArena({
+export function BattleArenaLayout({
   player1Class,
   player2Class,
   player1Name,

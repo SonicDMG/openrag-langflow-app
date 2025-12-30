@@ -23,7 +23,7 @@ interface PageHeaderProps {
 // Define all available pages for navigation
 const ALL_PAGES: BreadcrumbItem[] = [
   { label: 'Battle', path: '/battle-arena' },
-  { label: 'Test', path: '/battle-arena/test' },
+  { label: 'Simulator', path: '/battle-arena/battle-simulator' },
   { label: 'Create Character', path: '/battle-arena/unified-character-creator' },
   { label: 'Load Data', path: '/battle-arena/load-data' },
 ];

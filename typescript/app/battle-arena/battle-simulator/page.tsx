@@ -921,6 +921,7 @@ export default function BattleArenaTestPage() {
                                 playerClass={{ ...monster, hitPoints: monster.maxHitPoints }}
                                 characterName={monster.name}
                                 monsterImageUrl={monsterImageUrl}
+                                imagePosition={associatedMonster?.imagePosition}
                                 size="compact"
                                 cardIndex={index}
                                 totalCards={availableMonsters.length}
@@ -1005,6 +1006,10 @@ export default function BattleArenaTestPage() {
                           playerClass={supportHero.class}
                           characterName={supportHero.name}
                           monsterImageUrl={getMonsterImageUrl(supportHero.monsterId)}
+                          imagePosition={(() => {
+                            const monster = findAssociatedMonster(supportHero.name);
+                            return monster?.imagePosition;
+                          })()}
                           onAttack={() => performAttack(supportPlayer)}
                           onUseAbility={(idx) => useAbility(supportPlayer, idx)}
                           shouldShake={shakingPlayer === supportPlayer}

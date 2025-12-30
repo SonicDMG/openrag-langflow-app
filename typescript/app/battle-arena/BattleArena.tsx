@@ -30,7 +30,7 @@ import { FloatingNumber } from '../battle-arena/components/effects/FloatingNumbe
 import { PageHeader } from '../battle-arena/components/ui/PageHeader';
 import { LandscapePrompt } from '../battle-arena/components/ui/LandscapePrompt';
 import { ProjectileEffect } from '../battle-arena/components/effects/ProjectileEffect';
-import { BattleArena as BattleArenaComponent } from '../battle-arena/components/BattleArena';
+import { BattleArenaLayout } from '../battle-arena/components/BattleArenaLayout';
 import { BattleLog } from '../battle-arena/components/battle/BattleLog';
 import { OpponentSelector } from '../battle-arena/components/battle/OpponentSelector';
 import { BattleSummaryOverlay } from '../battle-arena/components/battle/BattleSummaryOverlay';
@@ -1123,7 +1123,7 @@ export default function BattleArena() {
 
           {/* Battle Arena */}
           {isBattleActive && player1Class && player2Class && (
-            <BattleArenaComponent
+            <BattleArenaLayout
               player1Class={player1Class}
               player2Class={player2Class}
               player1Name={player1Name || 'Loading...'}
