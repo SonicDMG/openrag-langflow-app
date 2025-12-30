@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import styles from './FloatingNumber.module.css';
 
 export type FloatingNumberType = 'damage' | 'healing' | 'miss' | 'attack-roll' | 'defeated' | 'knocked-out';
 
@@ -12,6 +13,10 @@ interface FloatingNumberProps {
   persistent?: boolean; // If true, text stays visible and doesn't auto-remove
 }
 
+/**
+ * FloatingNumber component displays animated numbers/text that float up from a target card
+ * Used for damage, healing, misses, and defeat notifications
+ */
 export function FloatingNumber({ value, type, targetCardRef, onComplete, persistent = false }: FloatingNumberProps) {
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -149,9 +154,17 @@ export function FloatingNumber({ value, type, targetCardRef, onComplete, persist
     ? `+${value}`
     : `-${value}`;
 
+  // Determine CSS class based on type and persistence
+  const getClassName = () => {
+    if (type === 'defeated' || type === 'knocked-out') {
+      return persistent ? styles.floatingNumberDefeatedPersistent : styles.floatingNumberDefeated;
+    }
+    return styles.floatingNumber;
+  };
+
   return (
     <div
-      className={(type === 'defeated' || type === 'knocked-out') ? (persistent ? 'floating-number-defeated-persistent' : 'floating-number-defeated') : 'floating-number'}
+      className={getClassName()}
       style={{
         position: 'fixed',
         left: `${position.x}px`,
@@ -168,3 +181,4 @@ export function FloatingNumber({ value, type, targetCardRef, onComplete, persist
   );
 }
 
+// Made with Bob

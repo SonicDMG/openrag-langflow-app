@@ -5,7 +5,7 @@ import { Character } from '../types';
 import { CharacterCardZoom } from './CharacterCardZoom';
 import { AddHeroCard } from './AddHeroCard';
 import { LoadDefaultHeroesCard } from './LoadDefaultHeroesCard';
-import { ScrollButton } from './ScrollButton';
+import { ScrollButton } from './ui/ScrollButton';
 import { SelectableClassCard } from './SelectableClassCard';
 import { useMonsterAssociation } from '../hooks/ui/useMonsterAssociation';
 import { useZoomModal } from '../hooks/ui/useZoomModal';

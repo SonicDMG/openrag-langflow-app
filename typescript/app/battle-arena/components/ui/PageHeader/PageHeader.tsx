@@ -28,6 +28,10 @@ const ALL_PAGES: BreadcrumbItem[] = [
   { label: 'Load Data', path: '/battle-arena/load-data' },
 ];
 
+/**
+ * PageHeader component displays page title, navigation, and breadcrumbs
+ * Features responsive layout with back button, centered title, and navigation links
+ */
 export function PageHeader({
   title,
   title2,
@@ -143,3 +147,5 @@ export function PageHeader({
     </div>
   );
 }
+
+// Made with Bob

@@ -1,0 +1,42 @@
+/* Confetti animation for victory */
+@keyframes confettiFall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(200px) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+.confetti {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 15;
+  overflow: hidden;
+}
+
+.confettiPiece {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  top: -10px;
+  animation: confettiFall 3s ease-out forwards;
+}
+
+.confettiPiece:nth-child(odd) {
+  background: #fbbf24;
+  box-shadow: 0 0 5px #fbbf24;
+}
+
+.confettiPiece:nth-child(even) {
+  background: #22c55e;
+  box-shadow: 0 0 5px #22c55e;
+}
+
+/* Made with Bob */

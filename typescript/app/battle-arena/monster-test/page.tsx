@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import MonsterCreator from '../components/MonsterCreator';
 import { CharacterCard } from '../components/CharacterCard';
-import { Sparkles } from '../components/Sparkles';
+import { Sparkles } from '../components/effects/Sparkles';
 import { applyAnimationClass } from '../utils/animations';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../constants';
 import { Character } from '../types';

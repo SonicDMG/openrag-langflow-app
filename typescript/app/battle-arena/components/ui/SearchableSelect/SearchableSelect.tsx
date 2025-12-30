@@ -19,6 +19,10 @@ interface SearchableSelectProps {
   helpText?: string;
 }
 
+/**
+ * SearchableSelect component provides a dropdown with search functionality
+ * Supports keyboard navigation and groups options by standard/custom
+ */
 export function SearchableSelect({
   options,
   value,
@@ -302,3 +306,4 @@ export function SearchableSelect({
   );
 }
 
+// Made with Bob

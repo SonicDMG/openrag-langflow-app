@@ -26,9 +26,9 @@ import { getBattleSummary, generateBattleEndingImage } from '../battle-arena/ser
 
 // Components
 import { ClassSelection } from '../battle-arena/components/ClassSelection';
-import { FloatingNumber } from '../battle-arena/components/FloatingNumber';
-import { PageHeader } from '../battle-arena/components/PageHeader';
-import { LandscapePrompt } from '../battle-arena/components/LandscapePrompt';
+import { FloatingNumber } from '../battle-arena/components/effects/FloatingNumber';
+import { PageHeader } from '../battle-arena/components/ui/PageHeader';
+import { LandscapePrompt } from '../battle-arena/components/ui/LandscapePrompt';
 import { ProjectileEffect } from '../battle-arena/components/ProjectileEffect';
 import { BattleArena as BattleArenaComponent } from '../battle-arena/components/BattleArena';
 import { BattleLog } from '../battle-arena/components/BattleLog';

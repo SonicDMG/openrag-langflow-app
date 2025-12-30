@@ -1,9 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import styles from './Confetti.module.css';
 
-// Confetti component for victory effects
-export function Confetti({ trigger }: { trigger: number }) {
+interface ConfettiProps {
+  trigger: number;
+}
+
+/**
+ * Confetti component for victory effects
+ * Generates animated confetti pieces that fall from the top of the screen
+ */
+export function Confetti({ trigger }: ConfettiProps) {
   const [confetti, setConfetti] = useState<Array<{ id: number; x: number; delay: number; duration: number }>>([]);
 
   useEffect(() => {
@@ -22,11 +30,11 @@ export function Confetti({ trigger }: { trigger: number }) {
   }, [trigger]);
 
   return (
-    <div className="confetti">
+    <div className={styles.confetti}>
       {confetti.map((piece) => (
         <div
           key={piece.id}
-          className="confetti-piece"
+          className={styles.confettiPiece}
           style={{
             left: `${piece.x}%`,
             animationDelay: `${piece.delay}s`,
@@ -38,3 +46,4 @@ export function Confetti({ trigger }: { trigger: number }) {
   );
 }
 
+// Made with Bob

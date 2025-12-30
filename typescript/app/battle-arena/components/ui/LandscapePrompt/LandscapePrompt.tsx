@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from 'react';
 
+/**
+ * LandscapePrompt component prompts mobile users to rotate their device
+ * Shows a full-screen overlay when device is in portrait mode on mobile
+ */
 export function LandscapePrompt() {
   const [isPortrait, setIsPortrait] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -61,3 +65,4 @@ export function LandscapePrompt() {
   );
 }
 
+// Made with Bob

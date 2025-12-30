@@ -3,6 +3,10 @@ interface ScrollButtonProps {
   onClick: () => void;
 }
 
+/**
+ * ScrollButton component for horizontal scrolling navigation
+ * Displays arrow buttons on left/right sides
+ */
 export function ScrollButton({ direction, onClick }: ScrollButtonProps) {
   const isLeft = direction === 'left';
   const ariaLabel = `Scroll ${direction}`;

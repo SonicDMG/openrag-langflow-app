@@ -2,8 +2,8 @@
 
 import { useRef, memo, useMemo } from 'react';
 import { Character } from '../types';
-import { Sparkles } from './Sparkles';
-import { Confetti } from './Confetti';
+import { Sparkles } from './effects/Sparkles';
+import { Confetti } from './effects/Confetti';
 import { useCardAnimations } from '../hooks/ui/useCardAnimations';
 import { useCardSizing } from '../hooks/ui/useCardSizing';
 import { useImageState } from '../hooks/ui/useImageState';

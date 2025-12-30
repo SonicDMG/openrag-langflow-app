@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS, getRandomRace, CARD_SETTINGS, DEFAULT_SETTING } from '../constants';
 import { Character, CardSetting } from '../types';
-import { SearchableSelect } from './SearchableSelect';
+import { SearchableSelect } from './ui/SearchableSelect';
 import { extractRaceFromDescription, extractSexFromDescription } from '../services/characterGeneration';
 import { loadHeroesFromDatabase, loadMonstersFromDatabase } from '../utils/dataLoader';
 

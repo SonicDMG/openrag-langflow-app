@@ -6,12 +6,12 @@ import { isMonster, FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, selectRandom
 import { rollDice, rollDiceWithNotation } from '../utils/dice';
 import { getCharacterName } from '../utils/names';
 import { createHitVisualEffects, createMissVisualEffects, createHealingVisualEffects, getOpponent, getProjectileType, type PendingVisualEffect, type ProjectileType } from '../utils/battle';
-import { FloatingNumber, FloatingNumberType } from '../components/FloatingNumber';
+import { FloatingNumber, FloatingNumberType } from '../components/effects/FloatingNumber';
 import { CharacterCard } from '../components/CharacterCard';
 import { ClassSelection } from '../components/ClassSelection';
 import { useAIOpponent } from '../hooks/battle/useAIOpponent';
-import { PageHeader } from '../components/PageHeader';
-import { LandscapePrompt } from '../components/LandscapePrompt';
+import { PageHeader } from '../components/ui/PageHeader';
+import { LandscapePrompt } from '../components/ui/LandscapePrompt';
 import { ProjectileEffect } from '../components/ProjectileEffect';
 
 // Hooks

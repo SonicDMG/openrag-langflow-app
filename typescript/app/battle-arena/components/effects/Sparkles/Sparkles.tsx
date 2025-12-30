@@ -1,9 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import styles from './Sparkles.module.css';
 
-// Sparkle component for healing effects
-export function Sparkles({ trigger, count = 12 }: { trigger: number; count?: number }) {
+interface SparklesProps {
+  trigger: number;
+  count?: number;
+}
+
+/**
+ * Sparkle component for healing effects
+ * Generates animated sparkles that rise and fade
+ * Count scales with healing amount (1-30 sparkles)
+ */
+export function Sparkles({ trigger, count = 12 }: SparklesProps) {
   const [sparkles, setSparkles] = useState<Array<{ id: number; x: number; y: number }>>([]);
 
   useEffect(() => {
@@ -27,7 +37,7 @@ export function Sparkles({ trigger, count = 12 }: { trigger: number; count?: num
       {sparkles.map((sparkle) => (
         <div
           key={sparkle.id}
-          className="sparkle"
+          className={styles.sparkle}
           style={{
             left: `${sparkle.x}%`,
             top: `${sparkle.y}%`,
@@ -39,3 +49,4 @@ export function Sparkles({ trigger, count = 12 }: { trigger: number; count?: num
   );
 }
 
+// Made with Bob

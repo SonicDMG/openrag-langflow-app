@@ -6,7 +6,7 @@ import { CharacterCardZoom } from './CharacterCardZoom';
 import { ClassSelection } from './ClassSelection';
 import { AddMonsterCard } from './AddMonsterCard';
 import { SelectableClassCard } from './SelectableClassCard';
-import { ScrollButton } from './ScrollButton';
+import { ScrollButton } from './ui/ScrollButton';
 import { OpponentHeader } from './OpponentHeader';
 import { OpponentTypeToggle } from './OpponentTypeToggle';
 import { useZoomModal } from '../hooks/ui/useZoomModal';

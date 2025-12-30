@@ -11,7 +11,7 @@ import {
   PendingVisualEffect,
   ProjectileType
 } from '../../utils/battle';
-import { FloatingNumberType } from '../../components/FloatingNumber';
+import { FloatingNumberType } from '../../components/effects/FloatingNumber';
 
 type BattleActionsDependencies = {
   // State
