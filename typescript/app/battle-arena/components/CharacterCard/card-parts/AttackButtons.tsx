@@ -1,8 +1,8 @@
 import React, { memo } from 'react';
-import { Character } from '../../types';
-import { CardSizing } from '../../hooks/ui/useCardSizing';
-import { CARD_THEME } from '../cardTheme';
-import { buildAttackTooltip } from '../utils/tooltipUtils';
+import { Character } from '../../../types';
+import { CardSizing } from '../../../hooks/ui/useCardSizing';
+import { CARD_THEME } from '../../cardTheme';
+import { buildAttackTooltip } from '../../utils/tooltipUtils';
 
 interface AttackButtonsProps {
   playerClass: Character;

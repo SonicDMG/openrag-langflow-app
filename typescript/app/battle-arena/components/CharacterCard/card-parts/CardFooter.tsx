@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { CARD_THEME } from '../cardTheme';
+import { CARD_THEME } from '../../cardTheme';
 
 interface CardFooterProps {
   cardIndex?: number;

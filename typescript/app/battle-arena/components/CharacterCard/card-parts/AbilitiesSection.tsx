@@ -1,9 +1,9 @@
 import React, { memo } from 'react';
-import { Character } from '../../types';
-import { CardSizing } from '../../hooks/ui/useCardSizing';
-import { CARD_THEME } from '../cardTheme';
+import { Character } from '../../../types';
+import { CardSizing } from '../../../hooks/ui/useCardSizing';
+import { CARD_THEME } from '../../cardTheme';
 import { AttackButtons } from './AttackButtons';
-import { buildAbilityTooltip } from '../utils/tooltipUtils';
+import { buildAbilityTooltip } from '../../utils/tooltipUtils';
 
 interface AbilitiesSectionProps {
   playerClass: Character;
