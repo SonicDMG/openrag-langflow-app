@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
-import { Character, Ability, AttackAbility, HealingAbility, CardSetting } from '../types';
-import { CARD_SETTINGS } from '../constants';
+import { Character, Ability, AttackAbility, HealingAbility, CardSetting } from '../lib/types';
+import { CARD_SETTINGS } from '../lib/constants';
 
 /**
  * Sanitize text for PDF export by removing or replacing problematic Unicode characters

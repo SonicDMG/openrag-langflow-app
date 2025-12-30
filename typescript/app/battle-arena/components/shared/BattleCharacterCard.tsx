@@ -13,7 +13,7 @@
 'use client';
 
 import { CharacterCard } from '../CharacterCard';
-import { BattleCharacterCardProps } from './types';
+import { BattleCharacterCardProps } from '../../lib/types';
 import { resolveImagePosition } from './utils';
 import { getCharacterImageUrls } from '../utils/imageUtils';
 

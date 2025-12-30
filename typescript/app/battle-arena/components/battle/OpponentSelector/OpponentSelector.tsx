@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
-import { Character } from '../../../types';
+import { Character } from '../../../lib/types';
 import { CharacterCardZoom } from '../CharacterCardZoom';
 import { ClassSelection } from '../ClassSelection';
 import { AddMonsterCard } from '../../cards/AddMonsterCard';

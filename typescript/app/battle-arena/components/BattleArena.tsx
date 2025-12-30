@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect } from 'react';
-import { Character } from '../types';
+import { Character } from '../lib/types';
 import { ProjectileType } from '../utils/battle';
 import {
   BattleCharacterCard,

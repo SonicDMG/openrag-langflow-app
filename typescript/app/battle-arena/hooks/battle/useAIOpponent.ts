@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Character, Ability } from '../../types';
+import { Character, Ability } from '../../lib/types';
 
 export interface AIOpponentCallbacks {
   onAttack: () => void;

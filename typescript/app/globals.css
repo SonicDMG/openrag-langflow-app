@@ -1,14 +1,17 @@
 @import "tailwindcss";
 
-/* Import modular CSS files */
-@import "./styles/animations/battle-animations.css";
-@import "./styles/animations/card-animations.css";
-@import "./styles/animations/battle-drop.css";
-@import "./styles/animations/portal-animations.css";
-@import "./styles/effects/flash-effects.css";
-@import "./styles/effects/cast-effects.css";
-@import "./styles/effects/card-effects.css";
-@import "./styles/effects/battle-summary.css";
+/* Import route-specific CSS files */
+/* Chat styles */
+@import "./chat/styles/portal-animations.css";
+
+/* Battle Arena styles */
+@import "./battle-arena/styles/animations/battle-animations.css";
+@import "./battle-arena/styles/animations/card-animations.css";
+@import "./battle-arena/styles/animations/battle-drop.css";
+@import "./battle-arena/styles/effects/flash-effects.css";
+@import "./battle-arena/styles/effects/cast-effects.css";
+@import "./battle-arena/styles/effects/card-effects.css";
+@import "./battle-arena/styles/effects/battle-summary.css";
 
 :root {
   --background: #ffffff;

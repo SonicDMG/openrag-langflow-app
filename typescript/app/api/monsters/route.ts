@@ -6,8 +6,8 @@ import { pixelize } from '@/app/battle-arena/server/pixelize';
 import { saveMonsterBundle } from '@/app/battle-arena/server/storage';
 import { generateReferenceImage, downloadImage } from '@/app/battle-arena/server/imageGeneration';
 import { MonsterBundle } from '@/app/battle-arena/utils/monsterTypes';
-import { CARD_SETTINGS, DEFAULT_SETTING } from '@/app/battle-arena/constants';
-import { CardSetting } from '@/app/battle-arena/types';
+import { CARD_SETTINGS, DEFAULT_SETTING } from '@/app/battle-arena/lib/constants';
+import { CardSetting } from '@/app/battle-arena/lib/types';
 
 const MONSTERS_DIR = join(process.cwd(), 'public', 'cdn', 'monsters');
 

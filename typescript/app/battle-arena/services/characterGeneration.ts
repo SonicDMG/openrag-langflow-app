@@ -1,6 +1,6 @@
-import { Character, Ability } from '../types';
+import { Character, Ability } from '../lib/types';
 import { extractJsonFromResponse, parseSSEResponse } from '../utils/api';
-import { PLAYER_RACES } from '../constants';
+import { PLAYER_RACES } from '../lib/constants';
 
 interface GeneratedStats {
   hitPoints: number;

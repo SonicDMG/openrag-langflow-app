@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { upsertMonsters } from '../../../../lib/db/astra';
 import { loadDefaultMonsters } from '../../../battle-arena/utils/loadDefaults';
-import { Character } from '../../../battle-arena/types';
+import { Character } from '../../../battle-arena/lib/types';
 
 // POST - Load default monsters into database
 export async function POST() {

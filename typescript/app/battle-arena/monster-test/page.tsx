@@ -6,8 +6,8 @@ import { MonsterCreator } from '../components/creation/MonsterCreator';
 import { CharacterCard } from '../components/CharacterCard';
 import { Sparkles } from '../components/effects/Sparkles';
 import { applyAnimationClass } from '../utils/animations';
-import { FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../constants';
-import { Character } from '../types';
+import { FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../lib/constants';
+import { Character } from '../lib/types';
 import { getCharacterImageUrl } from '../components/utils/imageUtils';
 
 interface CreatedMonster {

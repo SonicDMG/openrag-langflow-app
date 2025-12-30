@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useCallback } from 'react';
-import { Character } from '../../../types';
+import { Character } from '../../../lib/types';
 import { CharacterCardZoom } from '../CharacterCardZoom';
 import { AddHeroCard } from '../../cards/AddHeroCard';
 import { LoadDefaultHeroesCard } from '../../cards/LoadDefaultHeroesCard';

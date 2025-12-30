@@ -1,4 +1,4 @@
-import { Ability, AttackAbility, HealingAbility } from '../../types';
+import { Ability, AttackAbility, HealingAbility } from '../../lib/types';
 
 /**
  * Builds a tooltip string for a basic attack that includes dice information

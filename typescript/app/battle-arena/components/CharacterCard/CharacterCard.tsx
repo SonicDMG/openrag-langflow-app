@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, memo, useMemo } from 'react';
-import { Character } from '../../types';
+import { Character } from '../../lib/types';
 import { Sparkles } from '../effects/Sparkles';
 import { Confetti } from '../effects/Confetti';
 import { useCardAnimations } from '../../hooks/ui/useCardAnimations';

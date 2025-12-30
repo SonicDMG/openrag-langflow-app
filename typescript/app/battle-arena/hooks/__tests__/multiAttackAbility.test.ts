@@ -1,4 +1,4 @@
-import { Character, AttackAbility } from '../../types';
+import { Character, AttackAbility } from '../../lib/types';
 
 /**
  * Tests for multi-attack ability damage calculation

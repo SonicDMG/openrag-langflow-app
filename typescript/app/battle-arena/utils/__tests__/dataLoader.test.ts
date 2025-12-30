@@ -3,7 +3,7 @@ import {
   loadMonstersFromDatabase,
   loadAllCharacterData,
 } from '../dataLoader';
-import { Character } from '../../types';
+import { Character } from '../../lib/types';
 
 // Mock fetch
 global.fetch = jest.fn();

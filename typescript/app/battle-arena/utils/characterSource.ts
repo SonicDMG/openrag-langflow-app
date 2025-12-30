@@ -1,4 +1,4 @@
-import { Character } from '../types';
+import { Character } from '../lib/types';
 
 /**
  * Character source types for badge display

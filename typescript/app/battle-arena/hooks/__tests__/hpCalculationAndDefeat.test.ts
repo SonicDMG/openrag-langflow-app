@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { useBattleActions } from '../battle/useBattleActions';
-import { Character } from '../../types';
+import { Character } from '../../lib/types';
 
 /**
  * Tests for HP calculation accuracy and defeat detection

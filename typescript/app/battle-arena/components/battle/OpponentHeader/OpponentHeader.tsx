@@ -1,4 +1,4 @@
-import { Character } from '../../../types';
+import { Character } from '../../../lib/types';
 import { getCharacterImageUrlOrPlaceholder } from '../../utils/imageUtils';
 
 interface OpponentHeaderProps {

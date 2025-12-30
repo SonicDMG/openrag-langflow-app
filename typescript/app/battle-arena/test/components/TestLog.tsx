@@ -5,7 +5,7 @@
 
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { BattleLog } from '../../types';
+import { BattleLog } from '../../lib/types';
 
 export interface TestLogProps {
   battleLog: BattleLog[];

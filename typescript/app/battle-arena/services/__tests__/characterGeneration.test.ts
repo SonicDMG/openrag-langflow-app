@@ -4,7 +4,7 @@ import {
   extractNameFromDescription,
   generateCharacterStats,
 } from '../characterGeneration';
-import { PLAYER_RACES } from '../../constants';
+import { PLAYER_RACES } from '../../lib/constants';
 
 // Mock the API utilities
 jest.mock('../../utils/api', () => ({

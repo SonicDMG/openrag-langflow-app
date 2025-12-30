@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAllHeroes, getHeroById, upsertHero, upsertHeroes, heroRecordToClass, deleteHero } from '../../../lib/db/astra';
-import { Character } from '../../battle-arena/types';
+import { Character } from '../../battle-arena/lib/types';
 
 // GET - Fetch all heroes or a specific hero by ID
 export async function GET(req: NextRequest) {

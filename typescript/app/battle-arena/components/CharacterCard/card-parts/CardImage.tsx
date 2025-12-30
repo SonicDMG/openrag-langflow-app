@@ -1,5 +1,5 @@
 import React, { memo, useState, useEffect } from 'react';
-import { Character } from '../../../types';
+import { Character } from '../../../lib/types';
 import { CardSizing } from '../../../hooks/ui/useCardSizing';
 import { CARD_THEME } from '../../cardTheme';
 import { getCharacterType } from '../../utils/characterTypeUtils';

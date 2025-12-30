@@ -1,6 +1,6 @@
 'use client';
 
-import { Character } from '../../../types';
+import { Character } from '../../../lib/types';
 import { CharacterCard } from '../../CharacterCard';
 import { getCharacterMetadata } from '../../utils/characterMetadata';
 import { getCharacterImageUrls } from '../../utils/imageUtils';

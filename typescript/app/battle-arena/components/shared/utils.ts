@@ -5,10 +5,9 @@
  * to ensure consistent behavior across the application.
  */
 
-import { Character, ImagePosition } from '../../types';
+import { Character, ImagePosition, PlayerId, PlayerEffects, FindAssociatedMonster } from '../../lib/types';
 import { ProjectileType } from '../../utils/battle';
 import { getCharacterImageUrlWithFallback } from '../utils/imageUtils';
-import { PlayerId, PlayerEffects, FindAssociatedMonster } from './types';
 
 /**
  * Resolves the image position for a character

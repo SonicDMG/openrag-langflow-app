@@ -1,5 +1,5 @@
 import { exportCharacterToPDF, exportMultipleCharactersToPDF, CharacterPDFExportOptions } from '../pdfExport';
-import { Character, AttackAbility, HealingAbility } from '../../types';
+import { Character, AttackAbility, HealingAbility } from '../../lib/types';
 
 // Mock jsPDF
 jest.mock('jspdf', () => {

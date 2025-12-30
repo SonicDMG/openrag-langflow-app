@@ -1013,7 +1013,7 @@ export const FALLBACK_MONSTER_ABILITIES: Record<string, Ability[]> = {
 let FALLBACK_CLASSES_DATA: Character[] = [];
 try {
   // Use dynamic require to load JSON at build time
-  const heroesJson = require('../../../characters/default_heroes/heroes.json');
+  const heroesJson = require('../../../../characters/default_heroes/heroes.json');
   FALLBACK_CLASSES_DATA = heroesJson.heroes || [];
 } catch (error) {
   console.error('Failed to load heroes from JSON, using empty array:', error);
@@ -1059,7 +1059,7 @@ export function getPlayerClassNames(): string[] {
 let FALLBACK_MONSTERS_DATA: Character[] = [];
 try {
   // Use dynamic require to load JSON at build time
-  const monstersJson = require('../../../characters/default_monsters/monsters.json');
+  const monstersJson = require('../../../../characters/default_monsters/monsters.json');
   FALLBACK_MONSTERS_DATA = monstersJson.monsters || [];
 } catch (error) {
   console.error('Failed to load monsters from JSON, using empty array:', error);

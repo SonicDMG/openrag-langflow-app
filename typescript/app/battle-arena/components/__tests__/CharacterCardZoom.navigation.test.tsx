@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import { CharacterCardZoom } from '../battle/CharacterCardZoom';
-import { Character } from '../../types';
+import { Character } from '../../lib/types';
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Character } from '../../types';
-import { FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../../constants';
+import { Character } from '../../lib/types';
+import { FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../../lib/constants';
 import { loadHeroesFromDatabase, loadMonstersFromDatabase } from '../../utils/dataLoader';
 
 /**

@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { useBattleState } from '../battle/useBattleState';
-import { Character } from '../../types';
+import { Character } from '../../lib/types';
 
 /**
  * Tests for useBattleState hook

@@ -3,7 +3,7 @@
 import { useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { BattleLog as BattleLogType } from '../../../types';
+import { BattleLog as BattleLogType } from '../../../lib/types';
 
 type BattleLogProps = {
   battleLog: BattleLogType[];

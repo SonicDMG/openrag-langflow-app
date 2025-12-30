@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAllMonsters, upsertMonster } from '../../../../lib/db/astra';
 import { promises as fs } from 'fs';
 import { join } from 'path';
-import { CARD_SETTINGS, DEFAULT_SETTING } from '@/app/battle-arena/constants';
-import { CardSetting } from '@/app/battle-arena/types';
+import { CARD_SETTINGS, DEFAULT_SETTING } from '@/app/battle-arena/lib/constants';
+import { CardSetting } from '@/app/battle-arena/lib/types';
 import { enhanceDescriptionWithRaceAndSex } from '@/app/battle-arena/utils/promptEnhancement';
 
 const MONSTERS_DIR = join(process.cwd(), 'public', 'cdn', 'monsters');

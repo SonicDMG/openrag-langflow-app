@@ -3,7 +3,7 @@
  * Extracted from page.tsx to reduce code duplication
  */
 
-import { Character } from '../../types';
+import { Character } from '../../lib/types';
 import { getCharacterImageUrl } from '../../components/utils/imageUtils';
 import {
   TEST_DAMAGE_LOW_MIN,

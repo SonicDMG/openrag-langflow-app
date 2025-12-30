@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Character, Ability, AttackAbility, HealingAbility } from '../../../types';
+import { Character, Ability, AttackAbility, HealingAbility } from '../../../lib/types';
 import { exportCharacterToPDF, generateCharacterPDFBlob } from '../../../utils/pdfExport';
 
 interface CharacterCardZoomProps {

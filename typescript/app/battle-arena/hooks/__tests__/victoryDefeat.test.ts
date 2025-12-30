@@ -1,4 +1,4 @@
-import { Character } from '../../types';
+import { Character } from '../../lib/types';
 
 /**
  * Tests for victory and defeat conditions in battle

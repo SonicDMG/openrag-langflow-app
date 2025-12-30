@@ -1,4 +1,4 @@
-import { Character } from '../../types';
+import { Character } from '../../lib/types';
 
 /**
  * Determines the character type display text based on the player class.

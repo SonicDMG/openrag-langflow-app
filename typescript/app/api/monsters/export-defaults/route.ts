@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { getAllMonsters, MonsterRecord } from '../../../../lib/db/astra';
-import { Character } from '../../../battle-arena/types';
+import { Character } from '../../../battle-arena/lib/types';
 import { loadDefaultMonsters } from '../../../battle-arena/utils/loadDefaults';
 
 // POST - Export default monsters from database to JSON file

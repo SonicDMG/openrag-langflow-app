@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { Character, BattleLog } from '../../types';
+import { Character, BattleLog } from '../../lib/types';
 import { getBattleNarrative } from '../../services/apiService';
 
 export type QueuedNarrativeEvent = {

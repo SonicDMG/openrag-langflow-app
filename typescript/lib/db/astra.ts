@@ -3,7 +3,7 @@
 import { DataAPIClient } from "@datastax/astra-db-ts";
 import { config } from "dotenv";
 import { resolve } from "path";
-import { Character, Ability } from "../../app/battle-arena/types";
+import { Character, Ability } from "../../app/battle-arena/lib/types";
 
 // Load environment variables from the root .env file
 // Try both root directory and typescript directory

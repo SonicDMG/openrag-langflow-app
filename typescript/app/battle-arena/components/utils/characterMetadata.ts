@@ -1,4 +1,4 @@
-import { Character } from '../../types';
+import { Character } from '../../lib/types';
 import { getCharacterName } from '../../utils/names';
 
 type CreatedMonster = Character & { monsterId: string; imageUrl: string };

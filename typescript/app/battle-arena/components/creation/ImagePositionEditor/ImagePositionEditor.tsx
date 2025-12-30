@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ImagePosition } from '../../../types';
+import { ImagePosition } from '../../../lib/types';
 
 interface ImagePositionEditorProps {
   imageUrl: string;

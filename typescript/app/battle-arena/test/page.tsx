@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Character } from '../types';
-import { isMonster, FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, selectRandomAbilities } from '../constants';
+import { Character } from '../lib/types';
+import { isMonster, FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, selectRandomAbilities } from '../lib/constants';
 import { rollDice, rollDiceWithNotation } from '../utils/dice';
 import { getCharacterName } from '../utils/names';
 import { createHitVisualEffects, createMissVisualEffects, createHealingVisualEffects, getOpponent, getProjectileType, type PendingVisualEffect, type ProjectileType } from '../utils/battle';

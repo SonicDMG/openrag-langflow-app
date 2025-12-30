@@ -1,6 +1,6 @@
 import { getCharacterName, generateDeterministicCharacterName } from '../names';
-import { Character } from '../../types';
-import { FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../../constants';
+import { Character } from '../../lib/types';
+import { FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../../lib/constants';
 
 describe('getCharacterName', () => {
   // Helper to create a test Character

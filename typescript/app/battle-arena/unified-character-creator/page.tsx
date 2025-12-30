@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Character, Ability, AttackAbility, HealingAbility, ImagePosition } from '../types';
+import { Character, Ability, AttackAbility, HealingAbility, ImagePosition } from '../lib/types';
 import { CharacterCard } from '../components/CharacterCard';
 import { generateCharacterStats } from '../services/characterGeneration';
 import { getCharacterImageUrls } from '../components/utils/imageUtils';
-import { CLASS_COLORS, MONSTER_COLORS } from '../constants';
+import { CLASS_COLORS, MONSTER_COLORS } from '../lib/constants';
 import { PageHeader } from '../components/ui/PageHeader';
 import { LandscapePrompt } from '../components/ui/LandscapePrompt';
 import { MonsterCreator } from '../components/creation/MonsterCreator';
@@ -165,7 +165,7 @@ function UnifiedCharacterCreatorContent() {
           console.log(`[Edit Character] Not in database, checking fallback data for ID: ${editId}`);
           
           // Import fallback data dynamically
-          const { FALLBACK_CLASSES, FALLBACK_MONSTERS } = await import('../constants');
+          const { FALLBACK_CLASSES, FALLBACK_MONSTERS } = await import('../lib/constants');
           const fallbackData = editType === 'hero' ? FALLBACK_CLASSES : FALLBACK_MONSTERS;
           
           console.log(`[Edit Character] Fallback data loaded: ${fallbackData.length} ${editType}s`);

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Character } from '../../types';
+import { Character } from '../../lib/types';
 
 export interface ZoomCardData {
   playerClass: Character;

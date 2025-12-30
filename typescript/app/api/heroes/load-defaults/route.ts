@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { upsertHeroes } from '../../../../lib/db/astra';
 import { loadDefaultHeroes } from '../../../battle-arena/utils/loadDefaults';
 import { generateDeterministicCharacterName } from '../../../battle-arena/utils/names';
-import { Character } from '../../../battle-arena/types';
+import { Character } from '../../../battle-arena/lib/types';
 
 // POST - Load default heroes into database
 export async function POST() {

@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Character, Ability, AttackAbility } from '../../types';
+import { Character, Ability, AttackAbility } from '../../lib/types';
 import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../../utils/dice';
 import {
   createHitVisualEffects,

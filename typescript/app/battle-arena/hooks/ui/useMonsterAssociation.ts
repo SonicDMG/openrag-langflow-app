@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Character } from '../../types';
+import { Character } from '../../lib/types';
 
 type CreatedMonster = Character & { monsterId: string; imageUrl: string };
 

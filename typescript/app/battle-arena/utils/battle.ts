@@ -1,4 +1,4 @@
-import { Character, AttackAbility } from '../types';
+import { Character, AttackAbility } from '../lib/types';
 import { shouldShowCastEffect } from './spellEffects';
 
 // Type for visual effects

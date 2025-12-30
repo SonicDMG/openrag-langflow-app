@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Character, Ability } from '../types';
-import { FALLBACK_CLASSES, FALLBACK_MONSTERS, CLASS_COLORS, FALLBACK_ABILITIES, MONSTER_COLORS, FALLBACK_MONSTER_ABILITIES } from '../constants';
+import { Character, Ability } from '../lib/types';
+import { FALLBACK_CLASSES, FALLBACK_MONSTERS, CLASS_COLORS, FALLBACK_ABILITIES, MONSTER_COLORS, FALLBACK_MONSTER_ABILITIES } from '../lib/constants';
 import { fetchAvailableClasses, fetchClassStats, fetchAvailableMonsters, fetchMonsterStats, extractMonsterAbilities, processSingleCharacter } from '../services/apiService';
 import { PageHeader } from '../components/ui/PageHeader';
 import { LandscapePrompt } from '../components/ui/LandscapePrompt';

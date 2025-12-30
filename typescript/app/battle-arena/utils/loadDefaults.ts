@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
-import { Character } from '../types';
+import { Character } from '../lib/types';
 
 /**
  * Load default heroes from JSON file

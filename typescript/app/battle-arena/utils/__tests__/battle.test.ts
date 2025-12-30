@@ -6,7 +6,7 @@ import {
   buildDamageDiceArray,
   getProjectileType,
 } from '../battle';
-import { Character, AttackAbility } from '../../types';
+import { Character, AttackAbility } from '../../lib/types';
 
 // Mock dice functions
 const mockRollDiceWithNotation = jest.fn((notation: string) => {

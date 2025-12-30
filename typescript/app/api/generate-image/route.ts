@@ -4,8 +4,8 @@ import { resolve } from 'path';
 import EverArt from 'everart';
 import { downloadImage } from '@/app/battle-arena/server/imageGeneration';
 import { removeBackground } from '@/app/battle-arena/server/backgroundRemoval';
-import { CARD_SETTINGS, DEFAULT_SETTING } from '@/app/battle-arena/constants';
-import { CardSetting } from '@/app/battle-arena/types';
+import { CARD_SETTINGS, DEFAULT_SETTING } from '@/app/battle-arena/lib/constants';
+import { CardSetting } from '@/app/battle-arena/lib/types';
 import { enhanceDescriptionWithRaceAndSex } from '@/app/battle-arena/utils/promptEnhancement';
 
 // Load environment variables from the root .env file
