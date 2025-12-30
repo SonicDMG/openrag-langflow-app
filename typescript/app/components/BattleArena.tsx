@@ -29,7 +29,7 @@ import { ClassSelection } from '../battle-arena/components/ClassSelection';
 import { FloatingNumber } from '../battle-arena/components/effects/FloatingNumber';
 import { PageHeader } from '../battle-arena/components/ui/PageHeader';
 import { LandscapePrompt } from '../battle-arena/components/ui/LandscapePrompt';
-import { ProjectileEffect } from '../battle-arena/components/ProjectileEffect';
+import { ProjectileEffect } from '../battle-arena/components/effects/ProjectileEffect';
 import { BattleArena as BattleArenaComponent } from '../battle-arena/components/BattleArena';
 import { BattleLog } from '../battle-arena/components/BattleLog';
 import { OpponentSelector } from '../battle-arena/components/OpponentSelector';

@@ -2,11 +2,9 @@
 
 /* Import modular CSS files */
 @import "./styles/animations/battle-animations.css";
-@import "./styles/animations/floating-numbers.css";
 @import "./styles/animations/card-animations.css";
 @import "./styles/animations/battle-drop.css";
 @import "./styles/animations/portal-animations.css";
-@import "./styles/effects/projectiles.css";
 @import "./styles/effects/flash-effects.css";
 @import "./styles/effects/cast-effects.css";
 @import "./styles/effects/card-effects.css";

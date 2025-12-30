@@ -12,7 +12,7 @@ import { ClassSelection } from '../components/ClassSelection';
 import { useAIOpponent } from '../hooks/battle/useAIOpponent';
 import { PageHeader } from '../components/ui/PageHeader';
 import { LandscapePrompt } from '../components/ui/LandscapePrompt';
-import { ProjectileEffect } from '../components/ProjectileEffect';
+import { ProjectileEffect } from '../components/effects/ProjectileEffect';
 
 // Hooks
 import { useBattleData } from '../hooks/battle/useBattleData';

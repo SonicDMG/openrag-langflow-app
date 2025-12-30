@@ -1,3 +1,7 @@
+/* Projectile Effect - Co-located styles */
+/* Using :global() for all classes due to dynamic class composition with projectile types */
+
+:global {
 /* Projectile Effect - particles dropping from sky onto target */
 .projectile-effect {
   width: 40px;
@@ -570,4 +574,5 @@
   background: radial-gradient(circle, rgba(0, 0, 0, 0.6) 0%, transparent 70%);
   box-shadow: 0 0 30px rgba(75, 0, 130, 0.5);
   filter: blur(2px);
+}
 }
