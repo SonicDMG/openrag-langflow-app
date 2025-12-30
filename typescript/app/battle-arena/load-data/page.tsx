@@ -8,10 +8,10 @@ import { fetchAvailableClasses, fetchClassStats, fetchAvailableMonsters, fetchMo
 import { PageHeader } from '../components/ui/PageHeader';
 import { LandscapePrompt } from '../components/ui/LandscapePrompt';
 import { StagingConfirmationModal } from '../components/StagingConfirmationModal';
-import { LoadDefaultHeroesCard } from '../components/LoadDefaultHeroesCard';
-import { LoadDefaultMonstersCard } from '../components/LoadDefaultMonstersCard';
-import { ExportDefaultHeroesCard } from '../components/ExportDefaultHeroesCard';
-import { ExportDefaultMonstersCard } from '../components/ExportDefaultMonstersCard';
+import { LoadDefaultHeroesCard } from '../components/cards/LoadDefaultHeroesCard';
+import { LoadDefaultMonstersCard } from '../components/cards/LoadDefaultMonstersCard';
+import { ExportDefaultHeroesCard } from '../components/cards/ExportDefaultHeroesCard';
+import { ExportDefaultMonstersCard } from '../components/cards/ExportDefaultMonstersCard';
 
 type LogEntry = {
   id: string;

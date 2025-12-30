@@ -1,10 +1,10 @@
 'use client';
 
-import { Character } from '../types';
-import { CharacterCard } from './CharacterCard';
-import { getCharacterMetadata } from './utils/characterMetadata';
-import { getCharacterImageUrls } from './utils/imageUtils';
-import { ZoomCardData } from '../hooks/ui/useZoomModal';
+import { Character } from '../../../types';
+import { CharacterCard } from '../../CharacterCard';
+import { getCharacterMetadata } from '../../utils/characterMetadata';
+import { getCharacterImageUrls } from '../../utils/imageUtils';
+import { ZoomCardData } from '../../../hooks/ui/useZoomModal';
 
 type CreatedMonster = Character & { monsterId: string; imageUrl: string };
 
