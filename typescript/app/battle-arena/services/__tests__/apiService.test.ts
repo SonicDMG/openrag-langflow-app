@@ -1,7 +1,7 @@
 import {
   fetchAvailableClasses,
   fetchClassStats,
-} from '../apiService';
+} from '../client/apiService';
 import { parseSSEResponse, extractJsonFromResponse } from '../../utils/api';
 
 // Mock the API utilities

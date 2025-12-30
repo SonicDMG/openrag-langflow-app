@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { config } from 'dotenv';
 import { resolve } from 'path';
 import EverArt from 'everart';
-import { downloadImage } from '@/app/battle-arena/server/imageGeneration';
-import { removeBackground } from '@/app/battle-arena/server/backgroundRemoval';
+import { downloadImage } from '@/app/battle-arena/services/server/image';
+import { removeBackground } from '@/app/battle-arena/services/server/image';
 import { CARD_SETTINGS, DEFAULT_SETTING } from '@/app/battle-arena/lib/constants';
 import { CardSetting } from '@/app/battle-arena/lib/types';
 import { enhanceDescriptionWithRaceAndSex } from '@/app/battle-arena/utils/promptEnhancement';
@@ -231,7 +231,7 @@ export async function POST(req: NextRequest) {
           // Pixelize if requested
           if (shouldPixelize) {
             console.log('Pixelizing image to match app style...');
-            const { ensure16x9AspectRatio } = await import('@/app/battle-arena/server/imageGeneration');
+            const { ensure16x9AspectRatio } = await import('@/app/battle-arena/services/server/image');
             const sharp = (await import('sharp')).default;
             const IQ = await import('image-q');
             

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAllMonsters, getMonsterById, upsertMonster, upsertMonsters, monsterRecordToClass, deleteMonster } from '../../../lib/db/astra';
-import { deleteMonsterBundle } from '../../battle-arena/server/storage';
+import { deleteMonsterBundle } from '../../battle-arena/services/server/storage';
 import { Character } from '../../battle-arena/lib/types';
 
 // GET - Fetch all monsters or a specific monster by ID

@@ -22,7 +22,7 @@ import { useBattleNarrative } from '../battle-arena/hooks/battle/useBattleNarrat
 import { useBattleActions } from '../battle-arena/hooks/battle/useBattleActions';
 
 // Services
-import { getBattleSummary, generateBattleEndingImage } from '../battle-arena/services/apiService';
+import { getBattleSummary, generateBattleEndingImage } from '../battle-arena/services/client/apiService';
 
 // Components
 import { ClassSelection } from '../battle-arena/components/battle/ClassSelection';

@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS, getRandomRace, CARD_SETTINGS, DEFAULT_SETTING } from '../../../lib/constants';
 import { Character, CardSetting } from '../../../lib/types';
 import { SearchableSelect } from '../../ui/SearchableSelect';
-import { extractRaceFromDescription, extractSexFromDescription } from '../../../services/characterGeneration';
+import { extractRaceFromDescription, extractSexFromDescription } from '../../../services/shared/characterGeneration';
 import { loadHeroesFromDatabase, loadMonstersFromDatabase } from '../../../utils/dataLoader';
 
 interface MonsterCreatorProps {

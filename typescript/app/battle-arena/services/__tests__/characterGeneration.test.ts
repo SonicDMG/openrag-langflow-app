@@ -3,7 +3,7 @@ import {
   extractSexFromDescription,
   extractNameFromDescription,
   generateCharacterStats,
-} from '../characterGeneration';
+} from '../shared/characterGeneration';
 import { PLAYER_RACES } from '../../lib/constants';
 
 // Mock the API utilities

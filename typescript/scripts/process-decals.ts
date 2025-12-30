@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import sharp from 'sharp';
-import { removeBackground } from '../app/battle-arena/server/backgroundRemoval';
+import { removeBackground } from '../app/battle-arena/services/server/image';
 
 const DECALS_DIR = join(process.cwd(), 'public', 'cdn', 'decals');
 const UI_BACKGROUND_COLOR = '#D1C9BA'; // The UI background color
