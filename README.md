@@ -2,7 +2,7 @@
 
 # 🚀 OpenRAG Application Suite
 
-### *Harness the Power of RAG with Python & TypeScript*
+### *Three Ways to Harness RAG: CLI, Web, and... Epic Battles?*
 
 <table>
 <tr>
@@ -24,365 +24,136 @@
 </tr>
 </table>
 
-> **Three powerful applications demonstrating OpenRAG SDK capabilities:**
-> 💬 Python CLI Chat • 🌐 TypeScript Web Chat • ⚔️ Battle Arena
-
-[![OpenRAG](https://img.shields.io/badge/OpenRAG-SDK-blue?style=for-the-badge)](https://openrag.com)
+[![OpenRAG](https://img.shields.io/badge/OpenRAG-SDK-blue?style=for-the-badge)](https://github.com/langflow-ai/openrag)
 [![Python](https://img.shields.io/badge/Python-3.13+-green?style=for-the-badge&logo=python)](https://python.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue?style=for-the-badge&logo=typescript)](https://typescriptlang.org)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
 
-**A comprehensive monorepo showcasing OpenRAG SDK integration across multiple applications**
+**A monorepo showcasing OpenRAG SDK integration across Python and TypeScript**
 
-[Python Chat](#-python-cli-chat) • [TypeScript Chat](#-typescript-web-chat) • [Battle Arena](#%EF%B8%8F-battle-arena) • [Getting Started](#-quick-start)
+[Quick Start](#-quick-start) • [Applications](#-choose-your-adventure) • [Documentation](#-documentation)
 
 </div>
 
 ---
 
-## 📋 Table of Contents
+## 🎯 What's This All About?
 
-- [Overview](#-overview)
-- [Architecture](#-architecture)
-- [Applications](#-applications)
-  - [Python CLI Chat](#-python-cli-chat)
-  - [TypeScript Web Chat](#-typescript-web-chat)
-  - [Battle Arena](#%EF%B8%8F-battle-arena)
-- [OpenRAG SDK Integration](#-openrag-sdk-integration)
-- [Quick Start](#-quick-start)
-- [Project Structure](#-project-structure)
-- [Contributing](#-contributing)
+This monorepo demonstrates the versatility of the **OpenRAG SDK** through three distinct applications:
+
+1. **💬 Python CLI Chat** - Terminal-based RAG conversations with streaming responses
+2. **🌐 TypeScript Web Chat** - Modern Next.js web interface for RAG interactions  
+3. **⚔️ Battle Arena** - An RPG battle simulator where AI generates characters and controls opponents
+
+Each application showcases different aspects of the OpenRAG SDK, from simple chat to complex document ingestion and AI-powered content generation. Plus, they all share a common `openrag-utils` library pattern for consistency across languages.
 
 ---
 
-## 🌟 Overview
+## 🎮 Choose Your Adventure
 
-This monorepo demonstrates the versatility and power of the **OpenRAG SDK** through three distinct applications:
+### 💬 Python CLI Chat
 
-1. **Python CLI Chat** - A terminal-based RAG chat interface with streaming responses
-2. **TypeScript Web Chat** - A modern Next.js web application for RAG conversations
-3. **Battle Arena** - An innovative RPG-style battle simulator powered by RAG for character generation and AI opponents
+**For terminal enthusiasts and Python developers**
 
-Each application showcases different aspects of the OpenRAG SDK, from simple chat interactions to complex document ingestion and AI-powered content generation.
+Chat with your RAG-powered assistant directly from the command line. Features streaming responses, rich markdown rendering, and a comprehensive utility library.
+
+```bash
+cd python
+uv sync
+uv run python main.py
+```
+
+**Perfect for:**
+- Quick RAG testing and experimentation
+- Terminal-based workflows
+- Python SDK integration examples
+- Building CLI tools with RAG
+
+📖 **[Python CLI Documentation](python/README.md)**
+
+---
+
+### 🌐 TypeScript Web Chat
+
+**For web developers and modern UI lovers**
+
+A responsive Next.js 16 application with real-time streaming, markdown rendering, and a clean interface. Built with App Router and React Server Components.
+
+```bash
+cd typescript
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) to start chatting!
+
+**Perfect for:**
+- Web-based RAG applications
+- Learning Next.js + OpenRAG integration
+- Building production chat interfaces
+- TypeScript SDK examples
+
+📖 **[TypeScript Chat Documentation](typescript/app/chat/README.md)**
+
+---
+
+### ⚔️ Battle Arena
+
+**For the adventurous**
+
+An RPG battle simulator where OpenRAG generates characters from PDFs or text descriptions, controls AI opponents, and narrates epic battles. Watch heroes and monsters clash with stunning visual effects!
+
+```bash
+cd typescript
+npm install
+npm run dev
+```
+
+Navigate to [http://localhost:3000/battle-arena](http://localhost:3000/battle-arena)
+
+**Perfect for:**
+- Exploring creative RAG applications
+- AI-powered game mechanics
+- Document ingestion examples (character sheets)
+- Complex OpenRAG SDK usage
+
+📖 **[Battle Arena Documentation](typescript/app/battle-arena/README.md)**
 
 ---
 
 ## 🏗️ Architecture
+
+All three applications share a common pattern: they use dedicated `openrag-utils` libraries that wrap the OpenRAG SDK for cleaner, more maintainable code.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     OpenRAG Backend                         │
 │  (Document Storage, Embeddings, LLM Integration)            │
 └─────────────────────────────────────────────────────────────┘
-                            ▲
-                            │ OpenRAG SDK
-                ┌───────────┼───────────┐
-                │           │           │
-        ┌───────▼─────┐ ┌──▼────────┐ ┌▼──────────────┐
-        │   Python    │ │TypeScript │ │  TypeScript   │
-        │  CLI Chat   │ │ Web Chat  │ │ Battle Arena  │
-        │             │ │           │ │               │
-        │  • Streaming│ │ • Next.js │ │ • Character   │
-        │  • Rich MD  │ │ • React   │ │   Generation  │
-        │  • Terminal │ │ • Modern  │ │ • AI Battles  │
-        └─────────────┘ └───────────┘ └───────────────┘
+                             ▲
+                             │ OpenRAG SDK
+                 ┌───────────┼───────────┐
+                 │           │           │
+         ┌───────▼─────┐ ┌──▼────────┐ ┌▼──────────────┐
+         │   Python    │ │TypeScript │ │  TypeScript   │
+         │  CLI Chat   │ │ Web Chat  │ │ Battle Arena  │
+         │             │ │           │ │               │
+         │ openrag_    │ │ openrag-  │ │ openrag-      │
+         │ utils/      │ │ utils/    │ │ utils/        │
+         └─────────────┘ └───────────┘ └───────────────┘
 ```
 
----
+### The `openrag-utils` Pattern
 
-## 🎯 Applications
+Both Python and TypeScript apps include utility libraries that:
 
-### 💬 Python CLI Chat
+- ✅ Wrap all OpenRAG SDK endpoints
+- ✅ Provide consistent APIs across languages
+- ✅ Include usage examples and tests
+- ✅ Can be used standalone or imported
 
-<div align="center">
-  <img src="https://img.shields.io/badge/Python-3.13+-blue?style=flat-square&logo=python" alt="Python"/>
-</div>
-
-A lightweight, powerful terminal chat interface that brings RAG capabilities directly to your command line.
-
-#### ✨ Features
-
-- **🌊 Streaming Responses** - See tokens arrive in real-time for a responsive experience
-- **📝 Rich Markdown** - Beautiful rendering with syntax highlighting, tables, and clickable links
-- **💬 Conversation Continuity** - Maintains context across multiple turns
-- **🔧 Modular Architecture** - Comprehensive `openrag_utils` package for all SDK endpoints
-- **⚡ Fast Setup** - Get started in under 2 minutes
-
-#### 🚀 Quick Start
-
-```bash
-cd python
-uv sync  # or: pip install -e .
-
-# Set your API key
-echo "OPENRAG_API_KEY=your_key_here" > .env
-
-# Start chatting!
-uv run python main.py
-```
-
-#### 📦 OpenRAG Utils Package
-
-The Python app includes a complete utility library for OpenRAG SDK operations:
-
-```python
-from openrag_utils import (
-    chat_simple,           # Simple chat
-    chat_streaming,        # Streaming chat
-    search_query,          # Document search
-    ingest_document,       # Document ingestion
-    create_filter,         # Knowledge filters
-    get_settings,          # Settings management
-)
-
-# Use in your own projects
-response = await chat_simple("What is RAG?")
-results = await search_query("machine learning", limit=5)
-```
-
-**Available Modules:**
-- `chat.py` - Chat operations and conversation management
-- `search.py` - Document search with filters
-- `documents.py` - Document ingestion and management
-- `settings.py` - Settings configuration
-- `knowledge_filters.py` - Knowledge filter CRUD operations
-
-[📖 Full Python Documentation](python/openrag_utils/README.md)
-
----
-
-### 🌐 TypeScript Web Chat
-
-<div align="center">
-  <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js"/>
-  <img src="https://img.shields.io/badge/TypeScript-5.0+-blue?style=flat-square&logo=typescript" alt="TypeScript"/>
-</div>
-
-A modern, responsive web application built with Next.js 16, showcasing RAG capabilities in a beautiful UI.
-
-#### ✨ Features
-
-- **🎨 Modern UI** - Clean, responsive design with dark mode support
-- **💬 Real-time Streaming** - Live token streaming with smooth animations
-- **📝 Markdown Rendering** - Full markdown support with syntax highlighting
-- **🔍 Search Highlighting** - Automatic highlighting of search queries in responses
-- **📱 Mobile Responsive** - Works seamlessly on all devices
-- **⚡ Server Components** - Leverages Next.js 16 App Router for optimal performance
-
-#### 🚀 Quick Start
-
-```bash
-cd typescript
-npm install
-
-# Set your API key
-echo "OPENRAG_API_KEY=your_key_here" > .env
-
-# Start development server
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) to start chatting!
-
-#### 📦 OpenRAG Utils Library
-
-TypeScript utilities mirror the Python package for consistency:
-
-```typescript
-import {
-  chatSimple,
-  chatStreaming,
-  searchQuery,
-  ingestDocument,
-  createFilter,
-  getSettings,
-} from '@/lib/openrag-utils';
-
-// Use in API routes or components
-const response = await chatSimple('What is RAG?');
-const results = await searchQuery('machine learning', 5);
-```
-
-**Available Modules:**
-- `chat.ts` - Chat operations and conversation management
-- `search.ts` - Document search with filters
-- `documents.ts` - Document ingestion and management
-- `settings.ts` - Settings configuration
-- `knowledge-filters.ts` - Knowledge filter CRUD operations
-
-[📖 Full TypeScript Documentation](typescript/lib/openrag-utils/README.md)
-
----
-
-### ⚔️ Battle Arena
-
-<div align="center">
-  <img src="https://img.shields.io/badge/Status-Beta-yellow?style=flat-square" alt="Status"/>
-  <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js"/>
-  <img src="https://img.shields.io/badge/AI_Powered-OpenRAG-purple?style=flat-square" alt="AI Powered"/>
-  
-  <br/>
-  
-  <img src="typescript/public/cdn/decals/battle-arena.png" alt="Battle Arena" width="600"/>
-</div>
-
-An innovative RPG-style battle simulator that leverages OpenRAG for **AI-powered character generation**, **intelligent battle narration**, and **dynamic opponent strategies**.
-
-#### ✨ Features
-
-##### 🎭 Character Creation
-- **📄 PDF Character Sheets** - Upload character sheets for automatic stat extraction
-- **🤖 AI-Generated Characters** - Create heroes and monsters from text descriptions
-- **🎨 Image Generation** - Integrated EverArt API for character artwork
-- **📊 Dynamic Stat Scaling** - Context-aware stat generation (tiny fairy vs. massive dragon)
-- **💾 Character Database** - Save and manage custom characters
-
-##### ⚔️ Battle System
-- **🎲 RPG Mechanics** - Authentic dice rolling, attack rolls, and damage calculations
-- **🤖 AI Opponents** - OpenRAG-powered intelligent battle decisions
-- **👥 Team Battles** - Support for multiple heroes vs. monsters
-- **✨ Visual Effects** - Projectiles, damage numbers, spell effects, and animations
-- **📜 Battle Narration** - AI-generated battle descriptions and summaries
-
-##### 🧠 OpenRAG Integration
-- **Document Ingestion** - Character sheets stored as RAG documents
-- **Semantic Search** - Find characters by abilities, traits, or descriptions
-- **AI Battle Strategy** - RAG-powered opponent decision making
-- **Character Generation** - LLM-based stat and ability creation
-- **Battle Summaries** - AI-generated narrative recaps
-
-#### 🚀 Quick Start
-
-```bash
-cd typescript
-npm install
-
-# Configure environment
-cat > .env << EOF
-OPENRAG_API_KEY=your_openrag_key
-EVERART_API_KEY=your_everart_key  # For image generation
-ASTRA_DB_APPLICATION_TOKEN=your_token  # For character storage
-ASTRA_DB_API_ENDPOINT=your_endpoint
-EOF
-
-# Start the app
-npm run dev
-```
-
-Navigate to [http://localhost:3000/battle-arena](http://localhost:3000/battle-arena)
-
-#### 🎮 How to Play
-
-1. **Create Characters**
-   - Upload PDF character sheets, or
-   - Use AI to generate characters from descriptions
-   - Load default heroes and monsters
-
-2. **Setup Battle**
-   - Select your hero(es)
-   - Choose opponent type (AI or Player 2)
-   - Select monster opponent(s)
-
-3. **Battle!**
-   - Take turns attacking with different abilities
-   - Watch AI opponents make strategic decisions
-   - Enjoy visual effects and battle narration
-
-#### 🏗️ Architecture Highlights
-
-```typescript
-// Character generation with OpenRAG
-const character = await generateCharacterStats({
-  name: "Shadowstrike",
-  description: "A stealthy rogue with dual daggers",
-  characterType: "hero"
-});
-
-// AI opponent decision making
-const aiDecision = await getAIOpponentAction({
-  currentState: battleState,
-  availableAbilities: character.abilities,
-  battleContext: battleLog
-});
-
-// Document ingestion for character sheets
-await ingestDocument({
-  file: characterSheet,
-  metadata: {
-    type: "character",
-    class: "Rogue",
-    level: 5
-  }
-});
-```
-
-#### 📚 Advanced Features
-
-- **Dynamic Stat Scaling** - Automatically adjusts HP/AC based on entity size (tiny fairy vs. ancient dragon)
-- **Multi-Attack Abilities** - Support for abilities that hit multiple times
-- **Status Effects** - Buffs, debuffs, and ongoing effects
-- **Battle History** - Complete log of all actions and outcomes
-- **Export/Import** - Save battles and characters as JSON
-
-[📖 Character Generation Docs](typescript/app/battle-arena/services/CHARACTER_STAT_GENERATION.md) | [🎨 Image Setup](typescript/app/battle-arena/EVERART_SETUP.md)
-
----
-
-## 🔧 OpenRAG SDK Integration
-
-This monorepo demonstrates comprehensive OpenRAG SDK usage across both Python and TypeScript:
-
-### Core SDK Features Used
-
-| Feature | Python CLI | TypeScript Chat | Battle Arena |
-|---------|-----------|----------------|--------------|
-| **Chat (Simple)** | ✅ | ✅ | ✅ |
-| **Chat (Streaming)** | ✅ | ✅ | ✅ |
-| **Document Search** | ✅ | ✅ | ✅ |
-| **Document Ingestion** | ✅ | ✅ | ✅ |
-| **Knowledge Filters** | ✅ | ✅ | ✅ |
-| **Settings Management** | ✅ | ✅ | ✅ |
-| **Conversation History** | ✅ | ✅ | ✅ |
-
-### SDK Usage Examples
-
-#### Python
-```python
-from openrag_sdk import OpenRAGClient
-
-client = OpenRAGClient(
-    api_key=os.getenv("OPENRAG_API_KEY"),
-    base_url=os.getenv("OPENRAG_URL", "http://localhost:3000")
-)
-
-# Streaming chat
-async for event in client.chat.stream(
-    message="What is RAG?",
-    chat_id="conversation-123"
-):
-    if event.type == "content":
-        print(event.content, end="", flush=True)
-```
-
-#### TypeScript
-```typescript
-import { OpenRAGClient } from 'openrag-sdk';
-
-const client = new OpenRAGClient({
-  apiKey: process.env.OPENRAG_API_KEY!,
-  baseUrl: process.env.OPENRAG_URL || 'http://localhost:3000'
-});
-
-// Streaming chat
-for await (const event of client.chat.stream({
-  message: 'What is RAG?',
-  chatId: 'conversation-123'
-})) {
-  if (event.type === 'content') {
-    process.stdout.write(event.content);
-  }
-}
-```
+**Python:** `python/openrag_utils/`  
+**TypeScript:** `typescript/lib/openrag-utils/`
 
 ---
 
@@ -404,7 +175,7 @@ cd openrag-langflow-app
 
 # Setup Python CLI
 cd python
-uv sync  # or: pip install -e .
+uv sync
 echo "OPENRAG_API_KEY=your_key" > .env
 uv run python main.py
 
@@ -417,7 +188,7 @@ npm run dev
 
 ### Environment Variables
 
-Create a `.env` file in the project root:
+Create a `.env` file in each app directory:
 
 ```bash
 # Required
@@ -426,7 +197,7 @@ OPENRAG_API_KEY=orag_your_api_key_here
 # Optional
 OPENRAG_URL=http://localhost:3000
 
-# Battle Arena (optional)
+# Battle Arena only (optional)
 EVERART_API_KEY=your_everart_key
 ASTRA_DB_APPLICATION_TOKEN=your_token
 ASTRA_DB_API_ENDPOINT=your_endpoint
@@ -434,92 +205,106 @@ ASTRA_DB_API_ENDPOINT=your_endpoint
 
 ---
 
-## 📁 Project Structure
+## 📊 Feature Comparison
 
+| Feature | Python CLI | TypeScript Chat | Battle Arena |
+|---------|-----------|----------------|--------------|
+| **Chat (Simple)** | ✅ | ✅ | ✅ |
+| **Chat (Streaming)** | ✅ | ✅ | ✅ |
+| **Document Search** | ✅ | ✅ | ✅ |
+| **Document Ingestion** | ✅ | ✅ | ✅ (PDFs) |
+| **Knowledge Filters** | ✅ | ✅ | ✅ |
+| **Conversation History** | ✅ | ✅ | ✅ |
+| **Rich Markdown** | ✅ | ✅ | ✅ |
+| **Visual Effects** | ❌ | ❌ | ✅ |
+| **AI Opponents** | ❌ | ❌ | ✅ |
+| **Image Generation** | ❌ | ❌ | ✅ |
+| **Database Storage** | ❌ | ❌ | ✅ (Optional) |
+
+---
+
+## 🔧 OpenRAG SDK Integration
+
+### Python Example
+
+```python
+from openrag_utils import chat_streaming, search_query, ingest_document
+
+# Streaming chat
+async for event in chat_streaming("What is RAG?", "chat-123"):
+    if event["type"] == "content":
+        print(event["content"], end="", flush=True)
+
+# Document search
+results = await search_query("machine learning", limit=5)
+
+# Document ingestion
+await ingest_document("./docs/guide.pdf", wait=True)
 ```
-openrag-langflow-app/
-├── python/                          # Python CLI Application
-│   ├── main.py                      # CLI entrypoint
-│   ├── utils.py                     # Streaming & formatting utilities
-│   ├── config.py                    # Configuration management
-│   ├── pyproject.toml               # Python dependencies
-│   └── openrag_utils/               # OpenRAG SDK utilities
-│       ├── chat.py                  # Chat operations
-│       ├── search.py                # Document search
-│       ├── documents.py             # Document management
-│       ├── settings.py              # Settings management
-│       └── knowledge_filters.py     # Filter operations
-│
-├── typescript/                      # Next.js TypeScript Application
-│   ├── app/                         # Next.js App Router
-│   │   ├── page.tsx                 # Chat interface (home)
-│   │   ├── components/
-│   │   │   ├── Chat.tsx             # Main chat component
-│   │   │   └── BattleArena.tsx      # Battle arena wrapper
-│   │   ├── battle-arena/            # Battle Arena app
-│   │   │   ├── page.tsx             # Battle arena page
-│   │   │   ├── components/          # UI components
-│   │   │   ├── hooks/               # React hooks
-│   │   │   ├── services/            # API services
-│   │   │   ├── utils/               # Utility functions
-│   │   │   └── types.ts             # TypeScript types
-│   │   └── api/                     # API routes
-│   │       ├── chat/                # Chat endpoint
-│   │       ├── heroes/              # Hero management
-│   │       ├── monsters/            # Monster management
-│   │       └── openrag/             # OpenRAG operations
-│   ├── lib/
-│   │   ├── openrag-utils/           # OpenRAG SDK utilities
-│   │   │   ├── chat.ts              # Chat operations
-│   │   │   ├── search.ts            # Document search
-│   │   │   ├── documents.ts         # Document management
-│   │   │   ├── settings.ts          # Settings management
-│   │   │   └── knowledge-filters.ts # Filter operations
-│   │   └── db/
-│   │       └── astra.ts             # DataStax Astra DB client
-│   └── public/
-│       └── cdn/                     # Static assets
-│           ├── decals/              # App icons
-│           └── monsters/            # Generated monster images
-│
-├── characters/                      # Character data
-│   ├── default_heroes/              # Pre-made heroes
-│   │   ├── heroes.json              # Hero metadata
-│   │   └── *.pdf                    # Character sheets
-│   ├── default_monsters/            # Pre-made monsters
-│   │   ├── monsters.json            # Monster metadata
-│   │   └── *.pdf                    # Monster sheets (if any)
-│   └── custom_heroes/               # User-created heroes
-│
-└── README.md                        # This file
+
+### TypeScript Example
+
+```typescript
+import { chatStreaming, searchQuery, ingestDocument } from '@/lib/openrag-utils';
+
+// Streaming chat
+for await (const event of chatStreaming('What is RAG?', 'chat-123')) {
+  if (event.type === 'content') {
+    process.stdout.write(event.content);
+  }
+}
+
+// Document search
+const results = await searchQuery('machine learning', 5);
+
+// Document ingestion
+await ingestDocument({ file: pdfFile, wait: true });
 ```
 
 ---
 
-## 🤝 Contributing
+## 📚 Documentation
 
-Contributions are welcome! This project demonstrates OpenRAG SDK integration patterns that can be adapted for your own applications.
+### Application Guides
+- **[Python CLI Chat](python/README.md)** - Terminal chat interface
+- **[TypeScript Web Chat](typescript/app/chat/README.md)** - Web chat interface
+- **[Battle Arena](typescript/app/battle-arena/README.md)** - RPG battle simulator
 
-### Development
+### SDK Utilities
+- **[Python OpenRAG Utils](python/openrag_utils/README.md)** - Python SDK wrapper
+- **[TypeScript OpenRAG Utils](typescript/lib/openrag-utils/README.md)** - TypeScript SDK wrapper
 
+### External Resources
+- **[OpenRAG GitHub](https://github.com/langflow-ai/openrag)** - Official OpenRAG repository
+- **[Next.js Documentation](https://nextjs.org/docs)** - Next.js framework docs
+
+---
+
+## 🐛 Troubleshooting
+
+### Connection Issues
+
+Make sure your OpenRAG server is running:
 ```bash
-# Python development
-cd python
-uv sync --dev
-pytest
-
-# TypeScript development
-cd typescript
-npm install
-npm run dev
-npm test
+curl http://localhost:3000/health
 ```
 
-### Adding New Features
+### API Key Issues
 
-1. **Python CLI** - Add new utilities to `python/openrag_utils/`
-2. **TypeScript Chat** - Extend components in `typescript/app/components/`
-3. **Battle Arena** - Add features to `typescript/app/battle-arena/`
+Verify your API key in `.env`:
+```bash
+cat .env | grep OPENRAG_API_KEY
+```
+
+### Dependency Issues
+
+```bash
+# Python
+cd python && uv sync
+
+# TypeScript
+cd typescript && npm install
+```
 
 ---
 
@@ -529,19 +314,12 @@ This project is provided as-is for demonstration purposes.
 
 ---
 
-## 🔗 Links
-
-- [OpenRAG Documentation](https://docs.openrag.com)
-- [OpenRAG Python SDK](https://github.com/openrag/openrag-python-sdk)
-- [OpenRAG TypeScript SDK](https://github.com/openrag/openrag-typescript-sdk)
-- [Next.js Documentation](https://nextjs.org/docs)
-
----
-
 <div align="center">
 
-**Built with ❤️ using OpenRAG SDK**
+**Built with ❤️ using the OpenRAG SDK**
 
-*Showcasing the power of Retrieval-Augmented Generation*
+*Three apps, one SDK, infinite possibilities* 🚀
+
+[Get Started](#-quick-start) • [View on GitHub](https://github.com/langflow-ai/openrag)
 
 </div>
