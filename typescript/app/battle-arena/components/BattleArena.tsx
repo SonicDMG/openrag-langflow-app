@@ -5,15 +5,15 @@ import { Character } from '../lib/types';
 import { ProjectileType } from '../utils/battle';
 import { extractPlayerEffects } from '../utils/playerEffects';
 import { getTurnLabel } from '../utils/playerState';
+import { BattleCharacterCard } from './character-cards/CharacterCard/BattleCharacterCard';
+import { SupportHeroesContainer } from './character-cards/SupportHeroesContainer';
 import {
-  BattleCharacterCard,
-  SupportHeroesContainer,
   PlayerId,
   PlayerEffects,
   EffectCallbacks,
   SupportHero,
   FindAssociatedMonster,
-} from './shared';
+} from '../lib/types';
 
 type BattleArenaProps = {
   player1Class: Character;

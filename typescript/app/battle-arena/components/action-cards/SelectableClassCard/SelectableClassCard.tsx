@@ -1,7 +1,7 @@
 'use client';
 
 import { Character } from '../../../lib/types';
-import { CharacterCard } from '../../CharacterCard';
+import { CharacterCard } from '../../character-cards/CharacterCard';
 import { getCharacterMetadata } from '../../utils/characterMetadata';
 import { getCharacterImageUrls } from '../../utils/imageUtils';
 import { ZoomCardData } from '../../../hooks/ui/useZoomModal';

@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { CharacterSource, BADGE_CONFIGS } from '../../../utils/characterSource';
+import { CharacterSource, BADGE_CONFIGS } from '../../../../utils/characterSource';
 
 interface CardHeaderProps {
   source?: CharacterSource;

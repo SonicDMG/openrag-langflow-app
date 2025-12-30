@@ -7,7 +7,7 @@ import { rollDice, rollDiceWithNotation } from '../utils/dice';
 import { getCharacterName } from '../utils/names';
 import { createHitVisualEffects, createMissVisualEffects, createHealingVisualEffects, getOpponent, getProjectileType, type PendingVisualEffect, type ProjectileType } from '../utils/battle';
 import { FloatingNumber, FloatingNumberType } from '../components/effects/FloatingNumber';
-import { CharacterCard } from '../components/CharacterCard';
+import { CharacterCard } from '../components/character-cards/CharacterCard';
 import { ClassSelection } from '../components/battle/ClassSelection';
 import { useAIOpponent } from '../hooks/battle/useAIOpponent';
 import { PageHeader } from '../components/ui/PageHeader';

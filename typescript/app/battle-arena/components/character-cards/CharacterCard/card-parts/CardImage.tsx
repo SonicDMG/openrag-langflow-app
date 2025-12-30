@@ -1,9 +1,9 @@
 import React, { memo, useState, useEffect } from 'react';
-import { Character } from '../../../lib/types';
-import { CardSizing } from '../../../hooks/ui/useCardSizing';
-import { CARD_THEME } from '../../cardTheme';
-import { getCharacterType } from '../../utils/characterTypeUtils';
-import { PLACEHOLDER_IMAGE_URL } from '../../utils/imageUtils';
+import { Character } from '../../../../lib/types';
+import { CardSizing } from '../../../../hooks/ui/useCardSizing';
+import { CARD_THEME } from '../../../cardTheme';
+import { getCharacterType } from '../../../utils/characterTypeUtils';
+import { PLACEHOLDER_IMAGE_URL } from '../../../utils/imageUtils';
 
 interface CardImageProps {
   playerClass: Character;

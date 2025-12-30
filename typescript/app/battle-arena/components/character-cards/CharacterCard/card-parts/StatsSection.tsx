@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
-import { Character } from '../../../lib/types';
-import { CARD_THEME } from '../../cardTheme';
-import { CardSizing } from '../../../hooks/ui/useCardSizing';
+import { Character } from '../../../../lib/types';
+import { CARD_THEME } from '../../../cardTheme';
+import { CardSizing } from '../../../../hooks/ui/useCardSizing';
 
 interface StatsSectionProps {
   playerClass: Character;

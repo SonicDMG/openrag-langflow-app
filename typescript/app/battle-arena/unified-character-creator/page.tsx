@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Character, Ability, AttackAbility, HealingAbility, ImagePosition } from '../lib/types';
-import { CharacterCard } from '../components/CharacterCard';
+import { CharacterCard } from '../components/character-cards/CharacterCard';
 import { generateCharacterStats } from '../services/shared/characterGeneration';
 import { getCharacterImageUrls } from '../components/utils/imageUtils';
 import { CLASS_COLORS, MONSTER_COLORS } from '../lib/constants';

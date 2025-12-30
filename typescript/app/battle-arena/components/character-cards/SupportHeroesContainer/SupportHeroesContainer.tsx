@@ -9,7 +9,7 @@
 'use client';
 
 import { useRef, useEffect } from 'react';
-import { BattleCharacterCard } from '../BattleCharacterCard';
+import { BattleCharacterCard } from '../CharacterCard/BattleCharacterCard';
 import { SupportHero, PlayerId, PlayerEffects, EffectCallbacks, FindAssociatedMonster } from '../../../lib/types';
 
 export type SupportHeroesContainerProps = {

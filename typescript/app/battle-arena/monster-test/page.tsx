@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { MonsterCreator } from '../components/creation/MonsterCreator';
-import { CharacterCard } from '../components/CharacterCard';
+import { CharacterCard } from '../components/character-cards/CharacterCard';
 import { Sparkles } from '../components/effects/Sparkles';
 import { applyAnimationClass } from '../utils/animations';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../lib/constants';

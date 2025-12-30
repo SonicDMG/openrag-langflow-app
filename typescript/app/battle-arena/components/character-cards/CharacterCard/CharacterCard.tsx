@@ -1,14 +1,14 @@
 'use client';
 
 import { useRef, memo, useMemo } from 'react';
-import { Character } from '../../lib/types';
-import { Sparkles } from '../effects/Sparkles';
-import { Confetti } from '../effects/Confetti';
-import { useCardAnimations } from '../../hooks/ui/useCardAnimations';
-import { useCardSizing } from '../../hooks/ui/useCardSizing';
-import { useImageState } from '../../hooks/ui/useImageState';
-import { getCharacterSource } from '../../utils/characterSource';
-import { CARD_THEME, getCardBoxShadow } from '../cardTheme';
+import { Character } from '../../../lib/types';
+import { Sparkles } from '../../effects/Sparkles';
+import { Confetti } from '../../effects/Confetti';
+import { useCardAnimations } from '../../../hooks/ui/useCardAnimations';
+import { useCardSizing } from '../../../hooks/ui/useCardSizing';
+import { useImageState } from '../../../hooks/ui/useImageState';
+import { getCharacterSource } from '../../../utils/characterSource';
+import { CARD_THEME, getCardBoxShadow } from '../../cardTheme';
 import { CardHeader } from './card-parts/CardHeader';
 import { CardFooter } from './card-parts/CardFooter';
 import { CardImage } from './card-parts/CardImage';
