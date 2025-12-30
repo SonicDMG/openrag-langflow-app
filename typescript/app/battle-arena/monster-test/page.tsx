@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import MonsterCreator from '../components/MonsterCreator';
+import { MonsterCreator } from '../components/creation/MonsterCreator';
 import { CharacterCard } from '../components/CharacterCard';
 import { Sparkles } from '../components/effects/Sparkles';
 import { applyAnimationClass } from '../utils/animations';

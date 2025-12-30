@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { loadAllCharacterData } from '../utils/dataLoader';
+import { loadAllCharacterData } from '../../../utils/dataLoader';
 
 /**
  * Component that initializes character data (heroes and monsters) on app start

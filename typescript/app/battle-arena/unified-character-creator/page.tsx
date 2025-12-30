@@ -9,8 +9,8 @@ import { getCharacterImageUrls } from '../components/utils/imageUtils';
 import { CLASS_COLORS, MONSTER_COLORS } from '../constants';
 import { PageHeader } from '../components/ui/PageHeader';
 import { LandscapePrompt } from '../components/ui/LandscapePrompt';
-import MonsterCreator from '../components/MonsterCreator';
-import { ImagePositionEditor } from '../components/ImagePositionEditor';
+import { MonsterCreator } from '../components/creation/MonsterCreator';
+import { ImagePositionEditor } from '../components/creation/ImagePositionEditor';
 import { getCharacterImageUrl } from '../components/utils/imageUtils';
 import { deleteOldCharacterImage, cleanupOldImageOnUpdate } from '../utils/imageCleanup';
 

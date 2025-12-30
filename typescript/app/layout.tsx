@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { DataInitializer } from "./battle-arena/components/DataInitializer";
+import { DataInitializer } from "./battle-arena/components/creation/DataInitializer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
