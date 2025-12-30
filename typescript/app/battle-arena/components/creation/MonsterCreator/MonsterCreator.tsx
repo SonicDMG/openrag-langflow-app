@@ -5,7 +5,7 @@ import { FALLBACK_CLASSES, FALLBACK_MONSTERS, getRandomRace, CARD_SETTINGS, DEFA
 import { Character, CardSetting } from '../../../lib/types';
 import { SearchableSelect } from '../../ui/SearchableSelect';
 import { extractRaceFromDescription, extractSexFromDescription } from '../../../services/shared/characterGeneration';
-import { loadHeroesFromDatabase, loadMonstersFromDatabase } from '../../../utils/dataLoader';
+import { loadHeroesFromDatabase, loadMonstersFromDatabase } from '../../../utils/data/dataLoader';
 
 interface MonsterCreatorProps {
   onMonsterCreated?: (monsterId: string, klass: string, imageUrl: string) => void;

@@ -3,9 +3,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Character } from '../lib/types';
 import { isMonster, FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, selectRandomAbilities } from '../lib/constants';
-import { rollDice, rollDiceWithNotation } from '../utils/dice';
-import { getCharacterName } from '../utils/names';
-import { createHitVisualEffects, createMissVisualEffects, createHealingVisualEffects, getOpponent, getProjectileType, type PendingVisualEffect, type ProjectileType } from '../utils/battle';
+import { rollDice, rollDiceWithNotation } from '../utils/game-mechanics/dice';
+import { getCharacterName } from '../utils/character/names';
+import { createHitVisualEffects, createMissVisualEffects, createHealingVisualEffects, getOpponent, getProjectileType, type PendingVisualEffect, type ProjectileType } from '../utils/battle/battle';
 import { FloatingNumber, FloatingNumberType } from '../components/effects/FloatingNumber';
 import { CharacterCard } from '../components/character-cards/CharacterCard';
 import { ClassSelection } from '../components/battle/ClassSelection';

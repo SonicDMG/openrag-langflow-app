@@ -2,7 +2,7 @@
  * Image position resolution utilities
  */
 
-import { ImagePosition, FindAssociatedMonster } from '../lib/types';
+import { ImagePosition, FindAssociatedMonster } from '../../lib/types';
 
 /**
  * Resolves the image position for a character

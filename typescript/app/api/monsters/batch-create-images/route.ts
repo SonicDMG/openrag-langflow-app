@@ -4,7 +4,7 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import { CARD_SETTINGS, DEFAULT_SETTING } from '@/app/battle-arena/lib/constants';
 import { CardSetting } from '@/app/battle-arena/lib/types';
-import { enhanceDescriptionWithRaceAndSex } from '@/app/battle-arena/utils/promptEnhancement';
+import { enhanceDescriptionWithRaceAndSex } from '@/app/battle-arena/utils/image/promptEnhancement';
 
 const MONSTERS_DIR = join(process.cwd(), 'public', 'cdn', 'monsters');
 

@@ -1,4 +1,4 @@
-import { getCharacterName, generateDeterministicCharacterName } from '../names';
+import { getCharacterName, generateDeterministicCharacterName } from '../character/names';
 import { Character } from '../../lib/types';
 import { FALLBACK_CLASSES, FALLBACK_MONSTERS } from '../../lib/constants';
 

@@ -2,9 +2,9 @@
 
 import { useRef, useEffect } from 'react';
 import { Character } from '../lib/types';
-import { ProjectileType } from '../utils/battle';
-import { extractPlayerEffects } from '../utils/playerEffects';
-import { getTurnLabel } from '../utils/playerState';
+import { ProjectileType } from '../utils/battle/battle';
+import { extractPlayerEffects } from '../utils/battle/playerEffects';
+import { getTurnLabel } from '../utils/battle/playerState';
 import { BattleCharacterCard } from './character-cards/CharacterCard/BattleCharacterCard';
 import { SupportHeroesContainer } from './character-cards/SupportHeroesContainer';
 import {

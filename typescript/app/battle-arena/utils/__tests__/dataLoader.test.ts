@@ -2,7 +2,7 @@ import {
   loadHeroesFromDatabase,
   loadMonstersFromDatabase,
   loadAllCharacterData,
-} from '../dataLoader';
+} from '../data/dataLoader';
 import { Character } from '../../lib/types';
 
 // Mock fetch
@@ -114,11 +114,13 @@ describe('dataLoader', () => {
 
       const result = await loadHeroesFromDatabase();
 
-      expect(result).toEqual(mockHeroes);
+      // Expect heroes to have _type marker added
+      const expectedHeroes = mockHeroes.map(h => ({ ...h, _type: 'hero' as const }));
+      expect(result).toEqual(expectedHeroes);
       expect(global.fetch).toHaveBeenCalledWith('/api/heroes');
       expect(localStorageMock.setItem).toHaveBeenCalledWith(
         'battle_arena_loaded_classes',
-        JSON.stringify(mockHeroes)
+        JSON.stringify(expectedHeroes)
       );
       expect(console.warn).not.toHaveBeenCalled();
     });
@@ -196,7 +198,9 @@ describe('dataLoader', () => {
 
       const result = await loadHeroesFromDatabase();
 
-      expect(result).toEqual(mockHeroes);
+      // Expect heroes to have _type marker added
+      const expectedHeroes = mockHeroes.map(h => ({ ...h, _type: 'hero' as const }));
+      expect(result).toEqual(expectedHeroes);
       expect(console.warn).toHaveBeenCalledWith(
         'Failed to save heroes to localStorage:',
         expect.any(Error)
@@ -387,10 +391,11 @@ describe('dataLoader', () => {
 
       const result = await loadAllCharacterData();
 
-      // Expect monsters to have _type marker added
+      // Expect both heroes and monsters to have _type marker added
+      const expectedHeroes = mockHeroes.map(h => ({ ...h, _type: 'hero' as const }));
       const expectedMonsters = mockMonsters.map(m => ({ ...m, _type: 'monster' as const }));
       expect(result).toEqual({
-        heroes: mockHeroes,
+        heroes: expectedHeroes,
         monsters: expectedMonsters,
       });
       expect(global.fetch).toHaveBeenCalledTimes(2);
@@ -412,10 +417,11 @@ describe('dataLoader', () => {
 
       const result = await loadAllCharacterData();
 
-      // Expect monsters from localStorage to have _type marker
+      // Expect heroes to have _type marker added, monsters from localStorage already have it
+      const expectedHeroes = mockHeroes.map(h => ({ ...h, _type: 'hero' as const }));
       const expectedMonsters = monstersWithType;
       expect(result).toEqual({
-        heroes: mockHeroes,
+        heroes: expectedHeroes,
         monsters: expectedMonsters,
       });
       expect(console.warn).toHaveBeenCalledWith(

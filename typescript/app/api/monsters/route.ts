@@ -5,7 +5,7 @@ import { join } from 'path';
 import { pixelize } from '@/app/battle-arena/services/server/image';
 import { saveMonsterBundle } from '@/app/battle-arena/services/server/storage';
 import { generateReferenceImage, downloadImage } from '@/app/battle-arena/services/server/image';
-import { MonsterBundle } from '@/app/battle-arena/utils/monsterTypes';
+import { MonsterBundle } from '@/app/battle-arena/utils/character/monsterTypes';
 import { CARD_SETTINGS, DEFAULT_SETTING } from '@/app/battle-arena/lib/constants';
 import { CardSetting } from '@/app/battle-arena/lib/types';
 

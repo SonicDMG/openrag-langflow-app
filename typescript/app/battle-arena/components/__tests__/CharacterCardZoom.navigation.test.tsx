@@ -9,7 +9,7 @@ jest.mock('next/navigation', () => ({
 }));
 
 // Mock pdfExport to avoid TextEncoder issues in tests
-jest.mock('../../utils/pdfExport', () => ({
+jest.mock('../../utils/data/pdfExport', () => ({
   exportCharacterToPDF: jest.fn(),
   generateCharacterPDFBlob: jest.fn(),
 }));

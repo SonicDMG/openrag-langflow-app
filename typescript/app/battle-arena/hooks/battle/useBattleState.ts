@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Character, BattleLog } from '../../lib/types';
-import { generateCharacterName, generateDeterministicCharacterName, getCharacterName } from '../../utils/names';
+import { generateCharacterName, generateDeterministicCharacterName, getCharacterName } from '../../utils/character/names';
 import { isMonster, FALLBACK_CLASSES } from '../../lib/constants';
 
 export function useBattleState() {

@@ -1,5 +1,5 @@
 import { Character, AttackAbility } from '../../lib/types';
-import { rollDice } from '../../utils/dice';
+import { rollDice } from '../../utils/game-mechanics/dice';
 
 /**
  * Test utilities for battle calculations

@@ -1,4 +1,4 @@
-import { exportCharacterToPDF, exportMultipleCharactersToPDF, CharacterPDFExportOptions } from '../pdfExport';
+import { exportCharacterToPDF, exportMultipleCharactersToPDF, CharacterPDFExportOptions } from '../data/pdfExport';
 import { Character, AttackAbility, HealingAbility } from '../../lib/types';
 
 // Mock jsPDF

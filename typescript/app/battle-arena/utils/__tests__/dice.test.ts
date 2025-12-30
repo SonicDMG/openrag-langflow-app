@@ -1,4 +1,4 @@
-import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../dice';
+import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../game-mechanics/dice';
 
 describe('Dice Utilities', () => {
   describe('rollDice', () => {

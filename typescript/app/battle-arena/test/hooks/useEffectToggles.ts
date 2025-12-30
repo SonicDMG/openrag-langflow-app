@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { PendingVisualEffect, ProjectileType } from '../../utils/battle';
+import { PendingVisualEffect, ProjectileType } from '../../utils/battle/battle';
 
 export type EffectType = 'particle' | 'flash' | 'shake' | 'sparkle' | 'hit' | 'miss' | 'cast';
 

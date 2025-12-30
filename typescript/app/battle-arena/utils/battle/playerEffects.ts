@@ -2,7 +2,7 @@
  * Player effects extraction utilities
  */
 
-import { PlayerId, PlayerEffects } from '../lib/types';
+import { PlayerId, PlayerEffects } from '../../lib/types';
 import { ProjectileType } from './battle';
 
 /**

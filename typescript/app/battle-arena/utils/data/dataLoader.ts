@@ -1,4 +1,4 @@
-import { Character } from '../lib/types';
+import { Character } from '../../lib/types';
 
 // Storage keys
 const HEROES_STORAGE_KEY = 'battle_arena_loaded_classes';

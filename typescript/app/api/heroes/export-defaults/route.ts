@@ -3,7 +3,7 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import { getAllHeroes, HeroRecord } from '../../../../lib/db/astra';
 import { Character } from '../../../battle-arena/lib/types';
-import { loadDefaultHeroes } from '../../../battle-arena/utils/loadDefaults';
+import { loadDefaultHeroes } from '../../../battle-arena/utils/data/loadDefaults';
 
 // POST - Export default heroes from database to JSON file
 export async function POST() {

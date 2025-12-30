@@ -3,7 +3,7 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import { getAllMonsters, MonsterRecord } from '../../../../lib/db/astra';
 import { Character } from '../../../battle-arena/lib/types';
-import { loadDefaultMonsters } from '../../../battle-arena/utils/loadDefaults';
+import { loadDefaultMonsters } from '../../../battle-arena/utils/data/loadDefaults';
 
 // POST - Export default monsters from database to JSON file
 export async function POST() {

@@ -1,5 +1,5 @@
-import { Character } from '../lib/types';
-import { isMonster } from '../lib/constants';
+import { Character } from '../../lib/types';
+import { isMonster } from '../../lib/constants';
 
 /**
  * Single source of truth for character name lists by class.

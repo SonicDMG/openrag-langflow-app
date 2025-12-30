@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { Character, Ability, AttackAbility } from '../../lib/types';
-import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../../utils/dice';
+import { rollDice, rollDiceWithNotation, parseDiceNotation } from '../../utils/game-mechanics/dice';
 import {
   createHitVisualEffects,
   createMissVisualEffects,
@@ -10,7 +10,7 @@ import {
   getProjectileType,
   PendingVisualEffect,
   ProjectileType
-} from '../../utils/battle';
+} from '../../utils/battle/battle';
 import { FloatingNumberType } from '../../components/effects/FloatingNumber';
 
 type BattleActionsDependencies = {

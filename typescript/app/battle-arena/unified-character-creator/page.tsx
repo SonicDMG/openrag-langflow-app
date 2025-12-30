@@ -12,7 +12,7 @@ import { LandscapePrompt } from '../components/ui/LandscapePrompt';
 import { MonsterCreator } from '../components/creation/MonsterCreator';
 import { ImagePositionEditor } from '../components/creation/ImagePositionEditor';
 import { getCharacterImageUrl } from '../components/utils/imageUtils';
-import { deleteOldCharacterImage, cleanupOldImageOnUpdate } from '../utils/imageCleanup';
+import { deleteOldCharacterImage, cleanupOldImageOnUpdate } from '../utils/image/imageCleanup';
 
 type CharacterType = 'hero' | 'monster';
 type TabType = 'details' | 'image';

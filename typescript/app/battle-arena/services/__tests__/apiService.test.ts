@@ -2,10 +2,10 @@ import {
   fetchAvailableClasses,
   fetchClassStats,
 } from '../client/apiService';
-import { parseSSEResponse, extractJsonFromResponse } from '../../utils/api';
+import { parseSSEResponse, extractJsonFromResponse } from '../../utils/data/api';
 
 // Mock the API utilities
-jest.mock('../../utils/api', () => ({
+jest.mock('../../utils/data/api', () => ({
   parseSSEResponse: jest.fn(),
   extractJsonFromResponse: jest.fn(),
 }));

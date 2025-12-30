@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { ProjectileType } from '../../../utils/battle';
+import { ProjectileType } from '../../../utils/battle/battle';
 import styles from './ProjectileEffect.module.css';
 
 interface ProjectileEffectProps {

@@ -7,7 +7,7 @@ import {
 import { PLAYER_RACES } from '../../lib/constants';
 
 // Mock the API utilities
-jest.mock('../../utils/api', () => ({
+jest.mock('../../utils/data/api', () => ({
   parseSSEResponse: jest.fn(),
   extractJsonFromResponse: jest.fn(),
 }));
@@ -241,7 +241,7 @@ describe('Character Generation - generateCharacterStats', () => {
     }
   } as any;
 
-  const { parseSSEResponse, extractJsonFromResponse } = require('../../utils/api');
+  const { parseSSEResponse, extractJsonFromResponse } = require('../../utils/data/api');
 
   // Store original console.warn
   const originalWarn = console.warn;

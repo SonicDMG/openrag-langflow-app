@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import sharp from 'sharp';
-import { MonsterBundle } from '../../../utils/monsterTypes';
+import { MonsterBundle } from '../../../utils/character/monsterTypes';
 
 const MONSTERS_DIR = join(process.cwd(), 'public', 'cdn', 'monsters');
 

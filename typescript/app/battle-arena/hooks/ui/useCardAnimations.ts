@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { applyAnimationClass } from '../../utils/animations';
+import { applyAnimationClass } from '../../utils/battle/animations';
 
 interface AnimationCallbacks {
   onShakeComplete?: () => void;

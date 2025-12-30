@@ -1,6 +1,6 @@
 import { Character, Ability, CardSetting } from '../../lib/types';
 import { CLASS_COLORS, FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, getPlayerClassNames, isMonster, CARD_SETTINGS, DEFAULT_SETTING } from '../../lib/constants';
-import { extractJsonFromResponse, parseSSEResponse } from '../../utils/api';
+import { extractJsonFromResponse, parseSSEResponse } from '../../utils/data/api';
 import { extractRaceFromDescription, extractSexFromDescription, extractNameFromDescription } from '../shared/characterGeneration';
 
 /**

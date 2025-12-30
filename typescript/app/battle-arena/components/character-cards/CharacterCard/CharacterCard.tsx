@@ -7,7 +7,7 @@ import { Confetti } from '../../effects/Confetti';
 import { useCardAnimations } from '../../../hooks/ui/useCardAnimations';
 import { useCardSizing } from '../../../hooks/ui/useCardSizing';
 import { useImageState } from '../../../hooks/ui/useImageState';
-import { getCharacterSource } from '../../../utils/characterSource';
+import { getCharacterSource } from '../../../utils/character/characterSource';
 import { CARD_THEME, getCardBoxShadow } from '../../cardTheme';
 import { CardHeader } from './card-parts/CardHeader';
 import { CardFooter } from './card-parts/CardFooter';

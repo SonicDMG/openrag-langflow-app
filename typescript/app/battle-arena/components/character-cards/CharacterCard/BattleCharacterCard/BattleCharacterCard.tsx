@@ -14,7 +14,7 @@
 
 import { CharacterCard } from '../CharacterCard';
 import { BattleCharacterCardProps } from '../../../../lib/types';
-import { resolveImagePosition } from '../../../../utils/imagePosition';
+import { resolveImagePosition } from '../../../../utils/image/imagePosition';
 import { getCharacterImageUrls } from '../../../utils/imageUtils';
 
 /**

@@ -1,6 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useBattleEffects } from '../battle/useBattleEffects';
-import { PendingVisualEffect, ProjectileType } from '../../utils/battle';
+import { PendingVisualEffect, ProjectileType } from '../../utils/battle/battle';
 
 /**
  * Tests for useBattleEffects hook

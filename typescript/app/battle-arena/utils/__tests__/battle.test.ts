@@ -5,7 +5,7 @@ import {
   createHealingVisualEffects,
   buildDamageDiceArray,
   getProjectileType,
-} from '../battle';
+} from '../battle/battle';
 import { Character, AttackAbility } from '../../lib/types';
 
 // Mock dice functions

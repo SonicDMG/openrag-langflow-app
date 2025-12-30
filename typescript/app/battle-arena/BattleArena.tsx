@@ -9,8 +9,8 @@ import { Character } from './lib/types';
 import { FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, FALLBACK_CLASSES, selectRandomAbilities, isMonster } from './lib/constants';
 
 // Utilities
-import { generateCharacterName, generateDeterministicCharacterName, getCharacterName } from './utils/names';
-import { getOpponent } from './utils/battle';
+import { generateCharacterName, generateDeterministicCharacterName, getCharacterName } from './utils/character/names';
+import { getOpponent } from './utils/battle/battle';
 
 // Hooks
 import { useAIOpponent } from '../battle-arena/hooks/battle/useAIOpponent';

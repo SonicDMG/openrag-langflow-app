@@ -2,7 +2,7 @@
  * Player state utilities
  */
 
-import { Character, PlayerId } from '../lib/types';
+import { Character, PlayerId } from '../../lib/types';
 
 /**
  * Determines if a player is defeated based on their HP

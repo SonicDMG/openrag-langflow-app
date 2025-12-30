@@ -1,5 +1,5 @@
 import { Character, Ability } from '../../lib/types';
-import { extractJsonFromResponse, parseSSEResponse } from '../../utils/api';
+import { extractJsonFromResponse, parseSSEResponse } from '../../utils/data/api';
 import { PLAYER_RACES } from '../../lib/constants';
 
 interface GeneratedStats {

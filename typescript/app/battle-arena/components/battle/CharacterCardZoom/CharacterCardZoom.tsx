@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Character, Ability, AttackAbility, HealingAbility } from '../../../lib/types';
-import { exportCharacterToPDF, generateCharacterPDFBlob } from '../../../utils/pdfExport';
+import { exportCharacterToPDF, generateCharacterPDFBlob } from '../../../utils/data/pdfExport';
 
 interface CharacterCardZoomProps {
   playerClass: Character;
