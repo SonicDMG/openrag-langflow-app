@@ -1,36 +1,217 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🌐 OpenRAG TypeScript Applications
 
-## Getting Started
+> **Next.js applications powered by the OpenRAG SDK**
 
-First, run the development server:
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue?style=flat-square&logo=typescript)](https://typescriptlang.org)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)](https://nextjs.org)
+[![OpenRAG SDK](https://img.shields.io/badge/OpenRAG-SDK-purple?style=flat-square)](https://github.com/langflow-ai/openrag)
+
+This directory contains two TypeScript applications built with Next.js 16 and the OpenRAG SDK:
+
+1. **💬 Web Chat** - Real-time streaming chat interface
+2. **⚔️ Battle Arena** - AI-powered RPG battle simulator
+
+---
+
+## ✨ Features
+
+- **🌊 Real-Time Streaming** - Server-sent events for responsive chat
+- **📝 Rich Markdown** - Beautiful rendering with syntax highlighting
+- **🎮 Interactive UI** - Modern, responsive design with animations
+- **🔧 Modular SDK Utilities** - Complete `openrag-utils` library for all OpenRAG endpoints
+- **⚡ Next.js 16** - Built with App Router and React Server Components
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Node.js 18 or higher
+- OpenRAG server running (default: `http://localhost:3000`)
+- OpenRAG API key
+
+### Installation
+
+```bash
+# Navigate to the typescript directory
+cd typescript
+
+# Install dependencies
+npm install
+```
+
+### Configuration
+
+Create a `.env` file in the **root directory** of the project (one level up from `typescript/`):
+
+```bash
+# From the typescript directory, create the root .env file
+cd ..
+cp .env.example .env
+# Edit .env and add your OPENRAG_API_KEY
+```
+
+The `.env` file should contain:
+
+```bash
+# Required
+OPENRAG_API_KEY=orag_your_api_key_here
+
+# Optional
+OPENRAG_URL=http://localhost:3000
+
+# Battle Arena only (optional)
+EVERART_API_KEY=your_everart_key
+ASTRA_DB_APPLICATION_TOKEN=your_token
+ASTRA_DB_ENDPOINT=your_endpoint
+```
+
+**Note:** All TypeScript applications read environment variables from the root `.env` file, which is shared with the Python CLI.
+
+### Run the Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to access:
+- **Chat Interface**: [http://localhost:3000/chat](http://localhost:3000/chat)
+- **Battle Arena**: [http://localhost:3000/battle-arena](http://localhost:3000/battle-arena)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📦 Applications
 
-## Learn More
+### 💬 Web Chat
 
-To learn more about Next.js, take a look at the following resources:
+A responsive chat interface with real-time streaming, markdown rendering, and conversation history.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Features:**
+- Real-time streaming responses
+- Rich markdown rendering
+- Conversation context
+- Clean, modern UI
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### ⚔️ Battle Arena
 
-## Deploy on Vercel
+An AI-powered RPG battle simulator where you create heroes and monsters, then watch them battle!
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**Features:**
+- AI character generation from PDFs or text
+- Dynamic battle narration
+- Visual effects and animations
+- Optional image generation and database storage
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## 📚 Project Structure
+
+```
+typescript/
+├── app/
+│   ├── page.tsx                 # Home page
+│   ├── layout.tsx               # Root layout
+│   ├── globals.css              # Global styles
+│   │
+│   ├── chat/                    # Web Chat application
+│   │   ├── Chat.tsx
+│   │   └── README.md
+│   │
+│   ├── battle-arena/            # Battle Arena application
+│   │   ├── BattleArena.tsx
+│   │   └── README.md
+│   │
+│   └── api/                     # API routes
+│       ├── chat/
+│       └── monsters/
+│
+├── lib/
+│   ├── openrag-utils/           # OpenRAG SDK utilities
+│   │   ├── chat.ts
+│   │   ├── search.ts
+│   │   ├── documents.ts
+│   │   ├── settings.ts
+│   │   └── knowledge-filters.ts
+│   │
+│   └── db/                      # Database utilities
+│       └── astra.ts
+│
+├── public/                      # Static assets
+├── package.json                 # Dependencies
+├── next.config.ts               # Next.js configuration
+├── tsconfig.json                # TypeScript configuration
+└── README.md                    # This file
+```
+
+**Note:** The `.env` file is located in the project root directory (one level up from `typescript/`).
+
+---
+
+## 🔧 OpenRAG SDK Integration
+
+The TypeScript apps include a comprehensive utility library (`lib/openrag-utils/`) that wraps all OpenRAG SDK endpoints.
+
+### Usage Example
+
+```typescript
+import { chatStreaming, searchQuery, ingestDocument } from '@/lib/openrag-utils';
+
+// Streaming chat
+for await (const event of chatStreaming('What is RAG?', 'chat-123')) {
+  if (event.type === 'content') {
+    process.stdout.write(event.content);
+  }
+}
+
+// Document search
+const results = await searchQuery('machine learning', 5);
+
+// Document ingestion
+await ingestDocument({ file: pdfFile, wait: true });
+```
+
+---
+
+## 🐛 Troubleshooting
+
+### Connection Issues
+
+Make sure your OpenRAG server is running:
+```bash
+curl http://localhost:3000/health
+```
+
+### API Key Issues
+
+Verify your API key in the root `.env`:
+```bash
+cd ..
+cat .env | grep OPENRAG_API_KEY
+```
+
+### Dependency Issues
+
+```bash
+npm install
+# or
+rm -rf node_modules package-lock.json && npm install
+```
+
+---
+
+## 📄 License
+
+This project is provided as-is for demonstration purposes.
+
+---
+
+<div align="center">
+
+**Built with ❤️ using the OpenRAG SDK**
+
+*Bringing RAG to the web, one component at a time* 🚀
+
+[Get Started](#-quick-start) • [View on GitHub](https://github.com/langflow-ai/openrag)
+
+</div>

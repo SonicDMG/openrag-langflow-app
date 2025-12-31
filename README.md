@@ -2,7 +2,7 @@
 
 # 🚀 OpenRAG Application Suite
 
-### *Three Ways to Harness RAG: CLI, Web, and... Epic Battles?*
+### *Harness OpenRAG with Python chat, Web chat, and... Epic Battles?*
 
 <table>
 <tr>
@@ -39,23 +39,22 @@
 
 ## 🎯 What's This All About?
 
-This monorepo demonstrates the versatility of the **OpenRAG SDK** through three distinct applications:
+This monorepo provides implementation examples using the **OpenRAG SDK** through three distinct applications:
 
-1. **💬 Python CLI Chat** - Terminal-based RAG conversations with streaming responses
-2. **🌐 TypeScript Web Chat** - Modern Next.js web interface for RAG interactions  
-3. **⚔️ Battle Arena** - An RPG battle simulator where AI generates characters and controls opponents
-
-Each application showcases different aspects of the OpenRAG SDK, from simple chat to complex document ingestion and AI-powered content generation. Plus, they all share a common `openrag-utils` library pattern for consistency across languages.
+1. **💬 Python Chat** - Simple terminal-based RAG conversations with streaming responses
+2. **🌐 TypeScript Web Chat** - Next.js web interface for RAG interactions
+3. **⚔️ Battle Arena** - A deck battler where (you + AI) generate heroes and monsters, then battle them
 
 ---
 
 ## 🎮 Choose Your Adventure
 
-### 💬 Python CLI Chat
+### 💬 Python Chat
 
 **For terminal enthusiasts and Python developers**
+<img src="docs/images/python-interface.png" alt="TypeScript Web Chat" width="100%"/>
 
-Chat with your RAG-powered assistant directly from the command line. Features streaming responses, rich markdown rendering, and a comprehensive utility library.
+Chat with your OpenRAG agent directly from the command line. Features streaming responses, rich markdown rendering, and an example OpenRAG SDK utility library.
 
 ```bash
 cd python
@@ -64,18 +63,17 @@ uv run python main.py
 ```
 
 **Perfect for:**
-- Quick RAG testing and experimentation
-- Terminal-based workflows
+- Quick OpenRAG testing and experimentation
 - Python SDK integration examples
-- Building CLI tools with RAG
 
-📖 **[Python CLI Documentation](python/README.md)**
+📖 **[Python Documentation](python/README.md)**
 
 ---
 
 ### 🌐 TypeScript Web Chat
 
-**For web developers and modern UI lovers**
+**For web developers and folks coding TypeScript**
+<img src="docs/images/chat-interface.png" alt="TypeScript Web Chat" width="100%"/>
 
 A responsive Next.js 16 application with real-time streaming, markdown rendering, and a clean interface. Built with App Router and React Server Components.
 
@@ -90,18 +88,17 @@ Open [http://localhost:3000](http://localhost:3000) to start chatting!
 **Perfect for:**
 - Web-based RAG applications
 - Learning Next.js + OpenRAG integration
-- Building production chat interfaces
 - TypeScript SDK examples
 
-📖 **[TypeScript Chat Documentation](typescript/app/chat/README.md)**
+📖 **[Typescript Documentation](typescript/README.md)**
 
 ---
 
 ### ⚔️ Battle Arena
-
 **For the adventurous**
+<img src="docs/images/battle.gif" alt="Battle Arena - Character Cards" width="100%"/>
 
-An RPG battle simulator where OpenRAG generates characters from PDFs or text descriptions, and narrates epic battles. Watch heroes and monsters clash with stunning visual effects and probability-based AI opponents!
+A deck battler using OpenRAG to generate characters from PDFs or text descriptions, and narrate epic battles. Watch heroes and monsters clash!
 
 ```bash
 cd typescript
@@ -112,18 +109,21 @@ npm run dev
 Navigate to [http://localhost:3000/battle-arena](http://localhost:3000/battle-arena)
 
 **Perfect for:**
-- Exploring creative RAG applications
-- AI-powered game mechanics
+- Having a bit of fun
 - Document ingestion examples (character sheets)
-- Complex OpenRAG SDK usage
+- Document export to OpenRAG
+- Using Search
+- OpenRAG SDK usage in TypeScript
 
-📖 **[Battle Arena Documentation](typescript/app/battle-arena/README.md)**
+📖 **[Typescript Documentation](typescript/README.md)**
 
 ---
 
 ## 🏗️ Architecture
 
-All three applications share a common pattern: they use dedicated `openrag-utils` libraries that wrap the OpenRAG SDK for cleaner, more maintainable code.
+All three applications share a common pattern: they use dedicated `openrag-utils` libraries that wrap the OpenRAG SDK for cleaner, more maintainable code. 
+
+Whether you do this or not is totally up to you. If you'd like to roll your own check out the [Python SDK docs](https://github.com/langflow-ai/openrag/blob/main/sdks/python/README.md) or the [TypeScript SDK docs](https://github.com/langflow-ai/openrag/blob/main/sdks/typescript/README.md).
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -152,8 +152,35 @@ Both Python and TypeScript apps include utility libraries that:
 - ✅ Include usage examples and tests
 - ✅ Can be used standalone or imported
 
-**Python:** `python/openrag_utils/`  
+**Python:** `python/openrag_utils/`
 **TypeScript:** `typescript/lib/openrag-utils/`
+
+### Project Structure
+
+```
+openrag-langflow-app/
+├── .env                         # Environment variables (shared by all apps)
+├── .env.example                 # Template for environment variables
+├── README.md                    # This file
+│
+├── python/                      # Python CLI Chat
+│   ├── main.py
+│   ├── config.py
+│   ├── openrag_utils/           # Python SDK utilities
+│   └── README.md
+│
+├── typescript/                  # TypeScript applications
+│   ├── app/
+│   │   ├── chat/                # Web Chat interface
+│   │   └── battle-arena/        # Battle Arena game
+│   ├── lib/
+│   │   └── openrag-utils/       # TypeScript SDK utilities
+│   └── README.md
+│
+└── docs/                        # Documentation and images
+```
+
+**Note:** All applications share a single `.env` file in the root directory.
 
 ---
 
@@ -173,22 +200,24 @@ Both Python and TypeScript apps include utility libraries that:
 git clone <repository-url>
 cd openrag-langflow-app
 
+# Create .env file in the root directory
+cp .env.example .env
+# Edit .env and add your OPENRAG_API_KEY
+
 # Setup Python CLI
 cd python
 uv sync
-echo "OPENRAG_API_KEY=your_key" > .env
 uv run python main.py
 
 # Setup TypeScript apps (in a new terminal)
-cd ../typescript
+cd typescript
 npm install
-echo "OPENRAG_API_KEY=your_key" > .env
 npm run dev
 ```
 
 ### Environment Variables
 
-Create a `.env` file in each app directory:
+Create a `.env` file in the **root directory** of the project (not in subdirectories):
 
 ```bash
 # Required
@@ -200,8 +229,10 @@ OPENRAG_URL=http://localhost:3000
 # Battle Arena only (optional)
 EVERART_API_KEY=your_everart_key
 ASTRA_DB_APPLICATION_TOKEN=your_token
-ASTRA_DB_API_ENDPOINT=your_endpoint
+ASTRA_DB_ENDPOINT=your_endpoint
 ```
+
+**Note:** All applications (Python CLI, TypeScript Chat, and Battle Arena) read from the same root `.env` file. You can use the provided `.env.example` as a template.
 
 ---
 
@@ -266,13 +297,8 @@ await ingestDocument({ file: pdfFile, wait: true });
 ## 📚 Documentation
 
 ### Application Guides
-- **[Python CLI Chat](python/README.md)** - Terminal chat interface
-- **[TypeScript Web Chat](typescript/app/chat/README.md)** - Web chat interface
-- **[Battle Arena](typescript/app/battle-arena/README.md)** - RPG battle simulator
-
-### SDK Utilities
-- **[Python OpenRAG Utils](python/openrag_utils/README.md)** - Python SDK wrapper
-- **[TypeScript OpenRAG Utils](typescript/lib/openrag-utils/README.md)** - TypeScript SDK wrapper
+- **[Python CLI Chat](python/README.md)** - Terminal chat interface and SDK utilities
+- **[TypeScript Applications](typescript/README.md)** - Web Chat, Battle Arena, and SDK utilities
 
 ### External Resources
 - **[OpenRAG GitHub](https://github.com/langflow-ai/openrag)** - Official OpenRAG repository
