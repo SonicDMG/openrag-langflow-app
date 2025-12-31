@@ -3,7 +3,8 @@
 > **Next.js applications powered by the OpenRAG SDK**
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue?style=flat-square&logo=typescript)](https://typescriptlang.org)
-[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)](https://nextjs.org)
+[![Next.js](https://img.shields.io/badge/Next.js-16.1-black?style=flat-square&logo=next.js)](https://nextjs.org)
+[![React](https://img.shields.io/badge/React-19-blue?style=flat-square&logo=react)](https://react.dev)
 [![OpenRAG SDK](https://img.shields.io/badge/OpenRAG-SDK-purple?style=flat-square)](https://github.com/langflow-ai/openrag)
 
 This directory contains two TypeScript applications built with Next.js 16 and the OpenRAG SDK:
@@ -19,7 +20,8 @@ This directory contains two TypeScript applications built with Next.js 16 and th
 - **📝 Rich Markdown** - Beautiful rendering with syntax highlighting
 - **🎮 Interactive UI** - Modern, responsive design with animations
 - **🔧 Modular SDK Utilities** - Complete `openrag-utils` library for all OpenRAG endpoints
-- **⚡ Next.js 16** - Built with App Router and React Server Components
+- **⚡ Next.js 16.1** - Built with App Router and React Server Components
+- **⚛️ React 19** - Latest React features and performance improvements
 
 ---
 
@@ -27,7 +29,7 @@ This directory contains two TypeScript applications built with Next.js 16 and th
 
 ### Prerequisites
 
-- Node.js 18 or higher
+- Node.js 18.18 or higher
 - OpenRAG server running (default: `http://localhost:3000`)
 - OpenRAG API key
 
@@ -151,6 +153,8 @@ typescript/
 ## 🔧 OpenRAG SDK Integration
 
 The TypeScript apps include a comprehensive utility library (`lib/openrag-utils/`) that wraps all OpenRAG SDK endpoints.
+
+For complete SDK documentation, see the **[OpenRAG TypeScript SDK docs](https://github.com/langflow-ai/openrag/blob/main/sdks/typescript/README.md)**.
 
 ### Usage Example
 

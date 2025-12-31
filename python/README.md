@@ -95,7 +95,8 @@ openrag_utils/
 ```
 
 ### Usage Examples
-[OpenRAG Python SDK docs](https://github.com/langflow-ai/openrag/blob/main/sdks/python/README.md)
+
+For complete SDK documentation, see the **[OpenRAG Python SDK docs](https://github.com/langflow-ai/openrag/blob/main/sdks/python/README.md)**.
 
 #### Simple Chat
 

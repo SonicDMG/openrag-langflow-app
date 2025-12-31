@@ -27,7 +27,8 @@
 [![OpenRAG](https://img.shields.io/badge/OpenRAG-SDK-blue?style=for-the-badge)](https://github.com/langflow-ai/openrag)
 [![Python](https://img.shields.io/badge/Python-3.13+-green?style=for-the-badge&logo=python)](https://python.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue?style=for-the-badge&logo=typescript)](https://typescriptlang.org)
-[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
+[![Next.js](https://img.shields.io/badge/Next.js-16.1-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
+[![React](https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react)](https://react.dev)
 
 **A monorepo showcasing OpenRAG SDK integration across Python and TypeScript**
 
@@ -189,7 +190,7 @@ openrag-langflow-app/
 ### Prerequisites
 
 - **Python 3.13+** (for Python CLI)
-- **Node.js 18+** (for TypeScript apps)
+- **Node.js 18.18+** (for TypeScript apps)
 - **OpenRAG Server** running (default: http://localhost:3000)
 - **OpenRAG API Key**
 
@@ -233,24 +234,6 @@ ASTRA_DB_ENDPOINT=your_endpoint
 ```
 
 **Note:** All applications (Python CLI, TypeScript Chat, and Battle Arena) read from the same root `.env` file. You can use the provided `.env.example` as a template.
-
----
-
-## 📊 Feature Comparison
-
-| Feature | Python CLI | TypeScript Chat | Battle Arena |
-|---------|-----------|----------------|--------------|
-| **Chat (Simple)** | ✅ | ✅ | ✅ |
-| **Chat (Streaming)** | ✅ | ✅ | ✅ |
-| **Document Search** | ✅ | ✅ | ✅ |
-| **Document Ingestion** | ✅ | ✅ | ✅ (PDFs) |
-| **Knowledge Filters** | ✅ | ✅ | ✅ |
-| **Conversation History** | ✅ | ✅ | ✅ |
-| **Rich Markdown** | ✅ | ✅ | ✅ |
-| **Visual Effects** | ❌ | ❌ | ✅ |
-| **AI Opponents** | ❌ | ❌ | ✅ |
-| **Image Generation** | ❌ | ❌ | ✅ |
-| **Database Storage** | ❌ | ❌ | ✅ (Optional) |
 
 ---
 
