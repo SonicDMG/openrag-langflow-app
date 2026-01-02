@@ -608,13 +608,15 @@ export async function exportMultipleCharactersToPDF(
   for (let i = 0; i < characters.length; i++) {
     const { playerClass, characterName, imageUrl, characterType, imagePrompt, imageSetting } = characters[i];
 
-    // Add page break between characters (except for the first one)
+    // Always start each character on a new page (except the first one)
     if (i > 0) {
       pdf.getDocument().addPage();
-      pdf.setYPosition(pdf.getMargin());
     }
+    
+    // Reset Y position to top of page for each character
+    pdf.setYPosition(pdf.getMargin());
 
-    // Title with type on same line
+    // Title with type on same line (no opening separator - saving space)
     const typeLabel = characterType || 'Character';
     
     const titleSegments = [
@@ -743,6 +745,24 @@ export async function exportMultipleCharactersToPDF(
         pdf.addSpacing(2); // Reduced from 3 to 2
       });
     }
+
+    // Add closing separator as a footer-like element at fixed position
+    // This prevents overlap with abilities regardless of content length
+    const pageHeight = pdf['pageHeight'];
+    const footerY = pageHeight - 25; // Position very close to bottom, just above main footer at pageHeight - 10
+    
+    // Use direct text positioning for tighter spacing
+    const doc = pdf.getDocument();
+    doc.setFontSize(6);
+    doc.setTextColor(139, 111, 71);
+    doc.setFont('helvetica', 'normal');
+    
+    const margin = pdf.getMargin();
+    doc.text('-------------------------------------------------------------------', margin, footerY);
+    doc.setTextColor(92, 64, 51);
+    doc.text('END OF CHARACTER', margin, footerY + 3); // Only 3mm spacing
+    doc.setTextColor(139, 111, 71);
+    doc.text('-------------------------------------------------------------------', margin, footerY + 6); // Only 3mm spacing
   }
 
   // Footer on last page
