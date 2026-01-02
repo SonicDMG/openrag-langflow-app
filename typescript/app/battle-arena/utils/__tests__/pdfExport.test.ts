@@ -14,7 +14,11 @@ jest.mock('jspdf', () => {
     setTextColor: jest.fn(),
     setFont: jest.fn(),
     text: jest.fn(),
+    getTextWidth: jest.fn((text: string) => text.length * 2), // Mock text width calculation
     splitTextToSize: jest.fn((text: string) => [text]),
+    setDrawColor: jest.fn(),
+    setLineWidth: jest.fn(),
+    rect: jest.fn(),
     addPage: jest.fn(),
     addImage: jest.fn(),
     save: jest.fn(),
@@ -152,16 +156,26 @@ describe('PDF Export Utilities', () => {
         expect.any(Number)
       );
       
-      // Should call text for race
+      // Should call text for race label and value (rendered separately in table)
       expect(mockDoc.text).toHaveBeenCalledWith(
-        expect.stringContaining('Race: Human'),
+        'Race:',
+        expect.any(Number),
+        expect.any(Number)
+      );
+      expect(mockDoc.text).toHaveBeenCalledWith(
+        'Human',
         expect.any(Number),
         expect.any(Number)
       );
       
-      // Should call text for sex
+      // Should call text for sex label and value (rendered separately in table)
       expect(mockDoc.text).toHaveBeenCalledWith(
-        expect.stringContaining('Sex: male'),
+        'Sex:',
+        expect.any(Number),
+        expect.any(Number)
+      );
+      expect(mockDoc.text).toHaveBeenCalledWith(
+        'male',
         expect.any(Number),
         expect.any(Number)
       );
@@ -185,16 +199,21 @@ describe('PDF Export Utilities', () => {
         expect.any(Number)
       );
       
-      // Should show "n/a" for race
+      // Should show "n/a" for race (label and value rendered separately)
       expect(mockDoc.text).toHaveBeenCalledWith(
-        expect.stringContaining('Race: n/a'),
+        'Race:',
+        expect.any(Number),
+        expect.any(Number)
+      );
+      expect(mockDoc.text).toHaveBeenCalledWith(
+        'n/a',
         expect.any(Number),
         expect.any(Number)
       );
       
-      // Should show "n/a" for sex
+      // Should show "n/a" for sex (label and value rendered separately)
       expect(mockDoc.text).toHaveBeenCalledWith(
-        expect.stringContaining('Sex: n/a'),
+        'Sex:',
         expect.any(Number),
         expect.any(Number)
       );
@@ -279,14 +298,20 @@ describe('PDF Export Utilities', () => {
       const jsPDF = require('jspdf');
       const mockDoc = jsPDF();
       
-      // Check that stats are included
+      // Check that stats are included (labels and values rendered separately in table)
       const textCalls = mockDoc.text.mock.calls.map((call: any[]) => call[0]);
-      expect(textCalls.some((text: string) => text.includes('HP: 25/30'))).toBe(true);
-      expect(textCalls.some((text: string) => text.includes('AC: 16'))).toBe(true);
-      expect(textCalls.some((text: string) => text.includes('ATK: +5'))).toBe(true);
-      expect(textCalls.some((text: string) => text.includes('DMG: d8'))).toBe(true);
-      expect(textCalls.some((text: string) => text.includes('Melee: d10'))).toBe(true);
-      expect(textCalls.some((text: string) => text.includes('Ranged: d6'))).toBe(true);
+      expect(textCalls.some((text: string) => text === 'HP:')).toBe(true);
+      expect(textCalls.some((text: string) => text === '25/30')).toBe(true);
+      expect(textCalls.some((text: string) => text === 'AC:')).toBe(true);
+      expect(textCalls.some((text: string) => text === '16')).toBe(true);
+      expect(textCalls.some((text: string) => text === 'ATK:')).toBe(true);
+      expect(textCalls.some((text: string) => text === '+5')).toBe(true);
+      expect(textCalls.some((text: string) => text === 'DMG:')).toBe(true);
+      expect(textCalls.some((text: string) => text === 'd8')).toBe(true);
+      expect(textCalls.some((text: string) => text === 'Melee:')).toBe(true);
+      expect(textCalls.some((text: string) => text === 'd10')).toBe(true);
+      expect(textCalls.some((text: string) => text === 'Ranged:')).toBe(true);
+      expect(textCalls.some((text: string) => text === 'd6')).toBe(true);
     });
 
     it('should include abilities with details', async () => {
@@ -396,11 +421,13 @@ describe('PDF Export Utilities', () => {
       ).length;
       expect(detailsCount).toBeGreaterThan(0);
       
-      // Should show race and sex for each character
-      expect(textCalls.some((text: string) => text && text.includes('Race: Human'))).toBe(true);
-      expect(textCalls.some((text: string) => text && text.includes('Sex: male'))).toBe(true);
-      expect(textCalls.some((text: string) => text && text.includes('Race: Elf'))).toBe(true);
-      expect(textCalls.some((text: string) => text && text.includes('Sex: female'))).toBe(true);
+      // Should show race and sex for each character (labels and values rendered separately)
+      expect(textCalls.some((text: string) => text === 'Race:')).toBe(true);
+      expect(textCalls.some((text: string) => text === 'Human')).toBe(true);
+      expect(textCalls.some((text: string) => text === 'Sex:')).toBe(true);
+      expect(textCalls.some((text: string) => text === 'male')).toBe(true);
+      expect(textCalls.some((text: string) => text === 'Elf')).toBe(true);
+      expect(textCalls.some((text: string) => text === 'female')).toBe(true);
     });
 
     it('should display "n/a" for missing race and sex in multiple characters', async () => {
@@ -422,9 +449,10 @@ describe('PDF Export Utilities', () => {
       
       const textCalls = mockDoc.text.mock.calls.map((call: any[]) => call[0]);
       
-      // Should show "n/a" for missing values
-      expect(textCalls.some((text: string) => text && text.includes('Race: n/a'))).toBe(true);
-      expect(textCalls.some((text: string) => text && text.includes('Sex: n/a'))).toBe(true);
+      // Should show "n/a" for missing values (labels and values rendered separately)
+      expect(textCalls.some((text: string) => text === 'Race:')).toBe(true);
+      expect(textCalls.some((text: string) => text === 'n/a')).toBe(true);
+      expect(textCalls.some((text: string) => text === 'Sex:')).toBe(true);
     });
   });
 

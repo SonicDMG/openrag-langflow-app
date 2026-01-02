@@ -12,6 +12,8 @@ import { LoadDefaultHeroesCard } from '../components/action-cards/LoadDefaultHer
 import { LoadDefaultMonstersCard } from '../components/action-cards/LoadDefaultMonstersCard';
 import { ExportDefaultHeroesCard } from '../components/action-cards/ExportDefaultHeroesCard';
 import { ExportDefaultMonstersCard } from '../components/action-cards/ExportDefaultMonstersCard';
+import { ExportHeroesPDFCard } from '../components/action-cards/ExportHeroesPDFCard';
+import { ExportMonstersPDFCard } from '../components/action-cards/ExportMonstersPDFCard';
 
 type LogEntry = {
   id: string;
@@ -979,6 +981,26 @@ export default function LoadDataPage() {
               </div>
               <p className="text-xs text-amber-300 mt-4">
                 💡 After exporting, run <code className="bg-amber-950/50 px-2 py-1 rounded">npm run build</code> to rebuild the app with updated defaults
+              </p>
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-amber-700/50 my-6"></div>
+
+            {/* Export to PDF Subsection */}
+            <div>
+              <h3 className="text-lg font-semibold text-amber-200 mb-2">
+                3️⃣ Export All to PDF
+              </h3>
+              <p className="text-amber-200 mb-4 text-sm">
+                Export all heroes or monsters from the database to a single paginated PDF with images and complete stats
+              </p>
+              <div className="flex flex-wrap gap-4 justify-center">
+                <ExportHeroesPDFCard size="compact" />
+                <ExportMonstersPDFCard size="compact" />
+              </div>
+              <p className="text-xs text-amber-300 mt-4">
+                📄 PDFs include character images, stats, abilities, and descriptions - perfect for printing or sharing
               </p>
             </div>
           </div>
