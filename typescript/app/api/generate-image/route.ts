@@ -7,6 +7,7 @@ import { removeBackground } from '@/app/battle-arena/services/server/image';
 import { CARD_SETTINGS, DEFAULT_SETTING } from '@/app/battle-arena/lib/constants';
 import { CardSetting } from '@/app/battle-arena/lib/types';
 import { enhanceDescriptionWithRaceAndSex } from '@/app/battle-arena/utils/image/promptEnhancement';
+import { analyzeCharacterImage } from '@/lib/langflow/vision';
 
 // Load environment variables from the root .env file
 config({ path: resolve(process.cwd(), '..', '.env') });

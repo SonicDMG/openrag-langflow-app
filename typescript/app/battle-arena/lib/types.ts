@@ -31,11 +31,12 @@ export interface Character {
   meleeDamageDie?: string; // Optional melee weapon damage die (e.g., "d8", "d10")
   rangedDamageDie?: string; // Optional ranged weapon damage die (e.g., "d6", "d8")
   abilities: Ability[];
-  description: string;
+  description: string; // Conceptual description (e.g., "A holy warrior who smites evil with divine power")
   color: string;
   race?: string; // Character race (e.g., "Human", "Elf", "Dwarf") - use "n/a" if not applicable
   sex?: string; // Character sex (e.g., "male", "female", "other") - use "n/a" if not applicable
   imagePrompt?: string; // Visual/appearance description for image generation (separate from character details description)
+  visualDescription?: string; // Actual visual appearance from Langflow vision analysis (e.g., "A knight in silver armor with a glowing sword")
   isDefault?: boolean; // Flag to indicate if this hero was loaded from default heroes
   fromOpenRAG?: boolean; // Flag to indicate if this character was loaded from OpenRAG knowledge base
 }

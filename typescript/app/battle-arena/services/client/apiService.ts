@@ -1312,9 +1312,11 @@ export async function generateBattleEndingImage(
     const victorType = victorIsMonster ? 'monster' : 'class';
     const defeatedType = defeatedIsMonster ? 'monster' : 'class';
 
-    // Build character descriptions
-    const victorDescription = victorClass.description || '';
-    const defeatedDescription = defeatedClass.description || '';
+    // Build character descriptions - PREFER visualDescription over description
+    // visualDescription contains actual visual details from Langflow vision analysis
+    // description contains conceptual/gameplay description
+    const victorDescription = victorClass.visualDescription || victorClass.description || '';
+    const defeatedDescription = defeatedClass.visualDescription || defeatedClass.description || '';
 
     // Detect setting from victor's description (use victor's style for the scene)
     const victorSetting = detectSettingFromDescription(victorDescription + ' ' + victorDetails);
@@ -1326,9 +1328,11 @@ export async function generateBattleEndingImage(
     console.log('Victor Class Name:', victorClass.name);
     console.log('Victor Type:', victorType);
     console.log('Victor Setting:', victorSetting);
+    console.log('Victor has visualDescription:', !!victorClass.visualDescription);
     console.log('Defeated Name:', defeatedName);
     console.log('Defeated Class Name:', defeatedClass.name);
     console.log('Defeated Type:', defeatedType);
+    console.log('Defeated has visualDescription:', !!defeatedClass.visualDescription);
     console.log('=== END DEBUG ===');
 
     // Build support heroes descriptions if they exist
@@ -1337,33 +1341,34 @@ export async function generateBattleEndingImage(
       const supportDescriptions = supportHeroes.map((supportHero, index) => {
         const supportIsMonster = isMonster(supportHero.class.name);
         const supportType = supportIsMonster ? 'monster' : 'class';
-        const supportDescription = supportHero.class.description || '';
+        // PREFER visualDescription over description
+        const supportDescription = supportHero.class.visualDescription || supportHero.class.description || '';
         const supportDetail = supportHeroDetails?.[supportHero.class.name] || '';
         return `${supportHero.name}, a ${supportHero.class.name} ${supportType} - SUPPORT HERO ${index + 1}:
 ${supportHero.class.race && supportHero.class.race !== 'n/a' ? `Race: ${supportHero.class.race}` : ''}
 ${supportHero.class.sex && supportHero.class.sex !== 'n/a' ? `Sex: ${supportHero.class.sex}` : ''}
-${supportDescription ? `Description: ${supportDescription}` : `A ${supportHero.class.name} ${supportType}`}
-${supportDetail ? `Visual/Appearance details: ${supportDetail}` : ''}`;
+Visual Appearance: ${supportDescription || `A ${supportHero.class.name} ${supportType}`}
+${supportDetail ? `Additional details: ${supportDetail}` : ''}`;
       }).join('\n\n');
       supportHeroesDescription = `\n\n${supportDescriptions}`;
     }
 
     // Build a comprehensive prompt that includes character descriptions and image requirements
-    const prompt = `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic. 
+    const prompt = `32-bit pixel art with clearly visible chunky pixel clusters, dithered shading, low-resolution retro ${settingConfig.settingPhrase} aesthetic.
 
 CHARACTER DESCRIPTIONS:
 
 ${victorName}, a ${victorClass.name} ${victorType} - THE VICTOR:
 ${victorClass.race && victorClass.race !== 'n/a' ? `Race: ${victorClass.race}` : ''}
 ${victorClass.sex && victorClass.sex !== 'n/a' ? `Sex: ${victorClass.sex}` : ''}
-${victorDescription ? `Description: ${victorDescription}` : `A ${victorClass.name} ${victorType}`}
-${victorDetails ? `Visual/Appearance details: ${victorDetails}` : ''}
+Visual Appearance: ${victorDescription || `A ${victorClass.name} ${victorType}`}
+${victorDetails ? `Additional details: ${victorDetails}` : ''}
 
 ${defeatedName}, a ${defeatedClass.name} ${defeatedType} - THE DEFEATED:
 ${defeatedClass.race && defeatedClass.race !== 'n/a' ? `Race: ${defeatedClass.race}` : ''}
 ${defeatedClass.sex && defeatedClass.sex !== 'n/a' ? `Sex: ${defeatedClass.sex}` : ''}
-${defeatedDescription ? `Description: ${defeatedDescription}` : `A ${defeatedClass.name} ${defeatedType}`}
-${defeatedDetails ? `Visual/Appearance details: ${defeatedDetails}` : ''}${supportHeroesDescription}
+Visual Appearance: ${defeatedDescription || `A ${defeatedClass.name} ${defeatedType}`}
+${defeatedDetails ? `Additional details: ${defeatedDetails}` : ''}${supportHeroesDescription}
 
 IMAGE REQUIREMENTS:
 Dramatic battle conclusion scene showing ${victorName}${supportHeroes && supportHeroes.length > 0 ? ` and ${supportHeroes.map(sh => sh.name).join(' and ')}` : ''} victorious over defeated ${defeatedName}. ${victorName} in triumphant pose, ${defeatedName} fallen. ${settingConfig.backgroundPhrase} setting with dramatic lighting. Warm earth tones with vibrant accents. Retro SNES/Genesis style, ${settingConfig.technologyLevel}, 16:9 aspect ratio.`;

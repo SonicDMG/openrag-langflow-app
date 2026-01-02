@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@datastax/astra-db-ts": "^2.1.2",
+    "@datastax/langflow-client": "^0.4.1",
     "@tsparticles/engine": "^3.9.1",
     "@tsparticles/react": "^3.0.0",
     "@tsparticles/slim": "^3.9.1",

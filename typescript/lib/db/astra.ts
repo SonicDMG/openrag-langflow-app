@@ -37,6 +37,8 @@ export type HeroRecord = {
   monsterId?: string; // Reference to character's image in /cdn/monsters/{monsterId}/
   imageUrl?: string; // Full URL to character's image
   imagePosition?: { offsetX: number; offsetY: number }; // Image positioning data
+  imagePrompt?: string; // Prompt used to generate the character's image
+  visualDescription?: string; // Visual description from Langflow vision analysis
   searchContext?: string; // Context used when loading (e.g., "Battle Arena", "Pokemon")
   isDefault?: boolean; // Flag to indicate if this hero was loaded from default heroes
   fromOpenRAG?: boolean; // Flag to indicate if this character was loaded from OpenRAG knowledge base
@@ -63,6 +65,8 @@ export type MonsterRecord = {
   monsterId?: string; // Reference to character's image in /cdn/monsters/{monsterId}/
   imageUrl?: string; // Full URL to character's image
   imagePosition?: { offsetX: number; offsetY: number }; // Image positioning data
+  imagePrompt?: string; // Prompt used to generate the character's image
+  visualDescription?: string; // Visual description from Langflow vision analysis
   searchContext?: string; // Context used when loading (e.g., "Battle Arena", "Pokemon")
   isDefault?: boolean; // Flag to indicate if this monster was loaded from default monsters
   fromOpenRAG?: boolean; // Flag to indicate if this character was loaded from OpenRAG knowledge base
@@ -132,7 +136,7 @@ async function getMonstersCollection() {
 
 // Helper to convert Character to HeroRecord
 function classToHeroRecord(klass: Character, searchContext?: string): Omit<HeroRecord, '_id' | 'createdAt' | 'updatedAt'> {
-  return {
+  const record: any = {
     name: klass.name,
     class: klass.class,
     hitPoints: klass.hitPoints,
@@ -145,18 +149,24 @@ function classToHeroRecord(klass: Character, searchContext?: string): Omit<HeroR
     color: klass.color || 'bg-slate-900',
     race: klass.race,
     sex: klass.sex,
-    monsterId: (klass as any).monsterId, // Preserve image reference
-    imageUrl: (klass as any).imageUrl, // Preserve image URL
-    imagePosition: (klass as any).imagePosition, // Preserve image position
     isDefault: klass.isDefault, // Preserve default flag
-    fromOpenRAG: (klass as any).fromOpenRAG, // Preserve OpenRAG flag
     searchContext,
   };
+
+  // Only include optional fields if they have values
+  if ((klass as any).monsterId) record.monsterId = (klass as any).monsterId;
+  if ((klass as any).imageUrl) record.imageUrl = (klass as any).imageUrl;
+  if ((klass as any).imagePosition) record.imagePosition = (klass as any).imagePosition;
+  if ((klass as any).imagePrompt) record.imagePrompt = (klass as any).imagePrompt;
+  if ((klass as any).visualDescription) record.visualDescription = (klass as any).visualDescription;
+  if ((klass as any).fromOpenRAG) record.fromOpenRAG = (klass as any).fromOpenRAG;
+
+  return record;
 }
 
 // Helper to convert Character to MonsterRecord
 function classToMonsterRecord(monster: Character, searchContext?: string): Omit<MonsterRecord, '_id' | 'createdAt' | 'updatedAt'> {
-  return {
+  const record: any = {
     name: monster.name,
     class: monster.class,
     hitPoints: monster.hitPoints,
@@ -169,13 +179,19 @@ function classToMonsterRecord(monster: Character, searchContext?: string): Omit<
     color: monster.color || 'bg-slate-900',
     race: monster.race,
     sex: monster.sex,
-    monsterId: (monster as any).monsterId, // Preserve image reference
-    imageUrl: (monster as any).imageUrl, // Preserve image URL
-    imagePosition: (monster as any).imagePosition, // Preserve image position
     isDefault: monster.isDefault, // Preserve default flag
-    fromOpenRAG: (monster as any).fromOpenRAG, // Preserve OpenRAG flag
     searchContext,
   };
+
+  // Only include optional fields if they have values
+  if ((monster as any).monsterId) record.monsterId = (monster as any).monsterId;
+  if ((monster as any).imageUrl) record.imageUrl = (monster as any).imageUrl;
+  if ((monster as any).imagePosition) record.imagePosition = (monster as any).imagePosition;
+  if ((monster as any).imagePrompt) record.imagePrompt = (monster as any).imagePrompt;
+  if ((monster as any).visualDescription) record.visualDescription = (monster as any).visualDescription;
+  if ((monster as any).fromOpenRAG) record.fromOpenRAG = (monster as any).fromOpenRAG;
+
+  return record;
 }
 
 // Helper to convert HeroRecord to Character
@@ -198,6 +214,8 @@ function heroRecordToClass(record: HeroRecord): Character {
     fromOpenRAG: record.fromOpenRAG, // Preserve OpenRAG flag
     ...(record.monsterId && { monsterId: record.monsterId }), // Preserve image reference
     ...(record.imageUrl && { imageUrl: record.imageUrl }), // Preserve image URL
+    ...(record.imagePrompt && { imagePrompt: record.imagePrompt }), // Preserve image prompt
+    ...(record.visualDescription && { visualDescription: record.visualDescription }), // Preserve visual description
     ...(record.imagePosition && { imagePosition: record.imagePosition }), // Preserve image position
   };
 }
@@ -223,6 +241,8 @@ function monsterRecordToClass(record: MonsterRecord): Character {
     ...(record.monsterId && { monsterId: record.monsterId }), // Preserve image reference
     ...(record.imageUrl && { imageUrl: record.imageUrl }), // Preserve image URL
     ...(record.imagePosition && { imagePosition: record.imagePosition }), // Preserve image position
+    ...(record.imagePrompt && { imagePrompt: record.imagePrompt }), // Preserve image prompt
+    ...(record.visualDescription && { visualDescription: record.visualDescription }), // Preserve visual description
   };
 }
 

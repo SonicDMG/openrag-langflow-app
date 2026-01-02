@@ -478,7 +478,40 @@ function UnifiedCharacterCreatorContent() {
         }
       }
 
-      // 2. Save character data with image references (monsterId, imageUrl from Everart, imagePosition)
+      // 2. Analyze character image with Langflow vision (if image exists)
+      let visualDescription: string | null = null;
+      if (imageData.monsterId) {
+        try {
+          console.log('🔍 Analyzing character image with Langflow vision...');
+          const analysisResponse = await fetch('/api/analyze-character-image', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              monsterId: imageData.monsterId,
+            }),
+          });
+
+          if (analysisResponse.ok) {
+            const analysisData = await analysisResponse.json();
+            visualDescription = analysisData.visualDescription;
+            
+            if (visualDescription) {
+              console.log(`✅ ${formData.name}: Visual description generated (${visualDescription.length} chars)`);
+            } else {
+              console.warn(`⚠️ ${formData.name}: No visual description generated`);
+            }
+          } else {
+            console.warn(`⚠️ ${formData.name}: Image analysis failed`);
+          }
+        } catch (analysisError) {
+          console.error('❌ Error analyzing image:', analysisError);
+          // Continue without visual description - not a critical failure
+        }
+      }
+
+      // 3. Save character data with image references and visual description
       const character: Character = {
         name: formData.name.trim(),
         class: formData.class.trim() || undefined,
@@ -493,6 +526,7 @@ function UnifiedCharacterCreatorContent() {
         race: formData.race.trim() || undefined,
         sex: formData.sex.trim() || undefined,
         ...(formData.imagePrompt && { imagePrompt: formData.imagePrompt }), // Store separate image prompt
+        ...(visualDescription && { visualDescription }), // NEW: Store visual description from Langflow analysis
         ...(imageData.monsterId && {
           monsterId: imageData.monsterId, // Reference to local CDN directory (for caching)
           imageUrl: imageData.imageUrl, // Everart cloud URL (source of truth for sharing)
@@ -521,13 +555,13 @@ function UnifiedCharacterCreatorContent() {
         throw new Error(data.error || 'Failed to save character');
       }
 
-      // 3. Clean up old image if it changed
+      // 4. Clean up old image if it changed
       if (oldMonsterId && imageData.monsterId && oldMonsterId !== imageData.monsterId) {
         console.log(`[handleSave] Cleaning up old image: ${oldMonsterId}`);
         await deleteOldCharacterImage(oldMonsterId);
       }
 
-      // 4. Associate the image with character name in metadata
+      // 5. Associate the image with character name in metadata
       if (imageData.monsterId) {
         const imageResponse = await fetch('/api/monsters', {
           method: 'PATCH',

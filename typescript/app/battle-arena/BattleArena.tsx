@@ -166,16 +166,11 @@ export default function BattleArena() {
   // Helper to find associated image for a character
   // Simplified: now only one image per character (auto-cleanup on creation)
   const findAssociatedMonster = useCallback((className: string): (Character & { monsterId: string; imageUrl: string }) | null => {
-    console.log('[findAssociatedMonster] Searching for:', className, 'in', createdMonsters.length, 'images');
-    
     // Find the single image associated with this character
     const associated = createdMonsters.find(m => {
       // For created monsters, match by klass field; for regular monsters, match by name
       const monsterKlass = (m as any).klass;
       const matches = monsterKlass ? monsterKlass === className : m.name === className;
-      if (matches) {
-        console.log('[findAssociatedMonster] Found image:', { name: m.name, klass: monsterKlass, monsterId: m.monsterId, imagePosition: (m as any).imagePosition });
-      }
       return matches;
     });
     
