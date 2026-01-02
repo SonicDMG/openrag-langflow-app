@@ -3,6 +3,18 @@ import { Character, Ability, AttackAbility, HealingAbility, CardSetting } from '
 import { CARD_SETTINGS } from '../../lib/constants';
 
 /**
+ * Layout constants for PDF generation
+ */
+const LAYOUT_CONSTANTS = {
+  IMAGE_COLUMN_WIDTH: 70,
+  IMAGE_MAX_HEIGHT: 70,
+  RIGHT_COLUMN_OFFSET: 75,
+  RIGHT_COLUMN_WIDTH_REDUCTION: 80,
+  SECTION_HEADING_FONT_SIZE: 13,
+  ABILITIES_HEADING_FONT_SIZE: 14,
+} as const;
+
+/**
  * Sanitize text for PDF export by removing or replacing problematic Unicode characters
  * This helps prevent encoding issues and GLYPH placeholders in PDFs
  */
@@ -417,6 +429,203 @@ class PDFDocumentBuilder {
     // Minimal spacing after mixed text (just enough for next line)
     this.yPosition += 6;
   }
+
+  /**
+   * Render character title with optional type label
+   */
+  private renderCharacterTitle(characterName: string, characterType?: string): void {
+    const typeLabel = characterType || 'Character';
+    
+    const titleSegments = [
+      { text: characterName, fontSize: 22, bold: true, color: [92, 64, 51] as [number, number, number] }
+    ];
+    
+    if (typeLabel) {
+      titleSegments.push({ text: ' - ', fontSize: 16, bold: false, color: [92, 64, 51] as [number, number, number] });
+      titleSegments.push({ text: typeLabel, fontSize: 16, bold: false, color: [92, 64, 51] as [number, number, number] });
+    }
+    
+    this.addMixedStyleText(titleSegments);
+  }
+
+  /**
+   * Render character description
+   */
+  private renderDescription(description: string, characterName: string): void {
+    const desc = description || `A character named ${characterName}.`;
+    this.addWrappedText(desc, 10);
+    this.addSpacing(4);
+  }
+
+  /**
+   * Render image generation details section with two-column layout
+   */
+  private async renderImageGenerationSection(
+    imageUrl?: string,
+    imagePrompt?: string,
+    imageSetting?: string
+  ): Promise<void> {
+    if (!imageUrl && !imagePrompt && !imageSetting) {
+      return;
+    }
+
+    this.addSectionHeading('IMAGE GENERATION DETAILS', LAYOUT_CONSTANTS.SECTION_HEADING_FONT_SIZE);
+    this.addSpacing(-3);
+    
+    const startY = this.yPosition;
+    const leftColumnX = this.margin;
+    const rightColumnX = this.margin + LAYOUT_CONSTANTS.RIGHT_COLUMN_OFFSET;
+    const rightColumnWidth = this.contentWidth - LAYOUT_CONSTANTS.RIGHT_COLUMN_WIDTH_REDUCTION;
+    
+    let imageHeight = 0;
+    
+    // Left column: Character Image
+    if (imageUrl) {
+      const imgDimensions = await this.addImageAtPosition(
+        imageUrl,
+        leftColumnX,
+        startY,
+        LAYOUT_CONSTANTS.IMAGE_COLUMN_WIDTH,
+        LAYOUT_CONSTANTS.IMAGE_MAX_HEIGHT
+      );
+      imageHeight = imgDimensions.height;
+    }
+    
+    // Right column: Generation Details
+    if (imagePrompt || imageSetting) {
+      this.setYPosition(startY);
+      
+      if (imageSetting) {
+        const settingConfig = CARD_SETTINGS[imageSetting as CardSetting];
+        const settingName = settingConfig ? settingConfig.name : imageSetting;
+        this.addTextAtX(`Setting/Theme: ${settingName}`, rightColumnX, 9);
+        if (settingConfig) {
+          this.addWrappedTextAtX(settingConfig.description, rightColumnX, rightColumnWidth, 8);
+        }
+        this.addSpacing(2);
+      }
+      
+      if (imagePrompt) {
+        this.addTextAtX('Generation Prompt:', rightColumnX, 9);
+        this.addSpacing(1);
+        this.addWrappedTextAtX(imagePrompt, rightColumnX, rightColumnWidth, 8);
+      }
+    }
+    
+    // Move Y position past the tallest column
+    const detailsHeight = this.yPosition - startY;
+    this.setYPosition(startY + Math.max(imageHeight, detailsHeight) + 8);
+  }
+
+  /**
+   * Render character statistics table
+   */
+  private renderCharacterStats(playerClass: Character): void {
+    this.addSectionHeading('CHARACTER DETAILS & STATISTICS', LAYOUT_CONSTANTS.SECTION_HEADING_FONT_SIZE);
+    this.addSpacing(-3);
+    
+    const raceValue = playerClass.race && playerClass.race !== 'n/a' ? playerClass.race : 'n/a';
+    const sexValue = playerClass.sex && playerClass.sex !== 'n/a' ? playerClass.sex : 'n/a';
+    
+    const tableData = [
+      { label: 'Race', value: raceValue },
+      { label: 'Sex', value: sexValue },
+      { label: 'HP', value: `${playerClass.hitPoints}/${playerClass.maxHitPoints}` },
+      { label: 'AC', value: `${playerClass.armorClass}` },
+      { label: 'ATK', value: `+${playerClass.attackBonus}` },
+      { label: 'DMG', value: playerClass.damageDie },
+    ];
+
+    if (playerClass.meleeDamageDie) {
+      tableData.push({ label: 'Melee', value: playerClass.meleeDamageDie });
+    }
+    if (playerClass.rangedDamageDie) {
+      tableData.push({ label: 'Ranged', value: playerClass.rangedDamageDie });
+    }
+
+    this.addTable(tableData, 2);
+    this.addSpacing(5);
+  }
+
+  /**
+   * Render abilities section
+   */
+  private renderAbilities(abilities: Ability[]): void {
+    if (!abilities || abilities.length === 0) {
+      return;
+    }
+
+    this.addSectionHeading('ABILITIES', LAYOUT_CONSTANTS.ABILITIES_HEADING_FONT_SIZE);
+
+    abilities.forEach((ability) => {
+      this.checkPageBreak(20);
+      
+      const abilityType = ability.type === 'attack' ? 'Attack' : 'Healing';
+      this.addText(`${ability.name} (${abilityType})`, 10, [92, 64, 51]);
+
+      if (ability.description) {
+        const abilityDescLines = this.addWrappedText(ability.description, 9);
+        this.addSpacing(abilityDescLines * 3);
+      }
+
+      const isAttack = ability.type === 'attack';
+      const attackAbility = isAttack ? (ability as AttackAbility) : null;
+
+      if (isAttack && attackAbility) {
+        const details: string[] = [];
+        details.push(`Damage: ${attackAbility.damageDice}`);
+        if (attackAbility.bonusDamageDice) {
+          details.push(`Bonus: ${attackAbility.bonusDamageDice}`);
+        }
+        details.push(`Attack Roll: ${attackAbility.attackRoll ? 'd20' : 'Automatic'}`);
+        if (attackAbility.attacks && attackAbility.attacks > 1) {
+          details.push(`Attacks: ×${attackAbility.attacks}`);
+        }
+
+        details.forEach((detail) => {
+          this.addIndentedText(`- ${detail}`, 5);
+        });
+      } else {
+        const healingAbility = ability as HealingAbility;
+        this.addIndentedText(`- Healing: ${healingAbility.healingDice}`, 5);
+      }
+
+      this.addSpacing(2);
+    });
+  }
+
+  /**
+   * Render complete character content (title, description, image, stats, abilities)
+   */
+  async renderCharacterContent(
+    characterName: string,
+    playerClass: Character,
+    options: {
+      characterType?: string;
+      imageUrl?: string;
+      imagePrompt?: string;
+      imageSetting?: string;
+    }
+  ): Promise<void> {
+    // Title with type
+    this.renderCharacterTitle(characterName, options.characterType);
+
+    // Description
+    this.renderDescription(playerClass.description || '', characterName);
+
+    // Image Generation Section
+    await this.renderImageGenerationSection(
+      options.imageUrl,
+      options.imagePrompt,
+      options.imageSetting
+    );
+
+    // Character Stats
+    this.renderCharacterStats(playerClass);
+
+    // Abilities
+    this.renderAbilities(playerClass.abilities);
+  }
 }
 
 /**
@@ -447,138 +656,13 @@ export async function exportCharacterToPDF({
 }: CharacterPDFExportOptions): Promise<void> {
   const pdf = new PDFDocumentBuilder('portrait', 'a4');
 
-  // Title with type on same line
-  const typeLabel = characterType || 'Character';
-  
-  const titleSegments = [
-    { text: characterName, fontSize: 22, bold: true, color: [92, 64, 51] as [number, number, number] }
-  ];
-  
-  if (typeLabel) {
-    titleSegments.push({ text: ' - ', fontSize: 16, bold: false, color: [92, 64, 51] as [number, number, number] });
-    titleSegments.push({ text: typeLabel, fontSize: 16, bold: false, color: [92, 64, 51] as [number, number, number] });
-  }
-  
-  pdf.addMixedStyleText(titleSegments);
-
-  // Description Section (no spacing after title)
-  const description = playerClass.description || `A character named ${characterName}.`;
-  pdf.addWrappedText(description, 10);
-  pdf.addSpacing(4);
-
-  // Image Generation Section
-  if (imageUrl || imagePrompt || imageSetting) {
-    // Section header above the two-column layout
-    pdf.addSectionHeading('IMAGE GENERATION DETAILS', 13);
-    pdf.addSpacing(-3); // Tighten space after heading
-    
-    const startY = pdf.getYPosition();
-    const leftColumnX = pdf.getMargin();
-    const rightColumnX = pdf.getMargin() + 75; // Start right column after image
-    const rightColumnWidth = pdf['contentWidth'] - 80; // Width for right column text
-    
-    let imageHeight = 0;
-    
-    // Left column: Character Image
-    if (imageUrl) {
-      const imgDimensions = await pdf.addImageAtPosition(imageUrl, leftColumnX, startY, 70, 70);
-      imageHeight = imgDimensions.height;
-    }
-    
-    // Right column: Generation Details (no header, just content)
-    if (imagePrompt || imageSetting) {
-      pdf.setYPosition(startY); // Start at same Y as image
-      
-      if (imageSetting) {
-        const settingConfig = CARD_SETTINGS[imageSetting as CardSetting];
-        const settingName = settingConfig ? settingConfig.name : imageSetting;
-        pdf.addTextAtX(`Setting/Theme: ${settingName}`, rightColumnX, 9);
-        if (settingConfig) {
-          pdf.addWrappedTextAtX(settingConfig.description, rightColumnX, rightColumnWidth, 8);
-        }
-        pdf.addSpacing(2);
-      }
-      
-      if (imagePrompt) {
-        pdf.addTextAtX('Generation Prompt:', rightColumnX, 9);
-        pdf.addSpacing(1);
-        pdf.addWrappedTextAtX(imagePrompt, rightColumnX, rightColumnWidth, 8);
-      }
-    }
-    
-    // Move Y position past the tallest column
-    const detailsHeight = pdf.getYPosition() - startY;
-    pdf.setYPosition(startY + Math.max(imageHeight, detailsHeight) + 8);
-  }
-
-  // Character Details & Statistics in a combined table
-  pdf.addSectionHeading('CHARACTER DETAILS & STATISTICS', 13);
-  pdf.addSpacing(-3); // Reduce space after heading to bring table closer
-  const raceValue = playerClass.race && playerClass.race !== 'n/a' ? playerClass.race : 'n/a';
-  const sexValue = playerClass.sex && playerClass.sex !== 'n/a' ? playerClass.sex : 'n/a';
-  
-  const tableData = [
-    { label: 'Race', value: raceValue },
-    { label: 'Sex', value: sexValue },
-    { label: 'HP', value: `${playerClass.hitPoints}/${playerClass.maxHitPoints}` },
-    { label: 'AC', value: `${playerClass.armorClass}` },
-    { label: 'ATK', value: `+${playerClass.attackBonus}` },
-    { label: 'DMG', value: playerClass.damageDie },
-  ];
-
-  if (playerClass.meleeDamageDie) {
-    tableData.push({ label: 'Melee', value: playerClass.meleeDamageDie });
-  }
-  if (playerClass.rangedDamageDie) {
-    tableData.push({ label: 'Ranged', value: playerClass.rangedDamageDie });
-  }
-
-  pdf.addTable(tableData, 2);
-  pdf.addSpacing(5); // Add space after table before abilities
-
-  // Abilities Section
-  if (playerClass.abilities && playerClass.abilities.length > 0) {
-    pdf.addSectionHeading('ABILITIES', 14);
-
-    playerClass.abilities.forEach((ability) => {
-      pdf.checkPageBreak(20);
-      
-      // Ability name (reduced font size from 12 to 10)
-      const abilityType = ability.type === 'attack' ? 'Attack' : 'Healing';
-      pdf.addText(`${ability.name} (${abilityType})`, 10, [92, 64, 51]);
-
-      // Ability description (no spacing after name, tighter after description)
-      if (ability.description) {
-        const abilityDescLines = pdf.addWrappedText(ability.description, 9);
-        pdf.addSpacing(abilityDescLines * 3); // Reduced from 4.5 to 3
-      }
-
-      // Ability details
-      const isAttack = ability.type === 'attack';
-      const attackAbility = isAttack ? (ability as AttackAbility) : null;
-
-      if (isAttack && attackAbility) {
-        const details: string[] = [];
-        details.push(`Damage: ${attackAbility.damageDice}`);
-        if (attackAbility.bonusDamageDice) {
-          details.push(`Bonus: ${attackAbility.bonusDamageDice}`);
-        }
-        details.push(`Attack Roll: ${attackAbility.attackRoll ? 'd20' : 'Automatic'}`);
-        if (attackAbility.attacks && attackAbility.attacks > 1) {
-          details.push(`Attacks: x${attackAbility.attacks}`);
-        }
-
-        details.forEach((detail) => {
-          pdf.addIndentedText(`- ${detail}`, 5);
-        });
-      } else {
-        const healingAbility = ability as HealingAbility;
-        pdf.addIndentedText(`- Healing: ${healingAbility.healingDice}`, 5);
-      }
-
-      pdf.addSpacing(2); // Reduced from 3 to 2
-    });
-  }
+  // Render character content using shared method
+  await pdf.renderCharacterContent(characterName, playerClass, {
+    characterType,
+    imageUrl,
+    imagePrompt,
+    imageSetting,
+  });
 
   // Footer
   pdf.addFooter(footerText);
@@ -616,135 +700,13 @@ export async function exportMultipleCharactersToPDF(
     // Reset Y position to top of page for each character
     pdf.setYPosition(pdf.getMargin());
 
-    // Title with type on same line (no opening separator - saving space)
-    const typeLabel = characterType || 'Character';
-    
-    const titleSegments = [
-      { text: characterName, fontSize: 22, bold: true, color: [92, 64, 51] as [number, number, number] }
-    ];
-    
-    if (typeLabel) {
-      titleSegments.push({ text: ' - ', fontSize: 16, bold: false, color: [92, 64, 51] as [number, number, number] });
-      titleSegments.push({ text: typeLabel, fontSize: 16, bold: false, color: [92, 64, 51] as [number, number, number] });
-    }
-    
-    pdf.addMixedStyleText(titleSegments);
-
-    // Description Section (no spacing after title)
-    const description = playerClass.description || `A character named ${characterName}.`;
-    pdf.addWrappedText(description, 10);
-    pdf.addSpacing(4);
-
-    // Image Generation Section
-    if (imageUrl || imagePrompt || imageSetting) {
-      // Section header above the two-column layout
-      pdf.addSectionHeading('IMAGE GENERATION DETAILS', 13);
-      pdf.addSpacing(-3); // Tighten space after heading
-      
-      const startY = pdf.getYPosition();
-      const leftColumnX = pdf.getMargin();
-      const rightColumnX = pdf.getMargin() + 75; // Start right column after image
-      const rightColumnWidth = pdf['contentWidth'] - 80; // Width for right column text
-      
-      let imageHeight = 0;
-      
-      // Left column: Character Image
-      if (imageUrl) {
-        const imgDimensions = await pdf.addImageAtPosition(imageUrl, leftColumnX, startY, 70, 70);
-        imageHeight = imgDimensions.height;
-      }
-      
-      // Right column: Generation Details (no header, just content)
-      if (imagePrompt || imageSetting) {
-        pdf.setYPosition(startY); // Start at same Y as image
-        
-        if (imageSetting) {
-          const settingConfig = CARD_SETTINGS[imageSetting as CardSetting];
-          const settingName = settingConfig ? settingConfig.name : imageSetting;
-          pdf.addTextAtX(`Setting/Theme: ${settingName}`, rightColumnX, 9);
-          if (settingConfig) {
-            pdf.addWrappedTextAtX(settingConfig.description, rightColumnX, rightColumnWidth, 8);
-          }
-          pdf.addSpacing(2);
-        }
-        
-        if (imagePrompt) {
-          pdf.addTextAtX('Generation Prompt:', rightColumnX, 9);
-          pdf.addSpacing(1);
-          pdf.addWrappedTextAtX(imagePrompt, rightColumnX, rightColumnWidth, 8);
-        }
-      }
-      
-      // Move Y position past the tallest column
-      const detailsHeight = pdf.getYPosition() - startY;
-      pdf.setYPosition(startY + Math.max(imageHeight, detailsHeight) + 8);
-    }
-
-    // Character Details & Statistics in a combined table
-    pdf.addSectionHeading('CHARACTER DETAILS & STATISTICS', 13);
-    pdf.addSpacing(-3); // Reduce space after heading to bring table closer
-    const raceValue = playerClass.race && playerClass.race !== 'n/a' ? playerClass.race : 'n/a';
-    const sexValue = playerClass.sex && playerClass.sex !== 'n/a' ? playerClass.sex : 'n/a';
-    
-    const tableData = [
-      { label: 'Race', value: raceValue },
-      { label: 'Sex', value: sexValue },
-      { label: 'HP', value: `${playerClass.hitPoints}/${playerClass.maxHitPoints}` },
-      { label: 'AC', value: `${playerClass.armorClass}` },
-      { label: 'ATK', value: `+${playerClass.attackBonus}` },
-      { label: 'DMG', value: playerClass.damageDie },
-    ];
-
-    if (playerClass.meleeDamageDie) {
-      tableData.push({ label: 'Melee', value: playerClass.meleeDamageDie });
-    }
-    if (playerClass.rangedDamageDie) {
-      tableData.push({ label: 'Ranged', value: playerClass.rangedDamageDie });
-    }
-
-    pdf.addTable(tableData, 2);
-    pdf.addSpacing(5); // Add space after table before abilities
-
-    // Abilities Section
-    if (playerClass.abilities && playerClass.abilities.length > 0) {
-      pdf.addSectionHeading('ABILITIES', 14);
-
-      playerClass.abilities.forEach((ability) => {
-        pdf.checkPageBreak(20);
-        
-        const abilityType = ability.type === 'attack' ? 'Attack' : 'Healing';
-        pdf.addText(`${ability.name} (${abilityType})`, 10, [92, 64, 51]);
-
-        if (ability.description) {
-          const abilityDescLines = pdf.addWrappedText(ability.description, 9);
-          pdf.addSpacing(abilityDescLines * 3);
-        }
-
-        const isAttack = ability.type === 'attack';
-        const attackAbility = isAttack ? (ability as AttackAbility) : null;
-
-        if (isAttack && attackAbility) {
-          const details: string[] = [];
-          details.push(`Damage: ${attackAbility.damageDice}`);
-          if (attackAbility.bonusDamageDice) {
-            details.push(`Bonus: ${attackAbility.bonusDamageDice}`);
-          }
-          details.push(`Attack Roll: ${attackAbility.attackRoll ? 'd20' : 'Automatic'}`);
-          if (attackAbility.attacks && attackAbility.attacks > 1) {
-            details.push(`Attacks: ×${attackAbility.attacks}`);
-          }
-
-          details.forEach((detail) => {
-            pdf.addIndentedText(`- ${detail}`, 5);
-          });
-        } else {
-          const healingAbility = ability as HealingAbility;
-          pdf.addIndentedText(`- Healing: ${healingAbility.healingDice}`, 5);
-        }
-
-        pdf.addSpacing(2); // Reduced from 3 to 2
-      });
-    }
+    // Render character content using shared method
+    await pdf.renderCharacterContent(characterName, playerClass, {
+      characterType,
+      imageUrl,
+      imagePrompt,
+      imageSetting,
+    });
 
     // Add closing separator as a footer-like element at fixed position
     // This prevents overlap with abilities regardless of content length
@@ -802,138 +764,13 @@ export async function generateCharacterPDFBlob({
 }: CharacterPDFExportOptions): Promise<{ blob: Blob; filename: string }> {
   const pdf = new PDFDocumentBuilder('portrait', 'a4');
 
-  // Title with type on same line
-  const typeLabel = characterType || 'Character';
-  
-  const titleSegments = [
-    { text: characterName, fontSize: 22, bold: true, color: [92, 64, 51] as [number, number, number] }
-  ];
-  
-  if (typeLabel) {
-    titleSegments.push({ text: ' - ', fontSize: 16, bold: false, color: [92, 64, 51] as [number, number, number] });
-    titleSegments.push({ text: typeLabel, fontSize: 16, bold: false, color: [92, 64, 51] as [number, number, number] });
-  }
-  
-  pdf.addMixedStyleText(titleSegments);
-
-  // Description Section (no spacing after title)
-  const charDescription = playerClass.description || `A character named ${characterName}.`;
-  pdf.addWrappedText(charDescription, 10);
-  pdf.addSpacing(4);
-
-  // Image Generation Section
-  if (imageUrl || imagePrompt || imageSetting) {
-    // Section header above the two-column layout
-    pdf.addSectionHeading('IMAGE GENERATION DETAILS', 13);
-    pdf.addSpacing(-3); // Tighten space after heading
-    
-    const startY = pdf.getYPosition();
-    const leftColumnX = pdf.getMargin();
-    const rightColumnX = pdf.getMargin() + 75; // Start right column after image
-    const rightColumnWidth = pdf['contentWidth'] - 80; // Width for right column text
-    
-    let imageHeight = 0;
-    
-    // Left column: Character Image
-    if (imageUrl) {
-      const imgDimensions = await pdf.addImageAtPosition(imageUrl, leftColumnX, startY, 70, 70);
-      imageHeight = imgDimensions.height;
-    }
-    
-    // Right column: Generation Details (no header, just content)
-    if (imagePrompt || imageSetting) {
-      pdf.setYPosition(startY); // Start at same Y as image
-      
-      if (imageSetting) {
-        const settingConfig = CARD_SETTINGS[imageSetting as CardSetting];
-        const settingName = settingConfig ? settingConfig.name : imageSetting;
-        pdf.addTextAtX(`Setting/Theme: ${settingName}`, rightColumnX, 9);
-        if (settingConfig) {
-          pdf.addWrappedTextAtX(settingConfig.description, rightColumnX, rightColumnWidth, 8);
-        }
-        pdf.addSpacing(2);
-      }
-      
-      if (imagePrompt) {
-        pdf.addTextAtX('Generation Prompt:', rightColumnX, 9);
-        pdf.addSpacing(1);
-        pdf.addWrappedTextAtX(imagePrompt, rightColumnX, rightColumnWidth, 8);
-      }
-    }
-    
-    // Move Y position past the tallest column
-    const detailsHeight = pdf.getYPosition() - startY;
-    pdf.setYPosition(startY + Math.max(imageHeight, detailsHeight) + 8);
-  }
-
-  // Character Details & Statistics in a combined table
-  pdf.addSectionHeading('CHARACTER DETAILS & STATISTICS', 13);
-  pdf.addSpacing(-3); // Reduce space after heading to bring table closer
-  const raceValue = playerClass.race && playerClass.race !== 'n/a' ? playerClass.race : 'n/a';
-  const sexValue = playerClass.sex && playerClass.sex !== 'n/a' ? playerClass.sex : 'n/a';
-  
-  const tableData = [
-    { label: 'Race', value: raceValue },
-    { label: 'Sex', value: sexValue },
-    { label: 'HP', value: `${playerClass.hitPoints}/${playerClass.maxHitPoints}` },
-    { label: 'AC', value: `${playerClass.armorClass}` },
-    { label: 'ATK', value: `+${playerClass.attackBonus}` },
-    { label: 'DMG', value: playerClass.damageDie },
-  ];
-
-  if (playerClass.meleeDamageDie) {
-    tableData.push({ label: 'Melee', value: playerClass.meleeDamageDie });
-  }
-  if (playerClass.rangedDamageDie) {
-    tableData.push({ label: 'Ranged', value: playerClass.rangedDamageDie });
-  }
-
-  pdf.addTable(tableData, 2);
-  pdf.addSpacing(5); // Add space after table before abilities
-
-  // Abilities Section
-  if (playerClass.abilities && playerClass.abilities.length > 0) {
-    pdf.addSectionHeading('ABILITIES', 14);
-
-    playerClass.abilities.forEach((ability) => {
-      pdf.checkPageBreak(20);
-      
-      // Ability name (reduced font size from 12 to 10)
-      const abilityType = ability.type === 'attack' ? 'Attack' : 'Healing';
-      pdf.addText(`${ability.name} (${abilityType})`, 10, [92, 64, 51]);
-
-      // Ability description (no spacing after name, tighter after description)
-      if (ability.description) {
-        const abilityDescLines = pdf.addWrappedText(ability.description, 9);
-        pdf.addSpacing(abilityDescLines * 3); // Reduced from 4.5 to 3
-      }
-
-      // Ability details
-      const isAttack = ability.type === 'attack';
-      const attackAbility = isAttack ? (ability as AttackAbility) : null;
-
-      if (isAttack && attackAbility) {
-        const details: string[] = [];
-        details.push(`Damage: ${attackAbility.damageDice}`);
-        if (attackAbility.bonusDamageDice) {
-          details.push(`Bonus: ${attackAbility.bonusDamageDice}`);
-        }
-        details.push(`Attack Roll: ${attackAbility.attackRoll ? 'd20' : 'Automatic'}`);
-        if (attackAbility.attacks && attackAbility.attacks > 1) {
-          details.push(`Attacks: x${attackAbility.attacks}`);
-        }
-
-        details.forEach((detail) => {
-          pdf.addIndentedText(`- ${detail}`, 5);
-        });
-      } else {
-        const healingAbility = ability as HealingAbility;
-        pdf.addIndentedText(`- Healing: ${healingAbility.healingDice}`, 5);
-      }
-
-      pdf.addSpacing(2); // Reduced from 3 to 2
-    });
-  }
+  // Render character content using shared method
+  await pdf.renderCharacterContent(characterName, playerClass, {
+    characterType,
+    imageUrl,
+    imagePrompt,
+    imageSetting,
+  });
 
   // Footer
   pdf.addFooter(footerText);
