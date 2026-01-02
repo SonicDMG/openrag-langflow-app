@@ -1,1 +1,0 @@
-export { ExportDefaultMonstersCard } from './ExportDefaultMonstersCard';

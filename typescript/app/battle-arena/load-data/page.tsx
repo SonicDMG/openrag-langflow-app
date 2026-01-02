@@ -10,10 +10,7 @@ import { LandscapePrompt } from '../components/ui/LandscapePrompt';
 import { StagingConfirmationModal } from '../components/battle/StagingConfirmationModal';
 import { LoadDefaultHeroesCard } from '../components/action-cards/LoadDefaultHeroesCard';
 import { LoadDefaultMonstersCard } from '../components/action-cards/LoadDefaultMonstersCard';
-import { ExportDefaultHeroesCard } from '../components/action-cards/ExportDefaultHeroesCard';
-import { ExportDefaultMonstersCard } from '../components/action-cards/ExportDefaultMonstersCard';
-import { ExportHeroesPDFCard } from '../components/action-cards/ExportHeroesPDFCard';
-import { ExportMonstersPDFCard } from '../components/action-cards/ExportMonstersPDFCard';
+import { UnifiedExportCard } from '../components/action-cards/UnifiedExportCard';
 
 type LogEntry = {
   id: string;
@@ -967,40 +964,21 @@ export default function LoadDataPage() {
             {/* Divider */}
             <div className="border-t border-amber-700/50 my-6"></div>
 
-            {/* Export Defaults Subsection */}
+            {/* Export Subsection */}
             <div>
               <h3 className="text-lg font-semibold text-amber-200 mb-2">
-                2️⃣ Export Edited Defaults to JSON
+                2️⃣ Export to JSON or PDF
               </h3>
               <p className="text-amber-200 mb-4 text-sm">
-                After editing defaults in the database, export them back to JSON files for version control
+                Export heroes and monsters from the database to JSON files (for version control) or PDF files (for printing/sharing)
               </p>
               <div className="flex flex-wrap gap-4 justify-center">
-                <ExportDefaultHeroesCard size="compact" />
-                <ExportDefaultMonstersCard size="compact" />
+                <UnifiedExportCard type="heroes" size="compact" />
+                <UnifiedExportCard type="monsters" size="compact" />
               </div>
               <p className="text-xs text-amber-300 mt-4">
-                💡 After exporting, run <code className="bg-amber-950/50 px-2 py-1 rounded">npm run build</code> to rebuild the app with updated defaults
-              </p>
-            </div>
-
-            {/* Divider */}
-            <div className="border-t border-amber-700/50 my-6"></div>
-
-            {/* Export to PDF Subsection */}
-            <div>
-              <h3 className="text-lg font-semibold text-amber-200 mb-2">
-                3️⃣ Export All to PDF
-              </h3>
-              <p className="text-amber-200 mb-4 text-sm">
-                Export all heroes or monsters from the database to a single paginated PDF with images and complete stats
-              </p>
-              <div className="flex flex-wrap gap-4 justify-center">
-                <ExportHeroesPDFCard size="compact" />
-                <ExportMonstersPDFCard size="compact" />
-              </div>
-              <p className="text-xs text-amber-300 mt-4">
-                📄 PDFs include character images, stats, abilities, and descriptions - perfect for printing or sharing
+                💡 JSON: Run <code className="bg-amber-950/50 px-2 py-1 rounded">npm run build</code> after exporting to use updated defaults<br />
+                📄 PDF: Includes character images, stats, abilities, and descriptions - perfect for printing or sharing
               </p>
             </div>
           </div>

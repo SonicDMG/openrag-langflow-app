@@ -1,1 +1,0 @@
-export { ExportDefaultHeroesCard } from './ExportDefaultHeroesCard';
