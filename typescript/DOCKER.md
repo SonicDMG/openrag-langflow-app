@@ -101,18 +101,19 @@ IMAGE_RESIZE_DIMENSION=1024
 
 ### Step 1: Build and Push to Docker Hub
 
-1. **Build the image for linux/amd64 (required for Code Engine)**
-   ```bash
-   docker build --platform linux/amd64 -t sonicdmg/battle-arena:latest .
-   ```
-
-2. **Login to Docker Hub**
+1. **Login to Docker Hub**
    ```bash
    docker login
    ```
 
-3. **Push the image**
+2. **Build and push the image for linux/amd64 (required for Code Engine)**
    ```bash
+   docker buildx build --platform linux/amd64 -t sonicdmg/battle-arena:latest --push .
+   ```
+   
+   Note: This uses `docker buildx` which builds and pushes in one step. If you don't have buildx, you can use:
+   ```bash
+   docker build --platform linux/amd64 -t sonicdmg/battle-arena:latest --load .
    docker push sonicdmg/battle-arena:latest
    ```
 
@@ -174,9 +175,8 @@ IMAGE_RESIZE_DIMENSION=1024
 ### Step 3: Update the Application
 
 ```bash
-# Build new version with platform flag
-docker build --platform linux/amd64 -t sonicdmg/battle-arena:v2 .
-docker push sonicdmg/battle-arena:v2
+# Build and push new version
+docker buildx build --platform linux/amd64 -t sonicdmg/battle-arena:v2 --push .
 
 # Update Code Engine application
 ibmcloud ce application update \
