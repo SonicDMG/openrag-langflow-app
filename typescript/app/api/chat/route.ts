@@ -2,6 +2,13 @@ import { NextRequest } from 'next/server';
 import { OpenRAGClient } from 'openrag-sdk';
 import { config } from 'dotenv';
 import { resolve } from 'path';
+import {
+  validateRequestBody,
+  chatMessageSchema,
+  getClientIp,
+  logValidationFailure,
+  logApiError
+} from '@/lib/security';
 
 // Load environment variables from the root .env file
 config({ path: resolve(process.cwd(), '..', '.env') });
@@ -14,15 +21,21 @@ function formatErrorResponse(error: unknown): { error: string } {
 }
 
 export async function POST(request: NextRequest) {
+  const clientIp = getClientIp(request);
+  
   try {
-    const { message, previousResponseId } = await request.json();
-
-    if (!message || typeof message !== 'string') {
+    // Validate request body using Zod schema
+    const validation = await validateRequestBody(request, chatMessageSchema);
+    
+    if (!validation.success) {
+      logValidationFailure('/api/chat', clientIp, validation.error);
       return new Response(
-        JSON.stringify({ error: 'Message is required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: validation.error }),
+        { status: validation.status, headers: { 'Content-Type': 'application/json' } }
       );
     }
+
+    const { message, previousResponseId } = validation.data;
 
     // Initialize OpenRAG client
     // Client auto-discovers OPENRAG_API_KEY and OPENRAG_URL from environment
@@ -101,6 +114,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Chat API error:', error);
+    logApiError(
+      '/api/chat',
+      'POST',
+      error instanceof Error ? error.message : 'Unknown error',
+      500
+    );
     return new Response(
       JSON.stringify(formatErrorResponse(error)),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
