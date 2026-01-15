@@ -101,9 +101,9 @@ IMAGE_RESIZE_DIMENSION=1024
 
 ### Step 1: Build and Push to Docker Hub
 
-1. **Build the image**
+1. **Build the image for linux/amd64 (required for Code Engine)**
    ```bash
-   docker build -t your-dockerhub-username/openrag-langflow-app:latest .
+   docker build --platform linux/amd64 -t sonicdmg/battle-arena:latest .
    ```
 
 2. **Login to Docker Hub**
@@ -113,7 +113,7 @@ IMAGE_RESIZE_DIMENSION=1024
 
 3. **Push the image**
    ```bash
-   docker push your-dockerhub-username/openrag-langflow-app:latest
+   docker push sonicdmg/battle-arena:latest
    ```
 
 ### Step 2: Deploy to Code Engine
@@ -131,8 +131,8 @@ IMAGE_RESIZE_DIMENSION=1024
 
 3. **Create a Code Engine project** (if not exists)
    ```bash
-   ibmcloud ce project create --name openrag-app
-   ibmcloud ce project select --name openrag-app
+   ibmcloud ce project create --name battle-arena
+   ibmcloud ce project select --name battle-arena
    ```
 
 4. **Create secrets for environment variables**
@@ -140,20 +140,23 @@ IMAGE_RESIZE_DIMENSION=1024
    # Create secret for OpenRAG API key
    ibmcloud ce secret create --name openrag-secrets \
      --from-literal OPENRAG_API_KEY=your_api_key \
-     --from-literal OPENRAG_URL=http://localhost:3000
+     --from-literal OPENRAG_URL=your_openrag_url
    
    # Optional: Create secret for other services
    ibmcloud ce secret create --name service-secrets \
      --from-literal EVERART_API_KEY=your_everart_key \
      --from-literal ASTRA_DB_APPLICATION_TOKEN=your_token \
-     --from-literal ASTRA_DB_ENDPOINT=your_endpoint
+     --from-literal ASTRA_DB_ENDPOINT=your_endpoint \
+     --from-literal LANGFLOW_BASE_URL=your_langflow_url \
+     --from-literal LANGFLOW_VISION_FLOW_ID=your_flow_id \
+     --from-literal LANGFLOW_API_KEY=your_langflow_key
    ```
 
 5. **Deploy the application**
    ```bash
    ibmcloud ce application create \
-     --name openrag-app \
-     --image docker.io/your-dockerhub-username/openrag-langflow-app:latest \
+     --name battle-arena \
+     --image docker.io/sonicdmg/battle-arena:latest \
      --port 3000 \
      --min-scale 1 \
      --max-scale 3 \
@@ -165,20 +168,20 @@ IMAGE_RESIZE_DIMENSION=1024
 
 6. **Get the application URL**
    ```bash
-   ibmcloud ce application get --name openrag-app
+   ibmcloud ce application get --name battle-arena
    ```
 
 ### Step 3: Update the Application
 
 ```bash
-# Build new version
-docker build -t your-dockerhub-username/openrag-langflow-app:v2 .
-docker push your-dockerhub-username/openrag-langflow-app:v2
+# Build new version with platform flag
+docker build --platform linux/amd64 -t sonicdmg/battle-arena:v2 .
+docker push sonicdmg/battle-arena:v2
 
 # Update Code Engine application
 ibmcloud ce application update \
-  --name openrag-app \
-  --image docker.io/your-dockerhub-username/openrag-langflow-app:v2
+  --name battle-arena \
+  --image docker.io/sonicdmg/battle-arena:v2
 ```
 
 ## Health Checks
