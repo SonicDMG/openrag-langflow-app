@@ -11,3 +11,6 @@ wheels/
 
 # Environment variables
 .env
+
+# IBM Cloud deployment files (keep local only)
+openrag-ibmcloud-deploy/
