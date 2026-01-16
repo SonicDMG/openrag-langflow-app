@@ -944,7 +944,7 @@ export default function BattleArena() {
   }, [setPlayer2Class, setPlayer2Name, setPlayer2MonsterId]);
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#D1C9BA' }}>
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--page-background)' }}>
       {/* Landscape Orientation Prompt */}
       <LandscapePrompt />
       

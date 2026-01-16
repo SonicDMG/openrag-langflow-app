@@ -1,8 +1,17 @@
 'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
+import { useMemo } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { 
+  Home10Icon, 
+  TestTube01Icon, 
+  IdentityCardIcon, 
+  UploadSquare01Icon,
+  Sword03Icon
+} from '@hugeicons/core-free-icons';
 
-interface BreadcrumbItem {
+interface NavigationItem {
   label: string;
   path: string;
 }
@@ -16,103 +25,169 @@ interface PageHeaderProps {
     onClick: () => void;
     icon?: React.ReactNode;
   };
-  breadcrumbs?: BreadcrumbItem[];
+  navigationItems?: NavigationItem[];
   isLoading?: boolean;
 }
 
-// Define all available pages for navigation
-const ALL_PAGES: BreadcrumbItem[] = [
+// Define all available navigation items
+const ALL_NAVIGATION_ITEMS: NavigationItem[] = [
   { label: 'Battle', path: '/battle-arena' },
   { label: 'Simulator', path: '/battle-arena/battle-simulator' },
   { label: 'Create Character', path: '/battle-arena/unified-character-creator' },
   { label: 'Load Data', path: '/battle-arena/load-data' },
 ];
 
+// Icon mapping for navigation items - using Map for O(1) lookup
+const PATH_TO_ICON_MAP = new Map([
+  ['/battle-arena', Sword03Icon],
+  ['/battle-arena/battle-simulator', TestTube01Icon],
+  ['/battle-arena/unified-character-creator', IdentityCardIcon],
+  ['/battle-arena/load-data', UploadSquare01Icon],
+]);
+
+// Shared button styling
+const NAV_BUTTON_CLASSES = 'flex items-center gap-1 sm:gap-2 ps-2 pe-2.5 py-1 rounded-lg text-stone-500 hover:text-stone-900 hover:bg-stone-900/5 transition-colors font-semibold text-xs sm:text-base';
+
+// Shared title styling
+const TITLE_CLASSES = 'font-display text-xl text-stone-950 sm:text-2xl md:text-5xl transition-all duration-300 ease-in-out';
+
 /**
- * PageHeader component displays page title, navigation, and breadcrumbs
- * Features responsive layout with back button, centered title, and navigation links
+ * PageHeader component displays page title and navigation actions
+ * Features responsive layout with navigation items on left/right and centered title
  */
 export function PageHeader({
   title,
   title2,
   decalImageUrl,
   leftButton,
-  breadcrumbs,
+  navigationItems,
   isLoading = false,
 }: PageHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const defaultLeftButton = leftButton || {
+  const defaultLeftButton = useMemo(() => leftButton || {
     label: 'Back to Chat',
     onClick: () => router.push('/'),
     icon: (
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-      </svg>
+      <HugeiconsIcon 
+        icon={Home10Icon} 
+        size={20} 
+        className="text-current"
+      />
     ),
-  };
+  }, [leftButton, router]);
 
-  // Use provided breadcrumbs or generate from current path, excluding current page
-  const displayBreadcrumbs = breadcrumbs || ALL_PAGES.filter(page => page.path !== pathname);
+  // Get navigation items, excluding current page
+  const availableItems = useMemo(() => 
+    navigationItems || ALL_NAVIGATION_ITEMS.filter(item => item.path !== pathname),
+    [navigationItems, pathname]
+  );
+  
+  // Determine left and right side items based on current page
+  // On simulator page: Battle goes to left, Simulator is excluded
+  // On other pages: Simulator goes to left
+  const { leftSideItem, rightSideItems } = useMemo(() => {
+    const isSimulatorPage = pathname === '/battle-arena/battle-simulator';
+    const leftPath = isSimulatorPage ? '/battle-arena' : '/battle-arena/battle-simulator';
+    const leftSideItem = availableItems.find(item => item.path === leftPath);
+    const rightSideItems = availableItems.filter(item => item.path !== leftPath);
+    return { leftSideItem, rightSideItems };
+  }, [availableItems, pathname]);
+  
+  // Icon lookup helper
+  const getIconForPath = (path: string) => PATH_TO_ICON_MAP.get(path) || null;
 
   return (
     <div className="px-2 sm:px-4 md:px-6 py-2 sm:py-3 md:py-3">
       <div className="max-w-7xl mx-auto relative">
-        {/* Grid layout to keep title centered - responsive */}
-        <div className="grid grid-cols-3 items-center gap-2 sm:gap-3 md:gap-4">
-          {/* Left Column - Back Button */}
-          <div className="flex justify-start min-w-0">
+        {/* Grid layout: left nav, centered title, right nav */}
+        <div className="grid grid-cols-3 items-center">
+          {/* Left Navigation - Back to Chat and Simulator */}
+          <div className="flex justify-end items-center gap-1 sm:gap-2 min-w-0">
             <button
               onClick={defaultLeftButton.onClick}
-              className="flex items-center gap-1 sm:gap-2 text-gray-700 hover:text-gray-900 transition-colors"
+              className={`${NAV_BUTTON_CLASSES} truncate`}
             >
               <span className="hidden sm:inline">{defaultLeftButton.icon}</span>
-              <span className="font-semibold text-xs sm:text-base truncate">{defaultLeftButton.label}</span>
+              <span>{defaultLeftButton.label}</span>
             </button>
+            {leftSideItem && (
+              <button
+                onClick={() => router.push(leftSideItem.path)}
+                className={`${NAV_BUTTON_CLASSES} whitespace-nowrap`}
+              >
+                {(() => {
+                  const LeftIcon = getIconForPath(leftSideItem.path);
+                  return LeftIcon ? (
+                    <span className="hidden sm:inline">
+                      <HugeiconsIcon 
+                        icon={LeftIcon} 
+                        size={20} 
+                        className="text-current"
+                      />
+                    </span>
+                  ) : null;
+                })()}
+                <span>{leftSideItem.label}</span>
+              </button>
+            )}
           </div>
 
-          {/* Center Column - Title with Decal Graphic */}
+          {/* Center - Page Title with Decal */}
           <div className="flex items-center justify-center min-w-0">
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold truncate" style={{ fontFamily: 'serif', color: '#5C4033' }}>
+            <h1 
+              key={`title-${pathname}`}
+              className={TITLE_CLASSES}
+            >
               {title}
             </h1>
             {decalImageUrl && (
               <img
+                key={`${pathname}-${decalImageUrl}`}
                 src={decalImageUrl}
-                alt={`${title} ${title2 || ''}`.trim()}
-                className="flex-shrink-0 mx-1 sm:mx-2"
-                style={{ 
-                  imageRendering: 'pixelated',
-                  height: 'clamp(2.5rem, 5vw, 5rem)', // Responsive: smaller on mobile, larger on desktop
-                  width: 'auto'
+                alt={title2 ? `${title} ${title2}` : title}
+                className="pixel-art flex-shrink-0 mx-1 h-[clamp(2.5rem,5vw,5rem)] w-auto"
+                style={{
+                  animation: 'slideInFromTop 0.4s ease-out',
                 }}
               />
             )}
             {title2 && (
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold truncate" style={{ fontFamily: 'serif', color: '#5C4033' }}>
+              <h1 
+                key={`title2-${pathname}`}
+                className={TITLE_CLASSES}
+              >
                 {title2}
               </h1>
             )}
           </div>
 
-          {/* Right Column - Breadcrumb Navigation and Loading Indicator */}
-          <div className="flex flex-col items-end min-w-0 gap-1">
-            {displayBreadcrumbs.length > 0 && (
-              <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2 flex-wrap justify-end">
-                {displayBreadcrumbs.map((item, index) => (
-                  <div key={item.path} className="flex items-center gap-1 sm:gap-1.5 md:gap-2">
+          {/* Right Navigation - Create Character and Load Data */}
+          <div className="flex flex-col items-start min-w-0 gap-1">
+            {rightSideItems.length > 0 && (
+              <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-start">
+                {rightSideItems.map((item) => {
+                  const IconComponent = getIconForPath(item.path);
+                  return (
                     <button
+                      key={item.path}
                       onClick={() => router.push(item.path)}
-                      className="text-gray-700 hover:text-gray-900 transition-colors font-semibold text-[10px] xs:text-xs sm:text-sm whitespace-nowrap"
+                      className={`${NAV_BUTTON_CLASSES} whitespace-nowrap`}
                     >
-                      {item.label}
+                      {IconComponent && (
+                        <span className="hidden sm:inline">
+                          <HugeiconsIcon 
+                            icon={IconComponent} 
+                            size={20} 
+                            className="text-current"
+                          />
+                        </span>
+                      )}
+                      <span>{item.label}</span>
                     </button>
-                    {index < displayBreadcrumbs.length - 1 && (
-                      <span className="text-gray-500 text-[10px] xs:text-xs sm:text-sm">•</span>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
             {/* Loading Indicator */}
