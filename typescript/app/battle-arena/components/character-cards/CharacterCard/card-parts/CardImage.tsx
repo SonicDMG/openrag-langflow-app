@@ -5,6 +5,25 @@ import { CARD_THEME } from '../../../cardTheme';
 import { getCharacterType } from '../../../utils/characterTypeUtils';
 import { PLACEHOLDER_IMAGE_URL } from '../../../utils/imageUtils';
 
+/**
+ * Convert bounding box position (0-100%) to object-position percentages
+ * The bounding box represents what portion of the image should be visible
+ * object-position works on the overflow, so we need to invert the calculation
+ */
+function convertBoundingBoxToObjectPosition(
+  offsetX: number,
+  offsetY: number
+): { x: number; y: number } {
+  // The offset represents where the bounding box starts (0 = left/top, 100 = right/bottom)
+  // For object-position, we want the opposite - where to position the image
+  // Since object-position 0% shows the left/top and 100% shows the right/bottom
+  // We can use the offset directly
+  return {
+    x: offsetX,
+    y: offsetY,
+  };
+}
+
 interface CardImageProps {
   playerClass: Character;
   characterName: string;
@@ -170,9 +189,14 @@ export const CardImage = memo(function CardImage({
             width: '100%',
             height: '100%',
             objectFit: 'cover',
+            // For object-fit: cover, object-position works on the overflow
+            // Our bounding box offset represents where the visible area starts (0-100%)
+            // We need to invert this: if box is at 0%, image should show left/top (0%)
+            // if box is at 100%, image should show right/bottom (100%)
+            // So we can use the offset directly
             objectPosition: imagePosition
               ? `${imagePosition.offsetX}% ${imagePosition.offsetY}%`
-              : 'center top',
+              : '50% 0%',
             display: 'block',
             position: 'absolute',
             top: 0,

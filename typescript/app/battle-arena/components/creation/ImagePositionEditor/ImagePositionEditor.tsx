@@ -12,6 +12,16 @@ interface ImagePositionEditorProps {
   children: React.ReactNode; // CharacterCard preview
 }
 
+/**
+ * Sanitize image position to ensure valid numbers
+ */
+function sanitizePosition(pos: ImagePosition): ImagePosition {
+  return {
+    offsetX: isNaN(pos.offsetX) || !isFinite(pos.offsetX) ? 50 : Math.max(0, Math.min(100, pos.offsetX)),
+    offsetY: isNaN(pos.offsetY) || !isFinite(pos.offsetY) ? 50 : Math.max(0, Math.min(100, pos.offsetY)),
+  };
+}
+
 export function ImagePositionEditor({
   imageUrl,
   currentPosition,
@@ -20,7 +30,7 @@ export function ImagePositionEditor({
   isSaving = false,
   children,
 }: ImagePositionEditorProps) {
-  const [position, setPosition] = useState<ImagePosition>(currentPosition);
+  const [position, setPosition] = useState<ImagePosition>(sanitizePosition(currentPosition));
   const [isDragging, setIsDragging] = useState(false);
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const imageRef = useRef<HTMLImageElement>(null);
@@ -32,7 +42,7 @@ export function ImagePositionEditor({
 
   // Update position when currentPosition prop changes
   useEffect(() => {
-    setPosition(currentPosition);
+    setPosition(sanitizePosition(currentPosition));
   }, [currentPosition]);
 
   // Load image dimensions
@@ -84,21 +94,32 @@ export function ImagePositionEditor({
       offsetY = 0;
     }
 
-    // Calculate bounding box size (maintaining card aspect ratio)
+    // Calculate bounding box size to simulate object-fit: cover behavior
+    // The box represents what will be visible in the card (280x200 aspect ratio)
     let boxWidth, boxHeight;
+    
+    // Simulate how object-fit: cover works - the image scales to fill the container
+    // One dimension fills completely, the other overflows
     if (CARD_ASPECT_RATIO > imageAspect) {
-      // Box is wider than image aspect - fit to width
-      boxWidth = displayWidth * 0.8; // 80% of image width
+      // Card is wider than image aspect - image width fills, height overflows
+      // The box width should match the display width
+      boxWidth = displayWidth;
       boxHeight = boxWidth / CARD_ASPECT_RATIO;
     } else {
-      // Box is taller - fit to height
-      boxHeight = displayHeight * 0.8; // 80% of image height
+      // Card is taller than image aspect - image height fills, width overflows
+      // The box height should match the display height
+      boxHeight = displayHeight;
       boxWidth = boxHeight * CARD_ASPECT_RATIO;
     }
 
+    // Calculate the maximum travel distance for the box
+    // This represents how much the visible area can move within the image
+    const maxHorizontalTravel = Math.max(0, displayWidth - boxWidth);
+    const maxVerticalTravel = Math.max(0, displayHeight - boxHeight);
+
     // Calculate position based on offset percentages
-    const boxLeft = offsetX + (displayWidth - boxWidth) * (position.offsetX / 100);
-    const boxTop = offsetY + (displayHeight - boxHeight) * (position.offsetY / 100);
+    const boxLeft = offsetX + maxHorizontalTravel * (position.offsetX / 100);
+    const boxTop = offsetY + maxVerticalTravel * (position.offsetY / 100);
 
     return {
       left: boxLeft,
@@ -109,6 +130,8 @@ export function ImagePositionEditor({
       displayHeight,
       displayOffsetX: offsetX,
       displayOffsetY: offsetY,
+      maxHorizontalTravel,
+      maxVerticalTravel,
     };
   }, [imageSize, position, CARD_ASPECT_RATIO]);
 
@@ -133,9 +156,13 @@ export function ImagePositionEditor({
       const deltaX = e.clientX - dragStartRef.current.x;
       const deltaY = e.clientY - dragStartRef.current.y;
 
-      // Convert pixel delta to percentage
-      const percentDeltaX = (deltaX / (box.displayWidth - box.width)) * 100;
-      const percentDeltaY = (deltaY / (box.displayHeight - box.height)) * 100;
+      // Calculate the available travel space
+      const horizontalTravel = box.displayWidth - box.width;
+      const verticalTravel = box.displayHeight - box.height;
+
+      // Convert pixel delta to percentage, avoiding division by zero
+      const percentDeltaX = horizontalTravel > 0 ? (deltaX / horizontalTravel) * 100 : 0;
+      const percentDeltaY = verticalTravel > 0 ? (deltaY / verticalTravel) * 100 : 0;
 
       const newOffsetX = Math.max(
         0,
