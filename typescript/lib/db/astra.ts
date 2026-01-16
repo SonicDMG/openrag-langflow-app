@@ -76,48 +76,48 @@ export type MonsterRecord = {
 
 // Database client singleton
 let astraClient: any = null;
+let dbAvailable: boolean | null = null; // null = not checked, true = available, false = unavailable
+
+/**
+ * Check if database is configured and available
+ */
+async function isDatabaseAvailable(): Promise<boolean> {
+  // Return cached result if already checked
+  if (dbAvailable !== null) {
+    return dbAvailable;
+  }
+
+  const endpoint = process.env.ASTRA_DB_ENDPOINT;
+  const token = process.env.ASTRA_DB_APPLICATION_TOKEN;
+
+  // Check if environment variables are set
+  if (!endpoint || !token) {
+    console.log("⚠️ Astra DB not configured - using local storage and defaults");
+    dbAvailable = false;
+    return false;
+  }
+
+  // Try to connect
+  try {
+    console.log("Connecting to Astra DB...");
+    const client = new DataAPIClient(token);
+    astraClient = client.db(endpoint);
+    console.log("✅ Successfully connected to Astra DB");
+    dbAvailable = true;
+    return true;
+  } catch (error) {
+    console.warn("⚠️ Failed to connect to Astra DB:", error instanceof Error ? error.message : 'Unknown error');
+    console.log("📦 Falling back to local storage and defaults");
+    dbAvailable = false;
+    return false;
+  }
+}
 
 async function getAstraClient() {
   if (astraClient === null) {
-    const endpoint = process.env.ASTRA_DB_ENDPOINT;
-    const token = process.env.ASTRA_DB_APPLICATION_TOKEN;
-
-    // Debug logging (only log that vars exist, not their values)
-    console.log("Astra DB Config Check:");
-    console.log(`  ASTRA_DB_ENDPOINT: ${endpoint ? "SET" : "MISSING"} (length: ${endpoint?.length || 0})`);
-    console.log(`  ASTRA_DB_APPLICATION_TOKEN: ${token ? "SET" : "MISSING"} (length: ${token?.length || 0})`);
-    console.log(`  Process cwd: ${process.cwd()}`);
-
-    // Provide specific error messages for missing configuration
-    const missingVars: string[] = [];
-    if (!endpoint) {
-      missingVars.push("ASTRA_DB_ENDPOINT");
-    }
-    if (!token) {
-      missingVars.push("ASTRA_DB_APPLICATION_TOKEN");
-    }
-
-    if (missingVars.length > 0) {
-      const errorMsg = `Missing required Astra DB configuration: ${missingVars.join(", ")}. ` +
-        `Please ensure these environment variables are set in your .env file. ` +
-        `Current values: ASTRA_DB_ENDPOINT=${endpoint ? "***set***" : "MISSING"}, ` +
-        `ASTRA_DB_APPLICATION_TOKEN=${token ? "***set***" : "MISSING"}. ` +
-        `Note: Make sure your .env file is in the project root and restart the Next.js server after adding env vars.`;
-      throw new Error(errorMsg);
-    }
-
-    // At this point, we know both endpoint and token are defined
-    const endpointValue = endpoint as string;
-    const tokenValue = token as string;
-
-    try {
-      console.log("Connecting to Astra DB with endpoint:", endpointValue);
-      const client = new DataAPIClient(tokenValue);
-      astraClient = client.db(endpointValue);
-      console.log("Successfully connected to Astra DB");
-    } catch (error) {
-      console.error("Failed to connect to Astra DB:", error);
-      throw error;
+    const isAvailable = await isDatabaseAvailable();
+    if (!isAvailable) {
+      throw new Error('Database not available');
     }
   }
   return astraClient;
@@ -249,6 +249,13 @@ function monsterRecordToClass(record: MonsterRecord): Character {
 // Hero operations
 export async function getAllHeroes(): Promise<HeroRecord[]> {
   try {
+    // Check if database is available first
+    const isAvailable = await isDatabaseAvailable();
+    if (!isAvailable) {
+      console.log("getAllHeroes - Database not available, returning empty array");
+      return [];
+    }
+
     console.log("getAllHeroes - Fetching heroes collection");
     const collection = await getHeroesCollection();
     
@@ -259,7 +266,8 @@ export async function getAllHeroes(): Promise<HeroRecord[]> {
     return records;
   } catch (error) {
     console.error("getAllHeroes - Error:", error);
-    throw error;
+    console.log("getAllHeroes - Returning empty array due to error");
+    return [];
   }
 }
 
@@ -302,6 +310,13 @@ export async function getHeroByName(name: string): Promise<HeroRecord | null> {
 
 export async function upsertHero(hero: Character, searchContext?: string): Promise<any> {
   try {
+    // Check if database is available first
+    const isAvailable = await isDatabaseAvailable();
+    if (!isAvailable) {
+      console.log(`upsertHero - Database not available, skipping save for ${hero.name}`);
+      return { acknowledged: false, message: 'Database not available' };
+    }
+
     const normalizedName = hero.name.toLowerCase();
     console.log(`upsertHero - Processing hero ${hero.name}`);
 
@@ -359,6 +374,13 @@ export async function upsertHeroes(heroes: Character[], searchContext?: string):
 // Monster operations
 export async function getAllMonsters(): Promise<MonsterRecord[]> {
   try {
+    // Check if database is available first
+    const isAvailable = await isDatabaseAvailable();
+    if (!isAvailable) {
+      console.log("getAllMonsters - Database not available, returning empty array");
+      return [];
+    }
+
     console.log("getAllMonsters - Fetching monsters collection");
     const collection = await getMonstersCollection();
     
@@ -369,7 +391,8 @@ export async function getAllMonsters(): Promise<MonsterRecord[]> {
     return records;
   } catch (error) {
     console.error("getAllMonsters - Error:", error);
-    throw error;
+    console.log("getAllMonsters - Returning empty array due to error");
+    return [];
   }
 }
 
@@ -412,6 +435,13 @@ export async function getMonsterByName(name: string): Promise<MonsterRecord | nu
 
 export async function upsertMonster(monster: Character, searchContext?: string): Promise<any> {
   try {
+    // Check if database is available first
+    const isAvailable = await isDatabaseAvailable();
+    if (!isAvailable) {
+      console.log(`upsertMonster - Database not available, skipping save for ${monster.name}`);
+      return { acknowledged: false, message: 'Database not available' };
+    }
+
     const normalizedName = monster.name.toLowerCase();
     console.log(`upsertMonster - Processing monster ${monster.name}`);
 

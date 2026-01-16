@@ -7,7 +7,7 @@ import { Character } from '../../../battle-arena/lib/types';
 // POST - Load default heroes into database
 export async function POST() {
   try {
-    console.log('[API /heroes/load-defaults] Loading default heroes from JSON to database');
+    console.log('[API /heroes/load-defaults] Loading default heroes from JSON');
     
     // Load heroes from JSON file
     const heroesFromJson = await loadDefaultHeroes();
@@ -39,15 +39,19 @@ export async function POST() {
       };
     });
     
-    // Save all default heroes to database
-    await upsertHeroes(defaultHeroes, 'Default Heroes');
-    
-    console.log(`[API /heroes/load-defaults] Successfully loaded ${defaultHeroes.length} default heroes from JSON`);
+    // Try to save to database (will gracefully skip if database not available)
+    try {
+      await upsertHeroes(defaultHeroes, 'Default Heroes');
+      console.log(`[API /heroes/load-defaults] Successfully saved ${defaultHeroes.length} default heroes to database`);
+    } catch (dbError) {
+      console.log('[API /heroes/load-defaults] Database not available, heroes loaded from JSON only');
+    }
     
     return NextResponse.json({
       success: true,
-      message: `Successfully loaded ${defaultHeroes.length} default heroes from JSON`,
-      count: defaultHeroes.length
+      message: `Successfully loaded ${defaultHeroes.length} default heroes`,
+      count: defaultHeroes.length,
+      heroes: defaultHeroes
     });
   } catch (error) {
     console.error('[API /heroes/load-defaults] Error loading default heroes:', error);
