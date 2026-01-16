@@ -644,7 +644,7 @@ function UnifiedCharacterCreatorContent() {
       
       <PageHeader
         title={editId ? 'Edit' : 'Create'}
-        title2="Character"
+        title2="Card"
         decalImageUrl="/cdn/decals/create-character.png"
       />
 

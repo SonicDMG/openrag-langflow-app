@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useMemo } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { 
-  Home10Icon, 
+  ChatIcon, 
   TestTube01Icon, 
   IdentityCardIcon, 
   UploadSquare01Icon,
@@ -31,9 +31,9 @@ interface PageHeaderProps {
 
 // Define all available navigation items
 const ALL_NAVIGATION_ITEMS: NavigationItem[] = [
-  { label: 'Battle', path: '/battle-arena' },
-  { label: 'Simulator', path: '/battle-arena/battle-simulator' },
-  { label: 'Create Character', path: '/battle-arena/unified-character-creator' },
+  { label: 'Battle Arena', path: '/battle-arena' },
+  { label: 'Test Page', path: '/battle-arena/battle-simulator' },
+  { label: 'Create Card', path: '/battle-arena/unified-character-creator' },
   { label: 'Load Data', path: '/battle-arena/load-data' },
 ];
 
@@ -67,11 +67,11 @@ export function PageHeader({
   const pathname = usePathname();
 
   const defaultLeftButton = useMemo(() => leftButton || {
-    label: 'Back to Chat',
+    label: 'Chat',
     onClick: () => router.push('/'),
     icon: (
       <HugeiconsIcon 
-        icon={Home10Icon} 
+        icon={ChatIcon} 
         size={20} 
         className="text-current"
       />
@@ -190,8 +190,8 @@ export function PageHeader({
                 })}
               </div>
             )}
-            {/* Loading Indicator */}
-            {isLoading && (
+            {/* Loading Indicator - Only show when there are no navigation items to avoid clutter */}
+            {isLoading && rightSideItems.length === 0 && (
               <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
                 <svg
                   className="animate-spin h-3 w-3"
