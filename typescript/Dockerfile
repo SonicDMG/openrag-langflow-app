@@ -47,12 +47,19 @@ RUN adduser --system --uid 1001 nextjs
 # Copy public assets
 COPY --from=builder /app/public ./public
 
-# Create characters directory (will be mounted at runtime via volume)
+# Create writable directories for runtime data
+# Characters directory (will be mounted at runtime via volume)
 RUN mkdir -p ./characters
+# CDN monsters directory for dynamically generated images
+RUN mkdir -p ./public/cdn/monsters
 
 # Create .next directory with correct permissions
 RUN mkdir .next
 RUN chown nextjs:nodejs .next
+
+# Set correct permissions for writable directories
+RUN chown -R nextjs:nodejs ./public/cdn/monsters
+RUN chown -R nextjs:nodejs ./characters
 
 # Copy built application (standalone output)
 # https://nextjs.org/docs/advanced-features/output-file-tracing

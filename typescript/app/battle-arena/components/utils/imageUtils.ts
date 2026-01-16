@@ -32,7 +32,7 @@ export function getCharacterImageUrl(
   monsterId: string | null | undefined
 ): string | undefined {
   if (!monsterId) return undefined;
-  return `/cdn/monsters/${monsterId}/280x200.png`;
+  return `/api/cdn/monsters/${monsterId}/280x200.png`;
 }
 
 /**
