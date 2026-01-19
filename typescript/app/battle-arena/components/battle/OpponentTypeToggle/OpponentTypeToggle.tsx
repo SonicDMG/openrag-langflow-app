@@ -17,8 +17,8 @@ const STYLES = {
     },
     thumb: {
       base: 'absolute h-8 w-8 rounded-full shadow-md transition-all duration-300 flex items-center justify-center top-1 left-0.5',
-      monster: 'bg-rose-700 translate-x-0',
-      hero: 'bg-emerald-700 translate-x-7',
+      monster: 'bg-rose-700 translate-x-0.5',
+      hero: 'bg-emerald-700 translate-x-6.5',
     },
     icon: 'text-white',
   },

@@ -112,10 +112,9 @@ export function SelectableClassCard({
   
   return (
     <div
-      className="flex-shrink-0 relative group"
+      className="flex-shrink-0 relative group overflow-visible"
       style={{
         transform: isSelected ? 'scale(1.03) translateY(-4px)' : 'scale(1)',
-        padding: '4px', // Add padding to accommodate zoom without overflow
       }}
     >
       <div

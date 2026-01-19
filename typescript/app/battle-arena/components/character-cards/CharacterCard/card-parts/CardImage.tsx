@@ -142,9 +142,8 @@ export const CardImage = memo(function CardImage({
     >
       {/* Name and class overlay on top of image */}
       <div
-        className="absolute top-0 left-0 right-0 z-20"
+        className="absolute top-0 left-0 right-0 z-20 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.75)_0%,rgba(0,0,0,0.5)_60%,transparent_100%)]"
         style={{
-          background: CARD_THEME.gradients.imageOverlay,
           padding: sizing.padding,
           paddingBottom: sizing.isCompact ? '2rem' : '3rem',
         }}
@@ -152,7 +151,7 @@ export const CardImage = memo(function CardImage({
         {/* Character name */}
         <h3
           ref={nameRef}
-          className={`${sizing.titleSize} font-bold mb-1`}
+          className={`${sizing.titleSize} font-bold mb-1 drop-shadow-[2px_2px_4px_rgba(0,0,0,0.8)]`}
           style={{
             fontFamily: CARD_THEME.fonts.family,
             color: CARD_THEME.colors.textOverlay,
@@ -160,7 +159,6 @@ export const CardImage = memo(function CardImage({
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
-            textShadow: CARD_THEME.shadows.textOverlay,
           }}
         >
           {characterName}
@@ -168,11 +166,10 @@ export const CardImage = memo(function CardImage({
 
         {/* Character type */}
         <p
-          className={sizing.typeSize}
+          className={`${sizing.typeSize} drop-shadow-[1px_1px_3px_rgba(0,0,0,0.8)]`}
           style={{
             color: CARD_THEME.colors.textOverlaySecondary,
             fontStyle: 'italic',
-            textShadow: CARD_THEME.shadows.textOverlayLight,
           }}
         >
           {characterType}

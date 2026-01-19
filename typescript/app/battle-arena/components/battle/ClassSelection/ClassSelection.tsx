@@ -1,9 +1,9 @@
 'use client';
 
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import { Character } from '../../../lib/types';
 import { CharacterCardZoom } from '../CharacterCardZoom';
-import { AddHeroCard } from '../../action-cards/AddHeroCard';
+import { AddCharacterCard } from '../../action-cards/AddCharacterCard';
 import { LoadDefaultHeroesCard } from '../../action-cards/LoadDefaultHeroesCard';
 import { ScrollButton } from '../../ui/ScrollButton';
 import { SelectableClassCard } from '../../action-cards/SelectableClassCard';
@@ -22,14 +22,14 @@ const STYLES = {
     carousel: 'flex items-center gap-4',
   },
   scrollable: {
-    wrapper: 'relative flex-1 min-w-0',
+    wrapper: 'relative flex-1 min-w-0 overflow-y-visible',
     gradient: {
       base: 'absolute top-0 bottom-0 w-16 z-10 pointer-events-none',
       left: 'left-0 bg-gradient-to-r from-[var(--page-background)] to-transparent',
       right: 'right-0 bg-gradient-to-l from-[var(--page-background)] to-transparent',
     },
-    container: 'flex gap-2 sm:gap-3 md:gap-4 overflow-x-auto scrollbar-hide pb-2 sm:pb-2 md:pb-3 pt-2 sm:pt-2 md:pt-3 px-6 sm:px-8 md:px-10',
-    cardWrapper: 'flex-shrink-0 relative group',
+    container: 'flex gap-2 sm:gap-3 md:gap-4 overflow-x-auto overflow-y-visible scrollbar-hide pb-2 sm:pb-2 md:pb-3 pt-2 sm:pt-2 md:pt-3 px-6 sm:px-8 md:px-10',
+    cardWrapper: 'flex-shrink-0 relative group overflow-visible',
   },
 } as const;
 
@@ -132,6 +132,41 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
     }
   }, [calculateScrollAmount]);
   
+  // ===== SCROLL TO SELECTED CARD =====
+  // Scroll to the selected card when it changes
+  useEffect(() => {
+    if (!selectedClass || !scrollContainerRef.current) return;
+    
+    // Find the index of the selected character
+    const selectedIndex = availableClasses.findIndex(char => char.name === selectedClass.name);
+    if (selectedIndex === -1) return;
+    
+    // Small delay to ensure DOM is updated after selection
+    const timeoutId = setTimeout(() => {
+      const scrollContainer = scrollContainerRef.current;
+      if (!scrollContainer) return;
+      
+      // Find all card wrapper elements
+      // First card might be AddHeroCard (if showAddHeroCard is true), then character cards
+      const cardWrappers = Array.from(scrollContainer.querySelectorAll('[class*="flex-shrink-0"]'));
+      
+      // Calculate the index: AddHeroCard is first (if shown), then character cards
+      const cardIndex = showAddHeroCard ? selectedIndex + 1 : selectedIndex;
+      const selectedCardWrapper = cardWrappers[cardIndex];
+      
+      if (selectedCardWrapper) {
+        // Scroll this card into view
+        selectedCardWrapper.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'center',
+        });
+      }
+    }, 150);
+    
+    return () => clearTimeout(timeoutId);
+  }, [selectedClass, availableClasses, showAddHeroCard]);
+  
   // ===== RENDER HELPERS =====
   const cardWrapperStyle = { padding: CARD_PADDING };
   const scrollContainerStyle = {
@@ -140,14 +175,14 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
   };
 
   return (
-    <div>
+    <div className="overflow-visible">
       {/* Title */}
       {title && (
         <h3 className={STYLES.container.title}>{title}</h3>
       )}
 
       {/* Carousel */}
-      <div className={STYLES.container.carousel}>
+      <div className={`${STYLES.container.carousel} overflow-visible`}>
         <ScrollButton direction="left" onClick={scrollLeft} />
 
         {/* Scrollable container with gradient fade */}
@@ -165,7 +200,7 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
             {/* Add Hero card */}
             {showAddHeroCard && (
               <div className={STYLES.scrollable.cardWrapper} style={cardWrapperStyle}>
-                <AddHeroCard size="compact" />
+                <AddCharacterCard type="hero" size="compact" />
               </div>
             )}
             

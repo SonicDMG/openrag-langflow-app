@@ -48,21 +48,21 @@ const BATTLE_START_DELAY_MS = 100;
 // Style constants - organized for easy modification
 const STYLES = {
   page: {
-    container: 'min-h-screen',
+    container: 'min-h-screen overflow-visible',
     backgroundColor: 'var(--page-background)',
   },
   content: {
-    container: 'max-w-[90rem] mx-auto px-4 sm:px-6 py-3 md:py-4 pb-0',
+    container: 'max-w-[90rem] mx-auto px-4 sm:px-6 py-3 md:py-4 pb-0 overflow-visible',
     inner: 'space-y-3 md:space-y-4 overflow-visible',
   },
   characterSelection: {
-    container: 'space-y-4 md:space-y-5',
+    container: 'space-y-4 md:space-y-5 overflow-visible',
     titleContainer: 'text-center min-h-[clamp(4rem,8vw,8rem)] flex items-center justify-center',
     title: 'text-4xl sm:text-5xl md:text-5xl lg:text-8xl mb-1 md:mb-2 font-display text-amber-950/30 tracking-tight animate-pulse-slow',
     loadingText: 'text-sm text-gray-600 italic mt-2',
     waitingIndicator: 'waiting-indicator ml-2 inline-block',
     waitingDot: 'waiting-dot',
-    selectionContainer: 'space-y-4 md:space-y-5',
+    selectionContainer: 'space-y-4 md:space-y-5 overflow-visible',
     buttonContainer: 'justify-center flex gap-4',
     hintText: 'text-sm text-gray-600 text-center italic mt-2',
   },

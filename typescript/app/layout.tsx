@@ -37,9 +37,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="overflow-visible">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${jacquard12.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${jacquard12.variable} antialiased overflow-visible`}
         suppressHydrationWarning
       >
         <DataInitializer />
