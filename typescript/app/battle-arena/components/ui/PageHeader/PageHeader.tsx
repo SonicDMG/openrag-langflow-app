@@ -6,7 +6,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { 
   ChatIcon, 
   TestTube01Icon, 
-  IdentityCardIcon, 
+  Cards01Icon, 
   UploadSquare01Icon,
   Sword03Icon
 } from '@hugeicons/core-free-icons';
@@ -41,15 +41,15 @@ const ALL_NAVIGATION_ITEMS: NavigationItem[] = [
 const PATH_TO_ICON_MAP = new Map([
   ['/battle-arena', Sword03Icon],
   ['/battle-arena/battle-simulator', TestTube01Icon],
-  ['/battle-arena/unified-character-creator', IdentityCardIcon],
+  ['/battle-arena/unified-character-creator', Cards01Icon],
   ['/battle-arena/load-data', UploadSquare01Icon],
 ]);
 
 // Shared button styling
-const NAV_BUTTON_CLASSES = 'flex items-center gap-1 sm:gap-2 ps-2 pe-2.5 py-1 rounded-lg text-stone-500 hover:text-stone-900 hover:bg-stone-900/5 transition-colors font-semibold text-xs sm:text-base';
+const NAV_BUTTON_CLASSES = 'flex items-center gap-1 sm:gap-2 ps-2 pe-2.5 py-1 rounded-lg text-stone-500 hover:cursor-pointer hover:text-stone-800 hover:bg-stone-800/5 transition-colors font-semibold text-xs sm:text-base';
 
 // Shared title styling
-const TITLE_CLASSES = 'font-display text-xl text-stone-950 sm:text-2xl md:text-5xl transition-all duration-300 ease-in-out';
+const TITLE_CLASSES = 'font-display text-xl text-stone-800 sm:text-2xl md:text-5xl transition-all duration-300 ease-in-out tracking-tight';
 
 /**
  * PageHeader component displays page title and navigation actions
