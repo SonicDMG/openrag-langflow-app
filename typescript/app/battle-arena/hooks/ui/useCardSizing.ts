@@ -2,32 +2,49 @@ import { useMemo } from 'react';
 
 export type CardSize = 'normal' | 'compact';
 
+/**
+ * Simplified sizing interface - only values that need to be in inline styles
+ * Tailwind classes are provided via getCardSizeClasses helper
+ */
 export interface CardSizing {
   isCompact: boolean;
+  // Values used in inline styles (can't use Tailwind arbitrary values easily)
   maxWidth: string;
   padding: string;
-  imageWidth: string;
   imageHeight: string;
-  borderWidth: string;
-  borderRadius: string;
-  iconSize: string;
-  titleSize: string;
-  typeSize: string;
-  abilityHeadingSize: string;
-  abilityTextSize: string;
-  abilityButtonPadding: string;
-  statsTextSize: string;
-  abilityGap: string;
-  abilityLineHeight: string;
-  hpBarMaxWidth: string;
-  diamondSize: string;
   framePadding: string;
-  innerBorderRadius: string;
+  hpBarMaxWidth: string;
+  abilityButtonPadding: string;
 }
 
 /**
- * Custom hook to calculate all size-related values for the card
- * Memoizes calculations to prevent unnecessary recalculations
+ * Tailwind class mappings for card sizes
+ * Use this helper to get Tailwind classes instead of inline styles
+ */
+export const getCardSizeClasses = (isCompact: boolean) => ({
+  // Text sizes
+  titleSize: isCompact ? 'text-base' : 'text-xl',
+  typeSize: isCompact ? 'text-[10px]' : 'text-xs',
+  abilityHeadingSize: isCompact ? 'text-[9px]' : 'text-xs',
+  abilityTextSize: isCompact ? 'text-[8px]' : 'text-[10px]',
+  statsTextSize: isCompact ? 'text-[10px]' : 'text-sm',
+  footerTextSize: isCompact ? 'text-[8px]' : 'text-xs',
+  
+  // Icon sizes
+  iconSize: isCompact ? 'w-6 h-6' : 'w-10 h-10',
+  iconSizeSmall: isCompact ? 'w-4 h-4' : 'w-5 h-5',
+  
+  // Spacing
+  abilityGap: isCompact ? 'gap-0' : 'gap-1',
+  abilityLineHeight: isCompact ? 'leading-tight' : 'leading-normal',
+  
+  // Padding (for use in className, not style)
+  padding: isCompact ? 'p-3' : 'p-4',
+});
+
+/**
+ * Simplified hook - only returns values needed for inline styles
+ * Use getCardSizeClasses() for Tailwind classes
  */
 export function useCardSizing(size: CardSize = 'normal'): CardSizing {
   return useMemo(() => {
@@ -35,27 +52,13 @@ export function useCardSizing(size: CardSize = 'normal'): CardSizing {
     
     return {
       isCompact,
-      // Size scaling - compact is 60% of normal
-      maxWidth: isCompact ? '192px' : '320px', // 320 * 0.6 = 192
-      padding: isCompact ? '0.75rem' : '1rem', // p-3 vs p-4
-      // For compact cards, make image larger since abilities section is hidden
-      imageWidth: isCompact ? '180px' : '280px',
+      // Only values that must be in inline styles
+      maxWidth: isCompact ? '192px' : '320px',
+      padding: isCompact ? '0.75rem' : '1rem', // Used in calc() expressions
       imageHeight: isCompact ? '130px' : '200px',
-      borderWidth: isCompact ? '2px' : '3px',
-      borderRadius: isCompact ? '8px' : '12px',
-      iconSize: isCompact ? 'w-6 h-6' : 'w-10 h-10',
-      titleSize: isCompact ? 'text-base' : 'text-xl',
-      typeSize: isCompact ? 'text-[10px]' : 'text-xs',
-      abilityHeadingSize: isCompact ? 'text-[9px]' : 'text-xs',
-      abilityTextSize: isCompact ? 'text-[8px]' : 'text-[10px]',
-      abilityButtonPadding: isCompact ? '1px 4px' : '2px 6px',
-      statsTextSize: isCompact ? 'text-[10px]' : 'text-sm',
-      abilityGap: isCompact ? 'gap-0' : 'gap-1',
-      abilityLineHeight: isCompact ? 'leading-tight' : 'leading-normal',
-      hpBarMaxWidth: isCompact ? '84px' : '140px', // 140 * 0.6 = 84
-      diamondSize: isCompact ? '6px' : '8px',
       framePadding: isCompact ? '6px' : '10px',
-      innerBorderRadius: isCompact ? '8px' : '12px',
+      hpBarMaxWidth: isCompact ? '84px' : '140px',
+      abilityButtonPadding: isCompact ? '1px 4px' : '2px 6px',
     };
   }, [size]);
 }

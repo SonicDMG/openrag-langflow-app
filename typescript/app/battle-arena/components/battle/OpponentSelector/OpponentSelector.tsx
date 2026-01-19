@@ -105,29 +105,83 @@ export function OpponentSelector({
     const selectedIndex = availableMonsters.findIndex(monster => monster.name === player2Class.name);
     if (selectedIndex === -1) return;
     
-    // Small delay to ensure DOM is updated after selection
-    const timeoutId = setTimeout(() => {
+    // Function to perform the scroll
+    const performScroll = () => {
       const scrollContainer = monsterScrollRef.current;
-      if (!scrollContainer) return;
+      if (!scrollContainer) return false;
       
-      // Find all card wrapper elements (first is AddCharacterCard, rest are monster cards)
-      const cardWrappers = Array.from(scrollContainer.querySelectorAll('[class*="flex-shrink-0"]'));
+      // Find the selected card by looking for the card that contains the selected monster's name
+      // This is more reliable than using index, especially if cards are rendered dynamically
+      const selectedMonsterName = player2Class.name;
       
-      // The selected card is at index + 1 (because AddCharacterCard is first)
+      // Look through all card wrappers to find the one containing the selected monster
+      const cardWrappers = Array.from(
+        scrollContainer.children
+      ).filter((child): child is HTMLElement => {
+        return child instanceof HTMLElement && 
+               child.classList.contains('flex-shrink-0');
+      });
+      
+      // Find the card wrapper that contains the selected monster name
+      // Check the text content or look for the SelectableClassCard component
+      for (const wrapper of cardWrappers) {
+        // Skip the AddCharacterCard (first one)
+        if (wrapper === cardWrappers[0]) continue;
+        
+        // Check if this wrapper contains the selected monster name
+        // The card should have the monster name in its text content
+        const cardText = wrapper.textContent || '';
+        if (cardText.includes(selectedMonsterName)) {
+          // Found the selected card - scroll to it
+          wrapper.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'center',
+          });
+          return true;
+        }
+      }
+      
+      // Fallback: use index-based approach if name matching fails
       const selectedCardWrapper = cardWrappers[selectedIndex + 1];
-      
       if (selectedCardWrapper) {
-        // Scroll this card into view
         selectedCardWrapper.scrollIntoView({
           behavior: 'smooth',
           block: 'nearest',
           inline: 'center',
         });
+        return true;
       }
-    }, 150);
+      
+      return false;
+    };
     
-    return () => clearTimeout(timeoutId);
-  }, [player2Class, opponentType, availableMonsters]);
+    // Try scrolling with multiple attempts to handle component mounting and DOM updates
+    const timeouts: NodeJS.Timeout[] = [];
+    const rafIds: number[] = [];
+    
+    // First attempt: wait for next frame, then try
+    rafIds.push(requestAnimationFrame(() => {
+      timeouts.push(setTimeout(() => {
+        if (performScroll()) return;
+        
+        // Second attempt if first failed
+        timeouts.push(setTimeout(() => {
+          if (performScroll()) return;
+          
+          // Third attempt if second failed
+          timeouts.push(setTimeout(() => {
+            performScroll();
+          }, 200));
+        }, 200));
+      }, 100));
+    }));
+    
+    return () => {
+      timeouts.forEach(timeout => clearTimeout(timeout));
+      rafIds.forEach(id => cancelAnimationFrame(id));
+    };
+  }, [player2Class, opponentType, availableMonsters, selectionSyncTrigger]);
 
   // ===== HELPER FUNCTIONS =====
   /**

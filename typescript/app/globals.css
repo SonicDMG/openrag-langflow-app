@@ -18,23 +18,6 @@
   --foreground: #171717;
   --font-display: var(--font-jacquard-12);
   --page-background: #D1C9BA;
-  
-  /* Card Theme Colors */
-  --card-frame: #1a1a1a;
-  --card-inner: #F2ECDE;
-  --card-image-frame: #E8E0D6;
-  --card-border: #D4C4B0;
-  --card-text: #5C4033;
-  --card-text-light: #8B6F47;
-  --card-text-overlay: #F2ECDE;
-  --card-text-overlay-secondary: #D4C4B0;
-  --card-button-bg: #D1C9BA;
-  --card-button-text: #000000;
-  --card-hp-bar: #A66D28;
-  --card-hp-bar-bg: #E8E0D6;
-  --card-shield-green: #22c55e;
-  --card-shield-green-dark: #16a34a;
-  --card-heart-red: #dc2626;
 }
 
 @theme inline {
@@ -43,23 +26,6 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-display: var(--font-jacquard-12);
-  
-  /* Card Theme Colors - Tailwind Utilities */
-  --color-card-frame: var(--card-frame);
-  --color-card-inner: var(--card-inner);
-  --color-card-image-frame: var(--card-image-frame);
-  --color-card-border: var(--card-border);
-  --color-card-text: var(--card-text);
-  --color-card-text-light: var(--card-text-light);
-  --color-card-text-overlay: var(--card-text-overlay);
-  --color-card-text-overlay-secondary: var(--card-text-overlay-secondary);
-  --color-card-button-bg: var(--card-button-bg);
-  --color-card-button-text: var(--card-button-text);
-  --color-card-hp-bar: var(--card-hp-bar);
-  --color-card-hp-bar-bg: var(--card-hp-bar-bg);
-  --color-card-shield-green: var(--card-shield-green);
-  --color-card-shield-green-dark: var(--card-shield-green-dark);
-  --color-card-heart-red: var(--card-heart-red);
 }
 
 @media (prefers-color-scheme: dark) {

@@ -1,28 +1,13 @@
-import React, { memo, useState, useEffect } from 'react';
+import React, { memo, useState, useEffect, useCallback } from 'react';
 import { Character } from '../../../../lib/types';
-import { CardSizing } from '../../../../hooks/ui/useCardSizing';
+import { CardSizing, getCardSizeClasses } from '../../../../hooks/ui/useCardSizing';
 import { CARD_THEME } from '../../../cardTheme';
 import { getCharacterType } from '../../../utils/characterTypeUtils';
 import { PLACEHOLDER_IMAGE_URL } from '../../../utils/imageUtils';
 
-/**
- * Convert bounding box position (0-100%) to object-position percentages
- * The bounding box represents what portion of the image should be visible
- * object-position works on the overflow, so we need to invert the calculation
- */
-function convertBoundingBoxToObjectPosition(
-  offsetX: number,
-  offsetY: number
-): { x: number; y: number } {
-  // The offset represents where the bounding box starts (0 = left/top, 100 = right/bottom)
-  // For object-position, we want the opposite - where to position the image
-  // Since object-position 0% shows the left/top and 100% shows the right/bottom
-  // We can use the offset directly
-  return {
-    x: offsetX,
-    y: offsetY,
-  };
-}
+// ============================================================================
+// Type Definitions
+// ============================================================================
 
 interface CardImageProps {
   playerClass: Character;
@@ -40,9 +25,13 @@ interface CardImageProps {
   imageMarginBottom?: string;
 }
 
+// ============================================================================
+// Component
+// ============================================================================
 
 /**
  * Card image component with character name overlay
+ * Handles image loading, fallback, and caching to local CDN
  */
 export const CardImage = memo(function CardImage({
   playerClass,
@@ -59,21 +48,30 @@ export const CardImage = memo(function CardImage({
   sizing,
   imageMarginBottom,
 }: CardImageProps) {
-  const characterType = getCharacterType(playerClass);
+  // ===== STATE =====
   const [currentImageUrl, setCurrentImageUrl] = useState(monsterImageUrl);
   const [hasTriedFallback, setHasTriedFallback] = useState(false);
   const [isCaching, setIsCaching] = useState(false);
 
-  // Reset state when monsterImageUrl or everartFallbackUrl changes
+  // ===== DERIVED VALUES =====
+  const sizeClasses = getCardSizeClasses(sizing.isCompact);
+  const characterType = getCharacterType(playerClass);
+
+  // ===== EFFECTS =====
+  // Reset state when image URLs or character changes
   useEffect(() => {
     setCurrentImageUrl(monsterImageUrl);
     setHasTriedFallback(false);
     setImageError(false);
   }, [monsterImageUrl, everartFallbackUrl, characterName, monsterId, setImageError]);
 
-  // Cache Everart image to local CDN via API
-  const cacheImageToLocal = async (imageUrl: string, mId: string) => {
-    if (isCaching) return; // Prevent duplicate requests
+  // ===== HANDLERS =====
+  /**
+   * Cache Everart image to local CDN via API
+   * Prevents duplicate requests with isCaching flag
+   */
+  const cacheImageToLocal = useCallback(async (imageUrl: string, mId: string) => {
+    if (isCaching) return;
     
     setIsCaching(true);
     try {
@@ -85,7 +83,6 @@ export const CardImage = memo(function CardImage({
       });
       
       if (response.ok) {
-        const data = await response.json();
         console.log(`[CardImage] ✓ ${characterName} image cached successfully`);
       } else {
         console.error(`[CardImage] Failed to cache ${characterName} image:`, await response.text());
@@ -95,83 +92,117 @@ export const CardImage = memo(function CardImage({
     } finally {
       setIsCaching(false);
     }
-  };
+  }, [characterName, isCaching]);
 
-  // Handle image load error with fallback to Everart URL
-  const handleImageError = () => {
+  /**
+   * Handle image load error with fallback to Everart URL
+   */
+  const handleImageError = useCallback(() => {
     if (!hasTriedFallback && everartFallbackUrl && currentImageUrl !== everartFallbackUrl) {
-      // Try the Everart fallback URL
       console.log(`[CardImage] Local CDN failed for ${characterName}, trying Everart fallback`);
       setCurrentImageUrl(everartFallbackUrl);
       setHasTriedFallback(true);
     } else {
-      // No fallback available or fallback also failed
       setImageError(true);
     }
-  };
+  }, [hasTriedFallback, everartFallbackUrl, currentImageUrl, characterName, setImageError]);
 
-  // Handle successful image load
-  const handleImageLoad = () => {
+  /**
+   * Handle successful image load
+   * If loaded from Everart fallback, cache it to local CDN
+   */
+  const handleImageLoad = useCallback(() => {
     setMainImageLoaded(true);
     
-    // If we successfully loaded from Everart (fallback), cache it to local CDN
     if (hasTriedFallback && currentImageUrl === everartFallbackUrl && monsterId && everartFallbackUrl) {
       console.log(`[CardImage] ${characterName} loaded from Everart, caching to local CDN for future use`);
       cacheImageToLocal(everartFallbackUrl, monsterId);
     }
-  };
-  
+  }, [hasTriedFallback, currentImageUrl, everartFallbackUrl, monsterId, characterName, setMainImageLoaded, cacheImageToLocal]);
+
+  // ===== STYLE CALCULATIONS =====
+  // Object position: bounding box offset (0-100%) maps directly to object-position percentages
+  const objectPosition = imagePosition
+    ? `${imagePosition.offsetX}% ${imagePosition.offsetY}%`
+    : '50% 0%';
+
+  // Container classes
+  const containerClasses = [
+    'flex',
+    'justify-center',
+    'items-start',
+    'overflow-hidden',
+    'relative',
+    'w-full',
+    'shrink-0',
+    'bg-stone-800',
+    'border-stone-100',
+    sizing.isCompact ? 'mb-2' : 'mb-3',
+  ].filter(Boolean).join(' ');
+
+  // Overlay classes
+  const overlayClasses = [
+    'absolute',
+    'top-0',
+    'left-0',
+    'right-0',
+    'z-20',
+    'bg-gradient-to-b',
+    'from-black',
+    'to-transparent',
+    sizing.isCompact ? 'p-3 pb-8' : 'p-4 pb-12',
+  ].filter(Boolean).join(' ');
+
+  // Name heading classes
+  const nameClasses = [
+    sizeClasses.titleSize,
+    'font-semibold',
+    'text-sm',
+    'overflow-hidden',
+    'text-ellipsis',
+    'text-stone-100',
+  ].filter(Boolean).join(' ');
+
+  // Type paragraph classes
+  const typeClasses = [
+    sizeClasses.typeSize,
+    'font-medium',
+    'text-stone-100/75',
+  ].filter(Boolean).join(' ');
+
+  // Image classes (shared between main and placeholder)
+  const imageClasses = [
+    'w-full',
+    'h-full',
+    'object-cover',
+    'block',
+    'absolute',
+    'top-0',
+    'left-0',
+  ].filter(Boolean).join(' ');
+
+  // ===== RENDER =====
   return (
     <div
       ref={characterImageRef}
-      className="flex justify-center items-start overflow-hidden relative"
+      className={containerClasses}
       style={{
-        backgroundColor: CARD_THEME.colors.imageFrame,
-        border: sizing.isCompact ? `1.5px solid ${CARD_THEME.colors.border}` : `2px solid ${CARD_THEME.colors.border}`,
-        borderTopLeftRadius: sizing.innerBorderRadius,
-        borderTopRightRadius: sizing.innerBorderRadius,
-        borderBottomLeftRadius: sizing.isCompact ? '6px' : '8px',
-        borderBottomRightRadius: sizing.isCompact ? '6px' : '8px',
-        padding: '0',
-        width: '100%',
         height: sizing.imageHeight,
-        flexShrink: 0,
-        marginBottom: imageMarginBottom || (sizing.isCompact ? '0.5rem' : '0.75rem'),
-        position: 'relative',
+        marginBottom: imageMarginBottom,
       }}
     >
-      {/* Name and class overlay on top of image */}
-      <div
-        className="absolute top-0 left-0 right-0 z-20 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.75)_0%,rgba(0,0,0,0.5)_60%,transparent_100%)]"
-        style={{
-          padding: sizing.padding,
-          paddingBottom: sizing.isCompact ? '2rem' : '3rem',
-        }}
-      >
-        {/* Character name */}
+      {/* Name and class overlay */}
+      <div className={overlayClasses}>
         <h3
           ref={nameRef}
-          className={`${sizing.titleSize} font-bold mb-1 drop-shadow-[2px_2px_4px_rgba(0,0,0,0.8)]`}
+          className={nameClasses}
           style={{
             fontFamily: CARD_THEME.fonts.family,
-            color: CARD_THEME.colors.textOverlay,
-            fontWeight: 'bold',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
           }}
         >
           {characterName}
         </h3>
-
-        {/* Character type */}
-        <p
-          className={`${sizing.typeSize} drop-shadow-[1px_1px_3px_rgba(0,0,0,0.8)]`}
-          style={{
-            color: CARD_THEME.colors.textOverlaySecondary,
-            fontStyle: 'italic',
-          }}
-        >
+        <p className={typeClasses}>
           {characterType}
         </p>
       </div>
@@ -181,23 +212,10 @@ export const CardImage = memo(function CardImage({
         <img
           src={currentImageUrl}
           alt={characterName}
+          className={imageClasses}
           style={{
             imageRendering: 'pixelated' as const,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            // For object-fit: cover, object-position works on the overflow
-            // Our bounding box offset represents where the visible area starts (0-100%)
-            // We need to invert this: if box is at 0%, image should show left/top (0%)
-            // if box is at 100%, image should show right/bottom (100%)
-            // So we can use the offset directly
-            objectPosition: imagePosition
-              ? `${imagePosition.offsetX}% ${imagePosition.offsetY}%`
-              : '50% 0%',
-            display: 'block',
-            position: 'absolute',
-            top: 0,
-            left: 0,
+            objectPosition,
           }}
           onLoad={handleImageLoad}
           onError={handleImageError}
@@ -206,13 +224,10 @@ export const CardImage = memo(function CardImage({
         <img
           src={PLACEHOLDER_IMAGE_URL}
           alt="Placeholder"
+          className={imageClasses}
           style={{
             imageRendering: 'pixelated' as const,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
             objectPosition: 'center top',
-            display: 'block'
           }}
         />
       )}

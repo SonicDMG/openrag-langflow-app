@@ -1,29 +1,11 @@
 /**
- * Card theme - CSS variable references for use in components
+ * Card theme - minimal theme configuration
  * 
- * Colors: Use Tailwind classes (bg-card-frame, text-card-text, etc.)
- * Shadows: Use Tailwind shadow utilities (see getCardBoxShadowClass)
+ * Colors are now used inline as Tailwind classes throughout components.
+ * Only keeping font family and shadow utility here.
  */
 
 export const CARD_THEME = {
-  colors: {
-    frame: 'var(--card-frame)',
-    innerCard: 'var(--card-inner)',
-    imageFrame: 'var(--card-image-frame)',
-    border: 'var(--card-border)',
-    text: 'var(--card-text)',
-    textLight: 'var(--card-text-light)',
-    textOverlay: 'var(--card-text-overlay)',
-    textOverlaySecondary: 'var(--card-text-overlay-secondary)',
-    buttonBg: 'var(--card-button-bg)',
-    buttonText: 'var(--card-button-text)',
-    hpBar: 'var(--card-hp-bar)',
-    hpBarBg: 'var(--card-hp-bar-bg)',
-    shieldGreen: 'var(--card-shield-green)',
-    shieldGreenDark: 'var(--card-shield-green-dark)',
-    heartRed: 'var(--card-heart-red)',
-  },
-  
   fonts: {
     family: 'var(--font-sans)',
   },

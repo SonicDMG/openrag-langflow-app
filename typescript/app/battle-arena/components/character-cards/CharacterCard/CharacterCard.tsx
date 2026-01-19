@@ -5,10 +5,10 @@ import { Character } from '../../../lib/types';
 import { Sparkles } from '../../effects/Sparkles';
 import { Confetti } from '../../effects/Confetti';
 import { useCardAnimations } from '../../../hooks/ui/useCardAnimations';
-import { useCardSizing } from '../../../hooks/ui/useCardSizing';
+import { useCardSizing, getCardSizeClasses } from '../../../hooks/ui/useCardSizing';
 import { useImageState } from '../../../hooks/ui/useImageState';
 import { getCharacterSource } from '../../../utils/character/characterSource';
-import { CARD_THEME, getCardBoxShadowClass } from '../../cardTheme';
+import { getCardBoxShadowClass } from '../../cardTheme';
 import { CardHeader } from './card-parts/CardHeader';
 import { CardFooter } from './card-parts/CardFooter';
 import { CardImage } from './card-parts/CardImage';
@@ -155,6 +155,7 @@ function CharacterCardComponent({
   
   // ===== HOOKS =====
   const sizing = useCardSizing(size);
+  const sizeClasses = getCardSizeClasses(sizing.isCompact);
   const imageState = useImageState({ monsterImageUrl, characterName, sizing });
   
   useCardAnimations(
@@ -194,42 +195,41 @@ function CharacterCardComponent({
   const isInBattle = !!onAttack;
   
   // ===== STYLE CALCULATIONS =====
+  // Only dynamic styles from sizing hook - static styles moved to className
   const outerFrameStyle = {
-    backgroundColor: CARD_THEME.colors.frame,
-    borderRadius: sizing.borderRadius,
     width: sizing.maxWidth,
     minWidth: sizing.maxWidth,
     maxWidth: sizing.maxWidth,
-    aspectRatio: '3/4' as const,
     padding: sizing.framePadding,
-    position: 'relative' as const,
-    overflow: 'visible' as const,
   };
 
   const innerCardStyle = {
-    backgroundColor: CARD_THEME.colors.innerCard,
-    borderRadius: sizing.innerBorderRadius,
-    flex: 1,
-    minHeight: 0,
+    // No inline styles needed - using Tailwind classes
   };
 
   // ===== RENDER =====
+  // Build className strings for better readability
+  const outerFrameClassName = [
+    'relative',
+    'flex',
+    'flex-col',
+    'aspect-[3/4]',
+    'overflow-visible',
+    'transition-transform',
+    'duration-200',
+    'hover:scale-[1.02]',
+    'rounded-xl', // Main card border radius
+    'bg-stone-800',
+    getCardBoxShadowClass(isSelected, isActive),
+    isDefeated ? 'card-damaged card-slam-down' : isInBattle ? 'card-elevated' : '',
+  ].filter(Boolean).join(' ');
+
   return (
     <div
       ref={animationRef}
-      className={`relative flex flex-col transition-transform duration-200 hover:scale-[1.02] ${getCardBoxShadowClass(isSelected, isActive)} ${
-        isDefeated ? 'card-damaged card-slam-down' : isInBattle ? 'card-elevated' : ''
-      }`}
+      className={outerFrameClassName}
       style={outerFrameStyle}
     >
-      {/* Header: Character source badge and zoom button */}
-      <CardHeader
-        source={getCharacterSource(playerClass)}
-        showZoomButton={showZoomButton}
-        onZoom={onZoom}
-        isCompact={sizing.isCompact}
-      />
-
       {/* Dust particles effect when card slams down */}
       {isDefeated && isInBattle && <DustParticleEffect />}
       
@@ -243,10 +243,19 @@ function CharacterCardComponent({
         />
       )}
 
-      {/* Inner card with rounded corners */}
+      {/* Inner card with rounded corners - larger radius at bottom */}
       <div 
-        className={`relative overflow-hidden shadow-inner ${isDefeated ? 'card-inner-damaged' : ''}`}
-        style={innerCardStyle}
+        className={[
+          'relative',
+          'overflow-hidden',
+          'shadow-inner',
+          'flex-1',
+          'min-h-0',
+          'rounded-t-lg', // Top corners use medium radius
+          'rounded-b-[1.5vw]', // Bottom corners use larger radius
+          'bg-amber-50',
+          isDefeated ? 'card-inner-damaged' : '',
+        ].filter(Boolean).join(' ')}
       >
         {/* Confetti for victor */}
         {isVictor && (
@@ -278,11 +287,24 @@ function CharacterCardComponent({
 
         {/* Card Content */}
         <div 
-          className={`h-full flex flex-col relative z-10 ${
-            isDefeated ? 'card-content-damaged' : ''
-          }`} 
-          style={{ padding: '0', display: 'flex', flexDirection: 'column' }}
+          className={[
+            'h-full',
+            'flex',
+            'flex-col',
+            'relative',
+            'z-10',
+            isDefeated ? 'card-content-damaged' : '',
+          ].filter(Boolean).join(' ')}
+          style={{ padding: '0' }}
         >
+          {/* Header: Character source badge and zoom button - above image */}
+          <CardHeader
+            source={getCharacterSource(playerClass)}
+            showZoomButton={showZoomButton}
+            onZoom={onZoom}
+            isCompact={sizing.isCompact}
+          />
+
           {/* Character Image */}
           <CardImage
             playerClass={playerClass}
@@ -316,11 +338,7 @@ function CharacterCardComponent({
           )}
 
           {/* Divider with diamond icon */}
-          <Divider
-            diamondSize={sizing.diamondSize}
-            padding={sizing.padding}
-            marginBottom={sizing.isCompact ? '0.5rem' : '0.75rem'}
-          />
+          <Divider isCompact={sizing.isCompact} />
 
           {/* Stats section */}
           <StatsSection

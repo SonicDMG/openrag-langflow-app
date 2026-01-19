@@ -1010,15 +1010,11 @@ export const FALLBACK_MONSTER_ABILITIES: Record<string, Ability[]> = {
 
 // Load default heroes from JSON file
 // This is loaded at build time and works in both client and server contexts
+// Note: In Next.js with Turbopack, we can't use require() for JSON files
+// These are fallback data - actual data is loaded from the database
 let FALLBACK_CLASSES_DATA: Character[] = [];
-try {
-  // Use dynamic require to load JSON at build time
-  const heroesJson = require('../../../../characters/default_heroes/heroes.json');
-  FALLBACK_CLASSES_DATA = heroesJson.heroes || [];
-} catch (error) {
-  console.error('Failed to load heroes from JSON, using empty array:', error);
-  FALLBACK_CLASSES_DATA = [];
-}
+// JSON files are not available at build time, using empty array as fallback
+// Actual heroes are loaded from the database via loadDefaultHeroes()
 
 // Default fallback classes loaded from JSON
 // Note: abilities are included by default and will be randomly selected on each run
@@ -1056,15 +1052,11 @@ export function getPlayerClassNames(): string[] {
 
 // Load default monsters from JSON file
 // This is loaded at build time and works in both client and server contexts
+// Note: In Next.js with Turbopack, we can't use require() for JSON files
+// These are fallback data - actual data is loaded from the database
 let FALLBACK_MONSTERS_DATA: Character[] = [];
-try {
-  // Use dynamic require to load JSON at build time
-  const monstersJson = require('../../../../characters/default_monsters/monsters.json');
-  FALLBACK_MONSTERS_DATA = monstersJson.monsters || [];
-} catch (error) {
-  console.error('Failed to load monsters from JSON, using empty array:', error);
-  FALLBACK_MONSTERS_DATA = [];
-}
+// JSON files are not available at build time, using empty array as fallback
+// Actual monsters are loaded from the database via loadDefaultMonsters()
 
 // Default fallback monsters loaded from JSON
 // Note: abilities are included by default and will be randomly selected on each run

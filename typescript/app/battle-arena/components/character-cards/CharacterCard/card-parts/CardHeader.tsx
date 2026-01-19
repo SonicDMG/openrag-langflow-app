@@ -1,5 +1,11 @@
 import React, { memo } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowExpandIcon } from '@hugeicons/core-free-icons';
 import { CharacterSource, BADGE_CONFIGS } from '../../../../utils/character/characterSource';
+
+// ============================================================================
+// Type Definitions
+// ============================================================================
 
 interface CardHeaderProps {
   source?: CharacterSource;
@@ -8,8 +14,13 @@ interface CardHeaderProps {
   isCompact: boolean;
 }
 
+// ============================================================================
+// Component
+// ============================================================================
+
 /**
  * Card header component displaying character source badge and zoom button
+ * Badge stretches full width above the card image with zoom button inside, right-aligned
  */
 export const CardHeader = memo(function CardHeader({
   source,
@@ -17,53 +28,76 @@ export const CardHeader = memo(function CardHeader({
   onZoom,
   isCompact,
 }: CardHeaderProps) {
-  // Get badge configuration if source is provided
+  // ===== DERIVED VALUES =====
   const badge = source ? BADGE_CONFIGS[source] : null;
+  const zoomIconSize = isCompact ? 10 : 14;
+
+  // ===== STYLE CALCULATIONS =====
+  // Badge container classes - full width bar
+  const badgeContainerClasses = [
+    'w-full',
+    'flex',
+    'items-center',
+    'justify-between',
+    'px-1.5',
+    isCompact ? 'py-1' : 'py-1',
+    badge?.bg || 'bg-stone-800',
+    'text-white/75',
+    'text-[8px]',
+    'font-bold',
+  ].filter(Boolean).join(' ');
+
+  // Zoom button classes
+  const zoomButtonClasses = [
+    'bg-transparent',
+    'text-white/50',
+    'border-none',
+    'p-0',
+    'transition-all',
+    'cursor-pointer',
+    'hover:opacity-80',
+    'flex',
+    'items-center',
+    'justify-center',
+  ].filter(Boolean).join(' ');
+
+  // ===== HANDLERS =====
+  const handleZoomClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    onZoom?.();
+  };
+
+  // ===== RENDER =====
+  // Only render if we have a badge or zoom button
+  if (!badge && (!showZoomButton || !onZoom)) {
+    return null;
+  }
 
   return (
-    <>
-      {/* Character Source Badge - top left corner */}
+    <div className={badgeContainerClasses} title={badge?.tooltip}>
+      {/* Badge text - left side */}
       {badge && (
-        <div
-          className={`absolute top-1 left-1 z-30 ${badge.bg} text-white text-[8px] font-medium px-1 py-0.5 rounded-sm shadow-sm border ${badge.border} leading-none`}
-          title={badge.tooltip}
-        >
+        <span className="flex-shrink-0">
           {badge.text}
-        </div>
+        </span>
       )}
 
-      {/* Zoom button - matches overlay text style for visibility */}
+      {/* Zoom button - right side */}
       {showZoomButton && onZoom && (
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onZoom();
-          }}
-          className="absolute top-2 right-2 z-30 transition-all cursor-pointer"
-          style={{
-            backgroundColor: 'transparent',
-            color: '#F2ECDE',
-            fontFamily: 'serif',
-            fontWeight: 'bold',
-            border: 'none',
-            padding: 0,
-            filter: 'drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 8px rgba(0, 0, 0, 0.6))',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.opacity = '0.8';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.opacity = '1';
-          }}
+          onClick={handleZoomClick}
+          className={zoomButtonClasses}
           title="View details"
           aria-label="View character details"
         >
-          <svg className={isCompact ? 'w-3 h-3' : 'w-4 h-4'} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-          </svg>
+          <HugeiconsIcon
+            icon={ArrowExpandIcon}
+            size={zoomIconSize}
+            strokeWidth={2.5}
+          />
         </button>
       )}
-    </>
+    </div>
   );
 });
 

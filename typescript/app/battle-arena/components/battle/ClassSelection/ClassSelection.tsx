@@ -135,37 +135,90 @@ export function ClassSelection({ title, availableClasses, selectedClass, onSelec
   // ===== SCROLL TO SELECTED CARD =====
   // Scroll to the selected card when it changes
   useEffect(() => {
-    if (!selectedClass || !scrollContainerRef.current) return;
+    if (!selectedClass) return;
     
     // Find the index of the selected character
     const selectedIndex = availableClasses.findIndex(char => char.name === selectedClass.name);
     if (selectedIndex === -1) return;
     
-    // Small delay to ensure DOM is updated after selection
-    const timeoutId = setTimeout(() => {
+    // Function to perform the scroll
+    const performScroll = () => {
       const scrollContainer = scrollContainerRef.current;
-      if (!scrollContainer) return;
+      if (!scrollContainer) return false;
       
-      // Find all card wrapper elements
-      // First card might be AddHeroCard (if showAddHeroCard is true), then character cards
-      const cardWrappers = Array.from(scrollContainer.querySelectorAll('[class*="flex-shrink-0"]'));
+      // Find the selected card by looking for the card that contains the selected character's name
+      // This is more reliable than using index, especially if cards are rendered dynamically
+      const selectedCharacterName = selectedClass.name;
       
-      // Calculate the index: AddHeroCard is first (if shown), then character cards
+      // Look through all card wrappers to find the one containing the selected character
+      const cardWrappers = Array.from(
+        scrollContainer.children
+      ).filter((child): child is HTMLElement => {
+        return child instanceof HTMLElement && 
+               child.classList.contains('flex-shrink-0');
+      });
+      
+      // Find the card wrapper that contains the selected character name
+      // Check the text content or look for the SelectableClassCard component
+      for (const wrapper of cardWrappers) {
+        // Skip the AddHeroCard (first one if shown)
+        if (showAddHeroCard && wrapper === cardWrappers[0]) continue;
+        
+        // Check if this wrapper contains the selected character name
+        // The card should have the character name in its text content
+        const cardText = wrapper.textContent || '';
+        if (cardText.includes(selectedCharacterName)) {
+          // Found the selected card - scroll to it
+          wrapper.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'center',
+          });
+          return true;
+        }
+      }
+      
+      // Fallback: use index-based approach if name matching fails
       const cardIndex = showAddHeroCard ? selectedIndex + 1 : selectedIndex;
       const selectedCardWrapper = cardWrappers[cardIndex];
-      
       if (selectedCardWrapper) {
-        // Scroll this card into view
         selectedCardWrapper.scrollIntoView({
           behavior: 'smooth',
           block: 'nearest',
           inline: 'center',
         });
+        return true;
       }
-    }, 150);
+      
+      return false;
+    };
     
-    return () => clearTimeout(timeoutId);
-  }, [selectedClass, availableClasses, showAddHeroCard]);
+    // Try scrolling with multiple attempts to handle component mounting and DOM updates
+    const timeouts: NodeJS.Timeout[] = [];
+    const rafIds: number[] = [];
+    
+    // First attempt: wait for next frame, then try
+    rafIds.push(requestAnimationFrame(() => {
+      timeouts.push(setTimeout(() => {
+        if (performScroll()) return;
+        
+        // Second attempt if first failed
+        timeouts.push(setTimeout(() => {
+          if (performScroll()) return;
+          
+          // Third attempt if second failed
+          timeouts.push(setTimeout(() => {
+            performScroll();
+          }, 200));
+        }, 200));
+      }, 100));
+    }));
+    
+    return () => {
+      timeouts.forEach(timeout => clearTimeout(timeout));
+      rafIds.forEach(id => cancelAnimationFrame(id));
+    };
+  }, [selectedClass, availableClasses, showAddHeroCard, selectionSyncTrigger]);
   
   // ===== RENDER HELPERS =====
   const cardWrapperStyle = { padding: CARD_PADDING };
