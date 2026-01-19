@@ -1137,6 +1137,8 @@ export default function BattleArena() {
                     <OpponentSelector
                       opponentType={opponentType}
                       onOpponentTypeChange={setOpponentType}
+                      player1Class={player1Class}
+                      player1Name={player1Name || ''}
                       player2Class={player2Class}
                       player2Name={player2Name}
                       availableClasses={availableClasses}

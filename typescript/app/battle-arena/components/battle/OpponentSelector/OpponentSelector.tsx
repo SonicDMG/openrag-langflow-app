@@ -7,7 +7,6 @@ import { ClassSelection } from '../ClassSelection';
 import { AddMonsterCard } from '../../action-cards/AddMonsterCard';
 import { SelectableClassCard } from '../../action-cards/SelectableClassCard';
 import { ScrollButton } from '../../ui/ScrollButton';
-import { OpponentHeader } from '../OpponentHeader';
 import { OpponentTypeToggle } from '../OpponentTypeToggle';
 import { useZoomModal } from '../../../hooks/ui/useZoomModal';
 
@@ -19,12 +18,20 @@ const CARD_PADDING = '4px';
 // Style constants - organized for easy modification
 const STYLES = {
   container: {
-    header: 'flex items-center justify-between mb-2 md:mb-3',
-    headerLeft: 'flex items-center gap-3',
-    headerRight: 'flex items-center gap-4',
+    header: 'grid grid-cols-3 items-center mb-2 md:mb-3',
+    headerLeft: 'flex items-center justify-start',
+    headerCenter: 'flex items-center justify-center gap-2 sm:gap-3',
+    headerRight: 'flex items-center justify-end gap-4',
     title: 'text-base text-stone-500 font-semibold',
     content: 'mt-2 md:mt-3',
   },
+      vsDisplay: {
+        container: 'flex items-center gap-2 sm:gap-3',
+        character: {
+          name: 'text-lg text-stone-800 font-semibold',
+        },
+        vs: 'text-stone-500 font-semibold text-xs sm:text-sm',
+      },
   carousel: {
     container: 'flex items-center gap-4',
     scrollable: {
@@ -50,6 +57,8 @@ const STYLES = {
 type OpponentSelectorProps = {
   opponentType: 'class' | 'monster';
   onOpponentTypeChange: (type: 'class' | 'monster') => void;
+  player1Class: Character | null;
+  player1Name: string;
   player2Class: Character | null;
   player2Name: string;
   availableClasses: Character[];
@@ -65,6 +74,8 @@ type OpponentSelectorProps = {
 export function OpponentSelector({
   opponentType,
   onOpponentTypeChange,
+  player1Class,
+  player1Name,
   player2Class,
   player2Name,
   availableClasses,
@@ -117,21 +128,57 @@ export function OpponentSelector({
     msOverflowStyle: 'none' as const,
   };
 
+  // ===== HELPER FUNCTIONS =====
+  const getCharacterDisplay = (character: Character | null, name: string) => {
+    if (!character) return null;
+    
+    const displayName = name || character.name;
+    
+    return {
+      name: displayName,
+      className: character.name,
+    };
+  };
+
+  const heroDisplay = getCharacterDisplay(player1Class, player1Name);
+  const opponentDisplay = getCharacterDisplay(player2Class, player2Name);
+
   // ===== RENDER =====
   return (
     <div>
       {/* Header */}
       <div className={STYLES.container.header}>
+        {/* Left: Label */}
         <div className={STYLES.container.headerLeft}>
           <h3 className={STYLES.container.title}>
             Opponent (Auto-Play)
           </h3>
-          <OpponentHeader
-            player2Class={player2Class}
-            player2Name={player2Name}
-            findAssociatedMonster={findAssociatedMonster}
-          />
         </div>
+
+        {/* Center: Hero vs. Opponent */}
+        <div className={STYLES.container.headerCenter}>
+          {heroDisplay && opponentDisplay ? (
+            <div className={STYLES.vsDisplay.container}>
+              {/* Hero */}
+              <span className={STYLES.vsDisplay.character.name}>
+                {heroDisplay.name}
+              </span>
+              
+              {/* VS */}
+              <span className={STYLES.vsDisplay.vs}>VS</span>
+              
+              {/* Opponent */}
+              <span className={STYLES.vsDisplay.character.name}>
+                {opponentDisplay.name}
+              </span>
+            </div>
+          ) : (
+            <div className={STYLES.vsDisplay.container}>
+            </div>
+          )}
+        </div>
+
+        {/* Right: Toggle */}
         <div className={STYLES.container.headerRight}>
           <OpponentTypeToggle
             opponentType={opponentType}
