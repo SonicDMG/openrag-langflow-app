@@ -1,19 +1,64 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import { Character } from '../../../lib/types';
 import { CharacterCardZoom } from '../CharacterCardZoom';
 import { ClassSelection } from '../ClassSelection';
-import { AddMonsterCard } from '../../action-cards/AddMonsterCard';
+import { AddCharacterCard } from '../../action-cards/AddCharacterCard';
 import { SelectableClassCard } from '../../action-cards/SelectableClassCard';
 import { ScrollButton } from '../../ui/ScrollButton';
-import { OpponentHeader } from '../OpponentHeader';
 import { OpponentTypeToggle } from '../OpponentTypeToggle';
 import { useZoomModal } from '../../../hooks/ui/useZoomModal';
+
+// Constants
+const SCROLL_CARDS_COUNT = 5;
+const FALLBACK_SCROLL_AMOUNT = 1000;
+const CARD_PADDING = '4px';
+
+// Style constants - organized for easy modification
+const STYLES = {
+  container: {
+    header: 'grid grid-cols-3 items-center mb-2 md:mb-3',
+    headerLeft: 'flex items-center justify-start',
+    headerCenter: 'flex items-center justify-center gap-2 sm:gap-3',
+    headerRight: 'flex items-center justify-end gap-4',
+    title: 'text-base text-stone-500 font-semibold',
+    content: 'mt-2 md:mt-3',
+  },
+      vsDisplay: {
+        container: 'flex items-center gap-2 sm:gap-3',
+        character: {
+          name: 'text-lg text-stone-800 font-semibold',
+        },
+        vs: 'text-stone-500 font-semibold text-xs sm:text-sm',
+      },
+  carousel: {
+    container: 'flex items-center gap-4',
+    scrollable: {
+      wrapper: 'relative flex-1 min-w-0 overflow-y-visible',
+      gradient: {
+        base: 'absolute top-0 bottom-0 w-16 z-10 pointer-events-none',
+        left: 'left-0 bg-gradient-to-r from-[var(--page-background)] to-transparent',
+        right: 'right-0 bg-gradient-to-l from-[var(--page-background)] to-transparent',
+      },
+      container: 'flex gap-2 sm:gap-3 md:gap-4 overflow-x-auto overflow-y-visible scrollbar-hide pb-2 sm:pb-2 md:pb-3 pt-2 sm:pt-2 md:pt-3 px-6 sm:px-8 md:px-10',
+      cardWrapper: 'flex-shrink-0 relative group overflow-visible',
+    },
+  },
+  emptyState: {
+    container: 'text-gray-600 text-sm italic text-center py-4',
+    messages: {
+      noMonsters: 'No monsters available. Click "Load Monsters from OpenRAG" to load monsters.',
+      loadMonsters: 'Click "Load Monsters from OpenRAG" to load monsters.',
+    },
+  },
+} as const;
 
 type OpponentSelectorProps = {
   opponentType: 'class' | 'monster';
   onOpponentTypeChange: (type: 'class' | 'monster') => void;
+  player1Class: Character | null;
+  player1Name: string;
   player2Class: Character | null;
   player2Name: string;
   availableClasses: Character[];
@@ -29,6 +74,8 @@ type OpponentSelectorProps = {
 export function OpponentSelector({
   opponentType,
   onOpponentTypeChange,
+  player1Class,
+  player1Name,
   player2Class,
   player2Name,
   availableClasses,
@@ -40,30 +87,189 @@ export function OpponentSelector({
   onClearSelection,
   selectionSyncTrigger,
 }: OpponentSelectorProps) {
+  // ===== REFS =====
   const monsterScrollRef = useRef<HTMLDivElement>(null);
+  
+  // ===== HOOKS =====
   const { zoomedCard, openZoom, closeZoom } = useZoomModal();
+  
+  // ===== SCROLL TO SELECTED CARD =====
+  // Scroll to the selected opponent card when it's auto-selected
+  useEffect(() => {
+    if (!player2Class || !monsterScrollRef.current) return;
+    
+    // Only scroll for monster selection (class selection is handled by ClassSelection component)
+    if (opponentType !== 'monster') return;
+    
+    // Find the index of the selected monster
+    const selectedIndex = availableMonsters.findIndex(monster => monster.name === player2Class.name);
+    if (selectedIndex === -1) return;
+    
+    // Function to perform the scroll
+    const performScroll = () => {
+      const scrollContainer = monsterScrollRef.current;
+      if (!scrollContainer) return false;
+      
+      // Find the selected card by looking for the card that contains the selected monster's name
+      // This is more reliable than using index, especially if cards are rendered dynamically
+      const selectedMonsterName = player2Class.name;
+      
+      // Look through all card wrappers to find the one containing the selected monster
+      const cardWrappers = Array.from(
+        scrollContainer.children
+      ).filter((child): child is HTMLElement => {
+        return child instanceof HTMLElement && 
+               child.classList.contains('flex-shrink-0');
+      });
+      
+      // Find the card wrapper that contains the selected monster name
+      // Check the text content or look for the SelectableClassCard component
+      for (const wrapper of cardWrappers) {
+        // Skip the AddCharacterCard (first one)
+        if (wrapper === cardWrappers[0]) continue;
+        
+        // Check if this wrapper contains the selected monster name
+        // The card should have the monster name in its text content
+        const cardText = wrapper.textContent || '';
+        if (cardText.includes(selectedMonsterName)) {
+          // Found the selected card - scroll to it
+          wrapper.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'center',
+          });
+          return true;
+        }
+      }
+      
+      // Fallback: use index-based approach if name matching fails
+      const selectedCardWrapper = cardWrappers[selectedIndex + 1];
+      if (selectedCardWrapper) {
+        selectedCardWrapper.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'center',
+        });
+        return true;
+      }
+      
+      return false;
+    };
+    
+    // Try scrolling with multiple attempts to handle component mounting and DOM updates
+    const timeouts: NodeJS.Timeout[] = [];
+    const rafIds: number[] = [];
+    
+    // First attempt: wait for next frame, then try
+    rafIds.push(requestAnimationFrame(() => {
+      timeouts.push(setTimeout(() => {
+        if (performScroll()) return;
+        
+        // Second attempt if first failed
+        timeouts.push(setTimeout(() => {
+          if (performScroll()) return;
+          
+          // Third attempt if second failed
+          timeouts.push(setTimeout(() => {
+            performScroll();
+          }, 200));
+        }, 200));
+      }, 100));
+    }));
+    
+    return () => {
+      timeouts.forEach(timeout => clearTimeout(timeout));
+      rafIds.forEach(id => cancelAnimationFrame(id));
+    };
+  }, [player2Class, opponentType, availableMonsters, selectionSyncTrigger]);
 
-  const handleScroll = (direction: 'left' | 'right') => {
-    if (monsterScrollRef.current) {
-      const scrollAmount = direction === 'left' ? -200 : 200;
-      monsterScrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+  // ===== HELPER FUNCTIONS =====
+  /**
+   * Calculates scroll amount based on card width
+   * @param direction - 'left' or 'right'
+   */
+  const calculateScrollAmount = useCallback((direction: 'left' | 'right'): number => {
+    if (!monsterScrollRef.current) return 0;
+    
+    const container = monsterScrollRef.current;
+    const firstCard = container.querySelector('[class*="flex-shrink-0"]') as HTMLElement;
+    
+    if (firstCard) {
+      const cardWidth = firstCard.offsetWidth;
+      return cardWidth * SCROLL_CARDS_COUNT;
     }
+    
+    return FALLBACK_SCROLL_AMOUNT;
+  }, []);
+
+  // ===== SCROLL HANDLERS =====
+  const handleScroll = useCallback((direction: 'left' | 'right') => {
+    if (monsterScrollRef.current) {
+      const scrollAmount = calculateScrollAmount(direction);
+      const scrollDirection = direction === 'left' ? -scrollAmount : scrollAmount;
+      monsterScrollRef.current.scrollBy({ left: scrollDirection, behavior: 'smooth' });
+    }
+  }, [calculateScrollAmount]);
+
+  // ===== RENDER HELPERS =====
+  const cardWrapperStyle = { padding: CARD_PADDING };
+  const scrollContainerStyle = {
+    scrollbarWidth: 'none' as const,
+    msOverflowStyle: 'none' as const,
   };
 
+  // ===== HELPER FUNCTIONS =====
+  const getCharacterDisplay = (character: Character | null, name: string) => {
+    if (!character) return null;
+    
+    const displayName = name || character.name;
+    
+    return {
+      name: displayName,
+      className: character.name,
+    };
+  };
+
+  const heroDisplay = getCharacterDisplay(player1Class, player1Name);
+  const opponentDisplay = getCharacterDisplay(player2Class, player2Name);
+
+  // ===== RENDER =====
   return (
-    <div>
-      <div className="flex items-center justify-between mb-2 md:mb-3">
-        <div className="flex items-center gap-3">
-          <h3 className="text-lg md:text-xl font-semibold" style={{ fontFamily: 'serif', color: '#5C4033' }}>
+    <div className="overflow-visible">
+      {/* Header */}
+      <div className={STYLES.container.header}>
+        {/* Left: Label */}
+        <div className={STYLES.container.headerLeft}>
+          <h3 className={STYLES.container.title}>
             Opponent (Auto-Play)
           </h3>
-          <OpponentHeader
-            player2Class={player2Class}
-            player2Name={player2Name}
-            findAssociatedMonster={findAssociatedMonster}
-          />
         </div>
-        <div className="flex items-center gap-4">
+
+        {/* Center: Hero vs. Opponent */}
+        <div className={STYLES.container.headerCenter}>
+          {heroDisplay && opponentDisplay ? (
+            <div className={STYLES.vsDisplay.container}>
+              {/* Hero */}
+              <span className={STYLES.vsDisplay.character.name}>
+                {heroDisplay.name}
+              </span>
+              
+              {/* VS */}
+              <span className={STYLES.vsDisplay.vs}>VS</span>
+              
+              {/* Opponent */}
+              <span className={STYLES.vsDisplay.character.name}>
+                {opponentDisplay.name}
+              </span>
+            </div>
+          ) : (
+            <div className={STYLES.vsDisplay.container}>
+            </div>
+          )}
+        </div>
+
+        {/* Right: Toggle */}
+        <div className={STYLES.container.headerRight}>
           <OpponentTypeToggle
             opponentType={opponentType}
             onOpponentTypeChange={onOpponentTypeChange}
@@ -71,58 +277,67 @@ export function OpponentSelector({
           />
         </div>
       </div>
+
+      {/* Content - Monster or Hero selection */}
       {opponentType === 'monster' ? (
         <>
           {availableMonsters.length > 0 ? (
-            <div className="mt-2 md:mt-3">
-              <div className="relative">
+            <div className={STYLES.container.content}>
+              <div className={STYLES.carousel.container}>
                 <ScrollButton direction="left" onClick={() => handleScroll('left')} />
 
-                <div
-                  ref={monsterScrollRef}
-                  className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 pt-4 px-10"
-                  style={{
-                    scrollbarWidth: 'none',
-                    msOverflowStyle: 'none',
-                  }}
-                >
-                  <div className="flex-shrink-0 relative group" style={{ padding: '4px' }}>
-                    <AddMonsterCard size="compact" />
-                  </div>
+                {/* Scrollable container with gradient fade */}
+                <div className={STYLES.carousel.scrollable.wrapper}>
+                  {/* Gradient overlays */}
+                  <div className={`${STYLES.carousel.scrollable.gradient.base} ${STYLES.carousel.scrollable.gradient.left}`} />
+                  <div className={`${STYLES.carousel.scrollable.gradient.base} ${STYLES.carousel.scrollable.gradient.right}`} />
                   
-                  {availableMonsters.map((monster, index) => {
-                    const isSelected = player2Class?.name === monster.name;
+                  {/* Scrollable container */}
+                  <div
+                    ref={monsterScrollRef}
+                    className={STYLES.carousel.scrollable.container}
+                    style={scrollContainerStyle}
+                  >
+                    {/* Add Monster card */}
+                    <div className={STYLES.carousel.scrollable.cardWrapper} style={cardWrapperStyle}>
+                      <AddCharacterCard type="monster" size="compact" />
+                    </div>
                     
-                    return (
-                      <SelectableClassCard
-                        key={monster.name}
-                        character={monster}
-                        index={index}
-                        totalCards={availableMonsters.length}
-                        isSelected={isSelected}
-                        createdMonsters={createdMonsters}
-                        selectionSyncTrigger={selectionSyncTrigger}
-                        findAssociatedMonster={findAssociatedMonster}
-                        onSelect={onSelectClass}
-                        onZoom={openZoom}
-                      />
-                    );
-                  })}
+                    {/* Monster cards */}
+                    {availableMonsters.map((monster, index) => {
+                      const isSelected = player2Class?.name === monster.name;
+                      
+                      return (
+                        <SelectableClassCard
+                          key={monster.name}
+                          character={monster}
+                          index={index}
+                          totalCards={availableMonsters.length}
+                          isSelected={isSelected}
+                          createdMonsters={createdMonsters}
+                          selectionSyncTrigger={selectionSyncTrigger}
+                          findAssociatedMonster={findAssociatedMonster}
+                          onSelect={onSelectClass}
+                          onZoom={openZoom}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <ScrollButton direction="right" onClick={() => handleScroll('right')} />
               </div>
             </div>
           ) : (
-            <div className="text-gray-600 text-sm italic text-center py-4">
+            <div className={STYLES.emptyState.container}>
               {monstersLoaded
-                ? 'No monsters available. Click "Load Monsters from OpenRAG" to load monsters.'
-                : 'Click "Load Monsters from OpenRAG" to load monsters.'}
+                ? STYLES.emptyState.messages.noMonsters
+                : STYLES.emptyState.messages.loadMonsters}
             </div>
           )}
         </>
       ) : (
-        <div className="mt-2 md:mt-3">
+        <div className={STYLES.container.content}>
           <ClassSelection
             title=""
             availableClasses={availableClasses}
@@ -135,6 +350,7 @@ export function OpponentSelector({
         </div>
       )}
       
+      {/* Zoom Modal */}
       {zoomedCard && (
         <CharacterCardZoom
           playerClass={zoomedCard.playerClass}

@@ -1,13 +1,22 @@
 import React, { memo } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Shield01Icon } from '@hugeicons/core-free-icons';
 import { Character } from '../../../../lib/types';
-import { CARD_THEME } from '../../../cardTheme';
-import { CardSizing } from '../../../../hooks/ui/useCardSizing';
+import { CardSizing, getCardSizeClasses } from '../../../../hooks/ui/useCardSizing';
+
+// ============================================================================
+// Type Definitions
+// ============================================================================
 
 interface StatsSectionProps {
   playerClass: Character;
   isDefeated: boolean;
   sizing: CardSizing;
 }
+
+// ============================================================================
+// Component
+// ============================================================================
 
 /**
  * Stats section displaying AC (Armor Class) and HP (Hit Points)
@@ -17,68 +26,69 @@ export const StatsSection = memo(function StatsSection({
   isDefeated,
   sizing,
 }: StatsSectionProps) {
-  const iconSize = sizing.isCompact ? 'w-4 h-4' : 'w-5 h-5';
-  
+  // ===== DERIVED VALUES =====
+  const sizeClasses = getCardSizeClasses(sizing.isCompact);
+  const hpPercentage = isDefeated
+    ? 0
+    : (playerClass.hitPoints / playerClass.maxHitPoints) * 100;
+  const currentHp = isDefeated ? 0 : playerClass.hitPoints;
+  const iconSize = sizing.isCompact ? 14 : 18;
+
+  // ===== STYLE CALCULATIONS =====
+  // Container classes
+  const containerClasses = [
+    'mt-auto',
+    sizing.isCompact ? 'px-3 pb-3' : 'px-4 pb-4',
+  ].filter(Boolean).join(' ');
+
+  // HP bar container style
+  const hpBarContainerStyle = {
+    height: sizing.isCompact ? '8px' : '12px',
+    maxWidth: sizing.hpBarMaxWidth,
+  };
+
+  // HP bar fill style
+  const hpBarFillStyle = {
+    width: `${hpPercentage}%`,
+  };
+
+  // Text classes
+  const statsTextClasses = [
+    'font-bold',
+    sizeClasses.statsTextSize,
+    'text-stone-500',
+  ].filter(Boolean).join(' ');
+
+  // ===== RENDER =====
   return (
-    <div className="mt-auto" style={{ paddingLeft: sizing.padding, paddingRight: sizing.padding, paddingBottom: sizing.padding }}>
-      <div className="flex items-center justify-between">
+    <div className={containerClasses}>
+      <div className="flex items-center justify-between gap-1">
         {/* AC (Armor Class) - left side */}
-        <div className="flex items-center" style={{ gap: '0' }}>
-          {/* Green shield icon */}
-          <div className={iconSize} style={{ flexShrink: 0 }}>
-            <svg viewBox="0 0 24 24" className="w-full h-full">
-              <path
-                fill={CARD_THEME.colors.shieldGreen}
-                d="M12 2L4 5v6c0 5.55 3.84 10.74 8 12 4.16-1.26 8-6.45 8-12V5l-8-3z"
-              />
-              <path
-                fill={CARD_THEME.colors.shieldGreenDark}
-                d="M12 2L4 5v6c0 5.55 3.84 10.74 8 12 4.16-1.26 8-6.45 8-12V5l-8-3z"
-                opacity="0.8"
-              />
-            </svg>
-          </div>
-          <span className={`font-bold ${sizing.statsTextSize}`} style={{ color: CARD_THEME.colors.text }}>
+        <div className="text-stone-500 flex items-center flex-shrink-0">
+          <HugeiconsIcon
+            icon={Shield01Icon}
+            size={iconSize}
+            strokeWidth={2.5}
+            fill="currentColor"
+          />
+        </div>
+          <span className={statsTextClasses}>
             {playerClass.armorClass}
           </span>
-        </div>
 
         {/* HP with bar - right side */}
-        <div className="flex items-center flex-1 justify-end" style={{ gap: '0' }}>
-          {/* Heart icon */}
-          <div className={iconSize} style={{ flexShrink: 0 }}>
-            <svg viewBox="0 0 24 24" className="w-full h-full">
-              <path
-                fill={CARD_THEME.colors.heartRed}
-                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-              />
-            </svg>
-          </div>
-          <div 
-            className="flex-1 rounded-sm overflow-hidden"
-            style={{ 
-              backgroundColor: CARD_THEME.colors.hpBarBg,
-              height: sizing.isCompact ? '8px' : '12px',
-              border: sizing.isCompact ? `0.5px solid ${CARD_THEME.colors.border}` : `1px solid ${CARD_THEME.colors.border}`,
-              maxWidth: sizing.hpBarMaxWidth
-            }}
+        <div className="flex items-center flex-1 justify-end gap-0 min-w-0">
+          <div
+            className="flex-1 rounded-sm overflow-hidden bg-stone-950/10 border-stone-100"
+            style={hpBarContainerStyle}
           >
             <div
-              className="h-full transition-all"
-              style={{ 
-                backgroundColor: CARD_THEME.colors.hpBar,
-                width: `${isDefeated ? 0 : (playerClass.hitPoints / playerClass.maxHitPoints) * 100}%` 
-              }}
+              className="h-full transition-all bg-amber-300"
+              style={hpBarFillStyle}
             />
           </div>
-          <span 
-            className={`font-bold ${sizing.statsTextSize}`} 
-            style={{ 
-              color: CARD_THEME.colors.text, 
-              marginLeft: sizing.isCompact ? '0.125rem' : '0.25rem' 
-            }}
-          >
-            {isDefeated ? 0 : playerClass.hitPoints} / {playerClass.maxHitPoints}
+          <span className={`${statsTextClasses} pl-1 whitespace-nowrap`}>
+            {currentHp}/{playerClass.maxHitPoints}
           </span>
         </div>
       </div>

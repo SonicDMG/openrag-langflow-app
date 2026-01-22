@@ -1,16 +1,17 @@
 'use client';
 
 import { useRef, useCallback, useEffect, useState } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Refresh03Icon } from '@hugeicons/core-free-icons';
 
 // Types
 import { Character } from './lib/types';
 
 // Constants
-import { FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, FALLBACK_CLASSES, selectRandomAbilities, isMonster } from './lib/constants';
+import { FALLBACK_ABILITIES, FALLBACK_MONSTER_ABILITIES, selectRandomAbilities, isMonster } from './lib/constants';
 
 // Utilities
-import { generateCharacterName, generateDeterministicCharacterName, getCharacterName } from './utils/character/names';
-import { getOpponent } from './utils/battle/battle';
+import { getCharacterName } from './utils/character/names';
 
 // Hooks
 import { useAIOpponent } from '../battle-arena/hooks/battle/useAIOpponent';
@@ -35,12 +36,54 @@ import { BattleLog } from '../battle-arena/components/battle/BattleLog';
 import { OpponentSelector } from '../battle-arena/components/battle/OpponentSelector';
 import { BattleSummaryOverlay } from '../battle-arena/components/battle/BattleSummaryOverlay';
 
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+// Timing constants
+const AI_OPPONENT_DELAY_MS = 500;
+const VICTORY_OVERLAY_DELAY_MS = 100;
+const BATTLE_START_DELAY_MS = 100;
+
+// Style constants - organized for easy modification
+const STYLES = {
+  page: {
+    container: 'min-h-screen overflow-visible',
+    backgroundColor: 'var(--page-background)',
+  },
+  content: {
+    container: 'max-w-[90rem] mx-auto px-4 sm:px-6 py-3 md:py-4 pb-0 overflow-visible',
+    inner: 'space-y-3 md:space-y-4 overflow-visible',
+  },
+  characterSelection: {
+    container: 'space-y-4 md:space-y-5 overflow-visible',
+    titleContainer: 'text-center min-h-[clamp(4rem,8vw,8rem)] flex items-center justify-center',
+    title: 'text-4xl sm:text-5xl md:text-5xl lg:text-8xl mb-1 md:mb-2 font-display text-amber-950/30 tracking-tight animate-pulse-slow',
+    loadingText: 'text-sm text-gray-600 italic mt-2',
+    waitingIndicator: 'waiting-indicator ml-2 inline-block',
+    waitingDot: 'waiting-dot',
+    selectionContainer: 'space-y-4 md:space-y-5 overflow-visible',
+    buttonContainer: 'justify-center flex gap-4',
+    hintText: 'text-sm text-gray-600 text-center italic mt-2',
+  },
+  buttons: {
+    beginBattle: {
+      base: 'flex items-center justify-center gap-2 py-3 md:py-4 px-6 bg-rose-700 hover:bg-rose-600 text-white font-semibold text-base sm:text-lg md:text-xl rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg',
+    },
+    reset: 'flex items-center gap-2 px-6 py-3 md:py-4 text-stone-500 hover:text-stone-800 hover:bg-stone-800/5 transition-colors font-semibold text-base md:text-lg rounded-lg',
+    resetIcon: 'w-5 h-5',
+  },
+} as const;
+
 export default function BattleArena() {
+  // ============================================================================
+  // HOOKS & STATE
+  // ============================================================================
+  
   // Data loading hook
   const {
     availableClasses,
     isLoadingClasses,
-    classesLoaded,
     availableMonsters,
     isLoadingMonsters,
     monstersLoaded,
@@ -49,6 +92,7 @@ export default function BattleArena() {
     isRefreshingFromDatabase,
   } = useBattleData();
 
+  
   // Battle state hook
   const battleState = useBattleState();
   const {
@@ -67,10 +111,6 @@ export default function BattleArena() {
     setPlayerClassWithMonster,
     supportHeroes,
     setSupportHeroes,
-    supportHeroNames,
-    setSupportHeroNames,
-    supportHeroMonsterIds,
-    setSupportHeroMonsterIds,
     isBattleActive,
     setIsBattleActive,
     currentTurn,
@@ -96,6 +136,7 @@ export default function BattleArena() {
     resetBattle: resetBattleBase,
   } = battleState;
 
+  
   // Visual effects hook
   const battleEffects = useBattleEffects();
   const {
@@ -137,6 +178,7 @@ export default function BattleArena() {
     resetEffects,
   } = battleEffects;
 
+  
   // Projectile effects hook
   const {
     projectileEffects,
@@ -145,6 +187,7 @@ export default function BattleArena() {
     clearProjectileTracking,
   } = useProjectileEffects();
 
+  
   // Narrative hook (kept for compatibility, but not used for play-by-play)
   const narrative = useBattleNarrative(addLog);
   const {
@@ -156,6 +199,7 @@ export default function BattleArena() {
     resetNarrative,
   } = narrative;
 
+  
   // Battle summary overlay state
   const [battleSummary, setBattleSummary] = useState<string>('');
   const [isSummaryVisible, setIsSummaryVisible] = useState(false);
@@ -163,6 +207,10 @@ export default function BattleArena() {
   const [battleEndingImageUrl, setBattleEndingImageUrl] = useState<string | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
+  // ============================================================================
+  // HELPER FUNCTIONS
+  // ============================================================================
+  
   // Helper to find associated image for a character
   // Simplified: now only one image per character (auto-cleanup on creation)
   const findAssociatedMonster = useCallback((className: string): (Character & { monsterId: string; imageUrl: string }) | null => {
@@ -177,6 +225,10 @@ export default function BattleArena() {
     return associated || null;
   }, [createdMonsters]);
 
+  // ============================================================================
+  // EFFECTS
+  // ============================================================================
+  
   // Update monster IDs when createdMonsters loads or changes
   useEffect(() => {
     if (player1Class && !player1MonsterId && player1Name) {
@@ -186,20 +238,11 @@ export default function BattleArena() {
       const characterMonsterId = (player1Class as any).monsterId;
       
       if (characterMonsterId) {
-        console.log('[BattleArena] Using monsterId from player1Class:', characterMonsterId);
         setPlayer1MonsterId(characterMonsterId);
       } else {
         // Fall back to name-based lookup
         const associatedMonster = findAssociatedMonster(player1Name);
-        console.log('[BattleArena] Auto-association for player1:', {
-          characterName: player1Name,
-          className: player1Class.name,
-          found: !!associatedMonster,
-          monsterId: associatedMonster?.monsterId,
-          currentPlayer1MonsterId: player1MonsterId
-        });
         if (associatedMonster) {
-          console.log('[BattleArena] Setting player1MonsterId to:', associatedMonster.monsterId);
           setPlayer1MonsterId(associatedMonster.monsterId);
         }
       }
@@ -211,7 +254,6 @@ export default function BattleArena() {
       const characterMonsterId = (player2Class as any).monsterId;
       
       if (characterMonsterId) {
-        console.log('[BattleArena] Using monsterId from player2Class:', characterMonsterId);
         setPlayer2MonsterId(characterMonsterId);
       } else {
         // Fall back to name-based lookup
@@ -223,6 +265,10 @@ export default function BattleArena() {
     }
   }, [createdMonsters, player1Class, player2Class, player1Name, player2Name, player1MonsterId, player2MonsterId, findAssociatedMonster, setPlayer1MonsterId, setPlayer2MonsterId]);
 
+  // ============================================================================
+  // CALLBACKS & HANDLERS
+  // ============================================================================
+  
   // Enhanced setPlayerClassWithMonster that includes findAssociatedMonster
   const setPlayerClassWithMonsterEnhanced = useCallback((
     player: 'player1' | 'player2',
@@ -236,8 +282,6 @@ export default function BattleArena() {
   const switchTurn = useCallback(async (attacker: 'player1' | 'player2' | 'support1' | 'support2') => {
     await switchTurnBase(attacker, defeatedPlayer, async () => {});
   }, [switchTurnBase, defeatedPlayer]);
-
-  // Use the centralized getCharacterName utility function
 
   // Helper function to handle victory condition
   const handleVictory = useCallback(async (
@@ -260,7 +304,7 @@ export default function BattleArena() {
     addLog('system', `🏆 ${attackerClass.name} wins! ${defenderClass.name} has been defeated!`);
     
     // Delay showing overlay slightly to ensure floating number appears first
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, VICTORY_OVERLAY_DELAY_MS));
     
     // Show overlay
     setIsSummaryVisible(true);
@@ -273,18 +317,6 @@ export default function BattleArena() {
       // Get the correct victor and defeated classes and names from state
       const victorClass = victor === 'player1' ? player1Class : player2Class;
       const defeatedClass = defender === 'player1' ? player1Class : player2Class;
-      
-      // Debug: Log all the values we're working with
-      console.log('=== VICTORY HANDLER DEBUG ===');
-      console.log('Victor player:', victor);
-      console.log('Defender player:', defender);
-      console.log('player1Name:', player1Name);
-      console.log('player2Name:', player2Name);
-      console.log('player1Class?.name:', player1Class?.name);
-      console.log('player2Class?.name:', player2Class?.name);
-      console.log('attackerClass.name:', attackerClass.name);
-      console.log('defenderClass.name:', defenderClass.name);
-      console.log('=== END VICTORY HANDLER DEBUG ===');
       
       const victorName = victor === 'player1'
         ? getCharacterName(player1Name || '', victorClass)
@@ -365,8 +397,12 @@ export default function BattleArena() {
     } finally {
       setIsGeneratingSummary(false);
     }
-  }, [addLog, showFloatingNumbers, setDefeatedPlayer, setVictorPlayer, setConfettiTrigger, battleLog, player1Name, player2Name, player1Class, player2Class, supportHeroes, getCharacterName, classDetails]);
+  }, [addLog, setDefeatedPlayer, setVictorPlayer, setConfettiTrigger, battleLog, player1Name, player2Name, player1Class, player2Class, supportHeroes, getCharacterName, classDetails]);
 
+  // ============================================================================
+  // BATTLE ACTIONS
+  // ============================================================================
+  
   // Battle actions hook
   const battleActions = useBattleActions({
     player1Class,
@@ -391,6 +427,10 @@ export default function BattleArena() {
   });
   const { performAttack, useAbility } = battleActions;
 
+  // ============================================================================
+  // REFS
+  // ============================================================================
+  
   // Refs for character cards and battle elements
   const player1CardRef = useRef<HTMLDivElement | null>(null);
   const player2CardRef = useRef<HTMLDivElement | null>(null);
@@ -475,8 +515,11 @@ export default function BattleArena() {
     }
   }, [isBattleActive, isMoveInProgress, defeatedPlayer, currentTurn, player1Class, player2Class, supportHeroes, switchTurn, addLog, setDefeatedPlayer]);
 
+  // ============================================================================
+  // AI OPPONENTS
+  // ============================================================================
+  
   // Use AI opponent hook for player2 (monster)
-  // Reduced delay to 500ms to make monsters hit faster
   const aiOpponentCleanup = useAIOpponent({
     isActive: isBattleActive,
     currentTurn,
@@ -488,13 +531,12 @@ export default function BattleArena() {
       onAttack: () => performAttack('player2'),
       onUseAbility: (abilityIndex: number) => useAbility('player2', abilityIndex),
     },
-    delay: 500, // 500ms delay to make monsters hit faster
+    delay: AI_OPPONENT_DELAY_MS,
     onStateChange: setIsOpponentAutoPlaying,
     onMoveInProgressChange: setIsMoveInProgress,
   });
   
   // Use AI opponent hooks for support heroes (they auto-play after a delay to allow manual control)
-  // Reduced delay to 500ms to make support heroes hit faster
   const supportHero1Cleanup = useAIOpponent({
     isActive: isBattleActive && supportHeroes.length > 0,
     currentTurn,
@@ -506,7 +548,7 @@ export default function BattleArena() {
       onAttack: () => performAttack('support1'),
       onUseAbility: (abilityIndex: number) => useAbility('support1', abilityIndex),
     },
-    delay: 500, // 500ms delay to allow manual control while making them hit faster
+    delay: AI_OPPONENT_DELAY_MS,
     onStateChange: () => {},
     onMoveInProgressChange: setIsMoveInProgress,
   });
@@ -522,7 +564,7 @@ export default function BattleArena() {
       onAttack: () => performAttack('support2'),
       onUseAbility: (abilityIndex: number) => useAbility('support2', abilityIndex),
     },
-    delay: 500, // 500ms delay to allow manual control while making them hit faster
+    delay: AI_OPPONENT_DELAY_MS,
     onStateChange: () => {},
     onMoveInProgressChange: setIsMoveInProgress,
   });
@@ -607,7 +649,6 @@ export default function BattleArena() {
       // Check if we need support heroes (monster with HP > 50)
       const isP2Monster = isMonster(p2.name, availableMonsters);
       const needsSupportHeroes = isP2Monster && p2.maxHitPoints > 50;
-      console.log('[BattleArena] Support heroes check:', { isP2Monster, maxHitPoints: p2.maxHitPoints, needsSupportHeroes });
       let newSupportHeroes: Array<{ class: Character; name: string; monsterId: string | null }> = [];
       
       if (needsSupportHeroes) {
@@ -652,7 +693,6 @@ export default function BattleArena() {
           });
           
           setSupportHeroes(newSupportHeroes);
-          console.log('[BattleArena] Setting support heroes:', newSupportHeroes.length, newSupportHeroes);
           addLog('system', `🛡️ ${newSupportHeroes[0].name} (${newSupportHeroes[0].class.name}) and ${newSupportHeroes[1].name} (${newSupportHeroes[1].class.name}) join the battle to support ${finalP1Name}!`);
         } else if (availableSupportClasses.length === 1) {
           // Only one support hero available
@@ -934,7 +974,7 @@ export default function BattleArena() {
       } finally {
         setIsLoadingClassDetails(false);
       }
-    }, 100);
+    }, BATTLE_START_DELAY_MS);
   }, [player1Class, player1Name, player2Class, opponentType, availableClasses, availableMonsters, setPlayerClassWithMonsterEnhanced, resetEffects, resetNarrative, clearProjectileTracking, aiOpponentCleanup, supportHero1Cleanup, supportHero2Cleanup, setBattleSummary, setIsSummaryVisible, setIsGeneratingSummary, setDefeatedPlayer, setVictorPlayer, setIsBattleActive, setBattleLog, setCurrentTurn, clearNarrativeQueue, addLog, setIsLoadingClassDetails, setClassDetails, setPlayer1Class, findAssociatedMonster, setSupportHeroes]);
 
   const handleClearOpponentSelection = useCallback(() => {
@@ -943,62 +983,64 @@ export default function BattleArena() {
     setPlayer2MonsterId(null);
   }, [setPlayer2Class, setPlayer2Name, setPlayer2MonsterId]);
 
+  // Helper functions for ref selection
+  const getFloatingNumberRef = useCallback((targetPlayer: 'player1' | 'player2' | 'support1' | 'support2'): React.RefObject<HTMLDivElement | null> => {
+    if (targetPlayer === 'player2') {
+      return player2CardRef;
+    } else if (targetPlayer === 'support1') {
+      return support1CardRef.current 
+        ? { current: support1CardRef.current } as React.RefObject<HTMLDivElement | null>
+        : player1CardRef;
+    } else if (targetPlayer === 'support2') {
+      return support2CardRef.current 
+        ? { current: support2CardRef.current } as React.RefObject<HTMLDivElement | null>
+        : player1CardRef;
+    }
+    return player1CardRef;
+  }, []);
+
+  const getProjectileRefs = useCallback((fromPlayer: 'player1' | 'player2' | 'support1' | 'support2', toPlayer: 'player1' | 'player2' | 'support1' | 'support2') => {
+    let fromRef: React.RefObject<HTMLDivElement | null> = player1CardRef;
+    if (fromPlayer === 'player2') {
+      fromRef = player2CardRef;
+    } else if (fromPlayer === 'support1' && support1CardRef.current) {
+      fromRef = { current: support1CardRef.current } as React.RefObject<HTMLDivElement | null>;
+    } else if (fromPlayer === 'support2' && support2CardRef.current) {
+      fromRef = { current: support2CardRef.current } as React.RefObject<HTMLDivElement | null>;
+    }
+    
+    let toRef: React.RefObject<HTMLDivElement | null> = player1CardRef;
+    if (toPlayer === 'player2') {
+      toRef = player2CardRef;
+    } else if (toPlayer === 'support1' && support1CardRef.current) {
+      toRef = { current: support1CardRef.current } as React.RefObject<HTMLDivElement | null>;
+    } else if (toPlayer === 'support2' && support2CardRef.current) {
+      toRef = { current: support2CardRef.current } as React.RefObject<HTMLDivElement | null>;
+    }
+    
+    return { fromRef, toRef };
+  }, []);
+
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#D1C9BA' }}>
+    <div className={STYLES.page.container} style={{ backgroundColor: STYLES.page.backgroundColor }}>
       {/* Landscape Orientation Prompt */}
       <LandscapePrompt />
       
       {/* Floating Numbers */}
-      {floatingNumbers.map((number) => {
-        // Determine which ref to use based on target player
-        let targetRef: React.RefObject<HTMLDivElement | null> = player1CardRef;
-        if (number.targetPlayer === 'player2') {
-          targetRef = player2CardRef;
-        } else if (number.targetPlayer === 'support1') {
-          // Always try to use support1 ref, even if not available yet (will retry)
-          targetRef = support1CardRef.current 
-            ? { current: support1CardRef.current } as React.RefObject<HTMLDivElement | null>
-            : player1CardRef; // Fallback to player1 if support ref not ready
-        } else if (number.targetPlayer === 'support2') {
-          // Always try to use support2 ref, even if not available yet (will retry)
-          targetRef = support2CardRef.current 
-            ? { current: support2CardRef.current } as React.RefObject<HTMLDivElement | null>
-            : player1CardRef; // Fallback to player1 if support ref not ready
-        }
-        
-        return (
-          <FloatingNumber
-            key={number.id}
-            value={number.value}
-            type={number.type}
-            targetCardRef={targetRef}
-            onComplete={() => handleFloatingNumberComplete(number.id)}
-            persistent={number.persistent}
-          />
-        );
-      })}
+      {floatingNumbers.map((number) => (
+        <FloatingNumber
+          key={number.id}
+          value={number.value}
+          type={number.type}
+          targetCardRef={getFloatingNumberRef(number.targetPlayer)}
+          onComplete={() => handleFloatingNumberComplete(number.id)}
+          persistent={number.persistent}
+        />
+      ))}
       
       {/* Projectile Effects */}
       {projectileEffects.map((projectile) => {
-        // Determine which refs to use based on from/to players
-        let fromRef = player1CardRef;
-        if (projectile.fromPlayer === 'player2') {
-          fromRef = player2CardRef;
-        } else if (projectile.fromPlayer === 'support1' && support1CardRef.current) {
-          fromRef = { current: support1CardRef.current } as React.RefObject<HTMLDivElement | null>;
-        } else if (projectile.fromPlayer === 'support2' && support2CardRef.current) {
-          fromRef = { current: support2CardRef.current } as React.RefObject<HTMLDivElement | null>;
-        }
-        
-        let toRef = player1CardRef;
-        if (projectile.toPlayer === 'player2') {
-          toRef = player2CardRef;
-        } else if (projectile.toPlayer === 'support1' && support1CardRef.current) {
-          toRef = { current: support1CardRef.current } as React.RefObject<HTMLDivElement | null>;
-        } else if (projectile.toPlayer === 'support2' && support2CardRef.current) {
-          toRef = { current: support2CardRef.current } as React.RefObject<HTMLDivElement | null>;
-        }
-        
+        const { fromRef, toRef } = getProjectileRefs(projectile.fromPlayer, projectile.toPlayer);
         return (
           <ProjectileEffect
             key={projectile.id}
@@ -1027,41 +1069,63 @@ export default function BattleArena() {
         isLoading={isRefreshingFromDatabase}
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 md:py-4 pb-0">
-        <div className="space-y-3 md:space-y-4 overflow-visible">
+      <div className={STYLES.content.container}>
+        <div className={STYLES.content.inner}>
           {/* Character Selection */}
           {!isBattleActive && (
-            <div className="space-y-4 md:space-y-5">
-              {/* Main Title */}
-              <div className="text-center">
-                <h2 className="text-4xl sm:text-5xl md:text-5xl lg:text-6xl font-bold mb-1 md:mb-2" style={{ 
-                  fontFamily: 'serif', 
-                  color: '#E4DDCD', 
-                  textTransform: 'uppercase', 
-                  letterSpacing: '0.1em',
-                  textShadow: '2px 2px 0px rgba(0,0,0,0.1), 1px 1px 0px rgba(0,0,0,0.15)',
-                  fontWeight: 700
-                }}>
-                  Choose Your Hero
-                </h2>
-                {isLoadingClasses && (
-                  <p className="text-sm text-gray-600 italic mt-2">
-                    Loading classes from OpenRAG...
-                    <span className="waiting-indicator ml-2 inline-block">
-                      <span className="waiting-dot"></span>
-                      <span className="waiting-dot"></span>
-                      <span className="waiting-dot"></span>
-                    </span>
-                  </p>
-                )}
-                {isLoadingClassDetails && !isLoadingClasses && (
-                  <p className="text-sm text-gray-600 italic mt-2">Loading class information from knowledge base...</p>
+            <div className={STYLES.characterSelection.container}>
+              {/* Main Title or Buttons */}
+              <div className={STYLES.characterSelection.titleContainer}>
+                {player1Class ? (
+                  /* Begin Battle and Reset Buttons - shown when hero is selected */
+                  <div className={STYLES.characterSelection.buttonContainer}>
+                    <button
+                      onClick={startBattle}
+                      disabled={!player1Class || !player2Class || isLoadingClassDetails || isBattleActive}
+                      className={STYLES.buttons.beginBattle.base}
+                    >
+                      {isLoadingClassDetails ? 'Starting Battle...' : 'Begin Battle!'}
+                    </button>
+                    <button
+                      onClick={resetBattle}
+                      className={STYLES.buttons.reset}
+                    >
+                      <HugeiconsIcon 
+                        icon={Refresh03Icon} 
+                        size={20} 
+                        className="text-current"
+                      />
+                      Reset
+                    </button>
+                  </div>
+                ) : (
+                  /* Choose your battle text - shown when no hero is selected */
+                  <>
+                    <h2 className={STYLES.characterSelection.title}>
+                      Choose your battle...
+                    </h2>
+                    {isLoadingClasses && (
+                      <p className={STYLES.characterSelection.loadingText}>
+                        Loading classes from OpenRAG...
+                        <span className={STYLES.characterSelection.waitingIndicator}>
+                          <span className={STYLES.characterSelection.waitingDot}></span>
+                          <span className={STYLES.characterSelection.waitingDot}></span>
+                          <span className={STYLES.characterSelection.waitingDot}></span>
+                        </span>
+                      </p>
+                    )}
+                    {isLoadingClassDetails && !isLoadingClasses && (
+                      <p className={STYLES.characterSelection.loadingText}>
+                        Loading class information from knowledge base...
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
 
               {!isLoadingClasses && !isLoadingMonsters && (
                 <>
-                  <div className="space-y-4 md:space-y-5">
+                  <div className={STYLES.characterSelection.selectionContainer}>
                     <ClassSelection
                       title=""
                       availableClasses={availableClasses}
@@ -1073,6 +1137,8 @@ export default function BattleArena() {
                     <OpponentSelector
                       opponentType={opponentType}
                       onOpponentTypeChange={setOpponentType}
+                      player1Class={player1Class}
+                      player1Name={player1Name || ''}
                       player2Class={player2Class}
                       player2Name={player2Name}
                       availableClasses={availableClasses}
@@ -1085,29 +1151,8 @@ export default function BattleArena() {
                       selectionSyncTrigger={selectionSyncTrigger}
                     />
                   </div>
-
-                  {/* Begin Battle and Reset Buttons */}
-                  <div className="mt-4 md:mt-5 flex gap-4">
-                    <button
-                      onClick={startBattle}
-                      disabled={!player1Class || !player2Class || isLoadingClassDetails || isBattleActive}
-                      className="flex-1 py-3 md:py-4 px-6 bg-red-900 hover:bg-red-800 text-white font-bold text-lg md:text-xl rounded-lg border-4 border-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-2xl"
-                      style={{ fontFamily: 'serif' }}
-                    >
-                      {isLoadingClassDetails ? 'Starting Battle...' : 'Begin Battle! ⚔️'}
-                    </button>
-                    <button
-                      onClick={resetBattle}
-                      className="flex items-center gap-2 px-6 py-3 md:py-4 text-gray-700 hover:text-gray-900 transition-colors font-semibold text-base md:text-lg border-2 border-gray-400 rounded-lg"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                      Reset
-                    </button>
-                  </div>
                   {player1Class && !player2Class && (
-                    <p className="text-sm text-gray-600 text-center italic mt-2">
+                    <p className={STYLES.characterSelection.hintText}>
                       Select your character to automatically assign an opponent
                     </p>
                   )}

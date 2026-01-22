@@ -64,27 +64,23 @@ export function getCharacterSource(character: Character): CharacterSource {
  */
 export interface BadgeConfig {
   bg: string;
-  border: string;
   text: string;
   tooltip: string;
 }
 
 export const BADGE_CONFIGS: Record<Exclude<CharacterSource, null>, BadgeConfig> = {
   default: {
-    bg: 'bg-amber-600/90',
-    border: 'border-amber-400/50',
+    bg: 'bg-emerald-700',
     text: 'DEFAULT',
     tooltip: 'Default character - loaded from game defaults'
   },
   generated: {
-    bg: 'bg-cyan-600/90',
-    border: 'border-cyan-400/50',
+    bg: 'bg-violet-700',
     text: 'GENERATED',
     tooltip: 'AI-generated character created locally'
   },
   openrag: {
-    bg: 'bg-purple-600/90',
-    border: 'border-purple-400/50',
+    bg: 'bg-rose-700',
     text: 'OPENRAG',
     tooltip: 'Character retrieved from OpenRAG knowledge base'
   }

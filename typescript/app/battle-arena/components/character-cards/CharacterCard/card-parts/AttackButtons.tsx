@@ -29,9 +29,6 @@ export const AttackButtons = memo(function AttackButtons({
   const iconSize = sizing.isCompact ? '0.65em' : '0.75em';
   
   const buttonStyle = {
-    color: CARD_THEME.colors.buttonText,
-    backgroundColor: CARD_THEME.colors.buttonBg,
-    border: `1px solid ${CARD_THEME.colors.border}`,
     borderRadius: '6px',
     padding: sizing.abilityButtonPadding,
     cursor: (shouldDisableOpponent || isDisabled) ? 'not-allowed' : 'pointer',
@@ -50,6 +47,8 @@ export const AttackButtons = memo(function AttackButtons({
     verticalAlign: 'top' as const,
   };
   
+  const buttonClassName = 'text-stone-800 bg-stone-100 border-stone-100 border';
+  
   if (showSeparate) {
     // Show separate Melee and Ranged buttons
     return (
@@ -57,7 +56,7 @@ export const AttackButtons = memo(function AttackButtons({
         <button
           onClick={() => onAttack('melee')}
           disabled={shouldDisableOpponent || isDisabled}
-          className="disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-opacity-80"
+          className={`disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-opacity-80 ${buttonClassName}`}
           style={buttonStyle}
           title={buildAttackTooltip(playerClass.meleeDamageDie!, 'melee')}
         >
@@ -67,7 +66,7 @@ export const AttackButtons = memo(function AttackButtons({
         <button
           onClick={() => onAttack('ranged')}
           disabled={shouldDisableOpponent || isDisabled}
-          className="disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-opacity-80"
+          className={`disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-opacity-80 ${buttonClassName}`}
           style={buttonStyle}
           title={buildAttackTooltip(playerClass.rangedDamageDie!, 'ranged')}
         >
@@ -97,7 +96,7 @@ export const AttackButtons = memo(function AttackButtons({
     <button
       onClick={() => onAttack()}
       disabled={shouldDisableOpponent || isDisabled}
-      className="disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-opacity-80"
+      className={`disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-opacity-80 ${buttonClassName}`}
       style={buttonStyle}
       title={buildAttackTooltip(damageDie, attackType)}
     >

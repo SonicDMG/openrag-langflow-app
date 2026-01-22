@@ -632,19 +632,19 @@ function UnifiedCharacterCreatorContent() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#D1C9BA' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--page-background)' }}>
         <div className="text-xl text-gray-700">Loading character...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#D1C9BA' }}>
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--page-background)' }}>
       <LandscapePrompt />
       
       <PageHeader
         title={editId ? 'Edit' : 'Create'}
-        title2="Character"
+        title2="Card"
         decalImageUrl="/cdn/decals/create-character.png"
       />
 
@@ -1369,7 +1369,7 @@ function AbilityEditor({ ability, index, onUpdate, onRemove }: AbilityEditorProp
 export default function UnifiedCharacterCreatorPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#D1C9BA' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--page-background)' }}>
         <div className="text-xl text-gray-700">Loading...</div>
       </div>
     }>
