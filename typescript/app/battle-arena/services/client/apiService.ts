@@ -320,34 +320,51 @@ export async function processSingleCharacter(
 ): Promise<{ stats: Partial<Character> | null; abilities: Ability[]; response: string; characterName: string; alreadyExists?: boolean }> {
   try {
     // First call: Search for character information (new thread for each character)
-    const searchQuery = `using your tools, find character sheet, details, description, name, and abilities for ${characterName}. Be sure to list the name as "Name: nameHere"`;
+    const searchQuery = `using your tools, find character sheet, details, description, name, and abilities for ${characterName}. Be sure to list the name as "Name: nameHere". If no sources are found in the knowledge base, use web search and URL ingestion tools to find the character information online, then search again.`;
     
     // Log the prompt for debugging
     console.log(`[processSingleCharacter] First call - Search prompt for ${characterName}:`, searchQuery);
     
     addLog('system', `🔍 Searching OpenRAG for ${characterName}...`);
     
-    const searchResponse = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        message: searchQuery,
-        previousResponseId: null, // New thread for each character
-      }),
-    });
+    let searchResponse;
+    try {
+      searchResponse = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: searchQuery,
+          previousResponseId: null, // New thread for each character
+        }),
+      });
 
-    if (!searchResponse.ok) {
-      throw new Error(`HTTP error! status: ${searchResponse.status}`);
+      if (!searchResponse.ok) {
+        throw new Error(`API request failed with status ${searchResponse.status}`);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      addLog('system', `❌ Error during character search: ${errorMessage}`);
+      throw new Error(`Failed to fetch character data: ${errorMessage}`);
     }
 
     const searchReader = searchResponse.body?.getReader();
     if (!searchReader) {
-      throw new Error('No response body');
+      throw new Error('No response body available from search request');
     }
 
-    const { content: searchContent, responseId } = await parseSSEResponse(searchReader);
+    let searchContent: string;
+    let responseId: string | null;
+    try {
+      const result = await parseSSEResponse(searchReader);
+      searchContent = result.content;
+      responseId = result.responseId;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      addLog('system', `❌ Error parsing search response: ${errorMessage}`);
+      throw new Error(`Failed to parse character search response: ${errorMessage}`);
+    }
     
     // Log the agent response
     addLog('narrative', `**OpenRAG Search Response (${characterName}):**\n\n${searchContent}`);
@@ -484,7 +501,7 @@ export async function processSingleCharacter(
     }
     
     // Second call: Structure the found information into complete character JSON
-    const structureQuery = `Based on the information found about ${characterName}, provide the complete character information in JSON format:
+    const structureQuery = `Based on the information found about the SINGLE character "${characterName}", provide the complete character information in JSON format for ONLY this one character - do not include multiple characters or similar names:
 {
   "name": string (the actual character name from the character sheet, e.g., "Sylvan the Hunter", "Aragorn", "Gandalf the Grey"),
   "hitPoints": number (typical starting HP at level 1-3, around 20-35),
@@ -522,27 +539,42 @@ Important rules:
     
     addLog('system', `📋 Structuring ${characterName} information into JSON format...`);
     
-    const structureResponse = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        message: structureQuery,
-        previousResponseId: responseId,
-      }),
-    });
+    let structureResponse;
+    try {
+      structureResponse = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: structureQuery,
+          previousResponseId: responseId,
+        }),
+      });
 
-    if (!structureResponse.ok) {
-      throw new Error(`HTTP error! status: ${structureResponse.status}`);
+      if (!structureResponse.ok) {
+        throw new Error(`API request failed with status ${structureResponse.status}`);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      addLog('system', `❌ Error during character structuring: ${errorMessage}`);
+      throw new Error(`Failed to structure character data: ${errorMessage}`);
     }
 
     const structureReader = structureResponse.body?.getReader();
     if (!structureReader) {
-      throw new Error('No response body');
+      throw new Error('No response body available from structure request');
     }
 
-    const { content } = await parseSSEResponse(structureReader);
+    let content: string;
+    try {
+      const result = await parseSSEResponse(structureReader);
+      content = result.content;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      addLog('system', `❌ Error parsing structure response: ${errorMessage}`);
+      throw new Error(`Failed to parse character structure response: ${errorMessage}`);
+    }
     
     // Log the agent response
     addLog('narrative', `**OpenRAG Response (${characterName} Stats & Abilities):**\n\n${content}`);

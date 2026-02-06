@@ -34,12 +34,21 @@ export default function LoadDataPage() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const processedItemsRef = useRef<Character[]>([]);
   
-  // Confirmation modal state
+  // Confirmation modal state (for bulk load)
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [discoveredItems, setDiscoveredItems] = useState<string[]>([]);
   const [pendingItemType, setPendingItemType] = useState<'heroes' | 'monsters'>('heroes');
   const [pendingSearchContext, setPendingSearchContext] = useState<string>('');
   const [pendingIngestionFn, setPendingIngestionFn] = useState<(() => Promise<void>) | null>(null);
+
+  // Confirmation modal state (for single character load)
+  const [showSingleConfirmation, setShowSingleConfirmation] = useState(false);
+  const [discoveredCharacter, setDiscoveredCharacter] = useState<any>(null);
+  const [characterAlreadyExists, setCharacterAlreadyExists] = useState(false);
+
+  // Retry state for failed character lookups
+  const [failedCharacterLookup, setFailedCharacterLookup] = useState<string | null>(null);
+  const [lookupError, setLookupError] = useState<string | null>(null);
 
   // Auto-scroll to bottom of log
   useEffect(() => {
@@ -469,7 +478,8 @@ export default function LoadDataPage() {
     }
   };
 
-  const loadSingleHeroOrMonster = async () => {
+  // Discovery phase: Fetch character data and show confirmation modal
+  const discoverSingleCharacter = async () => {
     if (!singleLookupName.trim()) {
       addLog('error', '⚠️ Please enter a hero/class or monster name');
       return;
@@ -482,7 +492,7 @@ export default function LoadDataPage() {
     addLog('system', `🔍 Looking up "${singleLookupName}" (skipping list query, going directly to character details)...`);
     
     try {
-      addLog('item', `Loading ${singleLookupName}...`, singleLookupName, 'loading');
+      addLog('item', `Discovering ${singleLookupName}...`, singleLookupName, 'loading');
       
       // Use processSingleCharacter directly - it does 2 queries: search + follow-up
       const result = await processSingleCharacter(
@@ -493,18 +503,15 @@ export default function LoadDataPage() {
       // Use the extracted character name from the character sheet, not the search term
       const characterName = result.characterName || singleLookupName.trim();
 
-      // Check if character already exists (checked during processSingleCharacter)
-      if (result.alreadyExists) {
-        updateLogEntry(singleLookupName, 'success', `ℹ️ ${characterName} - Already exists in database`);
-        setIsLoadingSingle(false);
-        return;
-      }
-
       if (!result.stats) {
         updateLogEntry(singleLookupName, 'failed', `❌ ${singleLookupName} - Character not found`);
         setIsLoadingSingle(false);
         return;
       }
+
+      // Clear any previous error state on successful lookup
+      setFailedCharacterLookup(null);
+      setLookupError(null);
 
       // Determine if it's a monster or hero/class (heuristic: check if name is in fallback monsters)
       // Use the original search term for this check, not the extracted name
@@ -533,11 +540,63 @@ export default function LoadDataPage() {
         fromOpenRAG: true, // Mark as loaded from OpenRAG
       };
 
+      // Store discovered character data for confirmation
+      setDiscoveredCharacter({
+        ...newItem,
+        type: itemType,
+        isMonster,
+      });
+      
+      // Check if character already exists
+      setCharacterAlreadyExists(result.alreadyExists || false);
+      
+      updateLogEntry(singleLookupName, 'success', `✅ ${characterName} - Discovered (HP: ${newItem.hitPoints}, AC: ${newItem.armorClass}, ${newItem.abilities.length} abilities)`);
+      addLog('system', `✅ Character discovered. Please confirm to save.`);
+      
+      // Show confirmation modal
+      setShowSingleConfirmation(true);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      if (abortControllerRef.current?.signal.aborted) {
+        addLog('system', '⚠️ Operation cancelled');
+      } else {
+        addLog('error', `❌ Error discovering ${singleLookupName}: ${errorMessage}`);
+        updateLogEntry(singleLookupName, 'failed', `❌ ${singleLookupName} - Error: ${errorMessage}`);
+        
+        // Set error state for retry capability
+        setFailedCharacterLookup(singleLookupName);
+        setLookupError(errorMessage);
+        addLog('system', `⚠️ Request failed: ${errorMessage}. You can retry the lookup below.`);
+      }
+    } finally {
+      setIsLoadingSingle(false);
+    }
+  };
+
+  // Ingestion phase: Save character after user confirms
+  const ingestSingleCharacter = async () => {
+    if (!discoveredCharacter) return;
+
+    setShowSingleConfirmation(false);
+    setIsLoadingSingle(true);
+    
+    const characterName = discoveredCharacter.name;
+    const isMonster = discoveredCharacter.isMonster;
+    const storageKey = isMonster ? 'battle_arena_loaded_monsters' : 'battle_arena_loaded_classes';
+    const apiEndpoint = isMonster ? '/api/monsters-db' : '/api/heroes';
+
+    try {
+      addLog('system', `💾 Saving ${characterName} to localStorage and database...`);
+
+      // Remove temporary fields before saving
+      const { type, isMonster: _, ...characterToSave } = discoveredCharacter;
+
       // Merge with existing items and save to localStorage
       const existingItems = JSON.parse(localStorage.getItem(storageKey) || '[]');
       const allItems = new Map<string, Character>();
       existingItems.forEach((item: Character) => allItems.set(item.name, item));
-      allItems.set(newItem.name, newItem);
+      allItems.set(characterToSave.name, characterToSave);
       const finalItems = Array.from(allItems.values());
 
       try {
@@ -573,17 +632,13 @@ export default function LoadDataPage() {
         addLog('error', `⚠️ Failed to save to Astra DB: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
 
-      updateLogEntry(singleLookupName, 'success', `✅ ${characterName} - Loaded (HP: ${newItem.hitPoints}, AC: ${newItem.armorClass}, ${newItem.abilities.length} abilities)`);
-      addLog('system', `✅ Completed loading ${characterName}`);
+      addLog('success', `✅ Completed loading ${characterName}`);
     } catch (error) {
-      if (abortControllerRef.current?.signal.aborted) {
-        addLog('system', '⚠️ Operation cancelled');
-      } else {
-        addLog('error', `❌ Error loading ${singleLookupName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        updateLogEntry(singleLookupName, 'failed', `❌ ${singleLookupName} - Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
+      addLog('error', `❌ Error saving ${characterName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsLoadingSingle(false);
+      setDiscoveredCharacter(null);
+      setCharacterAlreadyExists(false);
     }
   };
 
@@ -857,7 +912,7 @@ export default function LoadDataPage() {
                   onChange={(e) => setSingleLookupName(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !isLoadingSingle) {
-                      loadSingleHeroOrMonster();
+                      discoverSingleCharacter();
                     }
                   }}
                   placeholder="e.g., Scanlan, Fighter, Goblin"
@@ -868,12 +923,51 @@ export default function LoadDataPage() {
                 </p>
               </div>
               <button
-                onClick={loadSingleHeroOrMonster}
+                onClick={discoverSingleCharacter}
                 disabled={isLoadingSingle || isLoadingClasses || isLoadingMonsters || !singleLookupName.trim()}
                 className="w-full px-6 py-3 bg-purple-900 hover:bg-purple-800 text-white font-bold rounded-lg border-2 border-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                {isLoadingSingle ? 'Looking up...' : 'Look Up Single Hero/Class/Monster'}
+                {isLoadingSingle ? 'Looking up...' : 'Load Single Hero/Class/Monster'}
               </button>
+
+              {/* Retry UI for failed lookups */}
+              {failedCharacterLookup && lookupError && (
+                <div className="mt-4 p-4 bg-red-50 border-2 border-red-300 rounded-lg">
+                  <p className="text-red-800 mb-3 font-semibold">
+                    Failed to load "{failedCharacterLookup}"
+                  </p>
+                  <p className="text-red-700 mb-3 text-sm">
+                    <strong>Error:</strong> {lookupError}
+                  </p>
+                  <p className="text-red-600 mb-3 text-sm">
+                    This may be due to a network interruption or streaming error. Retrying may resolve the issue.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setFailedCharacterLookup(null);
+                        setLookupError(null);
+                        setSingleLookupName(failedCharacterLookup);
+                        // Automatically retry
+                        setTimeout(() => discoverSingleCharacter(), 100);
+                      }}
+                      className="flex-1 px-4 py-2 bg-red-600 text-white font-semibold rounded hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={isLoadingSingle}
+                    >
+                      🔄 Retry Lookup
+                    </button>
+                    <button
+                      onClick={() => {
+                        setFailedCharacterLookup(null);
+                        setLookupError(null);
+                      }}
+                      className="px-4 py-2 bg-gray-600 text-white font-semibold rounded hover:bg-gray-700 transition-colors"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1025,7 +1119,7 @@ export default function LoadDataPage() {
         </div>
       </div>
 
-      {/* Confirmation Modal */}
+      {/* Bulk Load Confirmation Modal */}
       <StagingConfirmationModal
         isOpen={showConfirmation}
         onClose={handleCancelStaging}
@@ -1033,6 +1127,16 @@ export default function LoadDataPage() {
         items={discoveredItems}
         itemType={pendingItemType}
         searchContext={pendingSearchContext || undefined}
+      />
+
+      {/* Single Character Confirmation Modal */}
+      <StagingConfirmationModal
+        isOpen={showSingleConfirmation}
+        onClose={() => setShowSingleConfirmation(false)}
+        onConfirm={ingestSingleCharacter}
+        items={discoveredCharacter ? [discoveredCharacter.name + (characterAlreadyExists ? ' (already exists - will update)' : '')] : []}
+        itemType={discoveredCharacter?.type === 'monster' ? 'monsters' : 'heroes'}
+        searchContext={singleLookupName}
       />
     </div>
   );

@@ -194,13 +194,13 @@ describe('apiService - Query Structure Tests', () => {
       // First call: search query (filter to chat calls only)
       const firstCall = chatCalls[0];
       const firstRequestBody = JSON.parse(firstCall[1].body);
-      expect(firstRequestBody.message).toBe('using your tools, find character sheet, details, description, name, and abilities for Scanlan. Be sure to list the name as "Name: nameHere"');
+      expect(firstRequestBody.message).toBe('using your tools, find character sheet, details, description, name, and abilities for Scanlan. Be sure to list the name as "Name: nameHere". If no sources are found in the knowledge base, use web search and URL ingestion tools to find the character information online, then search again.');
       expect(firstRequestBody.previousResponseId).toBeNull(); // New thread
 
       // Second call: follow-up query
       const secondCall = chatCalls[1];
       const secondRequestBody = JSON.parse(secondCall[1].body);
-      expect(secondRequestBody.message).toContain('Based on the information found about Scanlan');
+      expect(secondRequestBody.message).toContain('Based on the information found about the SINGLE character "Scanlan"');
       expect(secondRequestBody.message).toContain('provide the complete character information in JSON format');
       expect(secondRequestBody.previousResponseId).toBe('response-123'); // Same thread
       
@@ -401,7 +401,7 @@ describe('apiService - Query Structure Tests', () => {
       // Should not have a separate search query before processSingleCharacter
       const firstCall = chatCalls[0];
       const firstRequestBody = JSON.parse(firstCall[1].body);
-      expect(firstRequestBody.message).toBe('using your tools, find character sheet, details, description, name, and abilities for Rogue. Be sure to list the name as "Name: nameHere"');
+      expect(firstRequestBody.message).toBe('using your tools, find character sheet, details, description, name, and abilities for Rogue. Be sure to list the name as "Name: nameHere". If no sources are found in the knowledge base, use web search and URL ingestion tools to find the character information online, then search again.');
       
       // Should return results
       expect(results).toHaveLength(1);
