@@ -11,6 +11,7 @@ import { StagingConfirmationModal } from '../components/battle/StagingConfirmati
 import { LoadDefaultHeroesCard } from '../components/action-cards/LoadDefaultHeroesCard';
 import { LoadDefaultMonstersCard } from '../components/action-cards/LoadDefaultMonstersCard';
 import { UnifiedExportCard } from '../components/action-cards/UnifiedExportCard';
+import { FilterSelector } from '../components/ui/FilterSelector';
 
 type LogEntry = {
   id: string;
@@ -25,6 +26,8 @@ export default function LoadDataPage() {
   const router = useRouter();
   const [classSearchContext, setClassSearchContext] = useState<string>('Battle Arena');
   const [monsterSearchContext, setMonsterSearchContext] = useState<string>('Battle Arena');
+  const [heroesFilterIds, setHeroesFilterIds] = useState<string[]>([]);
+  const [monstersFilterIds, setMonstersFilterIds] = useState<string[]>([]);
   const [isLoadingClasses, setIsLoadingClasses] = useState(false);
   const [isLoadingMonsters, setIsLoadingMonsters] = useState(false);
   const [singleLookupName, setSingleLookupName] = useState<string>('');
@@ -263,17 +266,29 @@ export default function LoadDataPage() {
   const loadClassesFromOpenRAG = async () => {
     setIsLoadingClasses(true);
     setLogEntries([]);
-    addLog('system', `🚀 Discovering classes from OpenRAG (context: ${classSearchContext || 'default'})...`);
+    
+    // Log filter information
+    if (heroesFilterIds.length > 0) {
+      addLog('system', `🔍 Applying ${heroesFilterIds.length} filter(s): ${heroesFilterIds.join(', ')}`);
+      if (heroesFilterIds.length > 1) {
+        addLog('system', `⚠️ Note: Multiple filters selected. Only the first filter will be applied due to API limitations.`);
+      }
+    }
+    
+    addLog('system', `🚀 Discovering classes from OpenRAG (context: ${classSearchContext || 'default'})...`, undefined, 'loading');
     
     try {
       const { classNames } = await fetchAvailableClasses(
         (type, msg) => addLog(type === 'system' ? 'system' : 'system', msg),
-        classSearchContext || undefined
+        classSearchContext || undefined,
+        heroesFilterIds.length > 0 ? heroesFilterIds[0] : undefined,
+        500
       );
       
       if (classNames.length === 0) {
         const contextMsg = classSearchContext ? ` for "${classSearchContext}"` : '';
-        addLog('error', `⚠️ No classes found${contextMsg}. This might mean the knowledge base doesn't contain data for this context. Try a different search context (e.g., "Battle Arena", "Pokemon") or leave it blank for default Battle Arena classes.`);
+        const filterMsg = heroesFilterIds.length > 0 ? ` with filter(s) applied` : '';
+        addLog('error', `⚠️ No classes found${contextMsg}${filterMsg}. This might mean the knowledge base doesn't contain data for this context. Try a different search context (e.g., "Battle Arena", "Pokemon") or leave it blank for default Battle Arena classes.`);
         setIsLoadingClasses(false);
         return;
       }
@@ -448,17 +463,29 @@ export default function LoadDataPage() {
   const loadMonstersFromOpenRAG = async () => {
     setIsLoadingMonsters(true);
     setLogEntries([]);
-    addLog('system', `🚀 Discovering monsters from OpenRAG (context: ${monsterSearchContext || 'default'})...`);
+    
+    // Log filter information
+    if (monstersFilterIds.length > 0) {
+      addLog('system', `🔍 Applying ${monstersFilterIds.length} filter(s): ${monstersFilterIds.join(', ')}`);
+      if (monstersFilterIds.length > 1) {
+        addLog('system', `⚠️ Note: Multiple filters selected. Only the first filter will be applied due to API limitations.`);
+      }
+    }
+    
+    addLog('system', `🚀 Discovering monsters from OpenRAG (context: ${monsterSearchContext || 'default'})...`, undefined, 'loading');
     
     try {
       const { monsterNames } = await fetchAvailableMonsters(
         (type, msg) => addLog(type === 'system' ? 'system' : 'system', msg),
-        monsterSearchContext || undefined
+        monsterSearchContext || undefined,
+        monstersFilterIds.length > 0 ? monstersFilterIds[0] : undefined,
+        500
       );
       
       if (monsterNames.length === 0) {
         const contextMsg = monsterSearchContext ? ` for "${monsterSearchContext}"` : '';
-        addLog('error', `⚠️ No monsters found${contextMsg}. This might mean the knowledge base doesn't contain data for this context. Try a different search context (e.g., "Battle Arena", "Pokemon") or leave it blank for default Battle Arena monsters.`);
+        const filterMsg = monstersFilterIds.length > 0 ? ` with filter(s) applied` : '';
+        addLog('error', `⚠️ No monsters found${contextMsg}${filterMsg}. This might mean the knowledge base doesn't contain data for this context. Try a different search context (e.g., "Battle Arena", "Pokemon") or leave it blank for default Battle Arena monsters.`);
         setIsLoadingMonsters(false);
         return;
       }
@@ -822,10 +849,31 @@ export default function LoadDataPage() {
     }
   };
 
-  const getStatusIcon = (status?: LogEntry['status']) => {
+  const getStatusIcon = (status?: LogEntry['status']): React.ReactNode => {
     switch (status) {
       case 'loading':
-        return '⏳';
+        return (
+          <svg
+            className="animate-spin h-4 w-4 text-yellow-400"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
+          </svg>
+        );
       case 'success':
         return '✅';
       case 'failed':
@@ -978,6 +1026,12 @@ export default function LoadDataPage() {
                 Bulk Load Classes/Heroes
               </h2>
               <div className="space-y-4">
+                <FilterSelector
+                  selectedFilterIds={heroesFilterIds}
+                  onFilterChange={setHeroesFilterIds}
+                  label="Hero Class Filters"
+                  className="mb-4"
+                />
                 <div>
                   <label className="block text-sm font-medium text-amber-200 mb-2">
                     Search Context
@@ -1009,6 +1063,12 @@ export default function LoadDataPage() {
                 Bulk Load Monsters
               </h2>
               <div className="space-y-4">
+                <FilterSelector
+                  selectedFilterIds={monstersFilterIds}
+                  onFilterChange={setMonstersFilterIds}
+                  label="Monster Filters"
+                  className="mb-4"
+                />
                 <div>
                   <label className="block text-sm font-medium text-amber-200 mb-2">
                     Search Context

@@ -88,6 +88,9 @@ export const chatMessageSchema = z.object({
     .trim(),
   previousResponseId: z.string().nullable().optional(),
   chatId: z.string().nullable().optional(),
+  filterId: z.string().optional(),
+  limit: z.number().int().min(1).max(1000).optional(),
+  scoreThreshold: z.number().min(0).max(1).optional(),
 });
 
 export type ChatMessageInput = z.infer<typeof chatMessageSchema>;

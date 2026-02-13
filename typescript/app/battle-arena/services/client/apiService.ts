@@ -221,26 +221,44 @@ async function extractAbilitiesFromResponse(
 // Fetch all available Battle Arena classes from OpenRAG
 export async function fetchAvailableClasses(
   addLog: (type: 'system' | 'narrative', message: string) => void,
-  searchContext?: string
+  searchContext?: string,
+  filterId?: string,
+  limit?: number
 ): Promise<{ classNames: string[]; response: string }> {
   try {
     const contextValue = searchContext || 'Battle Arena';
-    const query = `Using your tools, find all character sheets, details, and descriptions for heroes or classes that match "${contextValue}". 
-
-Return only a JSON array of class or hero names. Do not include any other text, just the JSON array.`;
+    const query = `${contextValue}. Return only a JSON array of class or hero names, like ["Warrior", "Mage", "Rogue", "Cleric", ...]. Do not include any other text, just the JSON array.`;
     
     addLog('system', `🔍 Querying OpenRAG for available classes${searchContext ? ` (${searchContext})` : ' (Battle Arena)'}...`);
     
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        message: query,
-        previousResponseId: null,
-      }),
-    });
+    // Create abort controller with 60 second timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    
+    let response;
+    try {
+      response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: query,
+          previousResponseId: null,
+          filterId: filterId || undefined,
+          limit: limit || 100,
+          scoreThreshold: 0,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Request timed out after 60 seconds');
+      }
+      throw error;
+    }
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -821,25 +839,44 @@ Important rules:
 // Fetch all available Battle Arena monsters from OpenRAG
 export async function fetchAvailableMonsters(
   addLog: (type: 'system' | 'narrative', message: string) => void,
-  searchContext?: string
+  searchContext?: string,
+  filterId?: string,
+  limit?: number
 ): Promise<{ monsterNames: string[]; response: string }> {
   try {
-    const query = searchContext
-      ? `Based on your knowledge base, what monsters or creatures are available in ${searchContext}? Return only a JSON array of monster names, like ["Goblin", "Orc", "Dragon", "Troll", ...]. Do not include any other text, just the JSON array.`
-      : `What are the available Battle Arena monsters? Return only a JSON array of monster names, like ["Goblin", "Orc", "Dragon", "Troll", ...]. Do not include any other text, just the JSON array.`;
+    const contextValue = searchContext || 'Battle Arena';
+    const query = `${contextValue}. Return only a JSON array of monster names, like ["Goblin", "Orc", "Dragon", "Troll", ...]. Do not include any other text, just the JSON array.`;
     
     addLog('system', `🔍 Querying OpenRAG for available monsters${searchContext ? ` (${searchContext})` : ' (Battle Arena)'}...`);
     
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        message: query,
-        previousResponseId: null,
-      }),
-    });
+    // Create abort controller with 60 second timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    
+    let response;
+    try {
+      response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: query,
+          previousResponseId: null,
+          filterId: filterId || undefined,
+          limit: limit || 100,
+          scoreThreshold: 0,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Request timed out after 60 seconds');
+      }
+      throw error;
+    }
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);

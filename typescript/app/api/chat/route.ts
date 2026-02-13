@@ -9,6 +9,7 @@ import {
   logValidationFailure,
   logApiError
 } from '@/lib/security';
+import { getFilter } from '@/lib/openrag-utils/knowledge-filters';
 
 // Load environment variables from the root .env file
 config({ path: resolve(process.cwd(), '..', '.env') });
@@ -35,7 +36,71 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { message, previousResponseId } = validation.data;
+    const { message, previousResponseId, filterId, limit, scoreThreshold } = validation.data;
+
+    // Debug: Log the incoming request parameters
+    console.log('=== Incoming Request Parameters ===');
+    console.log('Message:', message.substring(0, 100) + (message.length > 100 ? '...' : ''));
+    console.log('ChatId:', previousResponseId || 'null');
+    console.log('FilterId:', filterId || 'undefined');
+    console.log('Requested Limit:', limit !== undefined ? limit : 'undefined');
+    console.log('Requested ScoreThreshold:', scoreThreshold !== undefined ? scoreThreshold : 'undefined');
+    console.log('===================================');
+
+    // If filterId is provided, fetch the filter to get its configuration
+    // Filter configuration takes precedence over request parameters
+    let filterScoreThreshold = scoreThreshold !== undefined ? scoreThreshold : 0;
+    let filterLimit = limit !== undefined ? limit : 100;
+    let filterName = 'none';
+    
+    if (filterId) {
+      try {
+        console.log(`=== Fetching Filter Configuration ===`);
+        console.log(`Filter ID: ${filterId}`);
+        const filter = await getFilter(filterId);
+        console.log(`Filter fetched:`, filter ? 'SUCCESS' : 'NULL');
+        
+        if (filter) {
+          console.log(`Full filter object:`, JSON.stringify(filter, null, 2));
+          filterName = filter.name;
+          
+          if (filter.queryData) {
+            console.log(`Filter queryData:`, JSON.stringify(filter.queryData, null, 2));
+            
+            // Filter's configuration takes precedence
+            if (filter.queryData.scoreThreshold !== undefined) {
+              console.log(`Applying filter scoreThreshold: ${filter.queryData.scoreThreshold} (was: ${filterScoreThreshold})`);
+              filterScoreThreshold = filter.queryData.scoreThreshold;
+            }
+            if (filter.queryData.limit !== undefined) {
+              console.log(`Applying filter limit: ${filter.queryData.limit} (was: ${filterLimit})`);
+              filterLimit = filter.queryData.limit;
+            }
+          } else {
+            console.log(`WARNING: Filter has no queryData property`);
+          }
+          
+          console.log(`=== Filter Configuration Applied ===`);
+          console.log(`Filter Name: "${filter.name}"`);
+          console.log(`Final Limit: ${filterLimit}`);
+          console.log(`Final ScoreThreshold: ${filterScoreThreshold}`);
+          console.log('====================================');
+        } else {
+          console.log(`WARNING: Filter ${filterId} returned null`);
+        }
+      } catch (error) {
+        console.error(`ERROR fetching filter ${filterId}:`, error);
+        console.warn(`Using request/default values: limit=${filterLimit}, scoreThreshold=${filterScoreThreshold}`);
+      }
+    }
+
+    // Debug: Log the final parameters that will be sent
+    console.log('=== Final OpenRAG Chat Request ===');
+    console.log('SDK Function: client.chat.stream()');
+    console.log('Filter Applied:', filterName);
+    console.log('Final Limit:', filterLimit);
+    console.log('Final ScoreThreshold:', filterScoreThreshold);
+    console.log('==================================');
 
     // Initialize OpenRAG client
     // Client auto-discovers OPENRAG_API_KEY and OPENRAG_URL from environment
@@ -51,15 +116,34 @@ export async function POST(request: NextRequest) {
         try {
           // Use OpenRAG SDK's streaming API
           // Note: previousResponseId maps to chatId in OpenRAG SDK
-          const stream = await client.chat.stream({
+          const streamParams = {
             message,
-            chatId: previousResponseId || undefined
-          });
+            chatId: previousResponseId || undefined,
+            filter_id: filterId || undefined,
+            limit: filterLimit,
+            scoreThreshold: filterScoreThreshold
+          };
+          
+          console.log('=== OpenRAG SDK Stream Params ===');
+          console.log(JSON.stringify(streamParams, null, 2));
+          console.log('=================================');
+          
+          const stream = await client.chat.stream(streamParams);
+
+          console.log('=== OpenRAG Response Stream Started ===');
+          let contentLength = 0;
+          let eventCount = 0;
+          let sourcesCount = 0;
 
           try {
             // Process streaming events
             for await (const event of stream) {
+              eventCount++;
+              console.log(`Event #${eventCount}:`, event.type);
+              
               if (event.type === 'content') {
+                contentLength += event.delta.length;
+                console.log(`  Content delta length: ${event.delta.length}, Total: ${contentLength}`);
                 // Send content chunks to client
                 const chunkData = JSON.stringify({
                   type: 'chunk',
@@ -67,14 +151,25 @@ export async function POST(request: NextRequest) {
                 });
                 controller.enqueue(encoder.encode(`data: ${chunkData}\n\n`));
               } else if (event.type === 'sources') {
+                sourcesCount++;
+                console.log(`  Sources event #${sourcesCount}:`, event.sources?.length || 0, 'sources');
                 // Optional: handle sources if needed
                 // For now, we'll skip sources to match current behavior
               } else if (event.type === 'done') {
+                console.log(`  Done event - ChatId: ${event.chatId || 'null'}`);
                 // Extract chat ID for conversation continuity
                 chatId = event.chatId || null;
                 completed = true;
               }
             }
+            
+            console.log('=== OpenRAG Response Summary ===');
+            console.log(`Total events: ${eventCount}`);
+            console.log(`Total content length: ${contentLength} chars`);
+            console.log(`Sources events: ${sourcesCount}`);
+            console.log(`Final chatId: ${chatId || 'null'}`);
+            console.log(`Completed: ${completed}`);
+            console.log('================================');
 
             // After iteration, get chat ID from stream if not already set
             if (!chatId && stream.chatId) {
