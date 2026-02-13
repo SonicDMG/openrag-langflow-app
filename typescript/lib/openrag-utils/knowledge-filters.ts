@@ -46,6 +46,9 @@ export async function searchFilters(
   limit?: number,
   client?: OpenRAGClient
 ): Promise<KnowledgeFilter[]> {
+  // TODO: Migrate back to OpenRAG SDK once knowledgeFilters.search() is fixed
+  // Currently using direct HTTP calls because SDK implementation doesn't match OpenRAG API
+  // The SDK should support: POST /api/v1/knowledge-filters/search with body { query, limit }
   // Get environment variables
   const OPENRAG_URL = process.env.OPENRAG_URL;
   const OPENRAG_API_KEY = process.env.OPENRAG_API_KEY;
@@ -143,6 +146,8 @@ export async function getFilter(
   filterId: string,
   client?: OpenRAGClient
 ): Promise<KnowledgeFilter | null> {
+  // TODO: Migrate back to OpenRAG SDK once knowledgeFilters.get() is fixed
+  // Currently using direct HTTP calls because SDK doesn't properly parse query_data JSON
   // Get environment variables
   const OPENRAG_URL = process.env.OPENRAG_URL;
   const OPENRAG_API_KEY = process.env.OPENRAG_API_KEY;
