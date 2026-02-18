@@ -227,7 +227,7 @@ export async function fetchAvailableClasses(
 ): Promise<{ classNames: string[]; response: string }> {
   try {
     const contextValue = searchContext || 'Battle Arena';
-    const query = `${contextValue}. Return only a JSON array of class or hero names, like ["Warrior", "Mage", "Rogue", "Cleric", ...]. Do not include any other text, just the JSON array.`;
+    const query = `${contextValue}. Return only a JSON array [] of class or hero names. Do not include monsters. Do not include any other text, just the JSON array.`;
     
     addLog('system', `🔍 Querying OpenRAG for available classes${searchContext ? ` (${searchContext})` : ' (Battle Arena)'}...`);
     
@@ -845,7 +845,7 @@ export async function fetchAvailableMonsters(
 ): Promise<{ monsterNames: string[]; response: string }> {
   try {
     const contextValue = searchContext || 'Battle Arena';
-    const query = `${contextValue}. Return only a JSON array of monster names, like ["Goblin", "Orc", "Dragon", "Troll", ...]. Do not include any other text, just the JSON array.`;
+    const query = `${contextValue}. Return only a JSON array [] of monster names. Do not include heroes. Do not include any other text, just the JSON array.`;
     
     addLog('system', `🔍 Querying OpenRAG for available monsters${searchContext ? ` (${searchContext})` : ' (Battle Arena)'}...`);
     
